@@ -85,67 +85,85 @@ export async function upsertLanguageCatalogEntry(
   const projectId = requireCatalogProjectId();
   const languageId = lcNorm.resolveStoredLanguageId(input);
   const now = new Date().toISOString();
-  const existing = await db.dexie.languages.get(languageId);
-  // 同一语言 ID 在库里只有一行：别的项目已覆盖时拒绝，而不是悄悄改归属。
-  // One stored row per language id: refuse instead of silently re-owning another project's row.
-  if (existing && existing.textId !== projectId) {
-    throw new CatalogOwnershipMismatchError('languages', languageId, existing.textId, projectId);
-  }
-  const nextSourceType: LanguageCatalogSourceType = languageId.startsWith('user:')
-    ? 'user-custom'
-    : (existing?.sourceType ?? 'user-override');
   const locale = resolveUpsertWorkspaceLocale(input);
-  const prep = prepareUpsertLanguageCatalogFields(input, existing, languageId, locale);
 
+  // Alias projection uses ignoreTransaction — keep it outside the write txn.
+  // 别名投影走 ignoreTransaction，不能放进写事务。
+  const existingForAlias = await db.dexie.languages.get(languageId);
+  if (existingForAlias && existingForAlias.textId !== projectId) {
+    throw new CatalogOwnershipMismatchError(
+      'languages',
+      languageId,
+      existingForAlias.textId,
+      projectId,
+    );
+  }
+  const prepForAlias = prepareUpsertLanguageCatalogFields(
+    input,
+    existingForAlias,
+    languageId,
+    locale,
+  );
   await lcProj.assertNoAliasConflicts({
     languageId,
     locale,
-    aliases: prep.normalizedAliases,
+    aliases: prepForAlias.normalizedAliases,
   });
 
-  const nextLanguage: LanguageDocType = buildUpsertLanguageDocForCatalog({
-    input,
-    existing,
-    languageId,
-    textId: projectId,
-    now,
-    nextSourceType,
-    p: prep,
-  });
-
-  const aliasRows = buildUpsertAliasRows({
-    normalizedAliases: prep.normalizedAliases,
-    languageId,
-    textId: projectId,
-    nextSourceType,
-    upsertInput: input,
-    now,
-  });
-
-  const displayRows = buildUpsertDisplayNameRows({
-    languageId,
-    textId: projectId,
-    locale,
-    prep,
-    nextSourceType,
-    upsertInput: input,
-    now,
-  });
-
-  const reason =
-    lcNorm.normalizeOptionalValue(input.reason) ??
-    t(
-      locale,
-      existing
-        ? 'service.languageCatalog.historyReasonUpdateDefault'
-        : 'service.languageCatalog.historyReasonCreateDefault',
-    );
-
+  // 事务内重读归属并构造写入，避免并发首次覆盖互相踩踏。
+  // Re-read ownership and build the write inside the txn so concurrent first overrides cannot clobber.
   await withTransaction(
     db,
     'rw',
     [...dexieStoresForLanguageCatalogMutateRw(db)],
     async () => {
+      const existing = await db.dexie.languages.get(languageId);
+      if (existing && existing.textId !== projectId) {
+        throw new CatalogOwnershipMismatchError('languages', languageId, existing.textId, projectId);
+      }
+      const nextSourceType: LanguageCatalogSourceType = languageId.startsWith('user:')
+        ? 'user-custom'
+        : (existing?.sourceType ?? 'user-override');
+      const prep = prepareUpsertLanguageCatalogFields(input, existing, languageId, locale);
+
+      const nextLanguage: LanguageDocType = buildUpsertLanguageDocForCatalog({
+        input,
+        existing,
+        languageId,
+        textId: projectId,
+        now,
+        nextSourceType,
+        p: prep,
+      });
+
+      const aliasRows = buildUpsertAliasRows({
+        normalizedAliases: prep.normalizedAliases,
+        languageId,
+        textId: projectId,
+        nextSourceType,
+        upsertInput: input,
+        now,
+      });
+
+      const displayRows = buildUpsertDisplayNameRows({
+        languageId,
+        textId: projectId,
+        locale,
+        prep,
+        nextSourceType,
+        upsertInput: input,
+        now,
+      });
+
+      const reason =
+        lcNorm.normalizeOptionalValue(input.reason) ??
+        t(
+          locale,
+          existing
+            ? 'service.languageCatalog.historyReasonUpdateDefault'
+            : 'service.languageCatalog.historyReasonCreateDefault',
+        );
+
       const [currentDisplayRows, currentAliasRows] = await Promise.all([
         db.dexie.language_display_names.where('languageId').equals(languageId).toArray(),
         db.dexie.language_aliases.where('languageId').equals(languageId).toArray(),
