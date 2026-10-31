@@ -933,7 +933,7 @@ export function TranscriptionTimelineVerticalViewGroupList({
                           ? {
                               onTranscribeRecording: () => {
                                 const b = readNonEmptyAudioBlobFromMediaItem(media);
-                                void transcribeVoiceTranslation(
+                                return transcribeVoiceTranslation(
                                   voiceDoc,
                                   tLayer,
                                   b ? { audioBlob: b } : undefined,

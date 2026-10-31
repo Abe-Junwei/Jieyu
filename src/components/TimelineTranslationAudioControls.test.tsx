@@ -93,3 +93,136 @@ describe('TimelineTranslationAudioControls', () => {
     });
   });
 });
+
+  it('keeps busy until a delayed transcribe Promise settles and blocks repeat clicks (#457)', async () => {
+    let resolveTranscribe!: () => void;
+    const onTranscribeRecording = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveTranscribe = resolve;
+        }),
+    );
+
+    const { container } = render(
+      <TimelineTranslationAudioControls
+        mediaItem={
+          {
+            id: 'media-1',
+            textId: 't1',
+            filename: 'demo.webm',
+            url: 'blob:demo',
+            isOfflineCached: true,
+            timelineKind: 'acoustic',
+            byteLocation: 'url',
+            availability: 'available',
+            details: { source: 'translation-recording', mimeType: 'audio/webm' },
+            createdAt: NOW,
+          } as never
+        }
+        onStartRecording={vi.fn()}
+        onTranscribeRecording={onTranscribeRecording}
+        onDeleteRecording={vi.fn()}
+      />,
+    );
+
+    const controls = container.querySelector(
+      '.timeline-translation-audio-controls',
+    ) as HTMLElement;
+    const button = within(controls).getByRole('button', {
+      name: /语音转文字|Transcribe recording/,
+    });
+    fireEvent.click(button);
+    await vi.waitFor(() => {
+      expect(onTranscribeRecording).toHaveBeenCalledTimes(1);
+    });
+    expect(controls.className).toContain('timeline-translation-audio-controls-transcribing');
+
+    fireEvent.click(button);
+    expect(onTranscribeRecording).toHaveBeenCalledTimes(1);
+
+    resolveTranscribe();
+    await vi.waitFor(() => {
+      expect(controls.className).not.toContain('timeline-translation-audio-controls-transcribing');
+    });
+  });
+
+  it('clears busy when the returned Promise rejects (#457)', async () => {
+    const onTranscribeRecording = vi.fn().mockRejectedValue(new Error('stt failed'));
+
+    const { container } = render(
+      <TimelineTranslationAudioControls
+        mediaItem={
+          {
+            id: 'media-1',
+            textId: 't1',
+            filename: 'demo.webm',
+            url: 'blob:demo',
+            isOfflineCached: true,
+            timelineKind: 'acoustic',
+            byteLocation: 'url',
+            availability: 'available',
+            details: { source: 'translation-recording', mimeType: 'audio/webm' },
+            createdAt: NOW,
+          } as never
+        }
+        onStartRecording={vi.fn()}
+        onTranscribeRecording={onTranscribeRecording}
+        onDeleteRecording={vi.fn()}
+      />,
+    );
+
+    const controls = container.querySelector(
+      '.timeline-translation-audio-controls',
+    ) as HTMLElement;
+    const button = within(controls).getByRole('button', {
+      name: /语音转文字|Transcribe recording/,
+    });
+    fireEvent.click(button);
+    await vi.waitFor(() => {
+      expect(onTranscribeRecording).toHaveBeenCalledTimes(1);
+    });
+    await vi.waitFor(() => {
+      expect(controls.className).not.toContain('timeline-translation-audio-controls-transcribing');
+    });
+  });
+
+  it('clears busy immediately if onTranscribeRecording returns undefined (parent must return Promise) (#457)', async () => {
+    const onTranscribeRecording = vi.fn(() => {
+      void undefined;
+    });
+
+    const { container } = render(
+      <TimelineTranslationAudioControls
+        mediaItem={
+          {
+            id: 'media-1',
+            textId: 't1',
+            filename: 'demo.webm',
+            url: 'blob:demo',
+            isOfflineCached: true,
+            timelineKind: 'acoustic',
+            byteLocation: 'url',
+            availability: 'available',
+            details: { source: 'translation-recording', mimeType: 'audio/webm' },
+            createdAt: NOW,
+          } as never
+        }
+        onStartRecording={vi.fn()}
+        onTranscribeRecording={onTranscribeRecording}
+        onDeleteRecording={vi.fn()}
+      />,
+    );
+
+    const controls = container.querySelector(
+      '.timeline-translation-audio-controls',
+    ) as HTMLElement;
+    fireEvent.click(
+      within(controls).getByRole('button', { name: /语音转文字|Transcribe recording/ }),
+    );
+    await vi.waitFor(() => {
+      expect(onTranscribeRecording).toHaveBeenCalledTimes(1);
+    });
+    await vi.waitFor(() => {
+      expect(controls.className).not.toContain('timeline-translation-audio-controls-transcribing');
+    });
+  });
