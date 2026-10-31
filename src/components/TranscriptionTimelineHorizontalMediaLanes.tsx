@@ -483,6 +483,7 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(
       scheduleAutoSave,
       clearAutoSaveTimer,
       saveUnitLayerText: saveUnitLayerText,
+      saveUnitText: saveUnitText,
       createLayer,
       updateLayerMetadata,
       deleteLayer,
@@ -792,7 +793,7 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(
                   {...(saveSegmentContentForLayer ? { saveSegmentContentForLayer } : {})}
                   scheduleAutoSave={scheduleAutoSave}
                   clearAutoSaveTimer={clearAutoSaveTimer}
-                  saveUnitLayerText={saveUnitLayerText}
+                  saveUnitText={saveUnitText}
                   focusedTranslationDraftKeyRef={focusedTranslationDraftKeyRef}
                   {...(translationAudioByLayer !== undefined ? { translationAudioByLayer } : {})}
                   mediaItemById={mediaItemById}
