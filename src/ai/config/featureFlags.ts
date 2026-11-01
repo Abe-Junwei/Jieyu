@@ -130,6 +130,9 @@ const corpusLibraryPageEnabledFromEnv = readOptionalBooleanFlag(
 const lexiconAttachmentsEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_LEXICON_ATTACHMENTS_ENABLED,
 );
+const desktopTranscriptionWorkspaceEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_DESKTOP_TRANSCRIPTION_WORKSPACE_ENABLED,
+);
 
 const aiAgentLoopReliabilityFlagsDefaultEnabled =
   featureFlagDeploymentEnvironment === 'dogfood' ||
@@ -319,6 +322,11 @@ export const featureFlags = {
   /** Desktop model-response candidates. Default off; one-week dogfood before enabling. */
   desktopModelCandidatesEnabled:
     readOptionalBooleanFlag(import.meta.env.VITE_DESKTOP_MODEL_CANDIDATES_ENABLED) ?? false,
+  /**
+   * 4ws slice 1: independent desktop transcription workspace shell (board 27).
+   * Default false; env or dogfood can open `/transcription` on the new page.
+   */
+  desktopTranscriptionWorkspaceEnabled: desktopTranscriptionWorkspaceEnabledFromEnv ?? false,
   /**
    * M5-C / C8：桌面项目字段管理。默认关闭，不进旧标注页。
    * Env `VITE_PROJECT_CUSTOM_FIELDS_ENABLED=true` opens it on the folder library page.

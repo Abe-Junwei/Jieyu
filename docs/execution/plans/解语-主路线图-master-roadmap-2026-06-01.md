@@ -3,13 +3,21 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-10-31
+last_reviewed: 2026-11-01
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
 > 现状事实以 [仓库现状与代码地图](../../architecture/仓库现状与代码地图.md) 为准；流程纪律以 [AI_QUICKSTART](../../../AI_QUICKSTART.md) 与 [AGENTS.md](../../../AGENTS.md) 为准。
 > **当前阶段计划（2026-10-13 起）**：试用交付以 [#250 地图](../../wayfinder/trial-handoff/map.md) 为准，下一程见 [#285](https://github.com/Abe-Junwei/Jieyu/issues/285)；与本文冲突时**以较新的拍板为准**。
 > 取代旧的索引式 roadmap 与时间盒型 16 周路线图（已 superseded）。
+
+## 2026-11-01 首发范围增补
+
+用户已确认 [ADR-0099](../../adr/0099-desktop-product-design-and-release-contract.md)。完整专业词典编辑器与专业查询语言（含同稿件内有界跨片段、可视化／文本对应、查询写入互斥）新增为首发阻断项；本文旧表中冲突的第二程／冻结描述仅对这两项让位，不全面解冻。统一壳、自动保存、IGT 复核、AI 建议保留和数据交换流程按同篇执行；ADR-0098 模型下载／管理／转码／分发仍后移。
+
+- [ ] 对照 [首发设计验收清单](../release-gates/desktop-product-design-acceptance.md) 补齐 Penpot 业务样例与 Electron 能力证据。
+- [ ] 为完整词典、专业查询和持久建议分片做 Research / SDD；不得直接更改冻结格式，也不把决定已接受记作实现通过。
+- [ ] 逐项接替并验证成果导出格式，保留项目交换与备份范围区别；未验证格式不列支持承诺。
 
 ## 0. 如何使用本文
 
@@ -233,7 +241,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 >
 > **后移发布项**：真机安装、Windows、升级和真实系统垃圾箱不计本轮，后续按 #277/#282 的发布范围领取。真实示例仍仅用户制作和试用。A15 放量、B7 与协作等不因此解冻。
 >
-> **四页工作区计划 · **已拍板（2026-10-31，用户书面「确认」）****：通过；分析页保留采纳/恢复并改名「分析复核」；切片 0 含换数据路由、不套 flag；延期项都能等；四页优先于 #312/#313/#277；验收=合成项目 Playwright Electron + 用户每片末木雅抽验（代理不碰真实材料）；切片 1 起每页精稿先行。Prajwal #295 三项不在本次拍板内，仍待审。下一刀是切片 0 T1（换数据路由），规格见 [desktop-4ws-slice0-text-save](../specs/desktop-4ws-slice0-text-save/)。
+> **四页工作区计划 · 已拍板（2026-10-31）**：通过。**切片 0 已合入 main（[#477](https://github.com/Abe-Junwei/Jieyu/pull/477)）**；用户木雅抽验仍为片末门。下一刀：切片 1 转写精稿（板 27 壳 + 复杂度差额）定稿后接线，flag 默认 `false`；规格见 [desktop-4ws-slice1-transcription-shell](../specs/desktop-4ws-slice1-transcription-shell/)。四页优先于 #312/#313/#277；验收=合成 Electron + 用户抽验。
 > - 账本（Grill 十二条 + 对账）：[jieyu-4ws-ledger-2026-10-31.md](./jieyu-4ws-ledger-2026-10-31.md)
 > - 实施清单（切片 0–7 + P0 待复核并行 + P1 按页设计）：[jieyu-4ws-impl-checklist-2026-10-31.md](./jieyu-4ws-impl-checklist-2026-10-31.md)
 > - 范围摘要：转写→标注→词典→语料 + 分析复核页；Legacy 逐项退出（桌面暂不可用项写明）；工作集延期接替。
@@ -414,7 +422,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 - 工程治理：[代码治理计划 v2](../../architecture/code-governance-plan-2026-05-06.md)
 - 持久化方向以 [ADR 目录的有效条款对照](../../adr/README.md) 为准：文件夹内容是 [ADR-0085](../../adr/0085-desktop-project-one-sqlite.md)，交换包和每日备份仍是 [ADR-0046](../../adr/0046-desktop-sqlite-project-folder.md)，新存储的一次操作一次事务沿用 [ADR-0048](../../adr/0048-storage-port.md) 的业务方法，仍有效的桌面条款见 [ADR-0062](../../adr/0062-desktop-storage-decisions-2026-10-16.md)，桌面剥离协作是 [ADR-0047](../../adr/0047-desktop-build-strips-collab-keys-telemetry.md)，只做桌面版是 [ADR-0063](../../adr/0063-desktop-only-after-electron-skeleton.md)。冻结与有限开放以 [ADR-0086](../../adr/0086-desktop-release-scope-and-format-freeze.md) 为准，覆盖 [ADR-0064](../../adr/0064-storage-freeze-until-desktop-opens-real-projects.md) 的解冻顺序。当前存储切片见 [桌面项目单库](./desktop-project-sqlite-2026-10-25.md)。排期见 [试用地图](../../wayfinder/trial-handoff/map.md)。
 - 2026-10-30 单库本轮及七项复审修复已验收；剩余执行顺序只看[单库当前队列](./desktop-project-sqlite-2026-10-25.md#当前剩余工作与下一刀2026-10-30)。真机安装、Windows、升级和真实系统垃圾箱留后续发布；M7-C 旧路径退出独立跟踪，单库总计划保持 active。
-- **四页工作区（已拍板 2026-10-31）**：[功能对账账本](./jieyu-4ws-ledger-2026-10-31.md) 与 [实施清单](./jieyu-4ws-impl-checklist-2026-10-31.md)（`status: active`）；切片 0 代码已在分支 `feat/4ws-slice0-data-router` 完成（T1–T10，合成项目 Electron 验收通过），待合并与用户抽验，规格 [desktop-4ws-slice0-text-save](../specs/desktop-4ws-slice0-text-save/)。合并后出 P-1a 自用包；切片 1 等转写精稿定稿。
+- **四页工作区（已拍板 2026-10-31）**：[功能对账账本](./jieyu-4ws-ledger-2026-10-31.md) 与 [实施清单](./jieyu-4ws-impl-checklist-2026-10-31.md)（`status: active`）；切片 0 已合入 [#477](https://github.com/Abe-Junwei/Jieyu/pull/477)；P-1a 自用包可出；切片 1 精稿／壳见 [差额](./jieyu-4ws-slice1-transcription-gap-2026-11-01.md) 与 [desktop-4ws-slice1-transcription-shell](../specs/desktop-4ws-slice1-transcription-shell/)。
 - **Prajwal 建议（已排期 2026-10-31）**：[Oleafly Discussion #295](https://github.com/Oleafly/Oleafly/discussions/295#discussioncomment-19306914) 三条见 §3 Stage A P-1 / P-2 / P-3（C1/#282、README、C3e）；**不是 #342**。
 - 规格目录里还有未收口的 `annotation-utterance-graph-change`、`corpus-analysis-query-tools`、`corpus-analysis-report`、`corpus-external-evidence`，另有 `_template`。`card-sqlite-file` 的任务已勾完，目录按 ADR-0051 删除。协作出站队列草稿已删除，恢复时的约束见 C4。
 
@@ -437,7 +445,8 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 
 | 日期       | 说明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-10-31 | **切片 0 代码完成（未合并）**：正文保存走领域事件 → 统一失效表 → Query 重读；读页查询键带会话、切库清缓存；受控草稿 + 离开拦截（路由/切段/切文稿/开文件夹）+ Electron 关窗确认。其余 6 个写入过渡期仍 `refetch`，切片 1 逐条迁。验证见分支提交说明。 |
+| 2026-11-01 | **统一下一步**：切片 0 已合入 [#477](https://github.com/Abe-Junwei/Jieyu/pull/477)；P0a 核验证据见 [jieyu-4ws-p0a-pending-review-evidence-2026-11-01.md](./jieyu-4ws-p0a-pending-review-evidence-2026-11-01.md)；切片 1 精稿定稿 + 壳 flag（[差额](./jieyu-4ws-slice1-transcription-gap-2026-11-01.md)、[spec](../specs/desktop-4ws-slice1-transcription-shell/)）；词典／专业查询 Research 门见 `desktop-lexicon-complete-editor`／`desktop-professional-query`。用户木雅抽验与 P-1a 真机包仍由用户侧收口。 |
+| 2026-10-31 | **切片 0 代码完成（后合入 #477）**：正文保存走领域事件 → 统一失效表 → Query 重读；读页查询键带会话、切库清缓存；受控草稿 + 离开拦截（路由/切段/切文稿/开文件夹）+ Electron 关窗确认。其余 6 个写入过渡期仍 `refetch`，切片 1 逐条迁。 |
 | 2026-10-31 | **四页计划拍板通过**：开工前审查修订回写账本与清单；用户确认通过，分析页改「分析复核」，切片 0 含换数据路由、不套 flag，四页优先，合成验收 + 用户抽验，精稿先行。门禁解除。 |
 | 2026-10-31 | **Prajwal 三项排期**：四页计划拍板通过（账本 §11 第 7–12 条）。P-1 粗糙包：自用包随切片 0，同事包在切片 2a 后，列不可豁免 CI 项；P-2 README：文字与同事包同批，截图等切片 1/2 精稿落地；P-3 金标准：导入侧在切片 2a 后，完整往返需先接替桌面 EAF/FLEx 导出（新增 C3e，切片 4 后）。D14 代理不碰真实材料不变。 |
 | 2026-10-31 | **硬门禁**：Abe 要求正式开工前先审核。§3 Stage A 两段待审（四页计划 + Prajwal 三条）改为**审核通过前不得正式开工**（含切片 0、装包、README 改写、真实金标准实施等）；未书面拍板「通过」前不得领工/开 PR/改产品代码。账本与清单同步收紧。 |

@@ -65,11 +65,17 @@ import { JIEYU_MATERIAL_NAV, type LeftRailNavIconName } from './utils/jieyuMater
 import { CatalogProjectGate } from './components/CatalogProjectGate';
 import { DesktopRoute } from './components/DesktopRoute';
 import { electronDesktopPresent } from './desktop/desktopSurface';
+import { featureFlags } from './ai/config/featureFlags';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
 const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
 const DesktopProjectReadPage = lazy(() =>
   import('./pages/DesktopProjectReadPage').then((m) => ({ default: m.DesktopProjectReadPage })),
+);
+const DesktopTranscriptionWorkspacePage = lazy(() =>
+  import('./pages/DesktopTranscriptionWorkspacePage').then((m) => ({
+    default: m.DesktopTranscriptionWorkspacePage,
+  })),
 );
 const DesktopCorpusPage = lazy(() =>
   import('./pages/DesktopCorpusPage').then((m) => ({ default: m.DesktopCorpusPage })),
@@ -921,7 +927,13 @@ export function App() {
                           path="/transcription"
                           element={
                             <DesktopRoute
-                              desktop={() => <DesktopProjectReadPage />}
+                              desktop={() =>
+                                featureFlags.desktopTranscriptionWorkspaceEnabled ? (
+                                  <DesktopTranscriptionWorkspacePage />
+                                ) : (
+                                  <DesktopProjectReadPage />
+                                )
+                              }
                               legacy={<TranscriptionPage />}
                             />
                           }

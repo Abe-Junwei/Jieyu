@@ -68,7 +68,7 @@ const unit = await project.units.create({
 
 ### 四页工作区接替方式（2026-10-31 已拍板）
 
-简化桌面页验证了单库，**不等于**转写/标注/词典/语料产品能力已完整迁移。后续若继续在简化页上重造旧交互，会接近「开发两遍」。计划已于 2026-10-31 书面拍板通过（`active`）；切片 0 代码已在分支 `feat/4ws-slice0-data-router` 完成（T1–T10，合成项目 Electron 验收通过），待合并与用户抽验：
+简化桌面页验证了单库，**不等于**转写/标注/词典/语料产品能力已完整迁移。后续若继续在简化页上重造旧交互，会接近「开发两遍」。计划已于 2026-10-31 书面拍板通过（`active`）；**切片 0 已合入 main（[#477](https://github.com/Abe-Junwei/Jieyu/pull/477)）**；用户木雅抽验仍为片末门；P-1a 自用包可出：
 
 - 账本：[jieyu-4ws-ledger-2026-10-31.md](./jieyu-4ws-ledger-2026-10-31.md)（Grill 十二条 + 功能对账）
 - 清单：[jieyu-4ws-impl-checklist-2026-10-31.md](./jieyu-4ws-impl-checklist-2026-10-31.md)（切片 0–7；**四层交付**；UI 为每片主交付）

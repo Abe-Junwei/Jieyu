@@ -1,0 +1,87 @@
+.desktop-tx-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 12px 16px 16px;
+  background: var(--surface-canvas, #f0efed);
+}
+
+.desktop-tx-workspace__chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--surface-header, #f7f6f4);
+  border: 1px solid var(--border-soft, #cbd2dc);
+  border-radius: 0;
+}
+
+.desktop-tx-workspace__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #20242c);
+}
+
+.desktop-tx-workspace__body {
+  display: grid;
+  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(220px, 280px);
+  gap: 0;
+  min-height: 420px;
+  border: 1px solid var(--border-soft, #cbd2dc);
+  background: var(--surface-panel, #fff);
+}
+
+.desktop-tx-workspace__context,
+.desktop-tx-workspace__main,
+.desktop-tx-workspace__inspector {
+  min-width: 0;
+  padding: 12px;
+}
+
+.desktop-tx-workspace__context,
+.desktop-tx-workspace__inspector {
+  background: color-mix(in srgb, var(--surface-header, #f7f6f4) 88%, transparent);
+}
+
+.desktop-tx-workspace__main {
+  border-left: 1px solid var(--border-subtle, #e7e5e4);
+  border-right: 1px solid var(--border-subtle, #e7e5e4);
+}
+
+.desktop-tx-workspace__section-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #5b6577);
+}
+
+.desktop-tx-workspace__placeholder {
+  margin: 0 0 12px;
+  padding: 16px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--text-tertiary, #5f6b7c);
+  background: color-mix(in srgb, var(--theme-accent-tint, #e0e0e0) 35%, transparent);
+}
+
+.desktop-tx-workspace__inspector dl {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.desktop-tx-workspace__inspector dt {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary, #5b6577);
+}
+
+.desktop-tx-workspace__inspector dd {
+  margin: 0;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 12px;
+  color: var(--text-primary, #20242c);
+}

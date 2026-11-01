@@ -3,7 +3,7 @@ title: 解语四页工作区 · 实施清单
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-10-31
+last_reviewed: 2026-11-01
 source_of_truth: execution-plan
 depends_on:
   - ./jieyu-4ws-ledger-2026-10-31.md
@@ -95,7 +95,8 @@ depends_on:
 |---|---|
 | **目标** | `/transcription` 桌面进入**独立转写工作区**；工程读页收窄为项目管理；复用波形、时间轴、选区、播放等成熟能力接单库；沿用切片 0 的事件+Query。 |
 | **交付物** | 独立转写路由/壳；工程读页职责拆分（项目/交换/删稿等可留）；Waveform*/Timeline* 映射与 `desktopCall`（boundary/split/merge/focus/playback）；选区与播放头本地状态；本页精稿与组件映射；表单 UI 标为过渡并逐步让位 |
-| **依赖** | 切片 0；P1 转写精稿**定稿**（精稿先行，定稿前不开本片代码） |
+| **依赖** | 切片 0（**已合入 [#477](https://github.com/Abe-Junwei/Jieyu/pull/477)**）；P1 转写精稿**已定稿**（[差额](./jieyu-4ws-slice1-transcription-gap-2026-11-01.md)；壳 flag `desktopTranscriptionWorkspaceEnabled` 默认 false） |
+| **进度（2026-11-01）** | 壳页 + flag + App 分流已落地（spec `desktop-4ws-slice1-transcription-shell` T1–T3）；T4–T6 波形／检查器／桌面 E2E 仍开 |
 | **不做** | 再造第二套波形；VAD/口译/多轨若属延期则本片不扩；完整分析编辑 |
 | **验收** | • 从侧栏进转写 ≠ 工程读页合流体验<br>• 框选/拖界/切分/合并 → 单库正确 → 事件 → Query → 重开<br>• 播放与选区跟随；快捷键不破坏草稿规则<br>• 改正文路径仍触发 P0 待复核状态<br>• 流程验收含：改界后列表时间与重开一致 |
 

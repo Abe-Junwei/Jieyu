@@ -3,7 +3,7 @@ title: AI_QUICKSTART — 解语跨工具 AI 上手指引
 doc_type: agent-quickstart
 status: active
 owner: repo
-last_reviewed: 2026-10-25
+last_reviewed: 2026-11-01
 applies_to: ["cursor", "github-copilot", "kimi-cli"]
 ---
 
@@ -16,6 +16,8 @@ applies_to: ["cursor", "github-copilot", "kimi-cli"]
 1. [copilot-instructions.md](copilot-instructions.md) — **项目级工程约束 canonical 中文正文**（编排层与 controller 边界、复杂度阈值、面板 CSS 双层边框、五阶段工作流，含 Research）。**非 trivial 任务必读**。
 2. [docs/architecture/code-governance-plan-2026-05-06.md](docs/architecture/code-governance-plan-2026-05-06.md) — **代码治理**（落位例外与门禁）。热点以当次 `npm run check:architecture-guard` 为准。
 3. [docs/architecture/仓库现状与代码地图.md](docs/architecture/仓库现状与代码地图.md) — **一页产品形状**（本检出是浏览器 / Dexie；Electron 与桌面存储是已接受目标）。不在这里查 flag、schema 版本或行数。
+
+> **首发产品设计增补**：[ADR-0099](docs/adr/0099-desktop-product-design-and-release-contract.md) 已确认完整专业词典与专业查询为新增首发阻断项；其余冻结不全面解除，模型交付余项仍按 ADR-0098 后移；验收用[首发设计清单](docs/execution/release-gates/desktop-product-design-acceptance.md)。
 
 > **当前冻结/有限开放按 [ADR-0086](docs/adr/0086-desktop-release-scope-and-format-freeze.md)**：M4 前推进单库主线；M4 合成项目闭环通过后仅开放指定白名单，其他新功能继续冻结。#275 为首发单库集成终验，不是白名单开工前置。下一刀与验收见[主路线图 §3](docs/execution/plans/解语-主路线图-master-roadmap-2026-06-01.md)，删除恢复见 ADR-0087；旧 ADR 正文保留。
 
