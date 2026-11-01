@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-01T04:05:00Z",
+  "title": "Design System: 解语 Jieyu Studio",
+  "extensions": {
+    "colorMeta": {
+      "theme-accent-solid": {
+        "role": "selection",
+        "displayName": "Neutral Selection",
+        "canonical": "#3A3F49"
+      },
+      "theme-accent-tint": {
+        "role": "selection",
+        "displayName": "Selection Tint",
+        "canonical": "#D9D8D4"
+      },
+      "action-solid": {
+        "role": "primary",
+        "displayName": "Ink CTA",
+        "canonical": "#0F0F10"
+      },
+      "chrome-rail-bg": {
+        "role": "neutral",
+        "displayName": "Chrome Rail",
+        "canonical": "#2A2E35"
+      },
+      "surface-canvas": {
+        "role": "neutral",
+        "displayName": "Canvas",
+        "canonical": "#F0EFED"
+      }
+    },
+    "shadows": [
+      {
+        "name": "menu-popover",
+        "value": "0 4px 12px rgba(32,36,44,0.12)",
+        "purpose": "Menus, dropdowns, hover bubbles"
+      }
+    ],
+    "breakpoints": []
+  },
+  "components": [],
+  "narrative": {
+    "northStar": "The Field Lab Console",
+    "overview": "Desktop-first field linguistics console: graphite left rail, ink CTAs, neutral selection (no brand accent), compact density, type isolation for IPA.",
+    "keyCharacteristics": [
+      "52px left rail; no global top nav",
+      "Ink CTA + neutral --theme-accent-* selection (no brand violet)",
+      "Inter/Noto UI vs Charis SIL IPA",
+      "4px/8pt rhythm; panel radius 0",
+      "Waveform+IGT canvas still evolving"
+    ],
+    "rules": [
+      {
+        "name": "The Ink CTA Rule",
+        "body": "Primary buttons use --action-* only.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Voice Rule",
+        "body": "Only --theme-accent-* for selection/focus/media; neutral charcoal, not brand color.",
+        "section": "colors"
+      },
+      {
+        "name": "The No Brand Accent Rule",
+        "body": "No consumer brand purple/blue in chrome; color only in --state-*.",
+        "section": "colors"
+      },
+      {
+        "name": "The No Global Top Nav Rule",
+        "body": "Desktop forbids a full-width global top nav; navigation is the 52px left rail.",
+        "section": "layout"
+      }
+    ]
+  }
+}

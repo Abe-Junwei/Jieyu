@@ -3,8 +3,8 @@
  *
  * Architecture:
  *   data-theme="dark" — 明暗模式（不设 = 浅色）
- *   Brand accent is a single CSS token family (--theme-accent-*); no data-appearance
- *   or data-theme-accent. Legacy jieyu-appearance / jieyu-theme-accent keys are cleared
+ *   Selection accent is a single CSS token family (--theme-accent-*, neutral); no
+ *   data-appearance / data-theme-accent. Legacy jieyu-appearance / jieyu-theme-accent keys are cleared
  *   on init (fresh default).
  */
 

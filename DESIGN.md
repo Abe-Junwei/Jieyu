@@ -1,6 +1,6 @@
 ---
 name: 解语 Jieyu Studio
-description: 濒危语言田野工作台 — 桌面壳、52px 左轨、墨色 CTA + 中性选中（无品牌主题色）的本地优先标注环境
+description: 濒危语言田野工作台 — 桌面壳、52px 左轨、墨色 CTA + 中性选中 + 克制焦点青的本地优先标注环境
 colors:
   action-solid: "#0F0F10"
   action-hover: "#292524"
@@ -11,9 +11,11 @@ colors:
   theme-accent-solid: "#3A3F49"
   theme-accent-hover: "#2A2E35"
   theme-accent-active: "#20242C"
-  theme-accent-tint: "#E8E7E4"
+  theme-accent-tint: "#D9D8D4"
   theme-accent-text: "#20242C"
   theme-accent-solid-dark: "#B4BDCC"
+  focus-accent: "#026370"
+  focus-accent-dark: "#74A9B0"
   chrome-rail-bg: "#2A2E35"
   chrome-rail-active: "#3A3F49"
   chrome-rail-bg-dark: "#12141A"
@@ -110,22 +112,22 @@ components:
 # Design System: 解语 Jieyu Studio
 
 > Source: Stitch「文字精准校订版」HTML（Copy as code）+ Penpot「解语工程规范 · HTML结构重画」00–18  
-> 工程实现：`src/styles/tokens.css` + `src/utils/theme.ts`（仅明暗 mode；无多外观 / 无品牌主题色）。  
-> **主 CTA 为墨色**（`--action-*`）；**选中/焦点/媒体走中性 `--theme-accent-*`**（亮 `#3A3F49` / tint `#E8E7E4`），对齐 ElevenLabs 式无主题色壳。  
-> **换选中阶**：只改 `src/styles/tokens.css` 的 `--theme-accent-*`（亮/暗）及 alias `--header-accent`；工程 `src/` 无散落 accent hex。Penpot `jieyu-stitch-light` 同步同名 token。勿再引入第二套主题枚举或彩色品牌 accent。  
+> 工程实现：`src/styles/tokens.css` + `src/utils/theme.ts`（仅明暗 mode；无多外观 / 无用户主题色盘）。  
+> **主 CTA 为墨色**（`--action-*`）；**选中走中性 `--theme-accent-*`**；**焦点环走克制青 `--focus-accent`（`#026370`）**。  
+> **换选中阶**改 `--theme-accent-*`；**换焦点青**改 `--focus-accent` / `--focus-ring*`。二者勿混。Penpot `jieyu-stitch-light` 同步同名 token。  
 > 元素样张以代码 props/CSS 为据；**按页精稿另轨**，本文件不替代四页工作区布局。
 
 ## Overview
 
 **Creative North Star: "The Field Lab Console"**
 
-解语是桌面优先的田野语言学工作台：冷静、密实、可长时间对波形与标注操作。视觉语言像实验室控制台——深石墨导航轨固定在左，工作面用微暖纸感灰/白分层，**墨色**作主操作，**中性选中**标焦点与媒体锚点；**不设品牌主题色**（彩色只留给 `--state-*`）。
+解语是桌面优先的田野语言学工作台：冷静、密实、可长时间对波形与标注操作。视觉语言像实验室控制台——深石墨导航轨固定在左，工作面用微暖纸感灰/白分层，**墨色**作主操作，**中性选中**标行/段，**克制青**只标键盘焦点；不设用户可选主题色盘。
 
 密度偏 compact（控件 28–32px），面板与侧栏 **零缝隙咬合**，靠发丝线分组而不是嵌套卡片。亮/暗双模共用同一套语义 token 名。
 
 **Key Characteristics:**
 - 52px 固定左轨；禁止桌面全局顶通栏
-- Ink CTA：`--action-*`；Selection One Voice：仅 `--theme-accent-*`（中性墨灰，非品牌色）
+- Ink CTA：`--action-*`；Selection：`--theme-accent-*`（中性）；Focus：`--focus-accent` / `--focus-ring*`（`#026370`）
 - 字族隔离：UI 无衬线 / IPA 衬线（Charis SIL）
 - 4px 步进、偏 8pt 网格；面板圆角 0，控件 `--radius-control` 10px
 - 主画布波形+IGT 仍演进冻结：规范约束壳与状态，不作像素验收
@@ -139,17 +141,23 @@ components:
 - 亮：primary/secondary/tertiary（`#5F6B7C`）在 panel / warm canvas 上 ≥4.5；action 墨色 / on-action ≥4.5
 - 暗：primary/secondary/tertiary、action 反相、accent-text on tint、state text on panel ≥4.5；solid 图形 ≥3
 - Toast / 语义 Chip：墨/中性壳 + 色点，正文对比走 `--text-on-action` / `--text-secondary`
+- 焦点青 `#026370` 对 panel ≥3（图形/焦点外观）；暗色焦点 `#74A9B0` 对 dark panel ≥3
 
 ### Action（主 CTA · 墨色）
 - **Solid / Hover / Active** (`#0F0F10` / `#292524` / `#000000`): `--action-solid` / `--action-hover` / `--action-active`
 - **On action** (`#FFFFFF`): `--text-on-action`
 - 暗色反相：solid `#F6F7F9` · hover `#FFFFFF` · active `#E7E5E4` · on-action `#0F0F10`
 
-### Selection accent（中性 · 非品牌色 · 非 CTA）
-- **Solid** (`#3A3F49` / dark `#B4BDCC`): `--theme-accent-solid`（`--header-accent` 为其 alias）— 焦点环、选中描边、媒体点
+### Selection accent（中性 · 非 CTA · 非焦点环）
+- **Solid** (`#3A3F49` / dark `#B4BDCC`): `--theme-accent-solid`（`--header-accent` 为其 alias）— 选中描边、媒体点
 - **Hover / Active** (`#2A2E35` / `#20242C`): `--theme-accent-hover` / `--theme-accent-active`
-- **Selection tint** (`#E8E7E4` / `#2A2E35`): `--theme-accent-tint` — 选中行/段底，禁止当卡片底
-- **Text on tint** (`#20242C` / `#F6F7F9`): `--theme-accent-text` — 选中底上的可读字色
+- **Selection tint** (`#D9D8D4` / `#343A46`): `--theme-accent-tint` — 选中行/段底，禁止当卡片底
+- **Text on tint** (`#20242C` / `#F6F7F9`): `--theme-accent-text`
+
+### Focus accent（克制青 · 仅焦点 · 非 CTA · 非选中底）
+- **Solid** (`#026370` / dark `#74A9B0`): `--focus-accent`
+- **Hover / Active** (`#025763` / `#024D57`): `--focus-accent-hover` / `--focus-accent-active`（暗：`#8BB8BE` / `#5F969E`）
+- **Ring**：`--focus-ring` / `--focus-ring-strong` / `--focus-ring-soft` / `--focus-ring-glow` — 由 `--focus-accent` 派生；`focus-visible` 优先用这支
 
 ### Neutral
 - **Canvas** (`#F0EFED` / `#181B21`): `--surface-bg` / `--surface-canvas`
@@ -169,11 +177,13 @@ components:
 | Info | `#3B82F6` | `#1D4ED8` | 由 solid 弱混 |
 
 ### Named Rules
-**The Ink CTA Rule.** `PanelButton` primary 只走 `--action-*`；禁止用 `--theme-accent-*` 填主按钮。
+**The Ink CTA Rule.** `PanelButton` primary 只走 `--action-*`；禁止用 `--theme-accent-*` / `--focus-accent` 填主按钮。
 
-**The One Voice Rule.** 选中/焦点/媒体只走 `--theme-accent-*`（中性墨灰）；禁止 `data-appearance` / `data-theme-accent` 多套并行，禁止另开品牌主题色。
+**The Selection Voice Rule.** 选中/媒体只走 `--theme-accent-*`（中性墨灰）；禁止 `data-appearance` / `data-theme-accent` 多套并行。
 
-**The No Brand Accent Rule.** 壳层不对齐消费级「一支品牌紫/蓝」；彩色仅 `--state-*` 与语义点。换选中阶只改 `--theme-accent-*`。
+**The Restrained Focus Rule.** 键盘焦点只走 `--focus-accent` / `--focus-ring*`（`#026370`）；禁止用焦点青填选中底或 Primary CTA；禁止做成用户可选主题色盘。
+
+**The No Brand Accent Rule.** 壳层不对齐消费级「整壳染一支品牌色」；语义色仍仅 `--state-*`。
 
 **The No Global Top Nav Rule.** 桌面端禁止全宽 Global Top Nav；导航只走 52px 左轨。
 
@@ -224,7 +234,7 @@ Stitch「文字阶梯」屏的角色名（Section Heading / Caption / Label Caps
 ### Buttons
 - **新 UI 只用** `PanelButton`：`variant` default | primary | ghost | danger | success；`size` default | sm | compact（见 Penpot 12）
 - **primary** = 墨色 `--action-solid` / hover `--action-hover` / active `--action-active`；字色 `--text-on-action`；字重 500
-- 同级禁双 Primary；选中/焦点环仍走 `--theme-accent-*`（非 CTA 填充）
+- 同级禁双 Primary；选中走 `--theme-accent-*`，焦点环走 `--focus-accent`（非 CTA 填充）
 - 遗留 `.btn` / `.btn-ghost`（`control-primitives.css`）勿再开第三套
 
 ### Inputs / Fields
@@ -292,7 +302,7 @@ Stitch「文字阶梯」屏的角色名（Section Heading / Caption / Label Caps
 **可编辑约定（00–17 已结构改造）**：
 - **SSoT 页**：Penpot「解语工程规范 · HTML结构重画」（封面 + 00–17，竖排 gap 80）。另一页「v2 归档」仅 Stitch 源图/旧原生板，**勿作规范源**。
 - 各板根与分区为 **Flex Board**（语义命名卡片/行）
-- 填充色优先绑 `jieyu-stitch-light` tokens（`action-*` 主 CTA / `theme-accent-*` 选中焦点 / `state-*` / `surface-*` / `border-*` / `chrome-rail-*`）；遗留 `canvas`/`panel`/`accent*` 已与 surface / theme-accent 对齐，新稿勿再写遗留名
+- 填充色优先绑 `jieyu-stitch-light` tokens（`action-*` 主 CTA / `theme-accent-*` 选中 / `focus-accent` 焦点 / `state-*` / `surface-*` / `border-*` / `chrome-rail-*`）；遗留 `canvas`/`panel`/`accent*` 已与 surface / theme-accent 对齐，新稿勿再写遗留名
 - 板 **00** 左轨绑 `chrome-rail-bg`；板 **12** primary 绑 `action-solid`（不是 accent）
 - 板 **16** 另含 Component Variant：`Toast / Pill`、`PanelChip`（属性 `Variant`），停在板 16 右侧
 - 换选中阶改 `--theme-accent-*` token（保持中性）；改一态优先改 Variant / 分区内容；勿在实例上散落硬编码
@@ -304,17 +314,17 @@ Stitch「文字阶梯」屏的角色名（Section Heading / Caption / Label Caps
 
 ### Do:
 - **Do** 用语义 CSS 变量，不在业务组件散落裸 hex 强调色。
-- **Do** 主按钮用 `--action-*`；选中/焦点/媒体用中性 `--theme-accent-*`。
+- **Do** 主按钮用 `--action-*`；选中/媒体用中性 `--theme-accent-*`；焦点环用 `--focus-accent` / `--focus-ring*`。
 - **Do** 新 UI 用 `PanelButton`；遗留 `.btn` 仅作视觉别名，勿新开第三套。
 - **Do** 保持 52px 左轨 + 零顶通栏。
 - **Do** IPA 用 Charis SIL，UI 用 Inter / Noto Sans SC。
-- **Do** 调整选中阶时只改 `--theme-accent-*` 一支（不动 action；保持中性）。
+- **Do** 调整选中阶只改 `--theme-accent-*`；调整焦点青只改 `--focus-accent`（均不动 action）。
 - **Do** 用户可见文案走 i18n。
 
 ### Don't:
-- **Don't** 用 accent 填 Primary CTA。
+- **Don't** 用 accent / focus-accent 填 Primary CTA。
 - **Don't** 给 Toast / 语义 Chip 整颗彩胶囊底（色点即可）。
-- **Don't** 恢复多外观 / 多强调色选择器，或再引入彩色品牌 accent。
-- **Don't** 把选中/焦点做成消费级品牌紫/蓝。
+- **Don't** 恢复多外观 / 用户主题色选择器。
+- **Don't** 用焦点青当选中底，或把选中做成消费级整壳品牌色。
 - **Don't** 侧栏嵌套第三层边框卡片。
 - **Don't** 把 Charis SIL 用在 chrome UI。

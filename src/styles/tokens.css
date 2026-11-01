@@ -3,7 +3,8 @@
  *
  * data-theme="dark" — 暗色（不设 = 浅色）
  * --action-* — 主按钮墨色（暗色反相）
- * --theme-accent-* — 选中/焦点/媒体锚点（中性墨灰，非品牌色）；--header-accent 为其 alias
+ * --theme-accent-* — 选中/媒体锚点（中性墨灰）；--header-accent 为其 alias
+ * --focus-accent / --focus-ring* — 克制焦点色（#026370 一支，非用户主题色、非 CTA）
  * 无 data-appearance / data-theme-accent。视觉真源见仓库根 DESIGN.md（Stitch/Penpot 手册）。
  * ─────────────────────────────────────────────────────────── */
 
@@ -62,7 +63,7 @@
   --green-9: #10b981;
   --amber-9: #f59e0b;
   --red-9: #e5484d;
-  --purple-9: #7658f6;
+  --purple-9: var(--theme-accent-solid); /* legacy alias；勿再当品牌紫 */
 
   /* 主 CTA = 墨色（ElevenLabs 对齐）；与 accent 分离 */
   --action-solid: #0f0f10;
@@ -70,13 +71,18 @@
   --action-active: #000000;
   --text-on-action: #ffffff;
 
-  /* 选中/焦点 = 中性墨灰（无品牌主题色；换阶只改本支） */
+  /* 选中 = 中性墨灰（换阶只改本支；勿当焦点色） */
   --theme-accent-solid: #3a3f49;
   --theme-accent-hover: #2a2e35;
   --theme-accent-active: #20242c;
-  --theme-accent-tint: #e8e7e4;
+  --theme-accent-tint: #d9d8d4; /* ~1.24:1 vs canvas — 选中可见，仍非彩色 */
   --theme-accent-text: #20242c;
   --header-accent: var(--theme-accent-solid);
+
+  /* 焦点 = 克制青（只服务 focus ring；非 CTA、非选中底、非用户主题盘） */
+  --focus-accent: #026370;
+  --focus-accent-hover: #025763;
+  --focus-accent-active: #024d57;
 
   /* Info — 独立蓝，不绑 accent */
   --state-info-solid: #3b82f6;
@@ -255,22 +261,10 @@
   --tab-active: var(--gray-4);
   --tab-underline-hover: color-mix(in srgb, var(--gray-12) 10%, transparent);
 
-  --focus-ring: color-mix(in srgb, var(--theme-accent-solid) 55%, transparent);
-  --focus-ring-soft: color-mix(
-    in srgb,
-    var(--state-info-solid) var(--theme-opacity-2),
-    transparent
-  );
-  --focus-ring-strong: color-mix(
-    in srgb,
-    var(--state-info-solid) var(--theme-opacity-4),
-    transparent
-  );
-  --focus-ring-glow: color-mix(
-    in srgb,
-    var(--state-info-solid) var(--theme-opacity-2),
-    transparent
-  );
+  --focus-ring: color-mix(in srgb, var(--focus-accent) 72%, transparent);
+  --focus-ring-soft: color-mix(in srgb, var(--focus-accent) 28%, transparent);
+  --focus-ring-strong: var(--focus-accent);
+  --focus-ring-glow: color-mix(in srgb, var(--focus-accent) 22%, transparent);
 
   --overlay-hover-soft: color-mix(in srgb, var(--border-soft) 24%, transparent);
   --overlay-hover-muted: color-mix(in srgb, var(--border-soft) 30%, transparent);
@@ -498,9 +492,13 @@
   --theme-accent-solid: #b4bdcc;
   --theme-accent-hover: #c8d0dc;
   --theme-accent-active: #a8b0bd;
-  --theme-accent-tint: #2a2e35;
+  --theme-accent-tint: #343a46; /* ~1.36:1 vs panel — 暗色选中可见 */
   --theme-accent-text: #f6f7f9;
   --header-accent: var(--theme-accent-solid);
+
+  --focus-accent: #74a9b0;
+  --focus-accent-hover: #8bb8be;
+  --focus-accent-active: #5f969e;
   --accent-secondary: var(--theme-accent-tint);
   --header-bg: color-mix(in srgb, var(--surface-header) 94%, transparent);
   --header-border: var(--border-soft);
@@ -548,22 +546,10 @@
   --state-danger-bg: color-mix(in srgb, #e5484d var(--theme-opacity-1), transparent);
   --state-danger-border: color-mix(in srgb, #e5484d var(--theme-opacity-3), transparent);
 
-  --focus-ring: color-mix(in srgb, var(--theme-accent-solid) 45%, transparent);
-  --focus-ring-soft: color-mix(
-    in srgb,
-    var(--state-info-solid) var(--theme-opacity-2),
-    transparent
-  );
-  --focus-ring-strong: color-mix(
-    in srgb,
-    var(--state-info-solid) var(--theme-opacity-4),
-    transparent
-  );
-  --focus-ring-glow: color-mix(
-    in srgb,
-    var(--state-info-solid) var(--theme-opacity-2),
-    transparent
-  );
+  --focus-ring: color-mix(in srgb, var(--focus-accent) 70%, transparent);
+  --focus-ring-soft: color-mix(in srgb, var(--focus-accent) 32%, transparent);
+  --focus-ring-strong: var(--focus-accent);
+  --focus-ring-glow: color-mix(in srgb, var(--focus-accent) 24%, transparent);
 
   --overlay-hover-soft: color-mix(in srgb, var(--surface-panel) 8%, transparent);
   --overlay-hover-muted: color-mix(in srgb, var(--surface-panel) 6%, transparent);
