@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: accepted
 owner: repo
-last_reviewed: 2026-10-30
+last_reviewed: 2026-11-01
 source_of_truth: decision-index
 ---
 
@@ -13,13 +13,15 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0099**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0100**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
 0058 有两份，文件名不同，不改名：`0058-card-sqlite-file.md` 记卡片语义，`0058-indexeddb-two-layer-placement.md` 记 IndexedDB 归层。引用时写文件名。
 
 ## 桌面存储：当前有效条款
+
+首发产品设计与新增阻断能力见 [ADR-0099](./0099-desktop-product-design-and-release-contract.md)：完整专业词典、专业查询、自动保存与复核、查询写入互斥和建议保留。仅局部替换其中明确点名的旧条款；ADR-0098 模型交付后移继续有效。验收见[活动清单](../execution/release-gates/desktop-product-design-acceptance.md)。
 
 下表只回答「现在以哪一条为准」。被点名的 ADR 正文都不改，整篇也不改成 `superseded`。基础单库布局以 [ADR-0085](./0085-desktop-project-one-sqlite.md) 为准；范围/冻结与开发格式见 [ADR-0086](./0086-desktop-release-scope-and-format-freeze.md)，删除/恢复见 [ADR-0087](./0087-project-deletion-retention-and-media-cleanup.md)，M1 未覆盖的领域落点见 [ADR-0088](./0088-desktop-sqlite-domain-landings.md)。分析过期、曾经接受与恢复见 [ADR-0089](./0089-analysis-generation-accept-and-restore.md)。完整载荷、全项目字段和失效引用见 [ADR-0090](./0090-analysis-payload-custom-fields-and-dangling-refs.md)。字段修订、诊断补交、备注锚点、转写接受回执、删除准入、备份快照和恢复执行隔离见 [ADR-0091](./0091-field-revisions-diagnostic-delivery-and-later-milestones.md)。写入口、项目与来源初始化及复制时的自定义引用身份见 [ADR-0097](./0097-desktop-write-entry-initialization-and-reference-identity.md)。模型交付余项的第二程归属与非阻塞边界见 [ADR-0098](./0098-model-delivery-followups-in-second-stage.md)。冲突条款按对应新篇执行。
 

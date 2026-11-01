@@ -3,13 +3,21 @@ title: 解语主路线图（master plan · 切片执行）
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-10-31
+last_reviewed: 2026-11-01
 ---
 
 > **本文是产品级排期的唯一可执行真源**：North Star + 切片化 backlog（每片功能完整落地）+ 各域子计划索引。
 > 现状事实以 [仓库现状与代码地图](../../architecture/仓库现状与代码地图.md) 为准；流程纪律以 [AI_QUICKSTART](../../../AI_QUICKSTART.md) 与 [AGENTS.md](../../../AGENTS.md) 为准。
 > **当前阶段计划（2026-10-13 起）**：试用交付以 [#250 地图](../../wayfinder/trial-handoff/map.md) 为准，下一程见 [#285](https://github.com/Abe-Junwei/Jieyu/issues/285)；与本文冲突时**以较新的拍板为准**。
 > 取代旧的索引式 roadmap 与时间盒型 16 周路线图（已 superseded）。
+
+## 2026-11-01 首发范围增补
+
+用户已确认 [ADR-0099](../../adr/0099-desktop-product-design-and-release-contract.md)。完整专业词典编辑器与专业查询语言（含同稿件内有界跨片段、可视化／文本对应、查询写入互斥）新增为首发阻断项；本文旧表中冲突的第二程／冻结描述仅对这两项让位，不全面解冻。统一壳、自动保存、IGT 复核、AI 建议保留和数据交换流程按同篇执行；ADR-0098 模型下载／管理／转码／分发仍后移。
+
+- [ ] 对照 [首发设计验收清单](../release-gates/desktop-product-design-acceptance.md) 补齐 Penpot 业务样例与 Electron 能力证据。
+- [ ] 为完整词典、专业查询和持久建议分片做 Research / SDD；不得直接更改冻结格式，也不把决定已接受记作实现通过。
+- [ ] 逐项接替并验证成果导出格式，保留项目交换与备份范围区别；未验证格式不列支持承诺。
 
 ## 0. 如何使用本文
 
