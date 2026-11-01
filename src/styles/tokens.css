@@ -1,11 +1,10 @@
 /* ── 设计令牌 | Design Tokens ─────────────────────────────────
- * 架构：墨色 action CTA + 单一品牌 accent（One Voice）+ data-theme（明暗）
+ * 架构：墨色 action CTA + 中性 selection accent（One Voice）+ data-theme（明暗）
  *
  * data-theme="dark" — 暗色（不设 = 浅色）
  * --action-* — 主按钮墨色（暗色反相）
- * --theme-accent-* — 选中/焦点/媒体占位紫（可整支替换）；--header-accent 为其 alias
+ * --theme-accent-* — 选中/焦点/媒体锚点（中性墨灰，非品牌色）；--header-accent 为其 alias
  * 无 data-appearance / data-theme-accent。视觉真源见仓库根 DESIGN.md（Stitch/Penpot 手册）。
- * 暗色对比度实测仍为验收债。
  * ─────────────────────────────────────────────────────────── */
 
 /* ═══════════════════════════════════════════════════════════
@@ -17,8 +16,8 @@
 /* ── 默认浅色 | Default light ── */
 :root {
   /* ═══════════════════════════════════════════════════════
-     手册亮色 — 微暖纸感工作面 × 墨色 CTA × 占位品牌紫（可整支替换）
-     canvas #F0EFED · panel #FFFFFF · action #0F0F10 · accent #7658F6
+     手册亮色 — 微暖纸感工作面 × 墨色 CTA × 中性选中（ElevenLabs 式无主题色）
+     canvas #F0EFED · panel #FFFFFF · action #0F0F10 · accent #3A3F49
      ═══════════════════════════════════════════════════════ */
   --gray-1: #ffffff;
   --gray-2: #f7f6f4;
@@ -71,12 +70,12 @@
   --action-active: #000000;
   --text-on-action: #ffffff;
 
-  /* 强调色 = 占位紫（选中/焦点/媒体；终稿品牌色未定；换色只改本支） */
-  --theme-accent-solid: #7658f6;
-  --theme-accent-hover: #6444e4;
-  --theme-accent-active: #5335d2;
-  --theme-accent-tint: #f1edff;
-  --theme-accent-text: #5f41d0;
+  /* 选中/焦点 = 中性墨灰（无品牌主题色；换阶只改本支） */
+  --theme-accent-solid: #3a3f49;
+  --theme-accent-hover: #2a2e35;
+  --theme-accent-active: #20242c;
+  --theme-accent-tint: #e8e7e4;
+  --theme-accent-text: #20242c;
   --header-accent: var(--theme-accent-solid);
 
   /* Info — 独立蓝，不绑 accent */
@@ -496,11 +495,11 @@
   --action-active: #e7e5e4;
   --text-on-action: #0f0f10;
 
-  --theme-accent-solid: #8b74f8;
-  --theme-accent-hover: #9a86fa;
-  --theme-accent-active: #7658f6;
-  --theme-accent-tint: #2a2348;
-  --theme-accent-text: #d8d0fc;
+  --theme-accent-solid: #b4bdcc;
+  --theme-accent-hover: #c8d0dc;
+  --theme-accent-active: #a8b0bd;
+  --theme-accent-tint: #2a2e35;
+  --theme-accent-text: #f6f7f9;
   --header-accent: var(--theme-accent-solid);
   --accent-secondary: var(--theme-accent-tint);
   --header-bg: color-mix(in srgb, var(--surface-header) 94%, transparent);
