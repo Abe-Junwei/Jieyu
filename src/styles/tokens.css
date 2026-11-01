@@ -75,7 +75,7 @@
   --theme-accent-solid: #3a3f49;
   --theme-accent-hover: #2a2e35;
   --theme-accent-active: #20242c;
-  --theme-accent-tint: #d9d8d4; /* ~1.24:1 vs canvas — 选中可见，仍非彩色 */
+  --theme-accent-tint: #e0e0e0; /* DESIGN / 板 27：中性选中底 */
   --theme-accent-text: #20242c;
   --header-accent: var(--theme-accent-solid);
 
@@ -492,7 +492,7 @@
   --theme-accent-solid: #b4bdcc;
   --theme-accent-hover: #c8d0dc;
   --theme-accent-active: #a8b0bd;
-  --theme-accent-tint: #343a46; /* ~1.36:1 vs panel — 暗色选中可见 */
+  --theme-accent-tint: #393939; /* DESIGN / 板 45：暗色中性选中底 */
   --theme-accent-text: #f6f7f9;
   --header-accent: var(--theme-accent-solid);
 

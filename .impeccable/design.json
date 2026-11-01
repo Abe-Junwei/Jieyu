@@ -12,7 +12,7 @@
       "theme-accent-tint": {
         "role": "selection",
         "displayName": "Selection Tint",
-        "canonical": "#D9D8D4"
+        "canonical": "#E0E0E0"
       },
       "action-solid": {
         "role": "primary",
