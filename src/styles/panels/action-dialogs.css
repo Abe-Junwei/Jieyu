@@ -59,7 +59,10 @@
 /* 转写/翻译新建层、侧栏操作弹窗：设计节奏与标签变量 | Create-layer & side-pane action rhythm */
 .layer-action-dialog,
 .side-pane-action-modal {
-  --panel-field-label-size: var(--panel-typography-label-size, calc(12px * var(--ui-font-scale, 1)));
+  --panel-field-label-size: var(
+    --panel-typography-label-size,
+    calc(12px * var(--ui-font-scale, 1))
+  );
   --panel-field-label-weight: 400;
   --panel-field-stack-gap: 8px;
   --panel-section-gap: 12px;
@@ -334,11 +337,19 @@
   -webkit-appearance: none;
   padding-right: 38px;
   background-image:
-    linear-gradient(180deg, color-mix(in srgb, var(--text-tertiary) 24%, transparent), color-mix(in srgb, var(--text-tertiary) 10%, transparent)),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--text-tertiary) 24%, transparent),
+      color-mix(in srgb, var(--text-tertiary) 10%, transparent)
+    ),
     var(--select-caret-icon);
   background-repeat: no-repeat;
-  background-position: calc(100% - 28px) 50%, calc(100% - 12px) 50%;
-  background-size: 1px 16px, 10px 10px;
+  background-position:
+    calc(100% - 28px) 50%,
+    calc(100% - 12px) 50%;
+  background-size:
+    1px 16px,
+    10px 10px;
 }
 
 .layer-action-dialog-btn {
@@ -351,7 +362,11 @@
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, opacity 0.16s ease;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease,
+    opacity 0.16s ease;
 }
 
 .layer-action-dialog-btn:disabled {
@@ -432,11 +447,12 @@
 }
 
 /* L1 字段标签统一（FormField / 语言三列 / 侧栏同构）| L1 labels unified */
-:is(.layer-action-dialog, .side-pane-action-modal) :is(
-  .dialog-field-label,
-  .layer-action-dialog-field-label,
-  .language-iso-input .dialog-field > span
-) {
+:is(.layer-action-dialog, .side-pane-action-modal)
+  :is(
+    .dialog-field-label,
+    .layer-action-dialog-field-label,
+    .language-iso-input .dialog-field > span
+  ) {
   font-size: var(--panel-typography-label-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: var(--panel-field-label-weight);
   line-height: 1.45;
@@ -505,20 +521,20 @@
   color: var(--surface-panel);
 }
 
-/* 主按钮启用态：实色蓝底 | Primary button enabled: solid blue */
+/* 主按钮启用态：墨色 CTA | Primary button enabled: ink action */
 .layer-action-dialog .panel-button--primary:not(:disabled) {
-  background: var(--state-info-solid);
-  border-color: var(--state-info-solid);
-  color: var(--text-on-solid);
+  background: var(--action-solid);
+  border-color: var(--action-solid);
+  color: var(--text-on-action);
 }
 
-/* L4 主按钮 12px/600 | L4 Primary button 12px/600 */
+/* L4 主按钮 12px/500 | L4 Primary button 12px/500 */
 .layer-action-dialog .panel-button--primary {
   padding: 6px 10px;
   min-height: unset;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* 选择框 + 内联新建按钮横排 | Select + inline create button row */

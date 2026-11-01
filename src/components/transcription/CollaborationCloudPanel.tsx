@@ -14,6 +14,7 @@ import type {
 import { useLocale } from '../../i18n';
 import { ProjectSnapshotMissingProjectError } from '../../services/linguisticServiceDatabaseIo';
 import { getCollaborationCloudPanelMessages } from '../../i18n/messages';
+import { PanelButton } from '../ui';
 import '../../styles/collaboration-sync-surface.css';
 
 type CloudPanelTab = 'assets' | 'snapshots' | 'timeline' | 'directory';
@@ -353,16 +354,17 @@ export function CollaborationCloudPanel({
           className={`app-side-pane-collaboration-content${hideHeader ? ' app-side-pane-collaboration-content-settings' : ''}`}
         >
           <div className="app-side-pane-collaboration-actions">
-            <button
+            <PanelButton
               type="button"
-              className="btn btn-ghost app-side-pane-collaboration-refresh"
+              variant="ghost"
+              className="app-side-pane-collaboration-refresh"
               disabled={isBusy}
               onClick={() => {
                 void handleRefreshCurrentTab();
               }}
             >
               {isBusy ? messages.loading : currentRefreshLabel}
-            </button>
+            </PanelButton>
           </div>
 
           {statusMessage ? (
@@ -385,26 +387,26 @@ export function CollaborationCloudPanel({
                     <span>{messages.createdAtLabel(formatDateTime(asset.createdAt))}</span>
                   </div>
                   <div className="app-side-pane-collaboration-item-actions">
-                    <button
+                    <PanelButton
                       type="button"
-                      className="btn btn-ghost"
+                      variant="ghost"
                       disabled={isBusy}
                       onClick={() => {
                         void handleOpenAsset(asset);
                       }}
                     >
                       {messages.openAsset}
-                    </button>
-                    <button
+                    </PanelButton>
+                    <PanelButton
                       type="button"
-                      className="btn btn-ghost"
+                      variant="ghost"
                       disabled={isBusy}
                       onClick={() => {
                         void handleRemoveAsset(asset);
                       }}
                     >
                       {messages.removeAsset}
-                    </button>
+                    </PanelButton>
                   </div>
                 </li>
               ))}
@@ -423,16 +425,16 @@ export function CollaborationCloudPanel({
                     <span>{messages.createdAtLabel(formatDateTime(snapshot.createdAt))}</span>
                   </div>
                   <div className="app-side-pane-collaboration-item-actions">
-                    <button
+                    <PanelButton
                       type="button"
-                      className="btn btn-primary"
+                      variant="primary"
                       disabled={isBusy}
                       onClick={() => {
                         void handleRestoreSnapshot(snapshot.id);
                       }}
                     >
                       {messages.restoreSnapshot}
-                    </button>
+                    </PanelButton>
                   </div>
                 </li>
               ))}
@@ -467,14 +469,14 @@ export function CollaborationCloudPanel({
               <p className="app-side-pane-collaboration-directory-current">
                 {messages.currentProjectHeading(directory.workspaceProjectId)}
               </p>
-              <button
+              <PanelButton
                 type="button"
-                className="btn btn-danger"
+                variant="danger"
                 disabled={isBusy}
                 onClick={() => void handleDeleteCloudProject()}
               >
                 {messages.deleteCloudProject}
-              </button>
+              </PanelButton>
               <h4 className="app-side-pane-collaboration-subheading">
                 {messages.directoryProjectsHeading}
               </h4>

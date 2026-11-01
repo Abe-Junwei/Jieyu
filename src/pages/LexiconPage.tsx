@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ProjectLanguageListsLoader } from '../components/ProjectLanguageListsContext';
 import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
+import { PanelButton } from '../components/ui';
 import { PanelSection } from '../components/ui/PanelSection';
 import { PanelSummary } from '../components/ui/PanelSummary';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
@@ -378,17 +379,18 @@ function LexiconWorkspace() {
               placeholder={t(locale, 'workspace.lexicon.searchPlaceholder')}
               aria-label={t(locale, 'workspace.lexicon.searchPlaceholder')}
             />
-            <button
+            <PanelButton
               type="button"
-              className="btn lexicon-workspace-create"
+              variant="primary"
+              className="lexicon-workspace-create"
               data-testid="lexicon-entry-create"
               onClick={editor.onStartCreate}
             >
               {t(locale, 'workspace.lexicon.edit.create')}
-            </button>
-            <button
+            </PanelButton>
+            <PanelButton
               type="button"
-              className="btn lexicon-workspace-export"
+              className="lexicon-workspace-export"
               data-testid="lexicon-dmlex-export"
               disabled={lexemes.length === 0}
               onClick={() => {
@@ -396,10 +398,10 @@ function LexiconWorkspace() {
               }}
             >
               {t(locale, 'workspace.lexicon.exportDmlex')}
-            </button>
-            <button
+            </PanelButton>
+            <PanelButton
               type="button"
-              className="btn lexicon-workspace-export"
+              className="lexicon-workspace-export"
               data-testid="lexicon-lift-export"
               disabled={lexemes.length === 0}
               onClick={() => {
@@ -422,7 +424,7 @@ function LexiconWorkspace() {
               }}
             >
               {t(locale, 'workspace.lexicon.exportLift')}
-            </button>
+            </PanelButton>
             <input
               ref={liftImportInputRef}
               type="file"
@@ -462,16 +464,16 @@ function LexiconWorkspace() {
                 );
               }}
             />
-            <button
+            <PanelButton
               type="button"
-              className="btn lexicon-workspace-import"
+              className="lexicon-workspace-import"
               data-testid="lexicon-lift-import"
               onClick={() => {
                 liftImportInputRef.current?.click();
               }}
             >
               {t(locale, 'workspace.lexicon.importLift')}
-            </button>
+            </PanelButton>
 
             {loading ? (
               <p className="lexicon-workspace-state">{t(locale, 'workspace.lexicon.loading')}</p>

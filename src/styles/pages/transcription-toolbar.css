@@ -1,5 +1,6 @@
 .transcription-wave-toolbar {
-  --wave-toolbar-accent: var(--state-info-solid);
+  /* Chrome toolbar: ink, not info-blue / brand purple */
+  --wave-toolbar-accent: var(--action-solid);
   --wave-toolbar-surface: color-mix(in srgb, var(--surface-panel) 96%, var(--surface-header));
   --wave-toolbar-flyout-surface: color-mix(in srgb, var(--surface-panel) 92%, transparent);
   --wave-toolbar-on-surface: var(--text-primary);
@@ -118,7 +119,9 @@
   width: 100%;
 }
 
-.transcription-wave-toolbar-shell-has-right-controls .transcription-wave-toolbar-right .compact-volume {
+.transcription-wave-toolbar-shell-has-right-controls
+  .transcription-wave-toolbar-right
+  .compact-volume {
   grid-column: 1 / -1;
   display: inline-flex;
   align-items: center;
@@ -132,7 +135,10 @@
   box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 6%, transparent);
 }
 
-.transcription-wave-toolbar-shell-has-right-controls .transcription-wave-toolbar-right .compact-volume input[type='range'] {
+.transcription-wave-toolbar-shell-has-right-controls
+  .transcription-wave-toolbar-right
+  .compact-volume
+  input[type='range'] {
   width: 100%;
 }
 
@@ -200,7 +206,12 @@
 }
 
 .transcription-wave-toolbar .icon-btn {
-  transition: background 0.14s ease, box-shadow 0.14s ease, transform 0.1s ease, filter 0.14s ease, color 0.12s ease;
+  transition:
+    background 0.14s ease,
+    box-shadow 0.14s ease,
+    transform 0.1s ease,
+    filter 0.14s ease,
+    color 0.12s ease;
 }
 
 .transcription-wave-toolbar .icon-btn:active:not(:disabled) {
@@ -214,7 +225,10 @@
   background: var(--wave-toolbar-accent);
   color: var(--wave-toolbar-play-foreground);
   box-shadow: 0 2px 10px color-mix(in srgb, var(--wave-toolbar-accent) 24%, transparent);
-  transition: filter 0.14s ease, box-shadow 0.14s ease, transform 0.1s ease;
+  transition:
+    filter 0.14s ease,
+    box-shadow 0.14s ease,
+    transform 0.1s ease;
 }
 
 .transcription-wave-toolbar .transcription-wave-toolbar-play-btn .jieyu-material,
@@ -233,7 +247,9 @@
 .transcription-wave-toolbar .transcription-wave-toolbar-play-btn:active:not(:disabled) {
   transform: scale(0.96);
   filter: brightness(0.92);
-  box-shadow: inset 0 4px 14px color-mix(in srgb, var(--shadow-color) 22%, transparent), 0 2px 8px color-mix(in srgb, var(--state-info-solid) 14%, transparent);
+  box-shadow:
+    inset 0 4px 14px color-mix(in srgb, var(--shadow-color) 22%, transparent),
+    0 2px 8px color-mix(in srgb, var(--state-info-solid) 14%, transparent);
 }
 
 .transcription-wave-toolbar .speed-select {
@@ -241,7 +257,10 @@
   border: none;
   background-color: var(--wave-toolbar-btn-bg);
   box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 7%, transparent);
-  transition: background-color 0.14s ease, box-shadow 0.14s ease, transform 0.1s ease;
+  transition:
+    background-color 0.14s ease,
+    box-shadow 0.14s ease,
+    transform 0.1s ease;
 }
 
 .transcription-wave-toolbar .speed-select:hover {
@@ -339,12 +358,14 @@
 /* 双档字号：常规 16px，主播放 18px（仅顶栏，避免动到其他页面 wave 用法） */
 .transcription-wave-toolbar span.material-symbols-outlined.jieyu-material.jieyu-material--wave,
 .transcription-wave-toolbar span.material-symbols-outlined.jieyu-material.jieyu-material--wave-md,
-.transcription-wave-toolbar span.material-symbols-outlined.jieyu-material.jieyu-material--wave-trigger {
+.transcription-wave-toolbar
+  span.material-symbols-outlined.jieyu-material.jieyu-material--wave-trigger {
   --jieyu-material-size: 16px;
   --jieyu-material-opsz: 20;
 }
 
-.transcription-wave-toolbar span.material-symbols-outlined.jieyu-material.jieyu-material--wave-play {
+.transcription-wave-toolbar
+  span.material-symbols-outlined.jieyu-material.jieyu-material--wave-play {
   --jieyu-material-size: 18px;
   --jieyu-material-opsz: 20;
 }
@@ -478,8 +499,10 @@
   box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 4%, transparent);
 }
 
-.waveform-view-options-panel .waveform-view-options-acoustic-toggle:hover:not(:disabled):not(.is-active),
-.waveform-view-options-panel .waveform-view-options-acoustic-toggle:focus-visible:not(:disabled):not(.is-active) {
+.waveform-view-options-panel
+  .waveform-view-options-acoustic-toggle:hover:not(:disabled):not(.is-active),
+.waveform-view-options-panel
+  .waveform-view-options-acoustic-toggle:focus-visible:not(:disabled):not(.is-active) {
   background: color-mix(in srgb, var(--wave-toolbar-accent) 26%, var(--surface-header));
   border-color: color-mix(in srgb, var(--wave-toolbar-accent) 42%, var(--border-soft));
 }
@@ -498,12 +521,17 @@
   color: var(--text-secondary);
 }
 
-:root[data-theme='dark'] .transcription-wave-toolbar-shell-has-right-controls .transcription-wave-toolbar-right {
+:root[data-theme='dark']
+  .transcription-wave-toolbar-shell-has-right-controls
+  .transcription-wave-toolbar-right {
   background: color-mix(in srgb, var(--surface-panel) 90%, transparent);
   border-color: var(--border-soft);
 }
 
-:root[data-theme='dark'] .transcription-wave-toolbar-shell-has-right-controls .transcription-wave-toolbar-right .compact-volume {
+:root[data-theme='dark']
+  .transcription-wave-toolbar-shell-has-right-controls
+  .transcription-wave-toolbar-right
+  .compact-volume {
   border: none;
   background: color-mix(in srgb, var(--surface-header) 74%, transparent);
   box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 10%, transparent);
@@ -537,7 +565,9 @@
     overflow: visible;
   }
 
-  .transcription-wave-toolbar-shell-has-right-controls .transcription-wave-toolbar-right .compact-volume {
+  .transcription-wave-toolbar-shell-has-right-controls
+    .transcription-wave-toolbar-right
+    .compact-volume {
     width: auto;
     min-height: 0;
     padding: 0;
@@ -643,7 +673,10 @@
   font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .transcription-import-media-btn:hover {
@@ -810,11 +843,19 @@
   appearance: none;
   field-sizing: content;
   background-image:
-    linear-gradient(180deg, color-mix(in srgb, var(--text-tertiary) 26%, transparent), color-mix(in srgb, var(--text-tertiary) 12%, transparent)),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--text-tertiary) 26%, transparent),
+      color-mix(in srgb, var(--text-tertiary) 12%, transparent)
+    ),
     var(--select-caret-icon);
   background-repeat: no-repeat;
-  background-position: calc(100% - 26px) 50%, calc(100% - 10px) 50%;
-  background-size: 1px 14px, 10px 10px;
+  background-position:
+    calc(100% - 26px) 50%,
+    calc(100% - 10px) 50%;
+  background-size:
+    1px 14px,
+    10px 10px;
 }
 
 .speed-select:focus-visible {

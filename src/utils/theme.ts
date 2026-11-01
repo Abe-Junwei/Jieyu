@@ -1,217 +1,17 @@
 /**
- * Theme switching utility
- * Manages appearance theme selection and persistence
+ * Theme utility — light/dark/system mode only (One Voice).
  *
  * Architecture:
- *   data-appearance 含 googleLightModern（Google 浅色现代）/ solarizedDark（Solarized 暗色）等
- *   data-theme-accent 含 blue / orange / green / red 等 Outlook 风格主题色
- *   data-theme="dark" — 明暗模式（独立控制；Solarized 外观时始终为 dark）
+ *   data-theme="dark" — 明暗模式（不设 = 浅色）
+ *   Brand accent is a single CSS token family (--theme-accent-*); no data-appearance
+ *   or data-theme-accent. Legacy jieyu-appearance / jieyu-theme-accent keys are cleared
+ *   on init (fresh default).
  */
 
-export type ThemeId =
-  | 'default'
-  | 'mogao'
-  | 'qinglv'
-  | 'digital'
-  | 'mural'
-  | 'mogaoNarrative'
-  | 'palaceVermilion'
-  | 'jiangnanMist'
-  | 'googleLightModern'
-  | 'solarizedDark'
-  | 'antigravity';
-
-/** Maps ThemeId to kebab-case for CSS preview class suffix (e.g. mogaoNarrative → mogao-narrative). */
-export function themeIdToPreviewClassSlug(id: ThemeId): string {
-  return id.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
-}
-
-export interface ThemeInfo {
-  id: ThemeId;
-  name: string;
-  subtitle: string;
-  description: string;
-  /** Accent color swatch for preview */
-  swatchLight: string;
-  swatchDark: string;
-  /** Background color swatch for preview */
-  bgLight: string;
-  bgDark: string;
-}
-
-export type ThemeAccentId =
-  | 'default'
-  | 'blue'
-  | 'orange'
-  | 'green'
-  | 'red'
-  | 'purple'
-  | 'pink'
-  | 'teal'
-  | 'graphite';
-
-export interface ThemeAccentInfo {
-  id: ThemeAccentId;
-  labelZh: string;
-  labelEn: string;
-  swatchLight: string;
-  swatchDark: string;
-}
-
-export const THEMES: ThemeInfo[] = [
-  {
-    id: 'default',
-    name: '青墨纸本',
-    subtitle: 'Paper Teal',
-    description: '冷纸底与青绿主操作，柠绿只作点缀，适合长时科研校对。',
-    swatchLight: '#026370',
-    swatchDark: '#E5FF97',
-    bgLight: '#FCFCF8',
-    bgDark: '#083D44',
-  },
-  {
-    id: 'mogao',
-    name: '鸣沙石窟',
-    subtitle: '敦煌风',
-    description: '石绿、土红与赭石组合强调文化厚重感，贴近语料“数字博物馆”气质。',
-    swatchLight: '#4B644B',
-    swatchDark: '#E8C7A6',
-    bgLight: '#D9B48F',
-    bgDark: '#2A1E1A',
-  },
-  {
-    id: 'qinglv',
-    name: '远山叠翠',
-    subtitle: '山水画意象',
-    description: '深潭绿与松柏绿形成低疲劳阅读体验，强调长时标注与波形观察。',
-    swatchLight: '#224C44',
-    swatchDark: '#D9E9E5',
-    bgLight: '#E8EFEE',
-    bgDark: '#0F2320',
-  },
-  {
-    id: 'digital',
-    name: '数字青金',
-    subtitle: '藏蓝 × 石绿 × 敦煌金',
-    description: '深蓝数据感底盘叠加青绿与金色高亮，适配地图、时序与多源看板。',
-    swatchLight: '#1A237E',
-    swatchDark: '#E2E7FF',
-    bgLight: '#EEF3F6',
-    bgDark: '#0E1628',
-  },
-  {
-    id: 'mural',
-    name: '壁画矿脉',
-    subtitle: '藏蓝 × 赭石 × 冷金',
-    description: '重彩叙事风格，强化结构层级与视觉张力，适合文化展示与高密信息页。',
-    swatchLight: '#283593',
-    swatchDark: '#E3E8FF',
-    bgLight: '#F4F0EA',
-    bgDark: '#1B1F3D',
-  },
-  {
-    id: 'mogaoNarrative',
-    name: '莫高窟叙事',
-    subtitle: '敦煌矿物色 × 藏蓝骨架',
-    description: '大漠黄沙与高原星空：藏蓝、土红、秋葵黄与冷灰分层，对应配色稿 card11。',
-    swatchLight: '#1C2B4B',
-    swatchDark: '#E6E9ED',
-    bgLight: '#FBF8F2',
-    bgDark: '#0B1D33',
-  },
-  {
-    id: 'palaceVermilion',
-    name: '古建筑与朱墨',
-    subtitle: '故宫红墙黛瓦',
-    description: '城赭、墨色与洒金对照，庄重规范，对应配色稿 card12。',
-    swatchLight: '#923131',
-    swatchDark: '#EDE6DA',
-    bgLight: '#EDE6DA',
-    bgDark: '#2C2C2C',
-  },
-  {
-    id: 'jiangnanMist',
-    name: '烟雨江南',
-    subtitle: '苏州园林水墨',
-    description: '黛蓝、藕荷与月白，低饱和中冷调，适合长时阅读，对应配色稿 card13。',
-    swatchLight: '#425066',
-    swatchDark: '#E8EEF3',
-    bgLight: '#E8EEF3',
-    bgDark: '#1E2833',
-  },
-  {
-    id: 'googleLightModern',
-    name: 'Light Modern',
-    subtitle: 'Google 浅色 × Slate + Blue 深色',
-    description:
-      '浅色仍为 Google Material 中性灰 + Google Blue。深色模式对齐专业音频桌面参考稿：Tailwind Slate（950/900 层次、700/800 边线）+ Tailwind Blue（400/500 强调与信息态），替代原 Google 深灰 + #8AB4F8。',
-    swatchLight: '#1A73E8',
-    swatchDark: '#60A5FA',
-    bgLight: '#F8F9FA',
-    bgDark: '#0F172A',
-  },
-  {
-    id: 'solarizedDark',
-    name: 'Solarized Dark',
-    subtitle: 'Ethan Schoonover',
-    description:
-      'Ethan Schoonover Solarized：base03 底、base0 字，强调色含 blue #268bd2 等（与官网表一致）。',
-    swatchLight: '#268bd2',
-    swatchDark: '#839496',
-    bgLight: '#002b36',
-    bgDark: '#002b36',
-  },
-  {
-    id: 'antigravity',
-    name: '纯粹禅意',
-    subtitle: 'Obsidian Minimal',
-    description: '极简留白与低对比边线，减少视觉噪音，让文本与波形成为第一主角。',
-    swatchLight: '#1A1A1A',
-    swatchDark: '#EDEDED',
-    bgLight: '#FFFFFF',
-    bgDark: '#111111',
-  },
-];
-
-export const THEME_ACCENTS: ThemeAccentInfo[] = [
-  {
-    id: 'default',
-    labelZh: '跟随配色方案',
-    labelEn: 'Follow appearance',
-    swatchLight: '#026370',
-    swatchDark: '#E5FF97',
-  },
-  { id: 'blue', labelZh: '蓝色', labelEn: 'Blue', swatchLight: '#0078D4', swatchDark: '#74BCFF' },
-  {
-    id: 'orange',
-    labelZh: '橙色',
-    labelEn: 'Orange',
-    swatchLight: '#DA3B01',
-    swatchDark: '#FFB074',
-  },
-  { id: 'green', labelZh: '绿色', labelEn: 'Green', swatchLight: '#107C10', swatchDark: '#7AD77A' },
-  { id: 'red', labelZh: '红色', labelEn: 'Red', swatchLight: '#D13438', swatchDark: '#FF9AA2' },
-  {
-    id: 'purple',
-    labelZh: '紫色',
-    labelEn: 'Purple',
-    swatchLight: '#5C2D91',
-    swatchDark: '#CDB0F3',
-  },
-  { id: 'pink', labelZh: '粉色', labelEn: 'Pink', swatchLight: '#E3008C', swatchDark: '#FF9ADE' },
-  { id: 'teal', labelZh: '青色', labelEn: 'Teal', swatchLight: '#038387', swatchDark: '#7BEDE6' },
-  {
-    id: 'graphite',
-    labelZh: '石墨灰',
-    labelEn: 'Graphite',
-    swatchLight: '#4C4A48',
-    swatchDark: '#D0CECC',
-  },
-];
+export const THEME_MODE_STORAGE_KEY = 'jieyu-theme';
 
 const APPEARANCE_KEY = 'jieyu-appearance';
 const THEME_ACCENT_KEY = 'jieyu-theme-accent';
-export const THEME_MODE_STORAGE_KEY = 'jieyu-theme';
 
 function readStoredColorSchemePreference(): 'light' | 'dark' | 'system' {
   try {
@@ -240,102 +40,36 @@ function applyDataThemeAttribute(mode: 'light' | 'dark'): void {
   }
 }
 
-/** Solarized 为暗色专用方案：强制 data-theme=dark，避免与全局浅色/跟随系统冲突 */
-function appearanceForcesDataThemeDark(themeId: ThemeId): boolean {
-  return themeId === 'solarizedDark';
+function clearLegacyAppearanceStorage(): void {
+  try {
+    localStorage.removeItem(APPEARANCE_KEY);
+    localStorage.removeItem(THEME_ACCENT_KEY);
+  } catch {
+    // localStorage unavailable
+  }
+  document.documentElement.removeAttribute('data-appearance');
+  document.documentElement.removeAttribute('data-theme-accent');
 }
 
 /**
- * 根据当前外观 + localStorage 中的 jieyu-theme（light/dark/system）同步 document 的 data-theme。
- * 在 App 写入 jieyu-theme 之后调用；setAppearance 结束时也会调用。
+ * 根据 localStorage 中的 jieyu-theme（light/dark/system）同步 document 的 data-theme。
+ * 在 App 写入 jieyu-theme 之后调用。
  */
 export function syncDocumentDataTheme(): void {
-  const appearance = getTheme();
-  if (appearanceForcesDataThemeDark(appearance)) {
-    applyDataThemeAttribute('dark');
-    return;
-  }
   const preference = readStoredColorSchemePreference();
   const mode = resolveColorScheme(preference);
   applyDataThemeAttribute(mode);
 }
 
 /**
- * Get the currently active theme ID
+ * Initialize color scheme on app startup.
+ * Clears legacy multi-theme / accent keys (等同新装默认品牌槽).
+ * Does not rewrite `jieyu-theme` when the user chose「跟随系统」.
  */
-export function getTheme(): ThemeId {
-  try {
-    const stored = localStorage.getItem(APPEARANCE_KEY);
-    if (stored !== null && stored.length > 0 && THEMES.some((t) => t.id === stored)) {
-      return stored as ThemeId;
-    }
-  } catch {
-    // localStorage unavailable
-  }
-  return 'default';
-}
-
-export function getThemeAccent(): ThemeAccentId {
-  try {
-    const stored = localStorage.getItem(THEME_ACCENT_KEY);
-    if (
-      stored !== null &&
-      stored.length > 0 &&
-      THEME_ACCENTS.some((accent) => accent.id === stored)
-    ) {
-      return stored as ThemeAccentId;
-    }
-  } catch {
-    // localStorage unavailable
-  }
-  return 'default';
-}
-
-function applyThemeAccentAttribute(accentId: ThemeAccentId): void {
-  if (accentId === 'default') {
-    document.documentElement.removeAttribute('data-theme-accent');
-  } else {
-    document.documentElement.setAttribute('data-theme-accent', accentId);
-  }
-}
-
-export function setThemeAccent(accentId: ThemeAccentId): void {
-  try {
-    localStorage.setItem(THEME_ACCENT_KEY, accentId);
-  } catch {
-    // localStorage unavailable
-  }
-  applyThemeAccentAttribute(accentId);
-}
-
-/**
- * Set the appearance theme (配色方案)
- * Updates both localStorage and the DOM data-appearance attribute
- */
-export function setAppearance(themeId: ThemeId): void {
-  try {
-    localStorage.setItem(APPEARANCE_KEY, themeId);
-  } catch {
-    // localStorage unavailable
-  }
-  if (themeId === 'default') {
-    document.documentElement.removeAttribute('data-appearance');
-  } else {
-    document.documentElement.setAttribute('data-appearance', themeId);
-  }
-  syncDocumentDataTheme();
-}
-
-/**
- * Initialize appearance + color scheme on app startup.
- * Does not rewrite `jieyu-theme` when the user chose「跟随系统」, so App state stays in sync.
- */
-export function initTheme(): { theme: ThemeId; mode: 'light' | 'dark' } {
-  const theme = getTheme();
-  setAppearance(theme);
-  const accent = getThemeAccent();
-  setThemeAccent(accent);
+export function initTheme(): { mode: 'light' | 'dark' } {
+  clearLegacyAppearanceStorage();
   const preference = readStoredColorSchemePreference();
   const mode = resolveColorScheme(preference);
-  return { theme, mode };
+  applyDataThemeAttribute(mode);
+  return { mode };
 }

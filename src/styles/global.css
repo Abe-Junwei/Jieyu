@@ -126,11 +126,21 @@ body {
 }
 
 :root.jieyu-high-contrast {
-  --border-soft: color-mix(in srgb, var(--text-primary) 32%, transparent);
+  --border-subtle: color-mix(in srgb, var(--text-primary) 28%, transparent);
+  --border-soft: color-mix(in srgb, var(--text-primary) 42%, transparent);
+  --border-strong: color-mix(in srgb, var(--text-primary) 55%, transparent);
+  --border-control: color-mix(in srgb, var(--text-primary) 62%, transparent);
+  --text-tertiary: var(--text-secondary);
+  --text-muted: var(--text-secondary);
 }
 
 :root.jieyu-high-contrast *:focus-visible {
   outline-width: 3px;
+}
+
+/* High contrast: toast tips stay vivid on ink; kill attention pulse noise */
+:root.jieyu-high-contrast .toast-listening {
+  animation: toastSlideIn 0.25s ease-out;
 }
 
 /* 降低动态效果：尊重系统"减少动态"偏好 | Reduced motion fallback */
@@ -185,8 +195,13 @@ body {
    ═══════════════════════════════════════════════════════ */
 
 @keyframes skeleton-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .skeleton {
@@ -206,8 +221,12 @@ body {
    ═══════════════════════════════════════════════════════ */
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .spinner {

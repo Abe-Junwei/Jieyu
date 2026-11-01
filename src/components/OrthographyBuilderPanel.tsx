@@ -110,8 +110,8 @@ export function OrthographyBuilderPanel({
   const fieldClassName = compact
     ? 'input orthography-builder-control orthography-builder-control-compact'
     : 'input orthography-builder-control';
-  const ghostButtonClassName = 'btn btn-ghost orthography-builder-btn';
-  const primaryButtonClassName = 'btn btn-primary orthography-builder-btn';
+  const ghostButtonClassName = 'panel-button panel-button--ghost orthography-builder-btn';
+  const primaryButtonClassName = 'panel-button panel-button--primary orthography-builder-btn';
   const containerClassName = compact
     ? 'orthography-builder-panel orthography-builder-panel-compact'
     : 'orthography-builder-panel';
@@ -725,11 +725,7 @@ export function OrthographyBuilderPanel({
                 onChange={(e) =>
                   picker.setDraftType(
                     e.target.value as
-                      | 'phonemic'
-                      | 'phonetic'
-                      | 'practical'
-                      | 'historical'
-                      | 'other',
+                      'phonemic' | 'phonetic' | 'practical' | 'historical' | 'other',
                   )
                 }
                 aria-label={messages.typeLabel}

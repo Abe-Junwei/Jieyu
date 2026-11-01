@@ -388,7 +388,7 @@ export function OrthographyBridgeWorkspacePage({
           <>
             <button
               type="button"
-              className="btn btn-ghost"
+              className="panel-button panel-button--ghost"
               onClick={shellFooterState.onCancel}
               disabled={shellFooterState.saving}
             >
@@ -396,7 +396,7 @@ export function OrthographyBridgeWorkspacePage({
             </button>
             <button
               type="button"
-              className="btn"
+              className="panel-button"
               onClick={shellFooterState.onSave}
               disabled={shellFooterState.saving}
             >
@@ -459,10 +459,13 @@ export function OrthographyBridgeWorkspacePage({
         </div>
 
         <div className="ob-summary-links">
-          <LanguageAssetRouteLink to="/assets/language-metadata" className="btn btn-ghost">
+          <LanguageAssetRouteLink
+            to="/assets/language-metadata"
+            className="panel-button panel-button--ghost"
+          >
             {t(locale, 'workspace.orthographyBridge.openLanguageMetadata')}
           </LanguageAssetRouteLink>
-          <OrthographyPanelLink className="btn btn-ghost">
+          <OrthographyPanelLink className="panel-button panel-button--ghost">
             {t(locale, 'workspace.orthographyBridge.openOrthographyManager')}
           </OrthographyPanelLink>
         </div>
@@ -548,7 +551,7 @@ export function OrthographyBridgeWorkspacePage({
               type="button"
               role="radio"
               aria-checked={projectOnly}
-              className={`btn${projectOnly ? ' btn-active' : ''}`}
+              className={`panel-button${projectOnly ? ' is-active' : ''}`}
               onClick={() => setProjectOnly(true)}
             >
               {t(locale, 'workspace.orthographyBridge.filterProjectOnly')}
@@ -557,7 +560,7 @@ export function OrthographyBridgeWorkspacePage({
               type="button"
               role="radio"
               aria-checked={!projectOnly}
-              className={`btn${!projectOnly ? ' btn-active' : ''}`}
+              className={`panel-button${!projectOnly ? ' is-active' : ''}`}
               onClick={() => setProjectOnly(false)}
             >
               {t(locale, 'workspace.orthographyBridge.filterShowAll')}
@@ -572,7 +575,7 @@ export function OrthographyBridgeWorkspacePage({
             <div className="ob-inline-actions">
               <button
                 type="button"
-                className="btn btn-ghost"
+                className="panel-button panel-button--ghost"
                 onClick={() => setBrowseAllWithoutProject(true)}
               >
                 {t(locale, 'workspace.orthographyBridge.filterShowAll')}

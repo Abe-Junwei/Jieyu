@@ -103,7 +103,7 @@ export function CorpusLibraryWorkspace() {
           <div className="corpus-library-export">
             <button
               type="button"
-              className="btn"
+              className="panel-button"
               data-testid="corpus-library-copy-plain"
               disabled={controller.basketCount === 0}
               onClick={() => {
@@ -114,7 +114,7 @@ export function CorpusLibraryWorkspace() {
             </button>
             <button
               type="button"
-              className="btn"
+              className="panel-button"
               data-testid="corpus-library-copy-markdown"
               disabled={controller.basketCount === 0}
               onClick={() => {
@@ -125,7 +125,7 @@ export function CorpusLibraryWorkspace() {
             </button>
             <button
               type="button"
-              className="btn"
+              className="panel-button"
               data-testid="corpus-library-copy-html"
               disabled={controller.basketCount === 0}
               onClick={() => {
@@ -136,7 +136,7 @@ export function CorpusLibraryWorkspace() {
             </button>
             <button
               type="button"
-              className="btn"
+              className="panel-button"
               data-testid="corpus-library-download-bundle"
               disabled={controller.basketCount === 0}
               onClick={() => {

@@ -10,17 +10,35 @@ type LanguageMetadataWorkspaceCustomFieldsSectionProps = {
   cf: CustomFieldControllerState;
 };
 
-export function LanguageMetadataWorkspaceCustomFieldsSection({ locale, draft, cf }: LanguageMetadataWorkspaceCustomFieldsSectionProps) {
+export function LanguageMetadataWorkspaceCustomFieldsSection({
+  locale,
+  draft,
+  cf,
+}: LanguageMetadataWorkspaceCustomFieldsSectionProps) {
   return (
     <details className="ws-subsection lm-subsection">
       <summary className="lm-subsection-header">
-        <h3 className="panel-title-primary">{t(locale, 'workspace.languageMetadata.sectionCustomFields')}</h3>
-        <p className="lm-subsection-description">{t(locale, 'workspace.languageMetadata.sectionCustomFieldsDescription')}</p>
+        <h3 className="panel-title-primary">
+          {t(locale, 'workspace.languageMetadata.sectionCustomFields')}
+        </h3>
+        <p className="lm-subsection-description">
+          {t(locale, 'workspace.languageMetadata.sectionCustomFieldsDescription')}
+        </p>
       </summary>
       <div className="lm-inline-actions">
-        <button type="button" className="btn btn-ghost" onClick={() => cf.handleAddFieldDef()}>{t(locale, 'workspace.languageMetadata.customFieldAdd')}</button>
+        <button
+          type="button"
+          className="panel-button panel-button--ghost"
+          onClick={() => cf.handleAddFieldDef()}
+        >
+          {t(locale, 'workspace.languageMetadata.customFieldAdd')}
+        </button>
         {cf.fieldDefs.length > 0 && (
-          <button type="button" className="btn btn-ghost" onClick={() => cf.setShowFieldManage((prev) => !prev)}>
+          <button
+            type="button"
+            className="panel-button panel-button--ghost"
+            onClick={() => cf.setShowFieldManage((prev) => !prev)}
+          >
             {t(locale, 'workspace.languageMetadata.customFieldManage')}
           </button>
         )}

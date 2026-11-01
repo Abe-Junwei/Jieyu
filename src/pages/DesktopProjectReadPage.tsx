@@ -8,6 +8,7 @@ import {
 } from '../app/desktopProjectReadPageAccess';
 import { readDesktopProjectHost } from '../desktop/projectReadHost';
 import { useDesktopDraftGuard } from '../desktop/useDesktopDraftGuard';
+import { PanelButton } from '../components/ui';
 import { t, useLocale } from '../i18n';
 import { DesktopConversationPanel } from './DesktopConversationPanel';
 import { DesktopCorpusQueryPanel } from './DesktopCorpusQueryPanel';
@@ -50,13 +51,9 @@ export function DesktopProjectReadPage() {
 
   return (
     <section className="desktop-project-read">
-      <button
-        type="button"
-        className="btn btn-primary"
-        onClick={() => draft.leave(read.openFolder)}
-      >
+      <PanelButton type="button" variant="primary" onClick={() => draft.leave(read.openFolder)}>
         {t(locale, 'app.desktopRead.openFolder')}
-      </button>
+      </PanelButton>
       {read.projectTitle.length > 0 ? <p>{read.projectTitle}</p> : null}
       {read.error.length > 0 ? <p role="alert">{read.error}</p> : null}
       {read.sessionId === null ||

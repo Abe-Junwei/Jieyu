@@ -26,8 +26,36 @@
   color: var(--panel-design-text-color);
 }
 
-.panel-design-match :is(.panel-input, .panel-button, .panel-chip, .panel-note, .panel-section__title, .panel-section__description, .panel-subsection__description, .panel-summary__supporting, input, select, textarea, button),
-.panel-design-match-content :is(.panel-input, .panel-button, .panel-chip, .panel-note, .panel-section__title, .panel-section__description, .panel-subsection__description, .panel-summary__supporting, input, select, textarea, button) {
+.panel-design-match
+  :is(
+    .panel-input,
+    .panel-button,
+    .panel-chip,
+    .panel-note,
+    .panel-section__title,
+    .panel-section__description,
+    .panel-subsection__description,
+    .panel-summary__supporting,
+    input,
+    select,
+    textarea,
+    button
+  ),
+.panel-design-match-content
+  :is(
+    .panel-input,
+    .panel-button,
+    .panel-chip,
+    .panel-note,
+    .panel-section__title,
+    .panel-section__description,
+    .panel-subsection__description,
+    .panel-summary__supporting,
+    input,
+    select,
+    textarea,
+    button
+  ) {
   font-family: inherit;
 }
 
@@ -90,7 +118,7 @@
   --input-min-height: var(--input-h-sm);
   --input-padding: 6px 8px;
   --input-border-color: var(--panel-design-border-color);
-  --input-border-radius: var(--radius-sm);
+  --input-border-radius: var(--radius-control);
   --input-background: var(--panel-design-surface-color);
   --input-color: var(--panel-design-title-color);
   --input-font-size: var(--panel-typography-body-size);
@@ -98,13 +126,13 @@
   --textarea-min-height: 44px;
   --btn-min-height: var(--input-h-sm);
   --btn-padding: 6px 10px;
-  --btn-border-radius: var(--radius-sm);
+  --btn-border-radius: var(--radius-control);
   --btn-border-color: var(--panel-design-border-color);
   --btn-background: var(--panel-design-surface-color);
   --btn-color: var(--panel-design-text-color);
   --btn-font-size: var(--panel-typography-body-size);
   --btn-line-height: 1.5;
-  --btn-font-weight: 600;
+  --btn-font-weight: 500;
   --btn-box-shadow: none;
   --btn-ghost-border-color: var(--panel-design-border-color);
   --btn-ghost-background: var(--panel-design-surface-color);
@@ -142,8 +170,22 @@
   font-weight: 600;
 }
 
-.panel-design-match :is(.panel-section__description, .panel-subsection__description, .panel-summary__supporting, .panel-note, .dialog-supporting-note),
-.panel-design-match-content :is(.panel-section__description, .panel-subsection__description, .panel-summary__supporting, .panel-note, .dialog-supporting-note) {
+.panel-design-match
+  :is(
+    .panel-section__description,
+    .panel-subsection__description,
+    .panel-summary__supporting,
+    .panel-note,
+    .dialog-supporting-note
+  ),
+.panel-design-match-content
+  :is(
+    .panel-section__description,
+    .panel-subsection__description,
+    .panel-summary__supporting,
+    .panel-note,
+    .dialog-supporting-note
+  ) {
   color: var(--panel-design-text-color);
   font-size: var(--panel-typography-body-size);
   line-height: 1.5;
@@ -163,7 +205,8 @@
 }
 
 .panel-design-match :is(.panel-chip--danger, .panel-note--danger, .dialog-supporting-note-danger),
-.panel-design-match-content :is(.panel-chip--danger, .panel-note--danger, .dialog-supporting-note-danger) {
+.panel-design-match-content
+  :is(.panel-chip--danger, .panel-note--danger, .dialog-supporting-note-danger) {
   color: var(--state-danger-text);
 }
 
@@ -172,7 +215,7 @@
   min-height: var(--input-h-sm);
   padding: 6px 8px;
   border-color: var(--panel-design-border-color);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--panel-design-surface-color);
   color: var(--panel-design-title-color);
   font-size: var(--panel-typography-body-size);
@@ -188,21 +231,21 @@
 .panel-design-match-content :is(.panel-button) {
   min-height: var(--input-h-sm);
   padding: 6px 10px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   border-color: var(--panel-design-border-color);
   background: var(--panel-design-surface-color);
   color: var(--panel-design-text-color);
   font-size: var(--panel-typography-body-size);
   line-height: 1.5;
-  font-weight: 600;
+  font-weight: 500;
   box-shadow: none;
 }
 
 .panel-design-match :is(.panel-button--primary),
 .panel-design-match-content :is(.panel-button--primary) {
-  border-color: var(--panel-design-accent-color);
-  background: var(--panel-design-accent-color);
-  color: var(--surface-panel);
+  border-color: var(--action-solid);
+  background: var(--action-solid);
+  color: var(--text-on-action);
 }
 
 .panel-design-match :is(.panel-button--ghost),

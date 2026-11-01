@@ -49,50 +49,65 @@
   min-height: var(--textarea-min-height, 88px);
 }
 
+/* Legacy .btn aliases PanelButton look — prefer PanelButton in new UI */
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1-5, 6px);
   min-height: var(--btn-min-height, var(--btn-h-md));
-  border: 1px solid
-    var(--btn-border-color, color-mix(in srgb, var(--state-info-border) 92%, transparent));
-  border-radius: var(--btn-border-radius, var(--radius-md));
-  background: var(
-    --btn-background,
-    color-mix(in srgb, var(--state-info-bg) 82%, var(--surface-panel))
-  );
-  color: var(--btn-color, var(--state-info-solid));
+  border: 1px solid var(--btn-border-color, color-mix(in srgb, var(--border-soft) 88%, transparent));
+  border-radius: var(--btn-border-radius, var(--radius-control));
+  background: var(--btn-background, color-mix(in srgb, var(--surface-header) 74%, transparent));
+  color: var(--btn-color, var(--text-primary));
   padding: var(--btn-padding, var(--space-1-5, 6px) var(--space-3, 10px));
   cursor: pointer;
   font-family: var(--btn-font-family, inherit);
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: var(--btn-line-height, 1.4);
-  font-weight: var(--btn-font-weight, 600);
+  font-weight: var(--btn-font-weight, 500);
   box-shadow: var(--btn-box-shadow, none);
   transition:
-    transform var(--duration-instant),
     background var(--duration-instant),
-    border-color var(--duration-instant),
-    box-shadow var(--duration-instant);
+    color var(--duration-instant),
+    border-color var(--duration-instant);
 }
 
 .btn:not(:disabled):hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px color-mix(in srgb, var(--shadow-color) 6%, transparent);
+  background: var(
+    --btn-hover-background,
+    color-mix(in srgb, var(--surface-header) 60%, var(--surface-panel))
+  );
 }
 
 .btn:not(:disabled):active {
-  transform: translateY(0);
-  box-shadow: none;
+  background: var(--btn-active-background, var(--surface-header));
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .btn-ghost {
-  background: var(--btn-ghost-background, var(--surface-panel));
+  background: var(--btn-ghost-background, transparent);
   color: var(--btn-ghost-color, var(--text-primary));
-  border-color: var(--btn-ghost-border-color, var(--header-border));
+  border-color: var(
+    --btn-ghost-border-color,
+    color-mix(in srgb, var(--border-soft) 88%, transparent)
+  );
 }
 
 .btn-ghost:hover {
-  background: var(--btn-ghost-hover-background, var(--state-info-bg));
+  background: var(
+    --btn-ghost-hover-background,
+    color-mix(in srgb, var(--surface-header) 60%, var(--surface-panel))
+  );
   color: var(--btn-ghost-hover-color, var(--btn-ghost-color, var(--text-primary)));
-  border-color: var(--btn-ghost-hover-border-color, var(--header-accent));
+  border-color: var(
+    --btn-ghost-hover-border-color,
+    color-mix(in srgb, var(--border-soft) 88%, transparent)
+  );
 }
 
 .btn-secondary {
@@ -112,19 +127,16 @@
 }
 
 .btn-primary {
-  border-color: var(--btn-primary-border-color, var(--header-accent));
-  background: var(--btn-primary-background, var(--header-accent));
-  color: var(--btn-primary-color, var(--text-on-solid));
+  border-color: var(--btn-primary-border-color, var(--action-solid));
+  background: var(--btn-primary-background, var(--action-solid));
+  color: var(--btn-primary-color, var(--text-on-action));
 }
 
 .btn-primary:hover,
 .btn-primary:focus-visible {
-  border-color: var(--btn-primary-hover-border-color, var(--header-accent));
-  background: var(
-    --btn-primary-hover-background,
-    color-mix(in srgb, var(--header-accent) 88%, var(--surface-panel))
-  );
-  color: var(--btn-primary-hover-color, var(--text-on-solid));
+  border-color: var(--btn-primary-hover-border-color, var(--action-hover));
+  background: var(--btn-primary-hover-background, var(--action-hover));
+  color: var(--btn-primary-hover-color, var(--text-on-action));
 }
 
 a.btn {

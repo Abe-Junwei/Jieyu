@@ -45,8 +45,12 @@
 
 /* ── Summary card ── */
 
-.ob-summary .ws-summary-fact-label { font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); }
-.ob-summary .ws-summary-fact-note { font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); }
+.ob-summary .ws-summary-fact-label {
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+}
+.ob-summary .ws-summary-fact-note {
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+}
 
 .ob-summary-meta {
   display: flex;
@@ -87,7 +91,9 @@
   margin-inline: 0;
 }
 
-.ob-search { width: 100%; }
+.ob-search {
+  width: 100%;
+}
 
 .ob-search-combobox {
   display: grid;
@@ -119,22 +125,22 @@
   gap: var(--space-row-gap, 8px);
 }
 
-.ob-filter-toggle .btn {
+.ob-filter-toggle .panel-button {
   border-color: color-mix(in srgb, var(--border-soft) 88%, transparent);
   background: var(--surface-panel);
   color: var(--text-secondary);
 }
 
-.ob-filter-toggle .btn:hover:not(:disabled),
-.ob-filter-toggle .btn:focus-visible:not(:disabled) {
+.ob-filter-toggle .panel-button:hover:not(:disabled),
+.ob-filter-toggle .panel-button:focus-visible:not(:disabled) {
   background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
   color: var(--text-primary);
 }
 
-.ob-filter-toggle .btn-active {
-  border-color: color-mix(in srgb, var(--state-info-solid) 30%, transparent);
-  background: var(--state-info-solid);
-  color: var(--surface-panel);
+.ob-filter-toggle .panel-button.is-active {
+  border-color: var(--action-solid);
+  background: var(--action-solid);
+  color: var(--text-on-action);
 }
 
 .ob-shell .ob-list {
@@ -202,8 +208,15 @@
   outline-offset: -1px;
 }
 
-.ob-list-item-label { font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1))); font-weight: 600; line-height: 1.45; }
-.ob-list-item-meta { color: var(--text-secondary); font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); }
+.ob-list-item-label {
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  font-weight: 600;
+  line-height: 1.45;
+}
+.ob-list-item-meta {
+  color: var(--text-secondary);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+}
 
 /* ── Empty callout ── */
 
@@ -314,7 +327,9 @@
 }
 
 .ob-bridge .orthography-builder-grid,
-.ob-bridge .orthography-builder-bridge-grid { gap: var(--la-section-gap); }
+.ob-bridge .orthography-builder-bridge-grid {
+  gap: var(--la-section-gap);
+}
 
 .ob-bridge .orthography-builder-bridge-panel {
   display: grid;
@@ -332,7 +347,11 @@
   align-items: start;
 }
 
-.ob-bridge .ob-bridge-group { display: grid; gap: var(--space-stack-section, 12px); grid-column: 1 / -1; }
+.ob-bridge .ob-bridge-group {
+  display: grid;
+  gap: var(--space-stack-section, 12px);
+  grid-column: 1 / -1;
+}
 
 .ob-bridge .ob-bridge-group-source,
 .ob-bridge .ob-bridge-group-meta {
@@ -340,7 +359,9 @@
   align-items: start;
 }
 
-.ob-bridge .ob-bridge-group-source > :first-child { grid-column: span 2; }
+.ob-bridge .ob-bridge-group-source > :first-child {
+  grid-column: span 2;
+}
 
 .ob-bridge .ob-bridge-group-meta {
   position: relative;
@@ -360,12 +381,17 @@
   gap: var(--la-section-gap);
 }
 
-.ob-bridge .orthography-builder-rule-block { gap: var(--space-stack-section, 12px); grid-column: span 2; }
+.ob-bridge .orthography-builder-rule-block {
+  gap: var(--space-stack-section, 12px);
+  grid-column: span 2;
+}
 
 .ob-bridge .orthography-builder-bridge-hint-box,
 .ob-bridge .orthography-builder-validation-box,
 .ob-bridge .orthography-builder-preview-box,
-.ob-bridge .orthography-builder-actions { grid-column: span 1; }
+.ob-bridge .orthography-builder-actions {
+  grid-column: span 1;
+}
 
 .ob-bridge .orthography-builder-actions {
   align-self: end;
@@ -376,21 +402,34 @@
 
 .ob-bridge .ob-bridge-group-content > .dialog-field,
 .ob-bridge .ob-bridge-group-content > .orthography-builder-validation-box,
-.ob-bridge .ob-bridge-group-content > .orthography-builder-preview-box { min-width: 0; }
+.ob-bridge .ob-bridge-group-content > .orthography-builder-preview-box {
+  min-width: 0;
+}
 
-.ob-bridge .ob-bridge-checkbox-row { align-self: end; }
+.ob-bridge .ob-bridge-checkbox-row {
+  align-self: end;
+}
 
-.ob-bridge :is(.dialog-field, .language-iso-input .dialog-field) { gap: var(--space-row-gap, 8px); }
-.ob-bridge .orthography-builder-actions { gap: var(--space-row-gap, 8px); }
+.ob-bridge :is(.dialog-field, .language-iso-input .dialog-field) {
+  gap: var(--space-row-gap, 8px);
+}
+.ob-bridge .orthography-builder-actions {
+  gap: var(--space-row-gap, 8px);
+}
 
 .ob-bridge .orthography-builder-preview-box,
 .ob-bridge .orthography-builder-validation-box,
-.ob-bridge .orthography-builder-hint { gap: var(--space-row-gap, 8px); padding: 0; }
+.ob-bridge .orthography-builder-hint {
+  gap: var(--space-row-gap, 8px);
+  padding: 0;
+}
 
 .ob-bridge .orthography-builder-preview-box,
 .ob-bridge .orthography-builder-validation-box,
 .ob-bridge .orthography-builder-hint,
-.ob-bridge .orthography-builder-rule-block { margin: 0; }
+.ob-bridge .orthography-builder-rule-block {
+  margin: 0;
+}
 
 .ob-bridge .orthography-builder-preview-box,
 .ob-bridge .orthography-builder-hint,
@@ -426,7 +465,9 @@
   box-sizing: border-box;
 }
 
-.ob-bridge :is(input, select, textarea)::placeholder { color: var(--text-secondary); }
+.ob-bridge :is(input, select, textarea)::placeholder {
+  color: var(--text-secondary);
+}
 
 .ob-bridge .orthography-builder-hint,
 .ob-bridge .orthography-builder-helper-text {
@@ -436,7 +477,11 @@
   color: var(--text-secondary);
 }
 
-.ob-bridge .orthography-builder-rule-label { font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); font-weight: 600; line-height: 1.5; }
+.ob-bridge .orthography-builder-rule-label {
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  font-weight: 600;
+  line-height: 1.5;
+}
 
 .ob-bridge :is(.orthography-builder-preview-box, .orthography-builder-validation-box) {
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
@@ -448,8 +493,14 @@
   line-height: 1.5;
 }
 
-.ob-bridge .orthography-builder-checkbox { font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1))); color: var(--text-primary); }
-.ob-bridge code { font-family: var(--font-mono); font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); }
+.ob-bridge .orthography-builder-checkbox {
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  color: var(--text-primary);
+}
+.ob-bridge code {
+  font-family: var(--font-mono);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+}
 
 .ob-bridge .orthography-builder-toolbar-actions {
   justify-content: space-between;
@@ -460,7 +511,9 @@
 .ob-bridge .orthography-builder-preview-box,
 .ob-bridge .orthography-builder-validation-box,
 .ob-bridge .orthography-builder-hint,
-.ob-bridge .orthography-builder-rule-block { border-radius: 0; }
+.ob-bridge .orthography-builder-rule-block {
+  border-radius: 0;
+}
 
 .ob-bridge .orthography-builder-footer-actions {
   grid-column: 1 / -1;
@@ -481,21 +534,28 @@
 /* ── Responsive ── */
 
 @media (max-width: 1180px) and (min-width: 721px) {
-  .ob-summary .ws-summary-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ob-summary .ws-summary-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
-  .ob-bridge :is(
-    .ob-bridge-group-source,
-    .ob-bridge-group-meta,
-    .orthography-builder-bridge-grid,
-    .ob-bridge-group-content
-  ) { grid-template-columns: 1fr; }
+  .ob-bridge
+    :is(
+      .ob-bridge-group-source,
+      .ob-bridge-group-meta,
+      .orthography-builder-bridge-grid,
+      .ob-bridge-group-content
+    ) {
+    grid-template-columns: 1fr;
+  }
 
   .ob-bridge .ob-bridge-group-source > :first-child,
   .ob-bridge .orthography-builder-rule-block,
   .ob-bridge .orthography-builder-bridge-hint-box,
   .ob-bridge .orthography-builder-validation-box,
   .ob-bridge .orthography-builder-preview-box,
-  .ob-bridge .orthography-builder-actions { grid-column: auto; }
+  .ob-bridge .orthography-builder-actions {
+    grid-column: auto;
+  }
 
   .ob-bridge .orthography-builder-actions {
     padding-top: 8px;
@@ -504,10 +564,16 @@
 }
 
 @media (max-width: 720px) {
-  .ob-summary .ws-summary-header { flex-direction: column; }
-  .ob-summary .ws-summary-facts { grid-template-columns: 1fr; }
+  .ob-summary .ws-summary-header {
+    flex-direction: column;
+  }
+  .ob-summary .ws-summary-facts {
+    grid-template-columns: 1fr;
+  }
 
   .ob-summary-links > .btn,
   .ob-inline-actions > .btn,
-  .ob-bridge .orthography-builder-footer-actions > .btn { width: 100%; }
+  .ob-bridge .orthography-builder-footer-actions > .btn {
+    width: 100%;
+  }
 }

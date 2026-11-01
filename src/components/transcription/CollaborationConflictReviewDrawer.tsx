@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { PanelButton } from '../ui';
 import type { CloudSyncConflictReviewTicket } from '../../hooks/transcription/useTranscriptionCloudSyncActions';
 import { useLocale } from '../../i18n';
 import { getCollaborationConflictReviewDrawerMessages } from '../../i18n/messages';
@@ -83,34 +84,34 @@ export function CollaborationConflictReviewDrawer({
                 </p>
 
                 <div className="collaboration-conflict-ticket-actions">
-                  <button
+                  <PanelButton
                     type="button"
-                    className="btn btn-primary"
+                    variant="primary"
                     disabled={isBusy}
                     onClick={() => {
                       void handleRun(ticket.ticketId, onApplyRemote);
                     }}
                   >
                     {messages.applyRemote}
-                  </button>
-                  <button
+                  </PanelButton>
+                  <PanelButton
                     type="button"
-                    className="btn btn-ghost"
+                    variant="ghost"
                     disabled={isBusy}
                     onClick={() => {
                       void handleRun(ticket.ticketId, onKeepLocal);
                     }}
                   >
                     {messages.keepLocal}
-                  </button>
-                  <button
+                  </PanelButton>
+                  <PanelButton
                     type="button"
-                    className="btn btn-ghost"
+                    variant="ghost"
                     disabled={isBusy}
                     onClick={() => onPostpone(ticket.ticketId)}
                   >
                     {messages.later}
-                  </button>
+                  </PanelButton>
                 </div>
               </section>
             );

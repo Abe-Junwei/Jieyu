@@ -12,6 +12,7 @@ import {
   getActiveProjectTextId,
   subscribeActiveProjectTextId,
 } from '../utils/transcriptionUrlDeepLink';
+import { PanelButton } from './ui';
 import { fireAndForget } from '../utils/fireAndForget';
 
 export function AnnotationTemplateAbbreviations() {
@@ -105,9 +106,9 @@ export function AnnotationTemplateAbbreviations() {
                 {t(locale, 'workspace.structuralProfile.abbreviationLeipzig')}
               </span>
             ) : null}
-            <button
+            <PanelButton
               type="button"
-              className="btn btn-quiet"
+              variant="ghost"
               aria-label={t(locale, 'workspace.structuralProfile.abbreviationRemove')}
               onClick={() => {
                 if (!textId) return;
@@ -118,7 +119,7 @@ export function AnnotationTemplateAbbreviations() {
               }}
             >
               {t(locale, 'workspace.structuralProfile.abbreviationRemove')}
-            </button>
+            </PanelButton>
           </li>
         ))}
       </ul>
@@ -158,9 +159,9 @@ export function AnnotationTemplateAbbreviations() {
           value={code}
           onChange={(event) => setCode(event.target.value.toUpperCase())}
         />
-        <button type="submit" className="btn btn-primary" disabled={!textId}>
+        <PanelButton type="submit" variant="primary" disabled={!textId}>
           {t(locale, 'workspace.structuralProfile.abbreviationAdd')}
-        </button>
+        </PanelButton>
       </form>
     </section>
   );

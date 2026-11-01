@@ -3,7 +3,10 @@ import type { KeyboardEvent } from 'react';
 import { forwardGeocode, type GeocodeSuggestion } from '../components/languageGeocoder';
 import { readMapProviderConfig } from '../components/languageMapEmbed.shared';
 import { t, tf } from '../i18n';
-import { buildAdministrativeDivisionDisplayLine, type WorkspaceLocale } from './languageMetadataWorkspace.shared';
+import {
+  buildAdministrativeDivisionDisplayLine,
+  type WorkspaceLocale,
+} from './languageMetadataWorkspace.shared';
 import {
   getCountryOptions,
   normalizeCountryCodesForGeocoder,
@@ -65,7 +68,9 @@ export function LanguageMetadataAdministrativeDivisionPicker({
   const [searchResults, setSearchResults] = useState<GeocodeSuggestion[]>([]);
   const [searchStatus, setSearchStatus] = useState<SearchStatus>('idle');
   const [searchOpen, setSearchOpen] = useState(false);
-  const [resolvedLocation, setResolvedLocation] = useState<ResolvedAdministrativeLocation>(createEmptyResolvedLocation);
+  const [resolvedLocation, setResolvedLocation] = useState<ResolvedAdministrativeLocation>(
+    createEmptyResolvedLocation,
+  );
   const [selectedSuggestion, setSelectedSuggestion] = useState<GeocodeSuggestion | null>(null);
 
   const countryOptions = useMemo(() => getCountryOptions(locale), [locale]);
@@ -226,9 +231,9 @@ export function LanguageMetadataAdministrativeDivisionPicker({
       return;
     }
 
-    const countryCodes = normalizeCountryCodesForGeocoder(location.countryCode.trim()
-      ? [location.countryCode.trim()]
-      : selectedCountryCodes);
+    const countryCodes = normalizeCountryCodesForGeocoder(
+      location.countryCode.trim() ? [location.countryCode.trim()] : selectedCountryCodes,
+    );
 
     try {
       const suggestions = await forwardGeocode({
@@ -245,10 +250,12 @@ export function LanguageMetadataAdministrativeDivisionPicker({
         const inferredCountryCode = suggestion.administrativeHierarchy?.countryCode?.trim();
         const inferredCountryName = suggestion.administrativeHierarchy?.country?.trim();
         if (inferredCountryCode || inferredCountryName) {
-          commitCountriesText(appendCountryIfMissing(locale, latestCountriesTextRef.current, {
-            ...(inferredCountryCode !== undefined ? { countryCode: inferredCountryCode } : {}),
-            ...(inferredCountryName !== undefined ? { countryName: inferredCountryName } : {}),
-          }));
+          commitCountriesText(
+            appendCountryIfMissing(locale, latestCountriesTextRef.current, {
+              ...(inferredCountryCode !== undefined ? { countryCode: inferredCountryCode } : {}),
+              ...(inferredCountryName !== undefined ? { countryName: inferredCountryName } : {}),
+            }),
+          );
         }
         onLocateSuggestion?.(suggestion);
       }
@@ -280,10 +287,12 @@ export function LanguageMetadataAdministrativeDivisionPicker({
     onAdministrativeDivisionsTextChange([...existingLines, line].join('\n'));
 
     if (locationToPersist.countryCode || locationToPersist.country) {
-      commitCountriesText(appendCountryIfMissing(locale, latestCountriesTextRef.current, {
-        countryCode: locationToPersist.countryCode,
-        countryName: locationToPersist.country,
-      }));
+      commitCountriesText(
+        appendCountryIfMissing(locale, latestCountriesTextRef.current, {
+          countryCode: locationToPersist.countryCode,
+          countryName: locationToPersist.country,
+        }),
+      );
     }
 
     if (locateSuggestion) {
@@ -375,7 +384,12 @@ export function LanguageMetadataAdministrativeDivisionPicker({
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      const option = pickCountryOptionToAdd(locale, countryFilter, countryOptions, filteredCountryOptions);
+      const option = pickCountryOptionToAdd(
+        locale,
+        countryFilter,
+        countryOptions,
+        filteredCountryOptions,
+      );
       if (!option) {
         return;
       }
@@ -392,16 +406,21 @@ export function LanguageMetadataAdministrativeDivisionPicker({
     }
   };
 
-  const activeCountryOptionId = countryListActiveIndex >= 0 && countryListboxOptions[countryListActiveIndex]
-    ? `${countrySuggestListId}-opt-${countryListboxOptions[countryListActiveIndex].value}`
-    : undefined;
+  const activeCountryOptionId =
+    countryListActiveIndex >= 0 && countryListboxOptions[countryListActiveIndex]
+      ? `${countrySuggestListId}-opt-${countryListboxOptions[countryListActiveIndex].value}`
+      : undefined;
 
   return (
     <div className="lm-admin-picker">
       <div className="lm-admin-coverage-row">
         <label className="lm-field lm-admin-coverage-field">
           <span>{t(locale, 'workspace.languageMetadata.macroareaLabel')}</span>
-          <select className="input" value={macroarea} onChange={(event) => onMacroareaChange(event.target.value)}>
+          <select
+            className="input"
+            value={macroarea}
+            onChange={(event) => onMacroareaChange(event.target.value)}
+          >
             {MACROAREA_OPTIONS.map((option) => (
               <option key={option.value || 'empty'} value={option.value}>
                 {option.labelKey ? t(locale, option.labelKey) : ''}
@@ -411,7 +430,9 @@ export function LanguageMetadataAdministrativeDivisionPicker({
         </label>
 
         <div className="lm-field lm-admin-coverage-field">
-          <span id={countriesLabelId}>{t(locale, 'workspace.languageMetadata.countriesLabel')}</span>
+          <span id={countriesLabelId}>
+            {t(locale, 'workspace.languageMetadata.countriesLabel')}
+          </span>
           <div className="lm-country-multi" role="group" aria-labelledby={countriesLabelId}>
             <div className="lm-country-multi__row">
               <div className="lm-country-combobox">
@@ -439,45 +460,55 @@ export function LanguageMetadataAdministrativeDivisionPicker({
                   className={`language-iso-input-suggestions${countryListboxVisible ? '' : ' is-empty'}`}
                   {...(countryListboxVisible
                     ? {
-                      id: countrySuggestListId,
-                      role: 'listbox' as const,
-                      'aria-label': t(locale, 'workspace.languageMetadata.countriesTypeaheadListAria'),
-                    }
+                        id: countrySuggestListId,
+                        role: 'listbox' as const,
+                        'aria-label': t(
+                          locale,
+                          'workspace.languageMetadata.countriesTypeaheadListAria',
+                        ),
+                      }
                     : { 'aria-hidden': 'true' as const })}
                 >
                   {countryListboxVisible
                     ? countryListboxOptions.map((option, index) => (
-                      <div
-                        key={option.value}
-                        id={`${countrySuggestListId}-opt-${option.value}`}
-                        role="option"
-                        aria-selected={countryListActiveIndex === index}
-                        className={`language-iso-input-suggestion${countryListActiveIndex === index ? ' is-active' : ''}`}
-                        onMouseEnter={() => setCountryListActiveIndex(index)}
-                        onMouseDown={(mouseEvent) => {
-                          mouseEvent.preventDefault();
-                          addCountryFromOption(option);
-                        }}
-                      >
-                        <span>{option.label}</span>
-                        <span className="lm-country-suggest-iso">{option.value}</span>
-                      </div>
-                    ))
+                        <div
+                          key={option.value}
+                          id={`${countrySuggestListId}-opt-${option.value}`}
+                          role="option"
+                          aria-selected={countryListActiveIndex === index}
+                          className={`language-iso-input-suggestion${countryListActiveIndex === index ? ' is-active' : ''}`}
+                          onMouseEnter={() => setCountryListActiveIndex(index)}
+                          onMouseDown={(mouseEvent) => {
+                            mouseEvent.preventDefault();
+                            addCountryFromOption(option);
+                          }}
+                        >
+                          <span>{option.label}</span>
+                          <span className="lm-country-suggest-iso">{option.value}</span>
+                        </div>
+                      ))
                     : null}
                 </div>
               </div>
               {selectedCountryOptions.length > 0 ? (
-                <ul className="lm-country-multi__chips" aria-label={t(locale, 'workspace.languageMetadata.countriesSelectedListAria')}>
+                <ul
+                  className="lm-country-multi__chips"
+                  aria-label={t(locale, 'workspace.languageMetadata.countriesSelectedListAria')}
+                >
                   {selectedCountryOptions.map((option) => (
                     <li key={option.value}>
                       <button
                         type="button"
-                        className="lm-country-multi__chip btn btn-ghost"
+                        className="lm-country-multi__chip panel-button panel-button--ghost"
                         onClick={() => {
                           const next = selectedCountryCodes.filter((code) => code !== option.value);
                           commitCountriesText(next.sort().join(', '));
                         }}
-                        aria-label={tf(locale, 'workspace.languageMetadata.countriesMultiRemoveAria', { country: option.label })}
+                        aria-label={tf(
+                          locale,
+                          'workspace.languageMetadata.countriesMultiRemoveAria',
+                          { country: option.label },
+                        )}
                       >
                         <span>{option.label}</span>
                         <span className="lm-country-multi__chip-x" aria-hidden="true">
@@ -508,7 +539,11 @@ export function LanguageMetadataAdministrativeDivisionPicker({
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 onFocus={() => {
-                  if (searchResults.length > 0 || searchStatus === 'empty' || searchStatus === 'error') {
+                  if (
+                    searchResults.length > 0 ||
+                    searchStatus === 'empty' ||
+                    searchStatus === 'error'
+                  ) {
                     setSearchOpen(true);
                   }
                 }}
@@ -518,10 +553,21 @@ export function LanguageMetadataAdministrativeDivisionPicker({
                     void handleAdministrativeSearch();
                   }
                 }}
-                placeholder={t(locale, 'workspace.languageMetadata.administrativeDivisionSearchPlaceholder')}
-                aria-label={t(locale, 'workspace.languageMetadata.administrativeDivisionSearchLabel')}
+                placeholder={t(
+                  locale,
+                  'workspace.languageMetadata.administrativeDivisionSearchPlaceholder',
+                )}
+                aria-label={t(
+                  locale,
+                  'workspace.languageMetadata.administrativeDivisionSearchLabel',
+                )}
               />
-              <button type="button" className="btn btn-ghost lm-geocode-btn" onClick={() => void handleAdministrativeSearch()} disabled={searchStatus === 'loading'}>
+              <button
+                type="button"
+                className="panel-button panel-button--ghost lm-geocode-btn"
+                onClick={() => void handleAdministrativeSearch()}
+                disabled={searchStatus === 'loading'}
+              >
                 {searchStatus === 'loading'
                   ? t(locale, 'workspace.languageMetadata.geocodeSearching')
                   : t(locale, 'workspace.languageMetadata.administrativeDivisionSearchButton')}
@@ -531,14 +577,32 @@ export function LanguageMetadataAdministrativeDivisionPicker({
 
           {searchOpen && (
             <ul className="lm-geocode-results">
-              {searchStatus === 'loading' ? <li className="lm-geocode-empty">{t(locale, 'workspace.languageMetadata.geocodeSearching')}</li> : null}
-              {searchStatus === 'error' ? <li className="lm-geocode-empty">{t(locale, 'workspace.languageMetadata.administrativeDivisionSearchError')}</li> : null}
-              {searchStatus === 'empty' ? <li className="lm-geocode-empty">{t(locale, 'workspace.languageMetadata.administrativeDivisionSearchNoResults')}</li> : null}
+              {searchStatus === 'loading' ? (
+                <li className="lm-geocode-empty">
+                  {t(locale, 'workspace.languageMetadata.geocodeSearching')}
+                </li>
+              ) : null}
+              {searchStatus === 'error' ? (
+                <li className="lm-geocode-empty">
+                  {t(locale, 'workspace.languageMetadata.administrativeDivisionSearchError')}
+                </li>
+              ) : null}
+              {searchStatus === 'empty' ? (
+                <li className="lm-geocode-empty">
+                  {t(locale, 'workspace.languageMetadata.administrativeDivisionSearchNoResults')}
+                </li>
+              ) : null}
               {searchResults.map((suggestion) => (
                 <li key={suggestion.id}>
-                  <button type="button" className="lm-geocode-item" onClick={() => handleSearchResultSelect(suggestion)}>
+                  <button
+                    type="button"
+                    className="lm-geocode-item"
+                    onClick={() => handleSearchResultSelect(suggestion)}
+                  >
                     <span className="lm-geocode-name">{suggestion.primaryText}</span>
-                    <span className="lm-geocode-coords">{suggestion.secondaryText ?? suggestion.displayName}</span>
+                    <span className="lm-geocode-coords">
+                      {suggestion.secondaryText ?? suggestion.displayName}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -546,28 +610,44 @@ export function LanguageMetadataAdministrativeDivisionPicker({
           )}
         </div>
 
-        {resolvedLocation.sourceDisplayName ? <p className="lm-admin-search-summary">{resolvedLocation.sourceDisplayName}</p> : null}
+        {resolvedLocation.sourceDisplayName ? (
+          <p className="lm-admin-search-summary">{resolvedLocation.sourceDisplayName}</p>
+        ) : null}
 
         <div className="lm-admin-resolved-grid">
           <div className="lm-admin-resolved-row">
             <label className="lm-field">
-              <span>{t(locale, 'workspace.languageMetadata.administrativeDivisionCountryLabel')}</span>
+              <span>
+                {t(locale, 'workspace.languageMetadata.administrativeDivisionCountryLabel')}
+              </span>
               <input
                 className="input lm-admin-text-input"
                 type="text"
                 value={resolvedLocation.country}
-                onChange={(event) => handleResolvedLocationFieldChange('country', event.target.value)}
-                placeholder={t(locale, 'workspace.languageMetadata.administrativeDivisionCountryPlaceholder')}
+                onChange={(event) =>
+                  handleResolvedLocationFieldChange('country', event.target.value)
+                }
+                placeholder={t(
+                  locale,
+                  'workspace.languageMetadata.administrativeDivisionCountryPlaceholder',
+                )}
               />
             </label>
             <label className="lm-field">
-              <span>{t(locale, 'workspace.languageMetadata.administrativeDivisionProvinceLabel')}</span>
+              <span>
+                {t(locale, 'workspace.languageMetadata.administrativeDivisionProvinceLabel')}
+              </span>
               <input
                 className="input lm-admin-text-input"
                 type="text"
                 value={resolvedLocation.province}
-                onChange={(event) => handleResolvedLocationFieldChange('province', event.target.value)}
-                placeholder={t(locale, 'workspace.languageMetadata.administrativeDivisionProvincePlaceholder')}
+                onChange={(event) =>
+                  handleResolvedLocationFieldChange('province', event.target.value)
+                }
+                placeholder={t(
+                  locale,
+                  'workspace.languageMetadata.administrativeDivisionProvincePlaceholder',
+                )}
               />
             </label>
             <label className="lm-field">
@@ -577,39 +657,63 @@ export function LanguageMetadataAdministrativeDivisionPicker({
                 type="text"
                 value={resolvedLocation.city}
                 onChange={(event) => handleResolvedLocationFieldChange('city', event.target.value)}
-                placeholder={t(locale, 'workspace.languageMetadata.administrativeDivisionCityPlaceholder')}
+                placeholder={t(
+                  locale,
+                  'workspace.languageMetadata.administrativeDivisionCityPlaceholder',
+                )}
               />
             </label>
           </div>
           <div className="lm-admin-resolved-row">
             <label className="lm-field">
-              <span>{t(locale, 'workspace.languageMetadata.administrativeDivisionCountyLabel')}</span>
+              <span>
+                {t(locale, 'workspace.languageMetadata.administrativeDivisionCountyLabel')}
+              </span>
               <input
                 className="input lm-admin-text-input"
                 type="text"
                 value={resolvedLocation.county}
-                onChange={(event) => handleResolvedLocationFieldChange('county', event.target.value)}
-                placeholder={t(locale, 'workspace.languageMetadata.administrativeDivisionCountyPlaceholder')}
+                onChange={(event) =>
+                  handleResolvedLocationFieldChange('county', event.target.value)
+                }
+                placeholder={t(
+                  locale,
+                  'workspace.languageMetadata.administrativeDivisionCountyPlaceholder',
+                )}
               />
             </label>
             <label className="lm-field">
-              <span>{t(locale, 'workspace.languageMetadata.administrativeDivisionTownshipLabel')}</span>
+              <span>
+                {t(locale, 'workspace.languageMetadata.administrativeDivisionTownshipLabel')}
+              </span>
               <input
                 className="input lm-admin-text-input"
                 type="text"
                 value={resolvedLocation.township}
-                onChange={(event) => handleResolvedLocationFieldChange('township', event.target.value)}
-                placeholder={t(locale, 'workspace.languageMetadata.administrativeDivisionTownshipPlaceholder')}
+                onChange={(event) =>
+                  handleResolvedLocationFieldChange('township', event.target.value)
+                }
+                placeholder={t(
+                  locale,
+                  'workspace.languageMetadata.administrativeDivisionTownshipPlaceholder',
+                )}
               />
             </label>
             <label className="lm-field">
-              <span>{t(locale, 'workspace.languageMetadata.administrativeDivisionVillageLabel')}</span>
+              <span>
+                {t(locale, 'workspace.languageMetadata.administrativeDivisionVillageLabel')}
+              </span>
               <input
                 className="input lm-admin-text-input"
                 type="text"
                 value={resolvedLocation.village}
-                onChange={(event) => handleResolvedLocationFieldChange('village', event.target.value)}
-                placeholder={t(locale, 'workspace.languageMetadata.administrativeDivisionVillagePlaceholder')}
+                onChange={(event) =>
+                  handleResolvedLocationFieldChange('village', event.target.value)
+                }
+                placeholder={t(
+                  locale,
+                  'workspace.languageMetadata.administrativeDivisionVillagePlaceholder',
+                )}
               />
             </label>
           </div>
@@ -621,17 +725,21 @@ export function LanguageMetadataAdministrativeDivisionPicker({
             className="btn"
             onClick={handleAddAdministrativeDivision}
             disabled={
-              !resolvedLocation.country
-              && !resolvedLocation.province
-              && !resolvedLocation.city
-              && !resolvedLocation.county
-              && !resolvedLocation.township
-              && !resolvedLocation.village
+              !resolvedLocation.country &&
+              !resolvedLocation.province &&
+              !resolvedLocation.city &&
+              !resolvedLocation.county &&
+              !resolvedLocation.township &&
+              !resolvedLocation.village
             }
           >
             {t(locale, 'workspace.languageMetadata.administrativeDivisionAddButton')}
           </button>
-          <button type="button" className="btn btn-ghost" onClick={handleClearCurrentSelection}>
+          <button
+            type="button"
+            className="panel-button panel-button--ghost"
+            onClick={handleClearCurrentSelection}
+          >
             {t(locale, 'workspace.languageMetadata.administrativeDivisionClearSelection')}
           </button>
         </div>

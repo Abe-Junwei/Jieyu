@@ -25,8 +25,6 @@ import { normalizeAiChatSettings, type AiChatSettings } from '../ai/providers/pr
 export const USER_PREFERENCE_KEYS: readonly string[] = [
   'jieyu.locale',
   'jieyu-theme',
-  'jieyu-theme-accent',
-  'jieyu-appearance',
   'jieyu-high-contrast',
   'jieyu-reduced-motion',
   'jieyu-keybindings',

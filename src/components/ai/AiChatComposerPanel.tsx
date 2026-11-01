@@ -244,7 +244,7 @@ export function AiChatComposerPanel({
         </div>
         <button
           type="button"
-          className={`btn btn-primary ai-chat-composer-send-btn${aiIsStreaming ? ' is-streaming' : ''}`}
+          className={`panel-button panel-button--primary ai-chat-composer-send-btn${aiIsStreaming ? ' is-streaming' : ''}`}
           aria-label={aiIsStreaming ? cardMessages.stopGenerating : t(locale, 'ai.chat.send')}
           disabled={
             aiIsStreaming ? !onStopAiMessage : !onSendAiMessage || sharedDialogueComposerBlocked

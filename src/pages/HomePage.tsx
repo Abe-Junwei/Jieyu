@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ContextMenu } from '../components/ContextMenu';
 import { ProjectSetupDialog } from '../components/ProjectSetupDialog';
-import { FormField, ModalPanel, PanelButton } from '../components/ui';
+import { EmptyGhostRows, FormField, ModalPanel, PanelButton } from '../components/ui';
 import { useAppSidePaneHostOptional, useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { getTranscriptionAppService } from '../app/TranscriptionAppService';
 import { LinguisticService } from '../app/languageAssetPageAccess';
@@ -296,9 +296,10 @@ export function HomePage() {
         ) : !isLoading && !isError ? (
           <div className="home-workbench-empty entry-card entry-card--dashed">
             <p>{t(locale, 'app.home.noProjects')}</p>
-            <button type="button" className="btn btn-primary" onClick={() => setSetupOpen(true)}>
+            <EmptyGhostRows rows={4} />
+            <PanelButton type="button" variant="primary" onClick={() => setSetupOpen(true)}>
               {t(locale, 'transcription.toolbar.newProject')}
-            </button>
+            </PanelButton>
           </div>
         ) : null}
       </div>

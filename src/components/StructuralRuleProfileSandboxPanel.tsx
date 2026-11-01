@@ -33,22 +33,33 @@ export function StructuralRuleProfileSandboxPanel({
   const [templateJson, setTemplateJson] = useState('');
   const [templateError, setTemplateError] = useState('');
   const viewModel = useMemo(
-    () => preview ? buildAnnotationStructuralPreviewViewModel(preview) : null,
+    () => (preview ? buildAnnotationStructuralPreviewViewModel(preview) : null),
     [preview],
   );
 
   return (
-    <section className="workspace-card" aria-label={t(locale, 'workspace.structuralProfile.sandboxAriaLabel')}>
+    <section
+      className="workspace-card"
+      aria-label={t(locale, 'workspace.structuralProfile.sandboxAriaLabel')}
+    >
       <div className="workspace-card__header">
         <div>
-          <h2 className="panel-title-primary">{t(locale, 'workspace.structuralProfile.cardTitle')}</h2>
+          <h2 className="panel-title-primary">
+            {t(locale, 'workspace.structuralProfile.cardTitle')}
+          </h2>
           <p className="lm-subsection-description">
             {t(locale, 'workspace.structuralProfile.cardDescription')}
           </p>
         </div>
         {onToggleEnabled ? (
-          <button type="button" className="btn btn-ghost" onClick={() => onToggleEnabled(!templateEnabled)}>
-            {templateEnabled ? t(locale, 'workspace.structuralProfile.toggleDisable') : t(locale, 'workspace.structuralProfile.toggleEnable')}
+          <button
+            type="button"
+            className="panel-button panel-button--ghost"
+            onClick={() => onToggleEnabled(!templateEnabled)}
+          >
+            {templateEnabled
+              ? t(locale, 'workspace.structuralProfile.toggleDisable')
+              : t(locale, 'workspace.structuralProfile.toggleEnable')}
           </button>
         ) : null}
       </div>
@@ -64,11 +75,13 @@ export function StructuralRuleProfileSandboxPanel({
       </label>
       <button
         type="button"
-        className="btn"
+        className="panel-button"
         disabled={pending || !glossText.trim()}
         onClick={() => onPreview(glossText)}
       >
-        {pending ? t(locale, 'workspace.structuralProfile.previewPending') : t(locale, 'workspace.structuralProfile.previewButton')}
+        {pending
+          ? t(locale, 'workspace.structuralProfile.previewPending')
+          : t(locale, 'workspace.structuralProfile.previewButton')}
       </button>
 
       {errorMessage ? <p role="alert">{errorMessage}</p> : null}
@@ -76,9 +89,13 @@ export function StructuralRuleProfileSandboxPanel({
 
       {viewModel ? (
         <div className="ws-subsection">
-          <h3 className="panel-title-secondary">{t(locale, 'workspace.structuralProfile.previewResultTitle')}</h3>
+          <h3 className="panel-title-secondary">
+            {t(locale, 'workspace.structuralProfile.previewResultTitle')}
+          </h3>
           <p className="lm-subsection-description">
-            {viewModel.canConfirmWithoutReview ? t(locale, 'workspace.structuralProfile.reviewReady') : t(locale, 'workspace.structuralProfile.reviewNeeded')}
+            {viewModel.canConfirmWithoutReview
+              ? t(locale, 'workspace.structuralProfile.reviewReady')
+              : t(locale, 'workspace.structuralProfile.reviewNeeded')}
           </p>
           <div className="lm-field lm-field-block">
             <span>{t(locale, 'workspace.structuralProfile.segmentsLabel')}</span>
@@ -89,19 +106,23 @@ export function StructuralRuleProfileSandboxPanel({
           <div className="lm-field lm-field-block">
             <span>{t(locale, 'workspace.structuralProfile.boundariesLabel')}</span>
             <p className="lm-subsection-description">
-              {viewModel.boundaries.map((boundary) => `${boundary.marker}:${boundary.type}`).join(', ')}
+              {viewModel.boundaries
+                .map((boundary) => `${boundary.marker}:${boundary.type}`)
+                .join(', ')}
             </p>
           </div>
           <div className="lm-field lm-field-block">
             <span>{t(locale, 'workspace.structuralProfile.diagnosticsLabel')}</span>
             <p className="lm-subsection-description">
-              {viewModel.diagnostics.map((diagnostic) => `${diagnostic.target}:${diagnostic.status}`).join(', ')}
+              {viewModel.diagnostics
+                .map((diagnostic) => `${diagnostic.target}:${diagnostic.status}`)
+                .join(', ')}
             </p>
           </div>
         </div>
       ) : null}
 
-      {(onImportTemplate || onExportTemplate) ? (
+      {onImportTemplate || onExportTemplate ? (
         <div className="ws-subsection">
           <h3 className="panel-title-secondary" id={templateSectionId}>
             {t(locale, 'workspace.structuralProfile.templateJsonTitle')}
@@ -117,7 +138,7 @@ export function StructuralRuleProfileSandboxPanel({
             {onImportTemplate ? (
               <button
                 type="button"
-                className="btn btn-ghost"
+                className="panel-button panel-button--ghost"
                 disabled={!templateJson.trim()}
                 onClick={() => {
                   setTemplateError('');
@@ -125,7 +146,11 @@ export function StructuralRuleProfileSandboxPanel({
                     try {
                       await onImportTemplate(templateJson);
                     } catch (error) {
-                      setTemplateError(error instanceof Error ? error.message : t(locale, 'workspace.structuralProfile.importFailed'));
+                      setTemplateError(
+                        error instanceof Error
+                          ? error.message
+                          : t(locale, 'workspace.structuralProfile.importFailed'),
+                      );
                     }
                   })();
                 }}
@@ -136,14 +161,18 @@ export function StructuralRuleProfileSandboxPanel({
             {onExportTemplate ? (
               <button
                 type="button"
-                className="btn btn-ghost"
+                className="panel-button panel-button--ghost"
                 onClick={() => {
                   setTemplateError('');
                   void (async () => {
                     try {
                       setTemplateJson(await onExportTemplate());
                     } catch (error) {
-                      setTemplateError(error instanceof Error ? error.message : t(locale, 'workspace.structuralProfile.exportFailed'));
+                      setTemplateError(
+                        error instanceof Error
+                          ? error.message
+                          : t(locale, 'workspace.structuralProfile.exportFailed'),
+                      );
                     }
                   })();
                 }}

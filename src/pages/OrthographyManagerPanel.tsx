@@ -125,7 +125,7 @@ export function OrthographyManagerPanel({
   const bridgeButton = selectedOrthography ? (
     <LanguageAssetRouteLink
       to={bridgeWorkspaceHref}
-      className="btn btn-ghost panel-button panel-button--ghost om-panel-link"
+      className="panel-button panel-button--ghost om-panel-link"
       onClick={(event) => {
         if (!onBeforeOpenBridge()) {
           event.preventDefault();

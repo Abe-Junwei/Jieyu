@@ -1,16 +1,5 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { OptionGroup, SettingRow, SettingsSection } from '../settingsModalPrimitives';
-import {
-  THEME_ACCENTS,
-  THEMES,
-  getTheme,
-  getThemeAccent,
-  setAppearance,
-  setThemeAccent,
-  themeIdToPreviewClassSlug,
-  type ThemeAccentId,
-  type ThemeId,
-} from '../../utils/theme';
 import type { SettingsModalMessages } from '../../i18n/messages';
 import type { ThemeMode } from './settingsConstants';
 import type { UiFontScaleMode } from '../../utils/panelAdaptiveLayout';
@@ -18,6 +7,7 @@ import type { IconEffect } from '../../utils/iconEffect';
 import type { Locale } from '../../i18n';
 
 interface SettingsAppearanceTabProps {
+  /** Reserved for future locale-specific appearance copy; unused after One-Voice cut. */
   locale: Locale;
   themeMode: ThemeMode;
   fontScale: number;
@@ -31,7 +21,7 @@ interface SettingsAppearanceTabProps {
 }
 
 export function SettingsAppearanceTab({
-  locale,
+  locale: _locale,
   themeMode,
   fontScale,
   fontScaleMode,
@@ -42,29 +32,7 @@ export function SettingsAppearanceTab({
   onFontScaleChange,
   msg,
 }: SettingsAppearanceTabProps) {
-  const [activeTheme, setActiveTheme] = useState<ThemeId>(() => getTheme());
-  const [activeThemeAccent, setActiveThemeAccent] = useState<ThemeAccentId>(() => getThemeAccent());
-
-  const handleThemeChange = useCallback((themeId: ThemeId) => {
-    setActiveTheme(themeId);
-    setAppearance(themeId);
-  }, []);
-
-  const handleThemeAccentChange = useCallback((accentId: ThemeAccentId) => {
-    setActiveThemeAccent(accentId);
-    setThemeAccent(accentId);
-  }, []);
-
-  const resolvedMode: 'light' | 'dark' =
-    themeMode === 'dark'
-      ? 'dark'
-      : themeMode === 'light'
-        ? 'light'
-        : typeof window !== 'undefined' &&
-            window.matchMedia?.('(prefers-color-scheme: dark)').matches
-          ? 'dark'
-          : 'light';
-
+  void _locale;
   const themeOptions = useMemo(
     () => [
       { value: 'light' as const, label: msg.themeLight },
@@ -106,61 +74,6 @@ export function SettingsAppearanceTab({
     <div className="settings-sections-stack">
       <SettingsSection title={msg.themeLabel}>
         <OptionGroup value={themeMode} options={themeOptions} onChange={onThemeChange} />
-      </SettingsSection>
-
-      <SettingsSection title={msg.appearanceSchemeLabel}>
-        <div className="theme-grid">
-          {THEMES.map((theme) => (
-            <button
-              key={theme.id}
-              type="button"
-              className={`theme-card${activeTheme === theme.id ? ' theme-card-active' : ''}`}
-              onClick={() => handleThemeChange(theme.id)}
-            >
-              <div
-                className={`theme-card-preview theme-card-preview-mode-${resolvedMode} theme-card-preview-theme-${themeIdToPreviewClassSlug(theme.id)}`}
-              >
-                <span className="theme-card-swatch-accent" />
-                <span className="theme-card-swatch-bg" />
-              </div>
-              <div className="theme-card-info">
-                <span className="theme-card-name">{theme.name}</span>
-                <span className="theme-card-subtitle">{theme.subtitle}</span>
-              </div>
-            </button>
-          ))}
-        </div>
-      </SettingsSection>
-
-      <SettingsSection title={msg.themeAccentLabel}>
-        <div className="theme-accent-grid" role="radiogroup" aria-label={msg.themeAccentLabel}>
-          {THEME_ACCENTS.map((accent) => {
-            const label = locale === 'zh-CN' ? accent.labelZh : accent.labelEn;
-            const isActive = activeThemeAccent === accent.id;
-            const swatchColor = resolvedMode === 'dark' ? accent.swatchDark : accent.swatchLight;
-            const swatchStyleProps = {
-              style: { ['--theme-accent-chip-color' as string]: swatchColor },
-            };
-            return (
-              <button
-                key={accent.id}
-                type="button"
-                role="radio"
-                aria-checked={isActive}
-                className={`theme-accent-chip${isActive ? ' theme-accent-chip-active' : ''}`}
-                onClick={() => handleThemeAccentChange(accent.id)}
-                title={label}
-              >
-                <span
-                  className={`theme-accent-chip-swatch${accent.id === 'default' ? ' theme-accent-chip-swatch-default' : ''}`}
-                  {...swatchStyleProps}
-                  aria-hidden="true"
-                />
-                <span className="theme-accent-chip-label">{label}</span>
-              </button>
-            );
-          })}
-        </div>
       </SettingsSection>
 
       <SettingsSection title={msg.fontScaleLabel}>

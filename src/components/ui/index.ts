@@ -18,6 +18,7 @@ export { PanelSummary } from './PanelSummary';
 
 // ── 原子组件 | Atomic components ──
 export { PanelButton } from './PanelButton';
+export { EmptyGhostRows } from './EmptyGhostRows';
 export { PanelChip } from './PanelChip';
 export { PanelNote } from './PanelNote';
 export { PanelFeedback, PanelFeedbackStack } from './PanelFeedback';

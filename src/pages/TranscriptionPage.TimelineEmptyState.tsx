@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { EmptyGhostRows, PanelButton } from '../components/ui';
 import { t, type Locale } from '../i18n';
 import { getLayerActionLabels } from '../i18n/layerActionLabels';
 import type { EmptyTimelinePolicy } from '../utils/emptyTimelinePolicy';
@@ -66,17 +67,22 @@ export function TranscriptionPageTimelineEmptyState({
   const importLabel = t(locale, 'transcription.timeline.empty.importFile');
 
   if (policy.emptyReason === 'no_units_with_wave') {
-    return <TimelineEmptyCard title={t(locale, 'transcription.timeline.empty.noUnitWithWave')} />;
+    return (
+      <TimelineEmptyCard title={t(locale, 'transcription.timeline.empty.noUnitWithWave')}>
+        <EmptyGhostRows rows={3} />
+      </TimelineEmptyCard>
+    );
   }
 
   if (policy.emptyReason === 'no_media') {
     return (
       <TimelineEmptyCard title={t(locale, 'transcription.timeline.empty.startWork')}>
+        <EmptyGhostRows rows={4} />
         <div className="timeline-empty-actions-row">
-          <button type="button" className="btn btn-primary" onClick={onOpenImportFile}>
+          <PanelButton type="button" variant="primary" onClick={onOpenImportFile}>
             <ImportFileIcon />
             {importLabel}
-          </button>
+          </PanelButton>
         </div>
       </TimelineEmptyCard>
     );
@@ -87,16 +93,17 @@ export function TranscriptionPageTimelineEmptyState({
       kicker={t(locale, 'transcription.timeline.empty.noLayer')}
       title={t(locale, 'transcription.timeline.empty.startWork')}
     >
+      <EmptyGhostRows rows={4} />
       <div className="timeline-empty-actions-row">
         {policy.primaryCta === 'create_layer' ? (
-          <button type="button" className="btn btn-primary" onClick={onCreateTranscriptionLayer}>
+          <PanelButton type="button" variant="primary" onClick={onCreateTranscriptionLayer}>
             {layerActionLabels.createTranscriptionLayer}
-          </button>
+          </PanelButton>
         ) : null}
-        <button type="button" className="btn btn-ghost" onClick={onOpenImportFile}>
+        <PanelButton type="button" variant="ghost" onClick={onOpenImportFile}>
           <ImportFileIcon />
           {importLabel}
-        </button>
+        </PanelButton>
       </div>
     </TimelineEmptyCard>
   );

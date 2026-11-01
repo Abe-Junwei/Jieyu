@@ -599,14 +599,14 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
         {!hideToggleButton && (
           <button
             type="button"
-            className="btn btn-ghost"
+            className="panel-button panel-button--ghost"
             onClick={() => setExpanded((prev) => !prev)}
           >
             {expanded ? managerMessages.toggleClose : managerMessages.toggleOpen}
           </button>
         )}
         {isExpanded && !isCreatingNew && !editingBridgeId && (
-          <button type="button" className="btn" onClick={beginCreate} disabled={saving}>
+          <button type="button" className="panel-button" onClick={beginCreate} disabled={saving}>
             {managerMessages.createRule}
           </button>
         )}
@@ -654,7 +654,7 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
                   {bridge.status === 'active' ? (
                     <button
                       type="button"
-                      className="btn btn-ghost"
+                      className="panel-button panel-button--ghost"
                       onClick={() => void toggleBridgeStatus(bridge)}
                       disabled={saving}
                     >
@@ -663,7 +663,7 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
                   ) : (
                     <button
                       type="button"
-                      className="btn btn-ghost"
+                      className="panel-button panel-button--ghost"
                       onClick={() => void toggleBridgeStatus(bridge)}
                       disabled={saving}
                     >
@@ -672,7 +672,7 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
                   )}
                   <button
                     type="button"
-                    className="btn btn-ghost"
+                    className="panel-button panel-button--ghost"
                     onClick={() => beginEdit(bridge)}
                     disabled={saving}
                   >
@@ -680,7 +680,7 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
                   </button>
                   <button
                     type="button"
-                    className="btn btn-ghost btn-danger"
+                    className="panel-button panel-button--ghost panel-button--danger"
                     onClick={() => {
                       if (
                         typeof window !== 'undefined' &&
@@ -922,7 +922,7 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
                   <div className="orthography-builder-actions orthography-builder-footer-actions">
                     <button
                       type="button"
-                      className="btn"
+                      className="panel-button"
                       onClick={handleSaveBridge}
                       disabled={saving}
                     >
@@ -930,7 +930,7 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
                     </button>
                     <button
                       type="button"
-                      className="btn btn-ghost"
+                      className="panel-button panel-button--ghost"
                       onClick={resetEditor}
                       disabled={saving}
                     >
@@ -947,7 +947,7 @@ export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
               <span>{t(locale, 'transcription.importExport.writtenViewStale')}</span>
               <button
                 type="button"
-                className="btn btn-ghost"
+                className="panel-button panel-button--ghost"
                 onClick={() => void loadBridges({ silent: true })}
               >
                 {t(locale, 'transcription.toast.segmentViewRetry')}

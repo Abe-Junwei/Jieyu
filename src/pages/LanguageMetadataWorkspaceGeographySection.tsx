@@ -181,7 +181,7 @@ export function LanguageMetadataWorkspaceGeographySection({
                 />
                 <button
                   type="button"
-                  className="btn btn-ghost lm-geocode-btn"
+                  className="panel-button btn-ghost lm-geocode-btn"
                   aria-label={t(locale, 'workspace.languageMetadata.geocodeSearch')}
                   onClick={map.handleGeocodeSearch}
                   disabled={map.geocodeLoading}
@@ -276,7 +276,7 @@ export function LanguageMetadataWorkspaceGeographySection({
                 {map.mapProviderRequiresManualKey && (
                   <button
                     type="button"
-                    className="btn btn-ghost lm-map-config-btn"
+                    className="panel-button btn-ghost lm-map-config-btn"
                     aria-label={t(locale, 'workspace.languageMetadata.mapConfigToggle')}
                     title={t(locale, 'workspace.languageMetadata.mapConfigToggle')}
                     onClick={() => map.setShowMapConfig((visible) => !visible)}
@@ -312,13 +312,13 @@ export function LanguageMetadataWorkspaceGeographySection({
                 />
               </label>
               <div className="lm-map-config-actions">
-                <button type="button" className="btn" onClick={map.handleSaveMapKey}>
+                <button type="button" className="panel-button" onClick={map.handleSaveMapKey}>
                   {t(locale, 'workspace.languageMetadata.mapApiKeySave')}
                 </button>
                 {map.mapProviderConfig.apiKey && (
                   <button
                     type="button"
-                    className="btn btn-ghost btn-danger"
+                    className="panel-button panel-button--danger"
                     onClick={map.handleClearMapKey}
                   >
                     {t(locale, 'workspace.languageMetadata.mapApiKeyClear')}
@@ -349,7 +349,7 @@ export function LanguageMetadataWorkspaceGeographySection({
                   {!map.showMapConfig && (
                     <button
                       type="button"
-                      className="btn btn-ghost"
+                      className="panel-button panel-button--ghost"
                       onClick={() => map.setShowMapConfig(true)}
                     >
                       {t(locale, 'workspace.languageMetadata.mapConfigToggle')}

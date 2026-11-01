@@ -1,4 +1,4 @@
-/* 全局 Toast 组件样式 | Global toast component styles */
+/* 全局 Toast 组件样式 | Global toast — ink pill + semantic accent tip */
 .transcription-toast-container {
   position: fixed;
   display: flex;
@@ -15,11 +15,17 @@
 }
 
 .transcription-toast {
-  padding: 8px 18px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 14px;
   border-radius: var(--radius-pill);
-  background: transparent;
-  font-weight: 600;
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--shadow-color) 12%, transparent);
+  background: var(--action-solid);
+  color: var(--text-on-action);
+  font-weight: 500;
+  border: 1px solid color-mix(in srgb, var(--action-solid) 88%, var(--border-soft));
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--shadow-color) 18%, transparent);
   pointer-events: auto;
   animation: toastSlideIn 0.25s ease-out;
   opacity: 1;
@@ -28,6 +34,15 @@
     opacity 0.26s ease,
     transform 0.26s ease,
     filter 0.26s ease;
+}
+
+.transcription-toast::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-on-action) 72%, transparent);
 }
 
 .transcription-toast-with-action {
@@ -42,7 +57,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-weight: 700;
+  font-weight: 600;
   text-decoration: underline;
   cursor: pointer;
 }
@@ -53,52 +68,42 @@
   filter: saturate(0.92);
 }
 
-.toast-info {
-  background: var(--state-info-bg);
-  color: var(--state-info-text);
-  border: 1px solid var(--state-info-border);
+/* Semantic tip color only — keep ink body */
+.toast-info::before {
+  background: var(--state-info-solid);
 }
 
-.toast-success {
-  background: var(--state-success-bg);
-  color: var(--state-success-text);
-  border: 1px solid var(--state-success-border);
+.toast-success::before {
+  background: var(--state-success-solid);
 }
 
-.toast-error {
-  background: var(--state-danger-bg);
-  color: var(--state-danger-text);
-  border: 1px solid var(--state-danger-border);
+.toast-error::before {
+  background: var(--state-danger-solid);
 }
 
-.toast-warning,
-.toast-recording,
-.toast-ai-thinking {
-  background: var(--state-warning-bg);
-  color: var(--state-warning-text);
-  border: 1px solid var(--state-warning-border);
+.toast-warning::before,
+.toast-recording::before,
+.toast-ai-thinking::before,
+.toast-executing::before {
+  background: var(--state-warning-solid);
+}
+
+.toast-listening::before {
+  background: var(--state-info-solid);
+}
+
+.toast-routing::before {
+  background: var(--state-info-solid);
 }
 
 .toast-listening {
-  background: var(--state-info-bg);
-  color: var(--state-info-solid);
-  border: 1px solid var(--state-info-border);
   animation:
     toastSlideIn 0.25s ease-out,
     toastAttentionPulse 1.4s ease-in-out infinite;
 }
 
-.toast-routing {
-  background: var(--surface-elevated);
-  color: var(--state-info-solid);
-  border: 1px solid var(--state-info-border);
-  animation: toastSlideIn 0.25s ease-out;
-}
-
+.toast-routing,
 .toast-executing {
-  background: var(--state-warning-bg);
-  color: var(--state-warning-text);
-  border: 1px solid var(--state-warning-border);
   animation: toastSlideIn 0.25s ease-out;
 }
 
@@ -116,10 +121,10 @@
 @keyframes toastAttentionPulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--state-warning-solid) 25%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--state-info-solid) 28%, transparent);
   }
 
   50% {
-    box-shadow: 0 0 0 6px color-mix(in srgb, var(--state-warning-solid) 6%, transparent);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--state-info-solid) 6%, transparent);
   }
 }

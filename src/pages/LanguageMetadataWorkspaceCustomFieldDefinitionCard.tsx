@@ -66,7 +66,7 @@ export function LanguageMetadataWorkspaceCustomFieldDefinitionCard({
         <div className="lm-field-toolbar-actions">
           <button
             type="button"
-            className="btn btn-ghost"
+            className="panel-button panel-button--ghost"
             onClick={() => onMove(definition.id, -1)}
             disabled={index === 0}
           >
@@ -74,7 +74,7 @@ export function LanguageMetadataWorkspaceCustomFieldDefinitionCard({
           </button>
           <button
             type="button"
-            className="btn btn-ghost"
+            className="panel-button panel-button--ghost"
             onClick={() => onMove(definition.id, 1)}
             disabled={index === total - 1}
           >
@@ -645,7 +645,11 @@ export function LanguageMetadataWorkspaceCustomFieldDefinitionCard({
           />
         ) : null}
       </div>
-      <button type="button" className="btn btn-danger" onClick={() => onDelete(definition)}>
+      <button
+        type="button"
+        className="panel-button panel-button--danger"
+        onClick={() => onDelete(definition)}
+      >
         {t(locale, 'workspace.languageMetadata.customFieldDelete')}
       </button>
     </div>

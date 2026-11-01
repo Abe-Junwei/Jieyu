@@ -87,7 +87,7 @@ export function AnnotationTemplatePosCategories() {
             <span className="annotation-template-abbreviation-code">{row.abbreviation}</span>
             <button
               type="button"
-              className="btn btn-quiet"
+              className="panel-button panel-button--ghost"
               onClick={() => {
                 if (!textId) return;
                 fireAndForget(removeAnnotationPosCategory(textId, row.abbreviation).then(reload), {
@@ -137,7 +137,7 @@ export function AnnotationTemplatePosCategories() {
           value={code}
           onChange={(event) => setCode(event.target.value.toUpperCase())}
         />
-        <button type="submit" className="btn btn-primary" disabled={!textId}>
+        <button type="submit" className="panel-button panel-button--primary" disabled={!textId}>
           {t(locale, 'workspace.structuralProfile.posAdd')}
         </button>
       </form>

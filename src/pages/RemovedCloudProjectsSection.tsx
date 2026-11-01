@@ -9,6 +9,7 @@ import {
   type RedownloadOutcome,
   type RemovedCloudProjectEntry,
 } from '../app/projectRemovalFlow';
+import { PanelButton } from '../components/ui';
 import { t, tf, type DictKey, type Locale } from '../i18n';
 
 const REASON_KEYS: Record<Exclude<RedownloadOutcome, { ok: true }>['reason'], DictKey | null> = {
@@ -80,16 +81,16 @@ export function RemovedCloudProjectsSection({
               {entry.projectName ?? t(locale, 'app.home.removedCloudProjects.unnamed')}
             </span>
           </span>
-          <button
+          <PanelButton
             type="button"
-            className="btn"
+            variant="primary"
             disabled={busyId !== null}
             onClick={() => void redownload(entry.projectId)}
           >
             {busyId === entry.projectId
               ? t(locale, 'app.home.removedCloudProjects.redownloading')
               : t(locale, 'app.home.removedCloudProjects.redownload')}
-          </button>
+          </PanelButton>
         </div>
       ))}
     </section>

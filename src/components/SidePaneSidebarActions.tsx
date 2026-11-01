@@ -4,7 +4,7 @@ import type { SidePaneSidebarMessages } from '../i18n/messages';
 import { fireAndForget } from '../utils/fireAndForget';
 import { WrenchIcon } from './SvgIcons';
 import { formatSidePaneLayerLabel } from '../utils/transcriptionFormatters';
-import { ActionButtonGroup } from './ui';
+import { ActionButtonGroup, PanelButton } from './ui';
 import { SidePaneActionModal } from './SidePaneActionModal';
 import { SidePaneSidebarSpeakerManagement } from './SidePaneSidebarSpeakerManagement';
 
@@ -176,9 +176,9 @@ export function SidePaneSidebarActions({
           >
             <div className="transcription-side-pane-repair-header">
               <strong>{messages.repairDetailsTitle}</strong>
-              <button
+              <PanelButton
                 type="button"
-                className="btn btn-ghost"
+                variant="ghost"
                 onClick={() => setConstraintRepairDetailsCollapsed((prev) => !prev)}
                 aria-label={
                   constraintRepairDetailsCollapsed
@@ -189,7 +189,7 @@ export function SidePaneSidebarActions({
                 {constraintRepairDetailsCollapsed
                   ? messages.repairDetailsExpand
                   : messages.repairDetailsCollapse}
-              </button>
+              </PanelButton>
             </div>
             {!constraintRepairDetailsCollapsed &&
               groupedConstraintRepairDetails.map((group) => (

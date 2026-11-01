@@ -31,7 +31,7 @@ describe('TranscriptionPageTimelineEmptyState', () => {
     expect(screen.getByText('请先创建转写层或翻译层')).toBeTruthy();
 
     const createButton = screen.getByRole('button', { name: '新建转写层' });
-    expect(createButton.className).toContain('btn-primary');
+    expect(createButton.className).toContain('panel-button--primary');
     fireEvent.click(createButton);
 
     expect(onCreateTranscriptionLayer).toHaveBeenCalledTimes(1);
@@ -55,7 +55,7 @@ describe('TranscriptionPageTimelineEmptyState', () => {
 
     expect(screen.getByRole('heading', { name: '请导入媒体或文本文件开始工作' })).toBeTruthy();
     const importButton = screen.getByRole('button', { name: '导入文件' });
-    expect(importButton.className).toContain('btn-primary');
+    expect(importButton.className).toContain('panel-button--primary');
     fireEvent.click(importButton);
     expect(onOpenImportFile).toHaveBeenCalledTimes(1);
   });

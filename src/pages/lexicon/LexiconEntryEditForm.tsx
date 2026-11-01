@@ -173,7 +173,7 @@ export function LexiconEntryEditForm({ editor }: Props) {
             <div className="lexicon-entry-edit-actions">
               <button
                 type="button"
-                className="btn"
+                className="panel-button"
                 data-testid={`lexicon-entry-add-subsense-${index}`}
                 onClick={() => editor.onAddSubsense(index)}
               >
@@ -181,7 +181,7 @@ export function LexiconEntryEditForm({ editor }: Props) {
               </button>
               <button
                 type="button"
-                className="btn"
+                className="panel-button"
                 data-testid={`lexicon-entry-move-sense-up-${index}`}
                 onClick={() => editor.onMoveSense(index, -1)}
               >
@@ -189,7 +189,7 @@ export function LexiconEntryEditForm({ editor }: Props) {
               </button>
               <button
                 type="button"
-                className="btn"
+                className="panel-button"
                 data-testid={`lexicon-entry-move-sense-down-${index}`}
                 onClick={() => editor.onMoveSense(index, 1)}
               >
@@ -197,7 +197,7 @@ export function LexiconEntryEditForm({ editor }: Props) {
               </button>
               <button
                 type="button"
-                className="btn"
+                className="panel-button"
                 data-testid={`lexicon-entry-remove-sense-${index}`}
                 onClick={() => editor.onRemoveSense(index)}
               >
@@ -209,7 +209,7 @@ export function LexiconEntryEditForm({ editor }: Props) {
       })}
       <button
         type="button"
-        className="btn"
+        className="panel-button"
         data-testid="lexicon-entry-add-sense"
         onClick={editor.onAddSense}
       >
@@ -224,7 +224,7 @@ export function LexiconEntryEditForm({ editor }: Props) {
       <div className="lexicon-entry-edit-actions">
         <button
           type="submit"
-          className="btn btn-primary"
+          className="panel-button panel-button--primary"
           data-testid="lexicon-entry-save"
           disabled={editor.saving}
         >
@@ -233,7 +233,7 @@ export function LexiconEntryEditForm({ editor }: Props) {
         {editor.creating ? (
           <button
             type="button"
-            className="btn"
+            className="panel-button"
             data-testid="lexicon-entry-cancel-create"
             onClick={editor.onCancelCreate}
           >
@@ -242,7 +242,7 @@ export function LexiconEntryEditForm({ editor }: Props) {
         ) : (
           <button
             type="button"
-            className="btn"
+            className="panel-button"
             data-testid="lexicon-entry-delete"
             disabled={editor.deleting}
             onClick={editor.onRequestDelete}

@@ -153,15 +153,15 @@ describe('Appearance tab', () => {
   it('renders theme and font-scale settings', () => {
     renderModal();
     expect(screen.getByText('主题')).toBeTruthy();
-    expect(screen.getByText('主题色')).toBeTruthy();
+    expect(screen.queryByText('主题色')).toBeNull();
+    expect(screen.queryByText('配色方案')).toBeNull();
     expect(screen.getByText('字体缩放')).toBeTruthy();
   });
 
-  it('persists selected accent color to localStorage and root attribute', () => {
+  it('does not expose multi-theme accent controls', () => {
     renderModal();
-    fireEvent.click(screen.getByRole('radio', { name: '蓝色' }));
-    expect(localStorage.getItem('jieyu-theme-accent')).toBe('blue');
-    expect(document.documentElement.getAttribute('data-theme-accent')).toBe('blue');
+    expect(screen.queryByRole('radio', { name: '蓝色' })).toBeNull();
+    expect(document.documentElement.getAttribute('data-theme-accent')).toBeNull();
   });
 
   it('calls onThemeChange when clicking theme option', () => {

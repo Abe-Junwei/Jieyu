@@ -51,7 +51,7 @@ initGlobalErrorHandlers();
 void initOtelForReleaseStage();
 void initSentryForReleaseStage();
 initLcpMetricObserver();
-initTheme(); // 初始化配色主题 | Initialize appearance theme
+initTheme(); // 初始化明暗 mode；清遗留多外观键 | Init light/dark mode; clear legacy appearance keys
 initIconEffect(); // 图标效果 material / motion | Icon effect preference
 // 启动时的申请只记录结果；第一次导入 / 保存时再伴随手势申请（6.2）
 // Startup attempt is recorded; the first import / save gesture asks again (6.2)

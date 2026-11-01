@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { PanelButton } from './ui';
 import { t, type Locale, useLocale } from '../i18n';
 import { createLogger } from '../observability/logger';
 import { reloadOnceForStaleDevReact } from '../utils/devRuntimeRecovery';
@@ -42,15 +43,16 @@ class ErrorBoundaryImpl extends Component<ErrorBoundaryImplProps, { error: Error
           <h2>{t(locale, 'app.errorBoundary.title')}</h2>
           <p className="app-error-boundary__message">{error.message}</p>
           <div className="app-error-boundary__actions">
-            <button className="btn" onClick={this.reset}>
+            <PanelButton type="button" variant="primary" onClick={this.reset}>
               {t(locale, 'app.errorBoundary.retry')}
-            </button>
-            <button
-              className="btn app-error-boundary__reload-btn"
+            </PanelButton>
+            <PanelButton
+              type="button"
+              className="app-error-boundary__reload-btn"
               onClick={() => window.location.reload()}
             >
               {t(locale, 'app.errorBoundary.reload')}
-            </button>
+            </PanelButton>
           </div>
         </section>
       );

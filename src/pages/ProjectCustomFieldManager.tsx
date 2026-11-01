@@ -120,26 +120,38 @@ export function ProjectCustomFieldManager(props: {
         {t(fields.locale, 'app.projectFields.required')}
       </label>
       <div className="project-custom-fields-actions">
-        <button type="button" className="btn btn-primary" onClick={fields.createDefinition}>
+        <button
+          type="button"
+          className="panel-button panel-button--primary"
+          onClick={fields.createDefinition}
+        >
           {t(fields.locale, 'app.projectFields.create')}
         </button>
         <button
           type="button"
-          className="btn"
+          className="panel-button"
           disabled={fields.selectedId === null}
           onClick={fields.renameDefinition}
         >
           {t(fields.locale, 'app.projectFields.rename')}
         </button>
-        <button type="button" className="btn" onClick={() => fields.importDefinition('reuse')}>
+        <button
+          type="button"
+          className="panel-button"
+          onClick={() => fields.importDefinition('reuse')}
+        >
           {t(fields.locale, 'app.projectFields.importReuse')}
         </button>
-        <button type="button" className="btn" onClick={() => fields.importDefinition('create')}>
+        <button
+          type="button"
+          className="panel-button"
+          onClick={() => fields.importDefinition('create')}
+        >
           {t(fields.locale, 'app.projectFields.importCreate')}
         </button>
         <button
           type="button"
-          className="btn"
+          className="panel-button"
           disabled={fields.selectedId === null}
           onClick={fields.previewMigration}
         >
@@ -147,7 +159,7 @@ export function ProjectCustomFieldManager(props: {
         </button>
         <button
           type="button"
-          className="btn"
+          className="panel-button"
           disabled={fields.selectedId === null}
           onClick={fields.previewPurge}
         >
@@ -155,16 +167,16 @@ export function ProjectCustomFieldManager(props: {
         </button>
         <button
           type="button"
-          className="btn"
+          className="panel-button"
           disabled={fields.purge === null}
           onClick={fields.confirmPurge}
         >
           {t(fields.locale, 'app.projectFields.purgeConfirm')}
         </button>
-        <button type="button" className="btn" onClick={fields.checkMissing}>
+        <button type="button" className="panel-button" onClick={fields.checkMissing}>
           {t(fields.locale, 'app.projectFields.checkMissing')}
         </button>
-        <button type="button" className="btn" onClick={fields.showDangling}>
+        <button type="button" className="panel-button" onClick={fields.showDangling}>
           {t(fields.locale, 'app.projectFields.showDangling')}
         </button>
       </div>

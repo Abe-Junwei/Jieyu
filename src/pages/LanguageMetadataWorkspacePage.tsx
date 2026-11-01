@@ -3,6 +3,7 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { MaterialSymbol } from '../components/ui/MaterialSymbol';
 import { JIEYU_MATERIAL_PANEL } from '../utils/jieyuMaterialIcon';
 import { useSearchParams } from 'react-router-dom';
+import { PanelButton } from '../components/ui';
 import { EmbeddedPanelShell } from '../components/ui/EmbeddedPanelShell';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { t, tf, useLocale } from '../i18n';
@@ -559,9 +560,9 @@ export function LanguageMetadataWorkspacePage({
         {saveError ? <p className="lm-state lm-state-error">{saveError}</p> : null}
         {saveSuccess ? <p className="lm-state lm-state-success">{saveSuccess}</p> : null}
         {listStale ? (
-          <button
+          <PanelButton
             type="button"
-            className="btn btn-ghost"
+            variant="ghost"
             onClick={() => {
               fireAndForget(
                 loadEntries(deferredSearchText.trim(), { preserveEntriesOnError: true }).then(
@@ -579,7 +580,7 @@ export function LanguageMetadataWorkspacePage({
             }}
           >
             {t(locale, 'transcription.toast.segmentViewRetry')}
-          </button>
+          </PanelButton>
         ) : null}
         {!saveError && !saveSuccess ? (
           <p className="lm-state">{t(locale, 'workspace.languageMetadata.summary')}</p>
@@ -587,28 +588,23 @@ export function LanguageMetadataWorkspacePage({
       </div>
 
       <div className="lm-actions">
-        <button type="button" className="btn btn-ghost" onClick={handleResetDraft}>
+        <PanelButton type="button" variant="ghost" onClick={handleResetDraft}>
           {t(locale, 'workspace.languageMetadata.resetButton')}
-        </button>
+        </PanelButton>
         {selectedEntry?.hasPersistedRecord ? (
-          <button
-            type="button"
-            className="btn btn-danger"
-            onClick={handleDelete}
-            disabled={deleting}
-          >
+          <PanelButton type="button" variant="danger" onClick={handleDelete} disabled={deleting}>
             {deleting
               ? t(locale, 'workspace.languageMetadata.deleting')
               : selectedEntry.entryKind === 'custom'
                 ? t(locale, 'workspace.languageMetadata.deleteCustomButton')
                 : t(locale, 'workspace.languageMetadata.deleteOverrideButton')}
-          </button>
+          </PanelButton>
         ) : null}
-        <button type="button" className="btn" onClick={handleSave} disabled={saving}>
+        <PanelButton type="button" variant="primary" onClick={handleSave} disabled={saving}>
           {saving
             ? t(locale, 'workspace.languageMetadata.saving')
             : t(locale, 'workspace.languageMetadata.saveButton')}
-        </button>
+        </PanelButton>
       </div>
     </>
   );
@@ -633,9 +629,9 @@ export function LanguageMetadataWorkspacePage({
           placeholder={t(locale, 'workspace.languageMetadata.searchPlaceholder')}
           aria-label={t(locale, 'workspace.languageMetadata.searchPlaceholder')}
         />
-        <button type="button" className="btn btn-ghost" onClick={handleCreateCustom}>
+        <PanelButton type="button" variant="ghost" onClick={handleCreateCustom}>
           {t(locale, 'workspace.languageMetadata.createCustom')}
-        </button>
+        </PanelButton>
         <p
           className={`lm-toolbar-hint${deferredSearchText.trim() && entries.length === 0 ? ' lm-toolbar-hint-warn' : ''}`}
         >
