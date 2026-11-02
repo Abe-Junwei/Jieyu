@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-02T02:25:26.224Z",
-  "aggregate": "053a50e06e292d8c936a5667c740d2c2ba528883c5616362150161753f087ecb",
+  "generatedAt": "2026-11-02T03:04:12.067Z",
+  "aggregate": "6b14ded358ad82c95d623eaa51a818b65988968de41b2e6243f0919e65d9ed97",
   "fileHashes": {
     "src/styles/ai-hub.css": "59eabaab3ce6f597a0588cb08a544be61cfbdf81ac2b0d00459e4bcc4dead0c9",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -28,7 +28,6 @@
     "src/styles/pages/app-shell-layout.css": "6ffd94d231dc7f5a6b248ceea50f9d23b5c0002c4a198ddea8e8f0c27351ecaa",
     "src/styles/pages/corpus-library-workspace.css": "010f51e6efdbd1f622877f9285a4bbf67fcd98758ac31431633307ed96ae9480",
     "src/styles/pages/desktop-project-read.css": "3cccf8f60a1aac19eec9c014df395b3f73caea57031c4418d7714f2be86d7e79",
-    "src/styles/pages/desktop-transcription-workspace.css": "43179039dabb14fc3f0bacfbb1594e5865b7bbd6de965b12ff4cce8f54a11465",
     "src/styles/pages/feature-availability.css": "41085a30ed3f77bd180c65cf0842dd839dcf81ff0496684b5cb4bb6231872c09",
     "src/styles/pages/home-page.css": "6f10b0a6de15abbbd8afec7ceb585f5c18d5ec5d931a466f128850ea9db3145b",
     "src/styles/pages/language-metadata-workspace.css": "920a61a590082eeb16c266158d43ed4fb01039e831553bd3d40e6b55547b93ec",
@@ -75,7 +74,7 @@
     "src/styles/panels/shortcuts-panel.css": "13cd4a3d624e76c22c91596cef3f4e9fe5f8cc986a0f30831a39a9fe92545671",
     "src/styles/panels/undo-history.css": "6649f307ffd35d5bbbda45272e15b73a0b6168fbf2fab8ca59045574a32a5a8d",
     "src/styles/panels/voice-agent.css": "f4533990de2f279a63a74cfcb071d29e3453fe232d05ddf55ef30f33e0e5e765",
-    "src/styles/tokens.css": "92aa607eff4be2305fe8677fc93cc8a0d78489c0feb3f4271c109712a4758fcf",
+    "src/styles/tokens.css": "33d6185f7993a79a9da28451adbed296f3b13c23ecf4d06ef6b3bcbed62e43cb",
     "src/styles/transcription-entry.css": "58cb5cf806e8359ee550ed1bb4e6da9a334391e19c43dcd81184924d75c5003b",
     "src/styles/transcription-timeline.css": "15b57584ca039026d664457c51b69a6e5449bd6e75a6b6c9a7fcdffa0c9eae9e"
   }
