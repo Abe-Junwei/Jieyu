@@ -6,8 +6,13 @@ import type {
 export interface DesktopReadHost {
   projectReadEnabled: boolean;
   chooseDesktopFolder(): Promise<{ sessionId: string } | { cancelled: true }>;
-  chooseImportFile?(): Promise<{ file: string; roles?: string } | { cancelled: true }>;
-  chooseExportFile?(name: string): Promise<{ file: string } | { cancelled: true }>;
+  chooseImportFile?(
+    sessionId: string,
+  ): Promise<{ grantId: string; rolesGrantId?: string } | { cancelled: true }>;
+  chooseExportFile?(
+    sessionId: string,
+    name: string,
+  ): Promise<{ grantId: string } | { cancelled: true }>;
   listDailyBackups?(sessionId: string): Promise<{ days: string[] }>;
   restoreDailyBackup?(
     sessionId: string,

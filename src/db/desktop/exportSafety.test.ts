@@ -11,6 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
+import { grantExchangePath, resetExchangePathGrants } from '../../desktop/exchangePathGrant';
 import { callDesktopSession } from './desktopCall';
 import { openDesktopSession, resetDesktopSessions } from './projectSession';
 
@@ -29,7 +30,7 @@ it('refuses a database hard link for every export without changing the database'
     ]) {
       expect(() =>
         callDesktopSession(sessionId, method, {
-          file: target,
+          grantId: grantExchangePath(sessionId, target, 'export'),
           ...(method === 'exchange.exportManuscript' ? { manuscriptId: 'unused' } : {}),
         }),
       ).toThrow('export target is the open project');
@@ -39,6 +40,7 @@ it('refuses a database hard link for every export without changing the database'
     callDesktopSession(sessionId, 'reopen', {});
     expect(callDesktopSession(sessionId, 'project.get', {})).not.toBeNull();
   } finally {
+    resetExchangePathGrants();
     resetDesktopSessions();
     rmSync(folder, { recursive: true, force: true });
   }
@@ -55,18 +57,25 @@ it('protects retained sources and attachment objects, including their hard links
       const alias = join(folder, `${directory.replaceAll('/', '-')}.jyt`);
       linkSync(original, alias);
       for (const file of [original, alias]) {
-        expect(() => callDesktopSession(sessionId, 'exchange.exportJyt', { file })).toThrow(
-          'export target is the open project',
-        );
+        expect(() =>
+          callDesktopSession(sessionId, 'exchange.exportJyt', {
+            grantId: grantExchangePath(sessionId, file, 'export'),
+          }),
+        ).toThrow('export target is the open project');
         expect(readFileSync(original, 'utf8')).toBe('original bytes');
       }
     }
     const allowed = join(folder, 'export.jyt');
-    expect(callDesktopSession(sessionId, 'exchange.exportJyt', { file: allowed })).toEqual({
+    expect(
+      callDesktopSession(sessionId, 'exchange.exportJyt', {
+        grantId: grantExchangePath(sessionId, allowed, 'export'),
+      }),
+    ).toEqual({
       file: allowed,
     });
     expect(readFileSync(allowed).subarray(0, 2).toString()).toBe('PK');
   } finally {
+    resetExchangePathGrants();
     resetDesktopSessions();
     rmSync(folder, { recursive: true, force: true });
   }
@@ -79,12 +88,15 @@ it('does not change the open database when an export names that file', () => {
     const file = join(folder, 'project.sqlite');
     const before = readFileSync(file).subarray(0, 16).toString();
     try {
-      callDesktopSession(sessionId, 'exchange.exportJyt', { file });
+      callDesktopSession(sessionId, 'exchange.exportJyt', {
+        grantId: grantExchangePath(sessionId, file, 'export'),
+      });
     } catch {
       /* rejection is allowed */
     }
     expect(readFileSync(file).subarray(0, 16).toString()).toBe(before);
   } finally {
+    resetExchangePathGrants();
     resetDesktopSessions();
     rmSync(folder, { recursive: true, force: true });
   }
@@ -102,11 +114,14 @@ it('protects a registered recording from export overwrite', () => {
       sha256: createHash('sha256').update(bytes).digest('hex'),
       duration: 1,
     });
-    expect(() => callDesktopSession(sessionId, 'exchange.exportJyt', { file })).toThrow(
-      'export target is the open project',
-    );
+    expect(() =>
+      callDesktopSession(sessionId, 'exchange.exportJyt', {
+        grantId: grantExchangePath(sessionId, file, 'export'),
+      }),
+    ).toThrow('export target is the open project');
     expect(readFileSync(file)).toEqual(bytes);
   } finally {
+    resetExchangePathGrants();
     resetDesktopSessions();
     rmSync(folder, { recursive: true, force: true });
   }
@@ -122,11 +137,14 @@ it('protects the database when the project was opened through a symlink', () => 
     const { sessionId } = openDesktopSession(alias, [alias]);
     const file = join(folder, 'project.sqlite');
     const header = readFileSync(file).subarray(0, 16).toString();
-    expect(() => callDesktopSession(sessionId, 'exchange.exportJyt', { file })).toThrow(
-      'export target is the open project',
-    );
+    expect(() =>
+      callDesktopSession(sessionId, 'exchange.exportJyt', {
+        grantId: grantExchangePath(sessionId, file, 'export'),
+      }),
+    ).toThrow('export target is the open project');
     expect(readFileSync(file).subarray(0, 16).toString()).toBe(header);
   } finally {
+    resetExchangePathGrants();
     resetDesktopSessions();
     rmSync(root, { recursive: true, force: true });
   }
