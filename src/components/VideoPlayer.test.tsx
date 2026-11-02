@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoPlayer } from './VideoPlayer';
 import { useVideoPlayer } from '~/hooks/media/useVideoPlayer';
@@ -112,5 +112,46 @@ describe('VideoPlayer', () => {
     } finally {
       restoreStorage();
     }
+  });
+
+  it('plays the video region when the progress bar hits a segment (#489)', () => {
+    const stub = createPlayerStub();
+    stub.videoRef.current = {
+      duration: 100,
+      currentTime: 0,
+      paused: true,
+      play: vi.fn(),
+      pause: vi.fn(),
+    } as unknown as HTMLVideoElement;
+    vi.mocked(useVideoPlayer).mockReturnValue(stub);
+    const onRegionClick = vi.fn();
+
+    render(
+      <VideoPlayer
+        mediaUrl="blob:demo-video"
+        regions={[{ id: 'r1', start: 10, end: 20 }]}
+        onRegionClick={onRegionClick}
+      />,
+    );
+
+    const bar = document.querySelector('.video-player-progress');
+    expect(bar).toBeTruthy();
+    vi.spyOn(bar as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      width: 100,
+      top: 0,
+      height: 10,
+      right: 100,
+      bottom: 10,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    fireEvent.click(bar as Element, { clientX: 15 });
+
+    expect(stub.playRegion).toHaveBeenCalledWith(10, 20, true);
+    expect(onRegionClick).toHaveBeenCalledWith('r1', 15, expect.any(MouseEvent));
+    expect(stub.seekTo).not.toHaveBeenCalled();
   });
 });

@@ -104,17 +104,18 @@ export function VideoPlayer({
       const rect = bar.getBoundingClientRect();
       const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       const newTime = ratio * video.duration;
-      player.seekTo(newTime);
 
-      // Check if clicked on a region
+      // Region hit: play the segment on the video too (waveform is driven by onRegionClick).
       if (regions) {
         for (const region of regions) {
           if (newTime >= region.start && newTime <= region.end) {
+            player.playRegion(region.start, region.end, true);
             onRegionClick?.(region.id, newTime, e.nativeEvent);
-            break;
+            return;
           }
         }
       }
+      player.seekTo(newTime);
     },
     [player, regions, onRegionClick, isReady],
   );
