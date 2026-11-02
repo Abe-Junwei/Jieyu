@@ -2,8 +2,8 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useLocale } from '../../i18n';
 import { useEmbeddingContext } from '../../contexts/EmbeddingContext';
 import type { EmbeddingProviderKind } from '../../ai/embeddings/EmbeddingProvider';
-import { MaterialSymbol } from '../ui/MaterialSymbol';
-import { JIEYU_MATERIAL_MICRO } from '../../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../ui/JieyuIcon';
+import { JIEYU_ICON_MICRO } from '../../utils/jieyuIcon';
 import { getAiEmbeddingCardMessages } from '../../i18n/messages';
 import { consumeRequestedEmbeddingTaskFocusTaskIdFromSessionStorage, notifyOpenApprovalCenter, REQUEST_EMBEDDING_TASK_FOCUS_EVENT, type RequestEmbeddingTaskFocusDetail } from '../../ai/tasks/taskRefreshEvents';
 
@@ -185,7 +185,7 @@ export function AiEmbeddingCard() {
         </button>
         {embeddingAvailability === 'available' && (
           <span className="ai-embed-status ai-embed-status-available">
-            <MaterialSymbol name="check" className={JIEYU_MATERIAL_MICRO} /> {messages.available}
+            <JieyuIcon name="Check" className={JIEYU_ICON_MICRO} /> {messages.available}
           </span>
         )}
         {embeddingAvailability === 'unavailable' && (

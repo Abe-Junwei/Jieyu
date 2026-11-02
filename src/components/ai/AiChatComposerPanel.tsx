@@ -1,7 +1,7 @@
 import type { ReactNode, RefObject } from 'react';
 import { t } from '../../i18n';
-import { MaterialSymbol } from '../ui/MaterialSymbol';
-import { JIEYU_MATERIAL_PANEL } from '../../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../ui/JieyuIcon';
+import { JIEYU_ICON_PANEL } from '../../utils/jieyuIcon';
 import type { getAiChatCardMessages } from '../../i18n/messages';
 import type { AiInteractionMetrics, AiSessionMemory, AiTaskSession } from '../../hooks/useAiChat';
 import type { AiTaskTraceEntry } from '../../ai/chat/chatDomain.types';
@@ -260,7 +260,7 @@ export function AiChatComposerPanel({
           {aiIsStreaming ? (
             cardMessages.stop
           ) : (
-            <MaterialSymbol name="arrow_upward" className={JIEYU_MATERIAL_PANEL} />
+            <JieyuIcon name="ArrowUp" className={JIEYU_ICON_PANEL} />
           )}
         </button>
         {canUseVoiceEntry && voiceEntry && (
@@ -271,9 +271,9 @@ export function AiChatComposerPanel({
             title={voiceEntry.statusText ?? cardMessages.voiceInput}
             onClick={voiceEntry.onTogglePanel}
           >
-            <MaterialSymbol
-              name={voiceEntry.listening ? 'mic' : 'mic_none'}
-              className={JIEYU_MATERIAL_PANEL}
+            <JieyuIcon
+              name={voiceEntry.listening ? 'Mic' : 'MicOff'}
+              className={JIEYU_ICON_PANEL}
             />
           </button>
         )}

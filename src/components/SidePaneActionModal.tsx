@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { MaterialSymbol } from './ui/MaterialSymbol';
-import { JIEYU_MATERIAL_PANEL_CLOSE_LG } from '../utils/jieyuMaterialIcon';
+import { JieyuIcon } from './ui/JieyuIcon';
+import { JIEYU_ICON_PANEL_CLOSE_LG } from '../utils/jieyuIcon';
 import { useLocale } from '../i18n';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '~/hooks/ui/useUiFontScaleRuntime';
@@ -95,7 +95,7 @@ export function SidePaneActionModal({
             aria-label={`${ariaLabel} ${closeLabel}`}
             title={`${ariaLabel} ${closeLabel}`}
           >
-            <MaterialSymbol name="close" className={JIEYU_MATERIAL_PANEL_CLOSE_LG} />
+            <JieyuIcon name="X" className={JIEYU_ICON_PANEL_CLOSE_LG} />
           </button>
         }
         onClick={(event) => event.stopPropagation()}

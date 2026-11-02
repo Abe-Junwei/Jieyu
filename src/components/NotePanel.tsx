@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useState, type ChangeEvent, type KeyboardEvent } from 'react';
-import { MaterialSymbol } from './ui/MaterialSymbol';
-import { JIEYU_MATERIAL_MICRO, JIEYU_MATERIAL_PANEL } from '../utils/jieyuMaterialIcon';
+import { JieyuIcon } from './ui/JieyuIcon';
+import { JIEYU_ICON_MICRO, JIEYU_ICON_PANEL } from '../utils/jieyuIcon';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db/types';
 import { useOptionalLocale } from '../i18n';
 import { getNotePanelMessages } from '../i18n/messages';
@@ -124,7 +124,7 @@ export const NotePanel = memo(function NotePanel({
           onClick={onClose}
           aria-label={messages.closePanel}
         >
-          <MaterialSymbol name="close" className={JIEYU_MATERIAL_PANEL} />
+          <JieyuIcon name="X" className={JIEYU_ICON_PANEL} />
         </button>
       }
       dir={uiTextDirection}
@@ -180,7 +180,7 @@ export const NotePanel = memo(function NotePanel({
                       title={messages.editNote}
                       aria-label={messages.editNote}
                     >
-                      <MaterialSymbol name="edit" className={JIEYU_MATERIAL_MICRO} />
+                      <JieyuIcon name="Pencil" className={JIEYU_ICON_MICRO} />
                     </button>
                     <button
                       type="button"
@@ -189,7 +189,7 @@ export const NotePanel = memo(function NotePanel({
                       title={messages.deleteNote}
                       aria-label={messages.deleteNote}
                     >
-                      <MaterialSymbol name="delete" className={JIEYU_MATERIAL_MICRO} />
+                      <JieyuIcon name="Trash" className={JIEYU_ICON_MICRO} />
                     </button>
                   </div>
                 </div>

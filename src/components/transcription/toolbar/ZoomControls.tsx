@@ -6,8 +6,8 @@
  */
 
 import { type FC, useCallback } from 'react';
-import { MaterialSymbol } from '../../ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE } from '../../../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../../ui/JieyuIcon';
+import { JIEYU_ICON_INLINE } from '../../../utils/jieyuIcon';
 import { t, tf, useLocale } from '../../../i18n';
 import { recordTranscriptionKeyboardAction } from '../../../utils/transcriptionKeyboardActionTelemetry';
 import {
@@ -106,7 +106,7 @@ const ZoomControls: FC<ZoomControlsProps> = ({
         onClick={handleFitAll}
         title={t(locale, 'transcription.zoom.fitAll')}
       >
-        <MaterialSymbol name="open_in_full" className={JIEYU_MATERIAL_INLINE} />
+        <JieyuIcon name="Expand" className={JIEYU_ICON_INLINE} />
       </button>
       <button
         className="icon-btn"
@@ -114,7 +114,7 @@ const ZoomControls: FC<ZoomControlsProps> = ({
         title={t(locale, 'transcription.zoom.fitSelection')}
         disabled={!activeUnitId}
       >
-        <MaterialSymbol name="center_focus_strong" className={JIEYU_MATERIAL_INLINE} />
+        <JieyuIcon name="Focus" className={JIEYU_ICON_INLINE} />
       </button>
       {timeZoom ? (
         <button

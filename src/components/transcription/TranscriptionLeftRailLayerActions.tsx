@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { MaterialSymbol } from '../ui/MaterialSymbol';
-import { JIEYU_MATERIAL_LEFT_RAIL_CTX } from '../../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../ui/JieyuIcon';
+import { JIEYU_ICON_LEFT_RAIL_CTX } from '../../utils/jieyuIcon';
 import type { SidePaneSidebarMessages } from '../../i18n/messages';
 import { t, type Locale } from '../../i18n';
 
@@ -73,11 +73,11 @@ export function TranscriptionLeftRailLayerActions({
           aria-label={modeLabel}
           onClick={handleToggleLayout}
         >
-          {/* 必须带 jieyu-material：.app-left-rail .left-rail-btn > span:not(.jieyu-material) 会隐藏其它直接子 span */}
-          <MaterialSymbol
-            name={verticalViewActive ? 'view_agenda' : 'view_column_2'}
+          {/* 必须带 jieyu-icon：.app-left-rail .left-rail-btn > span:not(.jieyu-icon) 会隐藏其它直接子 span */}
+          <JieyuIcon
+            name={verticalViewActive ? 'Rows3' : 'Columns2'}
             aria-hidden
-            className={`${JIEYU_MATERIAL_LEFT_RAIL_CTX} left-rail-workspace-layout-toggle-icon`}
+            className={`${JIEYU_ICON_LEFT_RAIL_CTX} left-rail-workspace-layout-toggle-icon`}
           />
           <span>{modeLabel}</span>
         </button>
@@ -99,7 +99,7 @@ export function TranscriptionLeftRailLayerActions({
         aria-label={messages.quickActionCreateTranscription}
         onClick={onCreateTranscription}
       >
-        <MaterialSymbol name="layers" aria-hidden className={JIEYU_MATERIAL_LEFT_RAIL_CTX} />
+        <JieyuIcon name="Layers" aria-hidden className={JIEYU_ICON_LEFT_RAIL_CTX} />
         <span>{messages.quickActionCreateTranscription}</span>
       </button>
       <button
@@ -111,7 +111,7 @@ export function TranscriptionLeftRailLayerActions({
         data-disable-reason={disableCreateTranslationEntry ? 'no-transcription' : 'ok'}
         onClick={onCreateTranslation}
       >
-        <MaterialSymbol name="translate" aria-hidden className={JIEYU_MATERIAL_LEFT_RAIL_CTX} />
+        <JieyuIcon name="Languages" aria-hidden className={JIEYU_ICON_LEFT_RAIL_CTX} />
         <span>{messages.quickActionCreateTranslation}</span>
       </button>
       {workspaceLayoutNode}

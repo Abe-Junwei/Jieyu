@@ -1124,7 +1124,7 @@
   font-weight: 600;
 }
 
-.ai-chat-evidence-stack__title .jieyu-material {
+.ai-chat-evidence-stack__title .jieyu-icon {
   font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
 }
 
@@ -1210,7 +1210,7 @@
   outline-offset: 2px;
 }
 
-.ai-chat-evidence-card__jump .jieyu-material {
+.ai-chat-evidence-card__jump .jieyu-icon {
   font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
 }
 
@@ -1258,8 +1258,8 @@
   text-decoration: none;
 }
 
-.ai-chat-message-pin-btn .jieyu-material,
-.ai-chat-message-copy-btn .jieyu-material {
+.ai-chat-message-pin-btn .jieyu-icon,
+.ai-chat-message-copy-btn .jieyu-icon {
   font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
 }
 

@@ -52,7 +52,7 @@ import { getCollaborationCloudPanelMessages } from './i18n/messages';
 import { requestCollaborationCloudPanelOpen } from './utils/collaborationCloudPanelEvents';
 import { annotationTemplateKindFromSearch } from './utils/annotationTemplateKind';
 import { LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID } from './components/transcription/TranscriptionLeftRailLayerActions';
-import { MaterialSymbol, ModalPanel } from './components/ui';
+import { JieyuIcon, ModalPanel } from './components/ui';
 import {
   AssetPanelProvider,
   type AssetPanelContextValue,
@@ -61,7 +61,7 @@ import {
 import { syncDocumentDataTheme, THEME_MODE_STORAGE_KEY } from './utils/theme';
 import { type IconEffect, getIconEffect, setIconEffect } from './utils/iconEffect';
 import { isTranscriptionWorkspacePathname } from './utils/transcriptionWorkspaceRoute';
-import { JIEYU_MATERIAL_NAV, type LeftRailNavIconName } from './utils/jieyuMaterialIcon';
+import { JIEYU_ICON_NAV, type LeftRailNavIconName } from './utils/jieyuIcon';
 import { CatalogProjectGate } from './components/CatalogProjectGate';
 import { DesktopRoute } from './components/DesktopRoute';
 import { electronDesktopPresent } from './desktop/desktopSurface';
@@ -164,7 +164,7 @@ type ThemeMode = 'light' | 'dark' | 'system';
 type NavItem = {
   to: string;
   label: string;
-  /** Material Symbols ligature | https://fonts.google.com/icons */
+  /** 历史 Material ligature 名 → Lucide（见 materialIconToLucide） */
   icon: LeftRailNavIconName;
   summary: string;
 };
@@ -556,37 +556,37 @@ export function App() {
           {
             to: '/',
             label: t(locale, 'app.nav.home'),
-            icon: 'local_library',
+            icon: 'Library',
             summary: t(locale, 'app.nav.summary.home'),
           },
           {
             to: '/transcription',
             label: t(locale, 'app.nav.transcription'),
-            icon: 'speech_to_text',
+            icon: 'AudioLines',
             summary: t(locale, 'app.nav.summary.transcription'),
           },
           {
             to: '/annotation',
             label: t(locale, 'app.nav.annotation'),
-            icon: 'draw',
+            icon: 'Pencil',
             summary: t(locale, 'app.nav.summary.annotation'),
           },
           {
             to: '/lexicon',
             label: t(locale, 'app.nav.lexicon'),
-            icon: 'menu_book',
+            icon: 'BookOpen',
             summary: t(locale, 'app.nav.summary.lexicon'),
           },
           {
             to: '/corpus',
             label: t(locale, 'app.nav.corpus'),
-            icon: 'edit_note',
+            icon: 'NotebookPen',
             summary: t(locale, 'app.nav.summary.corpus'),
           },
           {
             to: '/analysis',
             label: t(locale, 'app.nav.analysis'),
-            icon: 'psychology',
+            icon: 'Brain',
             summary: t(locale, 'app.nav.summary.analysis'),
           },
         ],
@@ -600,25 +600,25 @@ export function App() {
       {
         to: '/assets/language-metadata',
         label: t(locale, 'app.nav.languageMetadata'),
-        icon: 'translate',
+        icon: 'Languages',
         summary: t(locale, 'app.nav.summary.languageMetadata'),
       },
       {
         to: '/assets/structural-profiles',
         label: t(locale, 'app.nav.structuralProfiles'),
-        icon: 'layers',
+        icon: 'Layers',
         summary: t(locale, 'app.nav.summary.structuralProfiles'),
       },
       {
         to: '/assets/orthographies',
         label: t(locale, 'app.nav.orthographies'),
-        icon: 'auto_stories',
+        icon: 'BookBookmark',
         summary: t(locale, 'app.nav.summary.orthographies'),
       },
       {
         to: '/assets/orthography-bridges',
         label: t(locale, 'app.nav.orthographyBridges'),
-        icon: 'account_tree',
+        icon: 'GitBranch',
         summary: t(locale, 'app.nav.summary.orthographyBridges'),
       },
     ],
@@ -825,7 +825,7 @@ export function App() {
                       title={item.label}
                       aria-label={item.label}
                     >
-                      <MaterialSymbol name={item.icon} aria-hidden className={JIEYU_MATERIAL_NAV} />
+                      <JieyuIcon name={item.icon} aria-hidden className={JIEYU_ICON_NAV} />
                       <span>{item.label}</span>
                     </NavLink>
                   ))}
@@ -859,10 +859,10 @@ export function App() {
                       title={collaborationMessages.title}
                       onClick={handleCollaborationEntryOpen}
                     >
-                      <MaterialSymbol
-                        name="cloud_sync"
+                      <JieyuIcon
+                        name="CloudSync"
                         aria-hidden
-                        className={JIEYU_MATERIAL_NAV}
+                        className={JIEYU_ICON_NAV}
                       />
                       <span>{collaborationMessages.entryLabel}</span>
                     </button>
@@ -874,7 +874,7 @@ export function App() {
                     title={t(locale, 'transcription.voiceWidget.settings.button')}
                     onClick={handleSettingsOpen}
                   >
-                    <MaterialSymbol name="settings" aria-hidden className={JIEYU_MATERIAL_NAV} />
+                    <JieyuIcon name="Settings" aria-hidden className={JIEYU_ICON_NAV} />
                   </button>
                 </div>
               </aside>

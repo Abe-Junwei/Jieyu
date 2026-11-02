@@ -1,7 +1,7 @@
 import '../styles/pages/language-metadata-workspace.css';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { MaterialSymbol } from '../components/ui/MaterialSymbol';
-import { JIEYU_MATERIAL_PANEL } from '../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../components/ui/JieyuIcon';
+import { JIEYU_ICON_PANEL } from '../utils/jieyuIcon';
 import { useSearchParams } from 'react-router-dom';
 import { EmbeddedPanelShell } from '../components/ui/EmbeddedPanelShell';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
@@ -549,7 +549,7 @@ export function LanguageMetadataWorkspacePage({
       aria-label={t(locale, 'transcription.importDialog.close')}
       title={t(locale, 'transcription.importDialog.close')}
     >
-      <MaterialSymbol name="close" className={JIEYU_MATERIAL_PANEL} />
+      <JieyuIcon name="X" className={JIEYU_ICON_PANEL} />
     </button>
   ) : undefined;
 
