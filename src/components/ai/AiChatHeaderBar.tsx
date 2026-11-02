@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { t, type Locale } from '../../i18n';
-import { MaterialSymbol } from '../ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE } from '../../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../ui/JieyuIcon';
+import { JIEYU_ICON_INLINE } from '../../utils/jieyuIcon';
 import type { AiChatSettings, AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
 import type { AiConversationManagementApi } from '../../hooks/ai/aiConversationManager.types';
 import { AiConversationListPopover } from './AiConversationListPopover';
@@ -91,7 +91,7 @@ export function AiChatHeaderBar({
                   aria-haspopup="dialog"
                   aria-label={t(locale, 'ai.chat.conversationList.openList')}
                 >
-                  <MaterialSymbol name="format_list_bulleted" className={JIEYU_MATERIAL_INLINE} />
+                  <JieyuIcon name="List" className={JIEYU_ICON_INLINE} />
                 </button>
                 <button
                   ref={titleButtonRef}
@@ -103,9 +103,9 @@ export function AiChatHeaderBar({
                   title={chatTitle}
                 >
                   <span className="ai-chat-conversation-title-text">{chatTitle}</span>
-                  <MaterialSymbol
-                    name="expand_more"
-                    className={JIEYU_MATERIAL_INLINE}
+                  <JieyuIcon
+                    name="ChevronDown"
+                    className={JIEYU_ICON_INLINE}
                     aria-hidden
                   />
                 </button>
@@ -186,7 +186,7 @@ export function AiChatHeaderBar({
               }
               onClick={onToggleProviderConfig}
             >
-              <MaterialSymbol name="settings" className={JIEYU_MATERIAL_INLINE} />
+              <JieyuIcon name="Settings" className={JIEYU_ICON_INLINE} />
             </button>
           )}
         </div>

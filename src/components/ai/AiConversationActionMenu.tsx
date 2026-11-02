@@ -1,7 +1,7 @@
 import { useCallback, useId, useRef, useState } from 'react';
 import { t, type Locale } from '../../i18n';
-import { MaterialSymbol } from '../ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE } from '../../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../ui/JieyuIcon';
+import { JIEYU_ICON_INLINE } from '../../utils/jieyuIcon';
 import { ModalPanel } from '../ui/ModalPanel';
 
 export function AiConversationActionMenu({
@@ -37,7 +37,7 @@ export function AiConversationActionMenu({
             setMenuOpen((prev) => !prev);
           }}
         >
-          <MaterialSymbol name="more_vert" className={JIEYU_MATERIAL_INLINE} />
+          <JieyuIcon name="EllipsisVertical" className={JIEYU_ICON_INLINE} />
         </button>
         {menuOpen ? (
           <div

@@ -6,9 +6,9 @@ import {
   shouldShowLogicalAxisLengthOnAxisStrip,
   type TimelineAxisMediaHint,
 } from '../../utils/timelineAxisStatus';
-import { MaterialSymbol } from '../ui/MaterialSymbol';
+import { JieyuIcon } from '../ui/JieyuIcon';
 import { PanelButton } from '../ui/PanelButton';
-import { JIEYU_MATERIAL_PANEL } from '../../utils/jieyuMaterialIcon';
+import { JIEYU_ICON_PANEL } from '../../utils/jieyuIcon';
 
 function renderSegmentsBeyondAcousticLine(
   locale: Locale,
@@ -18,9 +18,9 @@ function renderSegmentsBeyondAcousticLine(
 ): ReactNode {
   return (
     <span className="timeline-axis-status-strip__item timeline-axis-status-strip--warn timeline-axis-status-strip__duration-short">
-      <MaterialSymbol
-        name="warning"
-        className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`}
+      <JieyuIcon
+        name="TriangleAlert"
+        className={`timeline-axis-status-strip__icon ${JIEYU_ICON_PANEL}`}
       />
       {tf(locale, 'transcription.timelineAxisStatus.segmentsBeyondAcoustic', {
         acoustic: formatTime(acousticSec),
@@ -79,9 +79,9 @@ export function TimelineAxisStatusStrip({
       case 'acoustic_decoding':
         return (
           <span className="timeline-axis-status-strip__item timeline-axis-status-strip--info">
-            <MaterialSymbol
-              name="hourglass_empty"
-              className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`}
+            <JieyuIcon
+              name="Hourglass"
+              className={`timeline-axis-status-strip__icon ${JIEYU_ICON_PANEL}`}
             />
             {t(locale, 'transcription.timelineAxisStatus.acousticDecoding')}
           </span>
@@ -90,9 +90,9 @@ export function TimelineAxisStatusStrip({
         return (
           <span className="timeline-axis-status-strip__item timeline-axis-status-strip__no-playable-media">
             <span className="timeline-axis-status-strip__no-playable-media-main">
-              <MaterialSymbol
-                name="link_off"
-                className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`}
+              <JieyuIcon
+                name="Link2Off"
+                className={`timeline-axis-status-strip__icon ${JIEYU_ICON_PANEL}`}
               />
               {t(locale, 'transcription.timelineAxisStatus.noAcousticBlob')}
             </span>
@@ -114,9 +114,9 @@ export function TimelineAxisStatusStrip({
 
   const logicalLine = showLogical ? (
     <span className="timeline-axis-status-strip__item">
-      <MaterialSymbol
-        name="straighten"
-        className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`}
+      <JieyuIcon
+        name="Ruler"
+        className={`timeline-axis-status-strip__icon ${JIEYU_ICON_PANEL}`}
       />
       {tf(locale, 'transcription.timelineAxisStatus.logicalAxisLength', {
         duration: formatTime(logicalDurationSec as number),
@@ -126,9 +126,9 @@ export function TimelineAxisStatusStrip({
 
   const hiddenLine = showHiddenByMediaFilter ? (
     <span className="timeline-axis-status-strip__item timeline-axis-status-strip--warn">
-      <MaterialSymbol
-        name="visibility_off"
-        className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`}
+      <JieyuIcon
+        name="EyeOff"
+        className={`timeline-axis-status-strip__icon ${JIEYU_ICON_PANEL}`}
       />
       {tf(locale, 'transcription.timelineAxisStatus.hiddenByMediaFilter', {
         count: String(hiddenByMediaFilterCount),

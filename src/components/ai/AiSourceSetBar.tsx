@@ -1,6 +1,6 @@
 import { memo, useCallback, useState } from 'react';
-import { MaterialSymbol } from '../ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE_TIGHT } from '../../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../ui/JieyuIcon';
+import { JIEYU_ICON_INLINE_TIGHT } from '../../utils/jieyuIcon';
 import { t, type Locale } from '../../i18n';
 import type { SavedCorpusSourceSet, SourceSetMemberType } from '../../ai/vertical/corpusSourceSet';
 
@@ -47,7 +47,7 @@ export const AiSourceSetBar = memo(function AiSourceSetBar({
   if (displaySets.length === 0 && !activeSet) {
     return (
       <div className="ai-source-set-bar ai-source-set-bar--empty">
-        <MaterialSymbol name="folder_open" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+        <JieyuIcon name="FolderOpen" className={JIEYU_ICON_INLINE_TIGHT} />
         <span className="ai-source-set-bar__label">
           {t(locale, 'msg.aiChat.sourceSet.projectScope')}
         </span>
@@ -58,7 +58,7 @@ export const AiSourceSetBar = memo(function AiSourceSetBar({
             onClick={onCreateSourceSet}
             title={t(locale, 'msg.aiChat.sourceSet.create')}
           >
-            <MaterialSymbol name="add" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+            <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} />
           </button>
         )}
       </div>
@@ -67,7 +67,7 @@ export const AiSourceSetBar = memo(function AiSourceSetBar({
 
   return (
     <div className="ai-source-set-bar">
-      <MaterialSymbol name="library_books" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+      <JieyuIcon name="LibraryBig" className={JIEYU_ICON_INLINE_TIGHT} />
       <span className="ai-source-set-bar__label">
         {activeSet
           ? activeSet.name
@@ -86,9 +86,9 @@ export const AiSourceSetBar = memo(function AiSourceSetBar({
           onClick={() => setShowMembers((prev) => !prev)}
           title={showMembers ? 'Hide members' : 'Show members'}
         >
-          <MaterialSymbol
-            name={showMembers ? 'expand_less' : 'expand_more'}
-            className={JIEYU_MATERIAL_INLINE_TIGHT}
+          <JieyuIcon
+            name={showMembers ? 'ChevronUp' : 'ChevronDown'}
+            className={JIEYU_ICON_INLINE_TIGHT}
           />
         </button>
       )}
@@ -116,7 +116,7 @@ export const AiSourceSetBar = memo(function AiSourceSetBar({
           onClick={onCreateSourceSet}
           title={t(locale, 'msg.aiChat.sourceSet.create')}
         >
-          <MaterialSymbol name="add" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+          <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} />
         </button>
       )}
       {showMembers && activeSet && (
@@ -137,7 +137,7 @@ export const AiSourceSetBar = memo(function AiSourceSetBar({
                   onClick={() => onRemoveMember(activeSet.id, member.id)}
                   title="Remove member"
                 >
-                  <MaterialSymbol name="close" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+                  <JieyuIcon name="X" className={JIEYU_ICON_INLINE_TIGHT} />
                 </button>
               )}
             </div>
@@ -171,7 +171,7 @@ export const AiSourceSetBar = memo(function AiSourceSetBar({
                 onClick={handleAddMember}
                 disabled={!newMemberId.trim()}
               >
-                <MaterialSymbol name="add" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+                <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} />
               </button>
             </div>
           )}

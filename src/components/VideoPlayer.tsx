@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MaterialSymbol } from './ui/MaterialSymbol';
-import { JIEYU_MATERIAL_WAVE, JIEYU_MATERIAL_WAVE_PLAY } from '../utils/jieyuMaterialIcon';
+import { JieyuIcon } from './ui/JieyuIcon';
+import { JIEYU_ICON_WAVE, JIEYU_ICON_WAVE_PLAY } from '../utils/jieyuIcon';
 import { useVideoPlayer } from '~/hooks/media/useVideoPlayer';
 import type { WaveSurferRegion } from '~/hooks/media/useWaveSurfer';
 import { t, useLocale } from '../i18n';
@@ -222,9 +222,9 @@ export function VideoPlayer({
               title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
             >
               {isPlaying ? (
-                <MaterialSymbol name="pause" className={JIEYU_MATERIAL_WAVE_PLAY} />
+                <JieyuIcon name="Pause" className={JIEYU_ICON_WAVE_PLAY} />
               ) : (
-                <MaterialSymbol name="play_arrow" className={JIEYU_MATERIAL_WAVE_PLAY} />
+                <JieyuIcon name="Play" className={JIEYU_ICON_WAVE_PLAY} />
               )}
             </button>
 
@@ -234,7 +234,7 @@ export function VideoPlayer({
               onClick={() => player.seekBySeconds(-5)}
               title="Rewind 5s (←)"
             >
-              <MaterialSymbol name="replay_5" className={JIEYU_MATERIAL_WAVE} />
+              <JieyuIcon name="SkipBack" className={JIEYU_ICON_WAVE} />
             </button>
 
             {/* Skip forward 5s */}
@@ -243,7 +243,7 @@ export function VideoPlayer({
               onClick={() => player.seekBySeconds(5)}
               title="Forward 5s (→)"
             >
-              <MaterialSymbol name="forward_5" className={JIEYU_MATERIAL_WAVE} />
+              <JieyuIcon name="SkipForward" className={JIEYU_ICON_WAVE} />
             </button>
 
             {/* Time display */}
@@ -260,7 +260,7 @@ export function VideoPlayer({
                 onClick={() => setShowSettings((v) => !v)}
                 title="Playback speed"
               >
-                <MaterialSymbol name="settings" className={JIEYU_MATERIAL_WAVE} />
+                <JieyuIcon name="Settings" className={JIEYU_ICON_WAVE} />
                 <span className="video-player-rate-label">{playbackRate}x</span>
               </button>
               {showSettings && (
@@ -294,9 +294,9 @@ export function VideoPlayer({
               title={isMuted ? 'Unmute' : 'Mute'}
             >
               {isMuted || volume === 0 ? (
-                <MaterialSymbol name="volume_off" className={JIEYU_MATERIAL_WAVE_PLAY} />
+                <JieyuIcon name="VolumeX" className={JIEYU_ICON_WAVE_PLAY} />
               ) : (
-                <MaterialSymbol name="volume_up" className={JIEYU_MATERIAL_WAVE_PLAY} />
+                <JieyuIcon name="Volume2" className={JIEYU_ICON_WAVE_PLAY} />
               )}
             </button>
 
@@ -349,7 +349,7 @@ export function VideoPlayer({
               }}
               title="Fullscreen"
             >
-              <MaterialSymbol name="fullscreen" className={JIEYU_MATERIAL_WAVE} />
+              <JieyuIcon name="Maximize2" className={JIEYU_ICON_WAVE} />
             </button>
           </div>
         </div>

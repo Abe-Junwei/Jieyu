@@ -6,9 +6,9 @@
  */
 
 import { type FC, useCallback } from 'react';
-import { MaterialSymbol } from '../../ui/MaterialSymbol';
+import { JieyuIcon } from '../../ui/JieyuIcon';
 import { t, tf, useLocale } from '../../../i18n';
-import { JIEYU_MATERIAL_AI_PANEL_SM, JIEYU_MATERIAL_UNDO_CHIP } from '../../../utils/jieyuMaterialIcon';
+import { JIEYU_ICON_AI_PANEL_SM, JIEYU_ICON_UNDO_CHIP } from '../../../utils/jieyuIcon';
 
 export interface UndoHistoryProps {
   // 状态 | State
@@ -65,7 +65,7 @@ const UndoHistory: FC<UndoHistoryProps> = ({
           : t(locale, 'transcription.toolbar.redo')}
         onClick={handleChipClick}
       >
-        {canShowUndoChip ? <MaterialSymbol name="undo" aria-hidden className={JIEYU_MATERIAL_UNDO_CHIP} /> : <MaterialSymbol name="redo" aria-hidden className={JIEYU_MATERIAL_UNDO_CHIP} />}
+        {canShowUndoChip ? <JieyuIcon name="Undo2" aria-hidden className={JIEYU_ICON_UNDO_CHIP} /> : <JieyuIcon name="Redo2" aria-hidden className={JIEYU_ICON_UNDO_CHIP} />}
         <span className="transcription-undo-chip-label">
           {canShowUndoChip
             ? tf(locale, 'transcription.undo.current', { label: undoLabel })
@@ -84,7 +84,7 @@ const UndoHistory: FC<UndoHistoryProps> = ({
               onClick={handleRedoClick}
               title={t(locale, 'transcription.toolbar.redo')}
             >
-              <MaterialSymbol name="redo" aria-hidden className={JIEYU_MATERIAL_AI_PANEL_SM} />
+              <JieyuIcon name="Redo2" aria-hidden className={JIEYU_ICON_AI_PANEL_SM} />
               <span>{t(locale, 'transcription.toolbar.redo')}</span>
             </button>
           )}

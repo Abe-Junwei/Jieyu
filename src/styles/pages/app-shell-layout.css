@@ -665,7 +665,7 @@
 }
 
 /* 左侧栏按钮文案隐藏，仅保留图标 | Hide left-rail button labels and keep icon-only rail */
-.app-left-rail .left-rail-btn > span:not(.jieyu-material) {
+.app-left-rail .left-rail-btn > span:not(.jieyu-icon) {
   display: none;
 }
 
@@ -723,9 +723,8 @@
 }
 
 /* 图标默认线框态 | Default icon in outlined tone */
-.app-left-rail-primary .left-rail-btn > .jieyu-material {
-  --jieyu-material-fill: 0;
-  --jieyu-material-wght: 320;
+.app-left-rail-primary .left-rail-btn > .jieyu-icon {
+  --jieyu-icon-fill: 0;
   padding: 4px;
   border-radius: 8px;
   transition:
@@ -763,10 +762,9 @@
   background: color-mix(in srgb, var(--state-info-solid) 92%, transparent);
 }
 
-/* 选中图标切 Filled 并提升字重 | Active icon switches to filled with stronger weight */
-.app-left-rail-primary .left-rail-btn-active > .jieyu-material {
-  --jieyu-material-fill: 1;
-  --jieyu-material-wght: 520;
+/* 选中图标加粗描边 | Active icon uses heavier stroke */
+.app-left-rail-primary .left-rail-btn-active > .jieyu-icon {
+  --jieyu-icon-fill: 1;
   color: var(--state-info-contrast, var(--text-on-solid));
   background: transparent;
 }

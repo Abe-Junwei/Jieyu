@@ -1,6 +1,6 @@
 import React from 'react';
-import { MaterialSymbol } from '../ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE } from '../../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../ui/JieyuIcon';
+import { JIEYU_ICON_INLINE } from '../../utils/jieyuIcon';
 import { LanguageIsoInput, type LanguageIsoInputValue } from '../LanguageIsoInput';
 import { FormField, PanelButton, PanelFeedback, PanelNote, PanelSection } from '../ui';
 import {
@@ -147,7 +147,7 @@ export function LayerActionPopoverEditMetadataCoreSection(
                 onClick={() => orthographyPicker.handleSelectionChange(ORTHOGRAPHY_CREATE_SENTINEL)}
                 title={actionMessages.createOrthography}
               >
-                <MaterialSymbol name="add" className={JIEYU_MATERIAL_INLINE} />
+                <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE} />
                 <span>{actionMessages.newOrthographyButton}</span>
               </PanelButton>
             </div>

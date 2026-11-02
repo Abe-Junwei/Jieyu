@@ -9,8 +9,8 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
-import { MaterialSymbol } from './ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_MICRO_XS } from '../utils/jieyuMaterialIcon';
+import { JieyuIcon } from './ui/JieyuIcon';
+import { JIEYU_ICON_INLINE, JIEYU_ICON_MICRO_XS } from '../utils/jieyuIcon';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db/types';
 import { useOptionalLocale } from '../i18n';
 import { getNotePanelMessages } from '../i18n/messages';
@@ -172,7 +172,7 @@ export const NotePopover = memo(function NotePopover({
           aria-label={messages.closePanel}
           title={messages.closePanel}
         >
-          <MaterialSymbol name="close" className={JIEYU_MATERIAL_INLINE} />
+          <JieyuIcon name="X" className={JIEYU_ICON_INLINE} />
         </button>
       }
       {...(!isDialogMode ? { style: { left: pos.left, top: pos.top } } : {})}
@@ -229,7 +229,7 @@ export const NotePopover = memo(function NotePopover({
                       title={messages.editNote}
                       aria-label={messages.editNote}
                     >
-                      <MaterialSymbol name="edit" className={JIEYU_MATERIAL_MICRO_XS} />
+                      <JieyuIcon name="Pencil" className={JIEYU_ICON_MICRO_XS} />
                     </button>
                     <button
                       type="button"
@@ -238,7 +238,7 @@ export const NotePopover = memo(function NotePopover({
                       title={messages.deleteNote}
                       aria-label={messages.deleteNote}
                     >
-                      <MaterialSymbol name="delete" className={JIEYU_MATERIAL_MICRO_XS} />
+                      <JieyuIcon name="Trash" className={JIEYU_ICON_MICRO_XS} />
                     </button>
                   </div>
                 </div>

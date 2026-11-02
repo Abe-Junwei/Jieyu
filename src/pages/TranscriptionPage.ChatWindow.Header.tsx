@@ -2,8 +2,8 @@ import type { RefObject } from 'react';
 import { t, type Locale } from '../i18n';
 import type { AiChatContextValue } from '../contexts/AiChatContext';
 import type { AiConversationManagementApi } from '../hooks/ai/aiConversationManager.types';
-import { MaterialSymbol } from '../components/ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE } from '../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../components/ui/JieyuIcon';
+import { JIEYU_ICON_INLINE } from '../utils/jieyuIcon';
 import { AiConversationListPopover } from '../components/ai/AiConversationListPopover';
 import type { getAiChatCardMessages } from '../i18n/messages';
 
@@ -100,7 +100,7 @@ export function TranscriptionPageChatWindowHeader({
                 aria-haspopup="dialog"
                 aria-label={t(uiLocale, 'ai.chat.conversationList.openList')}
               >
-                <MaterialSymbol name="format_list_bulleted" className={JIEYU_MATERIAL_INLINE} />
+                <JieyuIcon name="List" className={JIEYU_ICON_INLINE} />
               </button>
               <button
                 ref={floatingTitleButtonRef}
@@ -114,7 +114,7 @@ export function TranscriptionPageChatWindowHeader({
                 <span id={windowTitleId} className="ai-chat-conversation-title-text">
                   {chatTitle}
                 </span>
-                <MaterialSymbol name="expand_more" className={JIEYU_MATERIAL_INLINE} aria-hidden />
+                <JieyuIcon name="ChevronDown" className={JIEYU_ICON_INLINE} aria-hidden />
               </button>
             </div>
             {conversationListOpen ? (
@@ -164,7 +164,7 @@ export function TranscriptionPageChatWindowHeader({
               providerConfigOpen ? cardMessages.hideProviderConfig : cardMessages.openProviderConfig
             }
           >
-            <MaterialSymbol name="settings" className={JIEYU_MATERIAL_INLINE} />
+            <JieyuIcon name="Settings" className={JIEYU_ICON_INLINE} />
           </button>
           {!conversationManagementEnabled ? (
             <button
@@ -212,9 +212,9 @@ export function TranscriptionPageChatWindowHeader({
               title={maximizeLabel}
               aria-pressed={maximized}
             >
-              <MaterialSymbol
-                name={maximized ? 'close_fullscreen' : 'open_in_full'}
-                className={JIEYU_MATERIAL_INLINE}
+              <JieyuIcon
+                name={maximized ? 'Minimize2' : 'Expand'}
+                className={JIEYU_ICON_INLINE}
               />
             </button>
           ) : null}
