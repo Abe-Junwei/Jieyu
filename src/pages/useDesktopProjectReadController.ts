@@ -58,6 +58,12 @@ export function useDesktopProjectReadController(
     reads.selectManuscript(manuscriptId, layerId);
   };
 
+  const forgetDeletedManuscript = (manuscriptId: string) => {
+    if (host === null || sessionId === null) return;
+    setError('');
+    reads.forgetDeletedManuscript(manuscriptId);
+  };
+
   /** Writes not yet on the event path (split, merge, boundary, mapping, undo) re-read through Query. */
   const reload = () => {
     if (host === null || sessionId === null) return Promise.resolve();
@@ -288,6 +294,7 @@ export function useDesktopProjectReadController(
     error,
     openFolder,
     selectManuscript,
+    forgetDeletedManuscript,
     saveText,
     undoText,
     refresh: reload,
