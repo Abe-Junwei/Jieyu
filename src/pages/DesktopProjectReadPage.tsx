@@ -289,7 +289,7 @@ export function DesktopProjectReadPage() {
               .deleteManuscript(sessionId, id)
               .then(() => {
                 setDeletePreview(null);
-                read.selectManuscript(id);
+                read.forgetDeletedManuscript(id);
               })
               .catch(() => setDeletePreview(null));
           }}
