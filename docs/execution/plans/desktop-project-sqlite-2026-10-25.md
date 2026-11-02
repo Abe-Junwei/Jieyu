@@ -17,6 +17,9 @@ depends_on:
 
 # 桌面项目单库
 
+> **2026-11-02 排序更新**：当前执行顺序只看[主路线图唯一执行队列](./解语-主路线图-master-roadmap-2026-06-01.md#2026-11-02-工程规格复审后的唯一执行队列)。本文件旧下一刀/阶段表不再独立排期；保存恢复是切片0增补、服务切片1，不是平行通用基础平台。既有完成证据保留，新工程差额按ADR-0100逐片验收。
+
+
 依据 [ADR-0085](../../adr/0085-desktop-project-one-sqlite.md)、[ADR-0086](../../adr/0086-desktop-release-scope-and-format-freeze.md) 的范围/冻结安排和 [ADR-0087](../../adr/0087-project-deletion-retention-and-media-cleanup.md) 的删除规则。旧的 SQLite `StoragePort` 停在现在的样子，不补拒绝的方法，现在也不删。半成品库文件不迁移。
 
 ## 调用

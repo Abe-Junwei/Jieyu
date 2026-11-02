@@ -17,7 +17,7 @@ applies_to: ["cursor", "github-copilot", "kimi-cli"]
 2. [docs/architecture/code-governance-plan-2026-05-06.md](docs/architecture/code-governance-plan-2026-05-06.md) — **代码治理**（落位例外与门禁）。热点以当次 `npm run check:architecture-guard` 为准。
 3. [docs/architecture/仓库现状与代码地图.md](docs/architecture/仓库现状与代码地图.md) — **一页产品形状**（本检出是浏览器 / Dexie；Electron 与桌面存储是已接受目标）。不在这里查 flag、schema 版本或行数。
 
-> **首发产品设计增补**：[ADR-0099](docs/adr/0099-desktop-product-design-and-release-contract.md) 已确认完整专业词典与专业查询为新增首发阻断项；其余冻结不全面解除，模型交付余项仍按 ADR-0098 后移；验收用[首发设计清单](docs/execution/release-gates/desktop-product-design-acceptance.md)。
+> **首发合同**：[ADR-0099](docs/adr/0099-desktop-product-design-and-release-contract.md) 定产品范围，[ADR-0100](docs/adr/0100-desktop-engineering-contract.md) 定保存／草稿／复核／查询／文件及新增自定义字段、四类成果用途和性能阻断目标；[工程规格](docs/execution/specs/desktop-engineering-contract/requirements.md) 仍待技术定稿，[验收清单](docs/execution/release-gates/desktop-product-design-acceptance.md) 未通过。ADR-0098 模型交付仍后移。
 
 > **当前冻结/有限开放按 [ADR-0086](docs/adr/0086-desktop-release-scope-and-format-freeze.md)**：M4 前推进单库主线；M4 合成项目闭环通过后仅开放指定白名单，其他新功能继续冻结。#275 为首发单库集成终验，不是白名单开工前置。下一刀与验收见[主路线图 §3](docs/execution/plans/解语-主路线图-master-roadmap-2026-06-01.md)，删除恢复见 ADR-0087；旧 ADR 正文保留。
 

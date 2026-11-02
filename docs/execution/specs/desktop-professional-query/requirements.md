@@ -9,7 +9,7 @@ source_of_truth: desktop-professional-query-spec
 
 # Requirements — desktop-professional-query（切片 4 门）
 
-> Research／SDD 门：ADR-0099 R06–R07。字段筛选不得冒充专业查询。
+> Research／SDD 门：ADR-0099 R06–R07 与 [ADR-0100 E08–E10/E14](../../../adr/0100-desktop-engineering-contract.md)。字段筛选不得冒充专业查询。
 
 ## 1. What & Why
 
@@ -25,8 +25,8 @@ source_of_truth: desktop-professional-query-spec
 
 ## 3. 验收标准（切片 4 时勾）
 
-- [ ] 正式语法／算子文档与测试语料
-- [ ] 跨层／有界跨段组合正确；过期结果不可用
+- [x] JQ1语法／算子和验收语料要求已形成技术审阅稿，parser与实际测试尚未实现
+- [ ] 跨层／有界跨段组合正确；过期结果可核实后定位且明确状态，不冒充当前命中
 - [ ] 锁粒度与取消路径有 Electron 证据
 
 ## 4. 代码地图（初稿）

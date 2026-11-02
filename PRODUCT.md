@@ -54,15 +54,17 @@ One local workspace covers the pipeline end-to-end (record → transcribe → an
 
 ## Accessibility & Inclusion
 
-No product-specific accessibility standard was confirmed in this init pass beyond general UI i18n. Record later when requirements are set.
+Accessibility requirements are confirmed in [DESIGN.md](DESIGN.md), ADR-0099 R11 and ADR-0100 E13: core keyboard completion, visible/returning focus, non-color status cues, light/dark contrast, font scaling and reduced motion. These are accepted requirements; runtime conformance has not yet been verified.
 
 ## First-release Acceptance
 
-The confirmed desktop product and design contract is [ADR-0099](docs/adr/0099-desktop-product-design-and-release-contract.md); operational evidence belongs in the [release checklist](docs/execution/release-gates/desktop-product-design-acceptance.md). These are requirements, not claims of shipped functionality.
+The confirmed desktop product scope is [ADR-0099](docs/adr/0099-desktop-product-design-and-release-contract.md), extended by the accepted [engineering contract ADR-0100](docs/adr/0100-desktop-engineering-contract.md). Operational evidence belongs in the [release checklist](docs/execution/release-gates/desktop-product-design-acceptance.md). These are requirements, not claims of shipped functionality.
 
-- One desktop shell preserves project, manuscript, layer and segment context. Ordinary edits autosave; failures retain drafts and block project changes or closing until resolved or explicitly discarded. Destructive operations require impact review and confirmation.
-- Sentence-aligned IGT is the primary word/morpheme/gloss editor; the timeline edits utterances and timing with valid cross-track speaker overlap. Changed source text makes prior analysis pending review, excluded from valid analysis use until correspondence is repaired and validated.
+- One desktop shell preserves project, manuscript, layer and segment context. Ordinary edits autosave; failures retain drafts and block workspace/manuscript/project changes or closing until resolved or explicitly discarded. Persisted inactive drafts may be reopened later and are distinct from unsaved input. Destructive operations require impact review and confirmation.
+- Sentence-aligned IGT is the primary word/morpheme/gloss editor; the timeline edits utterances and timing with valid cross-track speaker overlap. Changed source text makes only affected analysis and its dependencies pending review; uniquely corresponding unaffected fields remain usable, while review-required fields are excluded until repaired and validated.
 - A complete professional lexicon editor covering the existing model's editable fields, and a professional query language for order, adjacency, cross-layer and bounded within-manuscript cross-segment relations, are first-release blockers. Visual and textual queries preserve meaning; execution excludes concurrent writes and supports confirmed cancellation.
 - AI remains optional. Suggestions require review, survive project reopening, and are version-checked before atomic acceptance. Model downloads, persistent model management, transcoding and bundled delivery remain deferred under ADR-0098.
 - The offline manual pipeline starts from importing existing recordings and ends in verified local export. Full field recording capture is not a first-release blocker. Supported formats require Electron-path evidence and explicit disclosure of loss; project packages and backups have distinct purposes.
 - Core flows require keyboard/focus, light/dark contrast, font scaling and reduced-motion verification. Narrow layouts collapse the inspector before context while preserving selection and focus.
+
+The accepted engineering extension makes project-defined typed fields across the confirmed object types, EAF/TextGrid/IGT and DMLex+LIFT output, and the specified capacity/performance baseline first-release gates. Autosave, persisted inactive drafts, partial review, cross-window single-writer/query locking, undo/history, AI acceptance and file recovery follow ADR-0100; detailed technical specifications remain under review.

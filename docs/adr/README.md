@@ -13,13 +13,15 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0100**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0101**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
 0058 有两份，文件名不同，不改名：`0058-card-sqlite-file.md` 记卡片语义，`0058-indexeddb-two-layer-placement.md` 记 IndexedDB 归层。引用时写文件名。
 
 ## 桌面存储：当前有效条款
+
+完整工程行为与容量／性能目标以 [ADR-0100](./0100-desktop-engineering-contract.md) 为增补权威；它明确局部替代的旧条款，新增自定义字段及四类成果用途的首发门槛。技术定稿见[工程规格](../execution/specs/desktop-engineering-contract/requirements.md)，不是已经通过发布验收。
 
 首发产品设计与新增阻断能力见 [ADR-0099](./0099-desktop-product-design-and-release-contract.md)：完整专业词典、专业查询、自动保存与复核、查询写入互斥和建议保留。仅局部替换其中明确点名的旧条款；ADR-0098 模型交付后移继续有效。验收见[活动清单](../execution/release-gates/desktop-product-design-acceptance.md)。
 
@@ -43,10 +45,10 @@ source_of_truth: decision-index
 | `model_runs`                                                                                                                                              | [ADR-0094](./0094-transcription-run-acceptance-facts.md)：桌面列、中断、放弃数、生命周期凭据和接受事实。运行表与来源、任务仍分开（ADR-0088）。ADR-0057 第 8、9 条的其余规则继续有效 | 把运行记录塞进 `source_records`、`provenance_json` 或 `ai_tasks`；用 `manuscripts.generation` 充当生命周期凭据 |
 | 词条附件文件                                                                                                                                              | [ADR-0095](./0095-attachment-file-publish-and-cleanup.md)：项目文件夹里按哈希放文件，链接数由行数得出。最后一条链接先提交 `cleanup_pending`，再送垃圾箱。结果未知则留下文件行 | 沿用 Dexie 的 `ref_count` 和行内 Blob；在数据库事务里删文件；给附件套 90 天 |
 | 删除周期列                                                                                                                                                | [ADR-0096](./0096-deletion-cycle-columns.md)：文稿与录音各用 `deleted_at`、`retain_until`、`reminder_shown_at`。可清除时刻由这三列算出 | 只存一个 `purge_after`；把 90 天和 7 天写进每一行 |
-| 词条 DMLex 正文                                                                                                                                           | ADR-0068 的 `entry_json` / `resource_json`，加 ADR-0088 的 `jieyu_json`。核心词义链接的删除和失效引用以 ADR-0090 为准。例句引用和出现引用仍按 ADR-0088 第 9 条拒绝删除 | 因 ADR-0085 未列出就撤掉词条，或把义项拆成子表。用 ADR-0088 第 9 条挡住已允许失效的核心词义链接 |
+| 词条 DMLex 正文                                                                                                                                           | ADR-0068 的 `entry_json` / `resource_json`，加 ADR-0088 的 `jieyu_json`。义项删除按 ADR-0099/0100 先迁移或明确解除；例句快照与来源变化按 ADR-0100 E05，其他不冲突失效身份按 ADR-0090 | 因 ADR-0085 未列出就撤掉词条，或把义项拆成子表。用 ADR-0088 第 9 条挡住已允许失效的核心词义链接 |
 | 结构规则正文、正字法转换规则与样例、车道锁定表                                                                                                            | 正字法转换沿用 ADR-0069 第 2 条，落在单库 `orthography_bridges`（ADR-0088）。结构规则正文仍是 ADR-0069 第 1 条。车道锁定另写决定 | 沿 ADR-0069 把车道锁定写进 `.jyd` |
 | 说话人分配                                                                                                                                                | ADR-0085：`speakers` 属于整个项目，一次事务写入 | ADR-0071 的项目库和每份 `.jyd` 各提交一次 |
-| 正则拆分                                                                                                                                                  | ADR-0085：起止时间在语段行，单位是秒。语段和转写正文同一次事务。不另建锚点表 | ADR-0072 的 `.jyd` 锚点行 |
+| 正则拆分                                                                                                                                                  | ADR-0100 E06：整数毫秒；默认改单边，显式操作才联动。语段和正文同事务，不另建锚点表 | ADR-0072 的 `.jyd` 锚点行 |
 | 轨道行                                                                                                                                                    | ADR-0085 未列轨道表。能力若仍要，接替前另写 ADR，不塞进 `settings_json`（ADR-0086） | 沿 ADR-0073 把 `track_entities` 写进 `.jyd` |
 | 来源记录                                                                                                                                                  | ADR-0085：`sources` 在 `project.sqlite`，不存原件字节。最终移除录音登记时同事务解除关联，不删来源（ADR-0087） | ADR-0074 的跨库登记 |
 | 录音行                                                                                                                                                    | ADR-0085：`media` 只登记相对路径，字节是项目里的文件。一份文稿一条录音 | ADR-0075 的 `media_items` 加 `.jyd`；把音频字节写进库 |
@@ -59,9 +61,9 @@ source_of_truth: decision-index
 | 另一项目的层                                                                                                                                              | ADR-0085：`layers.manuscript_id`。不靠可空 `text_id` 判断归属 | ADR-0082 的 `.jyd` `layers.text_id` 和缺列拒绝 |
 | 项目行的标题和时间                                                                                                                                        | ADR-0085：`title_json` 至少一条非空字符串。`created_at`、`updated_at` 必填 | ADR-0083 的可空列和空标题拒绝读取；把 `name` 当成标题 |
 | 后加列的空值                                                                                                                                              | ADR-0085：必填是 `NOT NULL`。`NULL` 只表示可以没有的关系，不是未补全 | ADR-0084 把后加列的空值当成未补全并计数 |
-| 语段时间与播放器时间 | ADR-0088：语段存文献轴秒。播放器时间由文稿 `timeMapping` 换算 | 把 ADR-0085「单位与播放器相同」理解成不保存映射 |
-| 分析图与词项投影 | ADR-0088：已接受图是真值。`tokens` / `morphemes` 是同事务同步的线性投影。过期、曾经接受与恢复以 [ADR-0089](./0089-analysis-generation-accept-and-restore.md) 为准。完整载荷、字段管理和失效引用以 [ADR-0090](./0090-analysis-payload-custom-fields-and-dangling-refs.md) 为准 | 用词项父子表代替分析图，或接受时整表删除再插入。用图内容相等判断当前正在使用，或把旧图直接放到新正文上。把实验键当成协议 |
-| 外部标注重导入 | ADR-0088：EAF 按文稿、层和标注 id 匹配。`external_ref` 单独不是匹配键 | 只按标注 id 字符串更新任意层 |
+| 语段时间与播放器时间 | ADR-0100 E06：语段存整数毫秒，保留 ADR-0088 文献轴／媒体轴映射，播放器秒数在边界换算 | 把 ADR-0085「单位与播放器相同」理解成不保存映射 |
+| 分析图与词项投影 | ADR-0088：已接受图是真值。`tokens` / `morphemes` 是同事务同步的线性投影。曾经接受仍按 [ADR-0089](./0089-analysis-generation-accept-and-restore.md)，局部复核、历史恢复以 ADR-0100 E03–E04 为准。完整载荷、字段管理和失效引用以 [ADR-0090](./0090-analysis-payload-custom-fields-and-dangling-refs.md) 为准 | 用词项父子表代替分析图，或接受时整表删除再插入。用图内容相等判断当前正在使用，或把旧图直接放到新正文上。把实验键当成协议 |
+| 外部标注重导入 | ADR-0100 E11：首发重复外部文件仅取消或新建独立稿，不自动更新／合并；内部显式分析修改仍按身份校验 | 只按标注 id 字符串更新任意层 |
 
 研究「音频放进卡片文件」的那份计划已经从工作区删除，记录在 Git 历史。ADR-0061 没有采用那个方案。
 
@@ -69,6 +71,7 @@ source_of_truth: decision-index
 
 ## 本轮范围与生命周期
 
+- [0100：桌面首发完整工程行为与验收合同](./0100-desktop-engineering-contract.md)
 - [0086：首发单库集成、有限开放与开发格式](./0086-desktop-release-scope-and-format-freeze.md)
 - [0087：项目内可恢复删除与录音清除](./0087-project-deletion-retention-and-media-cleanup.md)
 - [0088：单库承接现有领域落点](./0088-desktop-sqlite-domain-landings.md)
