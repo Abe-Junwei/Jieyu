@@ -148,7 +148,10 @@ describe('VideoPlayer', () => {
       toJSON: () => ({}),
     } as DOMRect);
 
-    fireEvent.click(bar as Element, { clientX: 15 });
+    fireEvent(
+      bar as Element,
+      new MouseEvent('click', { bubbles: true, clientX: 15, clientY: 1 }),
+    );
 
     expect(stub.playRegion).toHaveBeenCalledWith(10, 20, true);
     expect(onRegionClick).toHaveBeenCalledWith('r1', 15, expect.any(MouseEvent));
