@@ -11,6 +11,7 @@ import {
   loadCharacterVariantLines,
   saveCharacterVariantLines,
 } from '../../app/languageAssetPageAccess';
+import { useWorkspaceEventRefresh } from '../../hooks/useWorkspaceEventRefresh';
 import { fireAndForget } from '../../utils/fireAndForget';
 
 function formText(form: Transcription): string {
@@ -84,6 +85,12 @@ export function TranscriptionUnitSearch({
         morphemeFormsByUnit.set(morpheme.unitId, forms);
       }
       return { wordFormsByUnit, morphemeFormsByUnit };
+    },
+  });
+  useWorkspaceEventRefresh({
+    onUnitUpdated: (detail) => {
+      if (!unitIds.includes(detail.unitId)) return;
+      void queryClient.invalidateQueries({ queryKey: ['transcription-unit-search-forms'] });
     },
   });
   const hits = useMemo(() => {
