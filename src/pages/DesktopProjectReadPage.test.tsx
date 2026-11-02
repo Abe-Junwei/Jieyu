@@ -7,6 +7,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { DesktopPageRouter, resetDesktopPageRouters } from '../test/desktopPageRouter';
 import { afterEach, describe, expect, it } from 'vitest';
+import { grantExchangePath, resetExchangePathGrants } from '../desktop/exchangePathGrant';
 import { callDesktopSession } from '../db/desktop/desktopCall';
 import {
   openDesktopSession,
@@ -31,6 +32,7 @@ import {
 const roots: string[] = [];
 
 afterEach(() => {
+  resetExchangePathGrants();
   resetDesktopPageRouters();
   while (eventStops.length > 0) eventStops.pop()?.();
   cleanup();
@@ -1208,7 +1210,8 @@ describe('DesktopProjectReadPage', () => {
     const host: DesktopReadHost = {
       projectReadEnabled: true,
       chooseDesktopFolder: () => Promise.resolve({ sessionId: session.sessionId }),
-      chooseImportFile: () => Promise.resolve({ file }),
+      chooseImportFile: (sessionId) =>
+        Promise.resolve({ grantId: grantExchangePath(sessionId, file, 'import') }),
       chooseExportFile: () => Promise.resolve({ cancelled: true }),
       desktopCall: (id, method, args) => Promise.resolve(callDesktopSession(id, method, args)),
       desktopMediaUrl: () => Promise.resolve({ url: 'jieyu-media://local/token' }),
@@ -1232,8 +1235,10 @@ describe('DesktopProjectReadPage', () => {
     const host: DesktopReadHost = {
       projectReadEnabled: true,
       chooseDesktopFolder: () => Promise.resolve({ sessionId: session.sessionId }),
-      chooseImportFile: () => Promise.resolve({ file }),
-      chooseExportFile: () => Promise.resolve({ file: exported }),
+      chooseImportFile: (sessionId) =>
+        Promise.resolve({ grantId: grantExchangePath(sessionId, file, 'import') }),
+      chooseExportFile: (sessionId) =>
+        Promise.resolve({ grantId: grantExchangePath(sessionId, exported, 'export') }),
       desktopCall: (id, method, args) => Promise.resolve(callDesktopSession(id, method, args)),
       desktopMediaUrl: () => Promise.resolve({ url: 'jieyu-media://local/token' }),
     };
@@ -1812,8 +1817,15 @@ describe('DesktopProjectReadPage', () => {
     const host: DesktopReadHost = {
       projectReadEnabled: true,
       chooseDesktopFolder: () => Promise.resolve({ sessionId: session.sessionId }),
-      chooseImportFile: () => Promise.resolve({ file }),
-      chooseExportFile: () => Promise.resolve({ file: join(dir, 'unused.jyt') }),
+      chooseImportFile: (sessionId) =>
+        Promise.resolve({
+          grantId: grantExchangePath(sessionId, file, 'import'),
+          rolesGrantId: grantExchangePath(sessionId, join(source, 'roles.txt'), 'import-roles'),
+        }),
+      chooseExportFile: (sessionId) =>
+        Promise.resolve({
+          grantId: grantExchangePath(sessionId, join(dir, 'unused.jyt'), 'export'),
+        }),
       desktopCall: (id, method, args) => Promise.resolve(callDesktopSession(id, method, args)),
       desktopMediaUrl: () => Promise.resolve({ url: 'jieyu-media://local/token' }),
     };

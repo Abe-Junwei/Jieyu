@@ -1287,25 +1287,34 @@ function unitIdOf(input: Record<string, unknown>): { unitId: string } {
   return { unitId: requiredString(input.unitId, 'unitId') };
 }
 
-function exportFile(input: Record<string, unknown>): string {
-  knownKeys(input, ['file']);
-  return requiredString(input.file, 'file');
+function exportFile(input: Record<string, unknown>): { grantId: string } {
+  knownKeys(input, ['grantId']);
+  return { grantId: requiredString(input.grantId, 'grantId') };
 }
 
-function exportManuscript(input: Record<string, unknown>): { file: string; manuscriptId: string } {
-  knownKeys(input, ['file', 'manuscriptId']);
+function exportManuscript(input: Record<string, unknown>): {
+  grantId: string;
+  manuscriptId: string;
+} {
+  knownKeys(input, ['grantId', 'manuscriptId']);
   return {
-    file: requiredString(input.file, 'file'),
+    grantId: requiredString(input.grantId, 'grantId'),
     manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
   };
 }
 
-function exchangeImport(input: Record<string, unknown>): { file: string; roles?: string } {
-  knownKeys(input, ['file', 'roles']);
-  const roles = input.roles === undefined ? undefined : requiredString(input.roles, 'roles');
+function exchangeImport(input: Record<string, unknown>): {
+  grantId: string;
+  rolesGrantId?: string;
+} {
+  knownKeys(input, ['grantId', 'rolesGrantId']);
+  const rolesGrantId =
+    input.rolesGrantId === undefined
+      ? undefined
+      : requiredString(input.rolesGrantId, 'rolesGrantId');
   return {
-    file: requiredString(input.file, 'file'),
-    ...(roles === undefined ? {} : { roles }),
+    grantId: requiredString(input.grantId, 'grantId'),
+    ...(rolesGrantId === undefined ? {} : { rolesGrantId }),
   };
 }
 
@@ -1912,15 +1921,15 @@ export const desktopOperations = {
     'clear',
     analysisMerge,
   ),
-  'exchange.importFile': spec<'clear', { file: string; roles?: string }, ImportResult>(
+  'exchange.importFile': spec<'clear', { grantId: string; rolesGrantId?: string }, ImportResult>(
     'clear',
     exchangeImport,
   ),
-  'exchange.exportJyt': spec<'keep', string, { file: string }>('keep', exportFile),
-  'exchange.exportJym': spec<'keep', string, { file: string }>('keep', exportFile),
+  'exchange.exportJyt': spec<'keep', { grantId: string }, { file: string }>('keep', exportFile),
+  'exchange.exportJym': spec<'keep', { grantId: string }, { file: string }>('keep', exportFile),
   'exchange.exportManuscript': spec<
     'keep',
-    { file: string; manuscriptId: string },
+    { grantId: string; manuscriptId: string },
     { file: string }
   >('keep', exportManuscript),
 };

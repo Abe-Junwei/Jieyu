@@ -15,6 +15,7 @@ import {
   exportDesktopManuscriptJyt,
   saveDesktopPackage,
 } from './projectExchange';
+import { consumeExchangePath } from '../../desktop/exchangePathGrant';
 import { queryCorpus } from './corpusQuery';
 import { importAnalysis } from './analysisImport';
 import { listAnalysisCandidates } from './analysisCandidates';
@@ -676,21 +677,31 @@ const operationHandlers = {
       mergeAnalysisNodes(ctx.db, input),
   },
   'exchange.importFile': {
-    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['exchange.importFile']['check']>) =>
-      importForeignFile({
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['exchange.importFile']['check']>,
+    ) => {
+      const file = consumeExchangePath(ctx.sessionId, input.grantId, 'import');
+      const roles =
+        input.rolesGrantId === undefined
+          ? undefined
+          : consumeExchangePath(ctx.sessionId, input.rolesGrantId, 'import-roles');
+      return importForeignFile({
         folder: ctx.folder,
-        file: input.file,
+        file,
         db: ctx.db,
-        ...(input.roles === undefined ? {} : { roles: input.roles }),
-      }),
+        ...(roles === undefined ? {} : { roles }),
+      });
+    },
   },
   'exchange.exportJyt': {
     run: (
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['exchange.exportJyt']['check']>,
     ) => {
-      assertExportTarget(ctx.folder, input, mediaRelpaths(ctx.db));
-      return saveDesktopPackage(input, exportDesktopJyt(ctx.db));
+      const file = consumeExchangePath(ctx.sessionId, input.grantId, 'export');
+      assertExportTarget(ctx.folder, file, mediaRelpaths(ctx.db));
+      return saveDesktopPackage(file, exportDesktopJyt(ctx.db));
     },
   },
   'exchange.exportJym': {
@@ -698,8 +709,9 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['exchange.exportJym']['check']>,
     ) => {
-      assertExportTarget(ctx.folder, input, mediaRelpaths(ctx.db));
-      return saveDesktopPackage(input, exportDesktopJym(ctx.db, ctx.folder));
+      const file = consumeExchangePath(ctx.sessionId, input.grantId, 'export');
+      assertExportTarget(ctx.folder, file, mediaRelpaths(ctx.db));
+      return saveDesktopPackage(file, exportDesktopJym(ctx.db, ctx.folder));
     },
   },
   'exchange.exportManuscript': {
@@ -707,11 +719,9 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['exchange.exportManuscript']['check']>,
     ) => {
-      assertExportTarget(ctx.folder, input.file, mediaRelpaths(ctx.db));
-      return saveDesktopPackage(
-        input.file,
-        exportDesktopManuscriptJyt(ctx.db, [input.manuscriptId]),
-      );
+      const file = consumeExchangePath(ctx.sessionId, input.grantId, 'export');
+      assertExportTarget(ctx.folder, file, mediaRelpaths(ctx.db));
+      return saveDesktopPackage(file, exportDesktopManuscriptJyt(ctx.db, [input.manuscriptId]));
     },
   },
   'units.updateText': {

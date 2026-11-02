@@ -35,12 +35,12 @@ export function DesktopExchangePanel(props: {
   const importFile = () => {
     setStatus(null);
     void props
-      .chooseImportFile()
+      .chooseImportFile(props.sessionId)
       .then(async (picked) => {
         if ('cancelled' in picked) return;
         const result = await client.importFile(props.sessionId, {
-          file: picked.file,
-          ...(picked.roles === undefined ? {} : { roles: picked.roles }),
+          grantId: picked.grantId,
+          ...(picked.rolesGrantId === undefined ? {} : { rolesGrantId: picked.rolesGrantId }),
         });
         if (result.written === 0) {
           setStatus('failed');
@@ -55,20 +55,20 @@ export function DesktopExchangePanel(props: {
     if (kind === 'manuscript' && props.manuscriptId === null) return;
     setStatus(null);
     void props
-      .chooseExportFile(exportName(kind))
+      .chooseExportFile(props.sessionId, exportName(kind))
       .then(async (picked) => {
         if ('cancelled' in picked) return;
         switch (kind) {
           case 'jyt':
-            await client.exportJyt(props.sessionId, { file: picked.file });
+            await client.exportJyt(props.sessionId, { grantId: picked.grantId });
             break;
           case 'jym':
-            await client.exportJym(props.sessionId, { file: picked.file });
+            await client.exportJym(props.sessionId, { grantId: picked.grantId });
             break;
           case 'manuscript':
             if (props.manuscriptId === null) return;
             await client.exportManuscript(props.sessionId, {
-              file: picked.file,
+              grantId: picked.grantId,
               manuscriptId: props.manuscriptId,
             });
             break;

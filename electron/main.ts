@@ -23,13 +23,15 @@ import {
   writeProjectLibraryMarker,
 } from '@sqlite-host';
 import { callDesktopSession } from '../src/db/desktop/desktopCall';
-import { cancelModelTranscribe, runModelTranscribe } from '../src/desktop/modelHost';
 import { trashFile } from './trashFile';
 import { listDailyBackupDays, restoreDailyBackup } from '../src/db/desktop/dailyBackup';
 import {
   grantRestoredProject,
+  // exchange path grants (#482)
+
   readRestoredProjectGrant,
 } from '../src/desktop/restoredProjectGrant';
+import { grantExchangePath } from '../src/desktop/exchangePathGrant';
 import { ensureBundledSample, SAMPLE_PROJECT_DIRNAME } from '../src/db/desktop/sampleProject';
 import { desktopMediaPlayUrl } from '../src/db/desktop/mediaUrl';
 import {
@@ -359,7 +361,9 @@ function registerIpc(): void {
     return opened;
   });
 
-  handle('desktop:choose-import-file', async () => {
+  handle('desktop:choose-import-file', async (sessionId: unknown) => {
+    if (typeof sessionId !== 'string') throw new Error('empty session');
+    desktopSessionFolder(sessionId);
     const picked = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters: [
@@ -371,22 +375,32 @@ function registerIpc(): void {
     });
     const file = picked.filePaths[0];
     if (file === undefined) return { cancelled: true };
+    desktopSessionFolder(sessionId);
+    const grantId = grantExchangePath(sessionId, file, 'import');
     const extension = path.extname(file).toLowerCase();
     // LIFT/JYB need no tier roles; other formats may supply an optional roles list (#429).
-    if (extension === '.lift' || extension === '.jyb') return { file };
+    if (extension === '.lift' || extension === '.jyb') return { grantId };
     const rolesPick = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters: [{ name: 'Tier roles', extensions: ['txt'] }],
     });
     const roles = rolesPick.filePaths[0];
-    return roles === undefined ? { file } : { file, roles };
+    if (roles === undefined) return { grantId };
+    desktopSessionFolder(sessionId);
+    return {
+      grantId,
+      rolesGrantId: grantExchangePath(sessionId, roles, 'import-roles'),
+    };
   });
 
-  handle('desktop:choose-export-file', async (name: unknown) => {
+  handle('desktop:choose-export-file', async (sessionId: unknown, name: unknown) => {
+    if (typeof sessionId !== 'string') throw new Error('empty session');
     if (typeof name !== 'string' || name.length === 0) throw new Error('empty export name');
+    desktopSessionFolder(sessionId);
     const picked = await dialog.showSaveDialog({ defaultPath: name });
     if (picked.filePath === undefined) return { cancelled: true };
-    return { file: picked.filePath };
+    desktopSessionFolder(sessionId);
+    return { grantId: grantExchangePath(sessionId, picked.filePath, 'export') };
   });
 
   handle('desktop:choose-local-whisper', async (sessionId: unknown) => {
@@ -431,15 +445,6 @@ function registerIpc(): void {
     if (typeof sessionId !== 'string' || typeof requestId !== 'string')
       throw new Error('empty request');
     cancelProjectTranscription(sessionId, requestId);
-  });
-
-  handle('model:transcribe', (input: unknown) => runModelTranscribe(input));
-  handle('model:cancel', (requestId: unknown) => {
-    if (typeof requestId !== 'string' || requestId.length === 0) {
-      throw new Error('empty model request');
-    }
-    cancelModelTranscribe(requestId);
-    return { cancelled: true };
   });
 
   handle('desktop:call', (sessionId: unknown, method: unknown, args: unknown) => {
