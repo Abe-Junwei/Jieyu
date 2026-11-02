@@ -228,7 +228,8 @@ export function DesktopProjectReadPage() {
           listDailyBackups={host.listDailyBackups}
           restoreDailyBackup={host.restoreDailyBackup}
           openRestoredBackup={host.openRestoredBackup}
-          onOpened={(sessionId) => draft.leave(() => read.adoptOpenedSession(sessionId))}
+          beforeOpen={(proceed) => draft.leave(proceed)}
+          onOpened={(sessionId) => read.adoptOpenedSession(sessionId)}
         />
       )}
       {dueReminders === null || host === null || read.sessionId === null ? null : (

@@ -14,6 +14,8 @@ type BackupPanelProps = {
     day: string,
   ) => Promise<{ cancelled: true } | { folder: string }>;
   openRestoredBackup?: ((sessionId: string) => Promise<{ sessionId: string }>) | undefined;
+  /** Run before IPC open; only call proceed after draft save/discard. Cancel by not calling proceed. */
+  beforeOpen?: ((proceed: () => void) => void) | undefined;
   onOpened?: ((sessionId: string) => void) | undefined;
 };
 
@@ -22,7 +24,7 @@ export function DesktopDailyBackupPanel(props: BackupPanelProps) {
 }
 
 function SessionBackups(props: BackupPanelProps) {
-  const { sessionId, listDailyBackups, restoreDailyBackup, openRestoredBackup, onOpened } = props;
+  const { sessionId, listDailyBackups, restoreDailyBackup, openRestoredBackup, beforeOpen, onOpened } = props;
   const locale = useLocale();
   const liveSession = useRef<string | null>(sessionId);
   const restoringRef = useRef(false);
@@ -89,22 +91,27 @@ function SessionBackups(props: BackupPanelProps) {
   const openCopy = () => {
     if (openingRef.current || restoredPath === null || openRestoredBackup === undefined) return;
     const seen = sessionId;
-    openingRef.current = true;
-    setOpening(true);
-    setErrorKey(null);
-    void openRestoredBackup(sessionId)
-      .then((opened) => {
-        if (liveSession.current !== seen) return;
-        onOpened?.(opened.sessionId);
-      })
-      .catch(() => {
-        if (liveSession.current !== seen) return;
-        setErrorKey('app.desktopRead.backupOpenFailed');
-      })
-      .finally(() => {
-        openingRef.current = false;
-        if (liveSession.current === seen) setOpening(false);
-      });
+    const proceed = () => {
+      if (openingRef.current || liveSession.current !== seen || openRestoredBackup === undefined) return;
+      openingRef.current = true;
+      setOpening(true);
+      setErrorKey(null);
+      void openRestoredBackup(sessionId)
+        .then((opened) => {
+          if (liveSession.current !== seen) return;
+          onOpened?.(opened.sessionId);
+        })
+        .catch(() => {
+          if (liveSession.current !== seen) return;
+          setErrorKey('app.desktopRead.backupOpenFailed');
+        })
+        .finally(() => {
+          openingRef.current = false;
+          if (liveSession.current === seen) setOpening(false);
+        });
+    };
+    if (beforeOpen === undefined) proceed();
+    else beforeOpen(proceed);
   };
 
   return (
