@@ -102,6 +102,41 @@ describe('useDesktopDraftGuard', () => {
     expect(saved).toEqual([]);
   });
 
+  it('retries leave instead of navigating when the user edits during a deferred save', async () => {
+    const resolvers: Array<(ok: boolean) => void> = [];
+    const saved: DesktopTextDraft[] = [];
+    const view = mount((draft) => {
+      saved.push(draft);
+      return new Promise<boolean>((resolve) => {
+        resolvers.push(resolve);
+      });
+    });
+    act(() => view.guard().edit('u1', '第一次', '旧'));
+    let navigated = false;
+    act(() => {
+      view.guard().leave(() => {
+        navigated = true;
+      });
+    });
+    await waitFor(() => expect(resolvers).toHaveLength(1));
+    act(() => view.guard().edit('u1', '第二次', '旧'));
+    await act(async () => {
+      resolvers[0]?.(true);
+    });
+    expect(navigated).toBe(false);
+    expect(view.guard().draft).toEqual({ unitId: 'u1', text: '第二次' });
+    await waitFor(() => expect(resolvers).toHaveLength(2));
+    expect(saved).toEqual([
+      { unitId: 'u1', text: '第一次' },
+      { unitId: 'u1', text: '第二次' },
+    ]);
+    await act(async () => {
+      resolvers[1]?.(true);
+    });
+    await waitFor(() => expect(navigated).toBe(true));
+    expect(view.guard().draft).toBeNull();
+  });
+
   it('cancels beforeunload only while a draft is unsaved', () => {
     const view = mount(() => Promise.resolve(true));
     const unload = () => {
