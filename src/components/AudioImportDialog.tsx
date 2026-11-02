@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { MaterialSymbol } from './ui/MaterialSymbol';
-import { JIEYU_MATERIAL_HERO } from '../utils/jieyuMaterialIcon';
+import { JieyuIcon } from './ui/JieyuIcon';
+import { JIEYU_ICON_HERO } from '../utils/jieyuIcon';
 import { t, tf, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { ModalPanel, PanelButton, PanelFeedback } from './ui';
@@ -240,9 +240,9 @@ export function AudioImportDialog({
         {selectedFile ? (
           <>
             {isVideoFile ? (
-              <MaterialSymbol name="video_file" className={JIEYU_MATERIAL_HERO} />
+              <JieyuIcon name="FilePlay" className={JIEYU_ICON_HERO} />
             ) : (
-              <MaterialSymbol name="audio_file" className={JIEYU_MATERIAL_HERO} />
+              <JieyuIcon name="FileHeadphone" className={JIEYU_ICON_HERO} />
             )}
             <strong>{selectedFile.name}</strong>
             <span className="small-text">
@@ -254,7 +254,7 @@ export function AudioImportDialog({
           </>
         ) : (
           <>
-            <MaterialSymbol name="upload" className={JIEYU_MATERIAL_HERO} />
+            <JieyuIcon name="Upload" className={JIEYU_ICON_HERO} />
             <strong>{t(locale, 'transcription.importDialog.selectMedia')}</strong>
             <span className="small-text">
               {t(locale, 'transcription.importDialog.supportedFormats')}

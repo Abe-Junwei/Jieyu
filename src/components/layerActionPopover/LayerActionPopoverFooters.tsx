@@ -1,7 +1,7 @@
 import { memo } from 'react';
-import { MaterialSymbol } from '../ui/MaterialSymbol';
+import { JieyuIcon } from '../ui/JieyuIcon';
 import { PanelButton } from '../ui';
-import { JIEYU_MATERIAL_PANEL } from '../../utils/jieyuMaterialIcon';
+import { JIEYU_ICON_PANEL } from '../../utils/jieyuIcon';
 import { getOrthographyBuilderMessages } from '../../i18n/messages';
 import type { Locale } from '../../i18n';
 import type { LayerActionPopoverMessages } from '../../i18n/messages';
@@ -87,7 +87,7 @@ export const LayerActionPopoverBuilderBreadcrumbTitle = memo(
           onClick={orthographyPicker.cancelCreate}
           aria-label={label}
         >
-          <MaterialSymbol name="chevron_left" className={JIEYU_MATERIAL_PANEL} />
+          <JieyuIcon name="ChevronLeft" className={JIEYU_ICON_PANEL} />
           <span>{label}</span>
         </button>
         <span className="dialog-breadcrumb-separator">/</span>

@@ -1,0 +1,133 @@
+/* Jieyu icons：Lucide SVG，尺寸档沿用 --jieyu-icon-* 类名。
+   --jieyu-icon-fill 0|1 映射 stroke-width（兼容旧 FILL 写法）。 */
+@layer components {
+  :root {
+    --jieyu-icon-nav-size: 24px;
+    --jieyu-icon-wave-size: 16px;
+    --jieyu-icon-wave-play-size: 18px;
+    --jieyu-icon-wave-md-size: 15px;
+    --jieyu-icon-wave-trigger-size: 15px;
+    --jieyu-icon-wave-trigger-chevron-size: 14px;
+    --jieyu-icon-undo-chip-size: 13px;
+    --jieyu-icon-ai-panel-size: 14px;
+    --jieyu-icon-ai-panel-sm-size: 12px;
+    --jieyu-icon-panel-size: 16px;
+    --jieyu-icon-panel-close-lg-size: 18px;
+    --jieyu-icon-inline-size: 14px;
+    --jieyu-icon-inline-tight-size: 13px;
+    --jieyu-icon-micro-size: 12px;
+    --jieyu-icon-micro-xs-size: 11px;
+    --jieyu-icon-hero-size: 28px;
+    --jieyu-icon-voice-mic-size: 22px;
+  }
+
+  svg.jieyu-icon.jieyu-icon {
+    margin: 0;
+    padding: 0;
+    display: inline-block;
+    flex-shrink: 0;
+    color: inherit;
+    vertical-align: middle;
+    user-select: none;
+    overflow: visible;
+    width: var(--jieyu-icon-size, 1em);
+    height: var(--jieyu-icon-size, 1em);
+    stroke: currentColor;
+    fill: none;
+    /* fill 0 → ~1.5；fill 1 → ~2.25 */
+    stroke-width: calc(1.5 + (var(--jieyu-icon-fill, 0) * 0.75));
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--nav {
+    --jieyu-icon-size: var(--jieyu-icon-nav-size);
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--wave {
+    --jieyu-icon-size: var(--jieyu-icon-wave-size);
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--wave-play {
+    --jieyu-icon-size: var(--jieyu-icon-wave-play-size);
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--wave-md {
+    --jieyu-icon-size: var(--jieyu-icon-wave-md-size);
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--wave-trigger {
+    --jieyu-icon-size: var(--jieyu-icon-wave-trigger-size);
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--wave-trigger-chevron {
+    --jieyu-icon-size: var(--jieyu-icon-wave-trigger-chevron-size);
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--undo-chip {
+    --jieyu-icon-size: var(--jieyu-icon-undo-chip-size);
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--ai-panel {
+    --jieyu-icon-size: var(--jieyu-icon-ai-panel-size);
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--ai-panel-sm {
+    --jieyu-icon-size: var(--jieyu-icon-ai-panel-sm-size);
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--panel {
+    --jieyu-icon-size: var(--jieyu-icon-panel-size);
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--panel-close-lg {
+    --jieyu-icon-size: var(--jieyu-icon-panel-close-lg-size);
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--inline {
+    --jieyu-icon-size: var(--jieyu-icon-inline-size);
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--inline-tight {
+    --jieyu-icon-size: var(--jieyu-icon-inline-tight-size);
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--micro {
+    --jieyu-icon-size: var(--jieyu-icon-micro-size);
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--micro-xs {
+    --jieyu-icon-size: var(--jieyu-icon-micro-xs-size);
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--hero {
+    --jieyu-icon-size: var(--jieyu-icon-hero-size);
+  }
+
+  svg.jieyu-icon.jieyu-icon.jieyu-icon--voice-mic {
+    --jieyu-icon-size: var(--jieyu-icon-voice-mic-size);
+  }
+
+  .left-rail-btn > .jieyu-icon {
+    align-self: center;
+  }
+
+  .left-rail-btn .jieyu-icon {
+    color: currentColor;
+  }
+
+  /* progress_activity → Loader2 */
+  @keyframes jieyu-icon-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  svg.jieyu-icon.jieyu-icon[data-jieyu-spin='1'] {
+    animation: jieyu-icon-spin 0.9s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    svg.jieyu-icon.jieyu-icon[data-jieyu-spin='1'] {
+      animation: none;
+    }
+  }
+}

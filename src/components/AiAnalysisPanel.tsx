@@ -1,6 +1,6 @@
 import { memo } from 'react';
-import { MaterialSymbol } from './ui/MaterialSymbol';
-import { JIEYU_MATERIAL_AI_PANEL, JIEYU_MATERIAL_AI_PANEL_SM } from '../utils/jieyuMaterialIcon';
+import { JieyuIcon } from './ui/JieyuIcon';
+import { JIEYU_ICON_AI_PANEL, JIEYU_ICON_AI_PANEL_SM } from '../utils/jieyuIcon';
 import { t, tf, useLocale } from '../i18n';
 import { useAiPanelContext } from '../contexts/AiPanelContext';
 import { AiEmbeddingCard } from './ai/AiEmbeddingCard';
@@ -107,7 +107,7 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
     <div className="pnl-analysis-panel panel-design-match-content" data-ai-analysis-panel="true">
       <div className="transcription-analysis-panel-header">
         <div className="transcription-ai-header-title">
-          <MaterialSymbol name="smart_toy" aria-hidden className={JIEYU_MATERIAL_AI_PANEL} />
+          <JieyuIcon name="Bot" aria-hidden className={JIEYU_ICON_AI_PANEL} />
           <span className="transcription-analysis-toolbar-title">
             {t(locale, 'ai.header.title')}
           </span>
@@ -194,10 +194,10 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                 </div>
                 <div className="transcription-analysis-stats-row transcription-analysis-stats-row-accent">
                   <span className="transcription-analysis-stats-label transcription-analysis-stats-label-accent">
-                    <MaterialSymbol
-                      name="auto_fix_high"
+                    <JieyuIcon
+                      name="WandSparkles"
                       aria-hidden
-                      className={JIEYU_MATERIAL_AI_PANEL_SM}
+                      className={JIEYU_ICON_AI_PANEL_SM}
                     />
                     <span>{currentTaskLabel}</span>
                   </span>

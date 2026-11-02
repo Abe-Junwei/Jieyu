@@ -1,5 +1,5 @@
-import { MaterialSymbol } from '../ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE } from '../../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../ui/JieyuIcon';
+import { JIEYU_ICON_INLINE } from '../../utils/jieyuIcon';
 import type { AiConversationListItem as AiConversationListItemData } from '../../hooks/ai/aiConversationManager.types';
 import { AiConversationActionMenu } from './AiConversationActionMenu';
 import type { Locale } from '../../i18n';
@@ -37,7 +37,7 @@ export function AiConversationListItem({
       >
         <span className="ai-conversation-list-item-title">{titleLabel}</span>
         {isActive ? (
-          <MaterialSymbol name="check" className={JIEYU_MATERIAL_INLINE} aria-hidden />
+          <JieyuIcon name="Check" className={JIEYU_ICON_INLINE} aria-hidden />
         ) : null}
       </button>
       {showActions && onArchive && onDelete ? (

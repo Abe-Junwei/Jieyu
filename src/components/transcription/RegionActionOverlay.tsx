@@ -6,8 +6,8 @@
  */
 
 import type { FC } from 'react';
-import { MaterialSymbol } from '../ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE_TIGHT } from '../../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../ui/JieyuIcon';
+import { JIEYU_ICON_INLINE_TIGHT } from '../../utils/jieyuIcon';
 import { t, tf, useLocale } from '../../i18n';
 import {
   docSecRangeToContentPx,
@@ -107,7 +107,7 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
             onToggleLoop();
           }}
         >
-          <MaterialSymbol name="repeat" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+          <JieyuIcon name="Repeat" className={JIEYU_ICON_INLINE_TIGHT} />
         </button>
       )}
       <button
@@ -122,9 +122,9 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
         }}
       >
         {isPlaying ? (
-          <MaterialSymbol name="stop" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+          <JieyuIcon name="Square" className={JIEYU_ICON_INLINE_TIGHT} />
         ) : (
-          <MaterialSymbol name="play_arrow" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+          <JieyuIcon name="Play" className={JIEYU_ICON_INLINE_TIGHT} />
         )}
       </button>
     </div>

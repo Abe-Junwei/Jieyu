@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { MaterialSymbol } from './ui/MaterialSymbol';
-import { JIEYU_MATERIAL_WAVE, JIEYU_MATERIAL_WAVE_MD } from '../utils/jieyuMaterialIcon';
+import { JieyuIcon } from './ui/JieyuIcon';
+import { JIEYU_ICON_WAVE, JIEYU_ICON_WAVE_MD } from '../utils/jieyuIcon';
 import type { MediaItemDocType } from '../db/types';
 import { t, useLocale } from '../i18n';
 import { createLogger } from '../observability/logger';
@@ -177,7 +177,7 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
         {isRecording ? (
           <span className="timeline-translation-audio-stop-glyph" aria-hidden="true" />
         ) : (
-          <MaterialSymbol name="mic" className={JIEYU_MATERIAL_WAVE} />
+          <JieyuIcon name="Mic" className={JIEYU_ICON_WAVE} />
         )}
       </button>
       {hasAudio ? (
@@ -200,9 +200,9 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
           }}
         >
           {isPlaying ? (
-            <MaterialSymbol name="pause" className={JIEYU_MATERIAL_WAVE_MD} />
+            <JieyuIcon name="Pause" className={JIEYU_ICON_WAVE_MD} />
           ) : (
-            <MaterialSymbol name="play_arrow" className={JIEYU_MATERIAL_WAVE_MD} />
+            <JieyuIcon name="Play" className={JIEYU_ICON_WAVE_MD} />
           )}
         </button>
       ) : null}
@@ -231,10 +231,10 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
             void handleTranscribeClick(event);
           }}
         >
-          <MaterialSymbol
-            name={transcribing ? 'progress_activity' : 'subtitles'}
+          <JieyuIcon
+            name={transcribing ? 'Loader2' : 'Subtitles'}
             className={[
-              JIEYU_MATERIAL_WAVE_MD,
+              JIEYU_ICON_WAVE_MD,
               transcribing ? 'timeline-translation-audio-transcribe-spin' : '',
             ]
               .filter(Boolean)
@@ -251,7 +251,7 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
           disabled={disabled || isRecording}
           onClick={handleDeleteClick}
         >
-          <MaterialSymbol name="delete" className={JIEYU_MATERIAL_WAVE_MD} />
+          <JieyuIcon name="Trash" className={JIEYU_ICON_WAVE_MD} />
         </button>
       ) : null}
       {!compact ? (

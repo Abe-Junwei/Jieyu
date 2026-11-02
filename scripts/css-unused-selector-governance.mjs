@@ -159,7 +159,7 @@ function isAutoAllowed(className) {
   return className.startsWith('is-')
     || className.startsWith('has-')
     || className.startsWith('maplibregl-')
-    || className.startsWith('jieyu-material--')
+    || className.startsWith('jieyu-icon--')
     || className.startsWith('glass')
     || className.startsWith('skeleton-')
     || className === 'no-scrollbar'

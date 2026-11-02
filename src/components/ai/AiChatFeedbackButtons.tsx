@@ -1,5 +1,5 @@
-import { MaterialSymbol } from '../ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE_TIGHT } from '../../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../ui/JieyuIcon';
+import { JIEYU_ICON_INLINE_TIGHT } from '../../utils/jieyuIcon';
 
 export interface AiChatFeedbackButtonsProps {
   messageId: string;
@@ -20,9 +20,9 @@ export function AiChatFeedbackButtons({ messageId, rated, onRate }: AiChatFeedba
         title="thumbs up"
         onClick={() => onRate(messageId, 'thumbs_up')}
       >
-        <MaterialSymbol
-          name={rated === 'thumbs_up' ? 'thumb_up' : 'thumb_up_off_alt'}
-          className={JIEYU_MATERIAL_INLINE_TIGHT}
+        <JieyuIcon
+          name={rated === 'thumbs_up' ? 'ThumbsUp' : 'ThumbsUp'}
+          className={JIEYU_ICON_INLINE_TIGHT}
         />
       </button>
       <button
@@ -32,9 +32,9 @@ export function AiChatFeedbackButtons({ messageId, rated, onRate }: AiChatFeedba
         title="thumbs down"
         onClick={() => onRate(messageId, 'thumbs_down')}
       >
-        <MaterialSymbol
-          name={rated === 'thumbs_down' ? 'thumb_down' : 'thumb_down_off_alt'}
-          className={JIEYU_MATERIAL_INLINE_TIGHT}
+        <JieyuIcon
+          name={rated === 'thumbs_down' ? 'ThumbsDown' : 'ThumbsDown'}
+          className={JIEYU_ICON_INLINE_TIGHT}
         />
       </button>
     </span>

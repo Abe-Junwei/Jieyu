@@ -27,4 +27,4 @@ export { FormField } from './FormField';
 export { ActionButtonGroup } from './ActionButtonGroup';
 
 // ── 图标 | Icons ──
-export { MaterialSymbol } from './MaterialSymbol';
+export { JieyuIcon } from './JieyuIcon';

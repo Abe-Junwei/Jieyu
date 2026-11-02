@@ -9,8 +9,8 @@
  */
 import { type ReactNode, type Ref, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MaterialSymbol } from './MaterialSymbol';
-import { JIEYU_MATERIAL_PANEL } from '../../utils/jieyuMaterialIcon';
+import { JieyuIcon } from './JieyuIcon';
+import { JIEYU_ICON_PANEL } from '../../utils/jieyuIcon';
 import { DialogOverlay } from './DialogOverlay';
 import { DialogShell } from './DialogShell';
 import { joinClassNames } from './classNames';
@@ -113,7 +113,7 @@ export function ModalPanel({
       data-dialog-close="true"
       {...(closeDisabled !== undefined && { disabled: closeDisabled })}
     >
-      <MaterialSymbol name="close" className={JIEYU_MATERIAL_PANEL} />
+      <JieyuIcon name="X" className={JIEYU_ICON_PANEL} />
     </button>
   );
 

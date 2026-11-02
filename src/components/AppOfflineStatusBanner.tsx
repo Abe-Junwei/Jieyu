@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { t, type Locale } from '../i18n';
-import { MaterialSymbol } from './ui';
+import { JieyuIcon } from './ui';
 
 function readBrowserOnline(): boolean {
   if (typeof navigator === 'undefined') return true;
@@ -30,7 +30,7 @@ export function AppOfflineStatusBanner({ locale }: { locale: Locale }): ReactNod
       aria-live="polite"
       data-testid="app-offline-status"
     >
-      <MaterialSymbol name="wifi_off" aria-hidden className="app-offline-status-icon" />
+      <JieyuIcon name="WifiOff" aria-hidden className="app-offline-status-icon" />
       <span>{t(locale, 'app.offlineStatus.message')}</span>
     </div>
   );

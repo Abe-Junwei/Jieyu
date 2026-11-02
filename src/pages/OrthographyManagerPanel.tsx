@@ -1,8 +1,8 @@
 import '../styles/foundation/dialog-shell.css';
 import '../styles/foundation/panel-design-presets.css';
 import '../styles/foundation/panel-primitives.css';
-import { MaterialSymbol } from '../components/ui/MaterialSymbol';
-import { JIEYU_MATERIAL_PANEL } from '../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../components/ui/JieyuIcon';
+import { JIEYU_ICON_PANEL } from '../utils/jieyuIcon';
 import { LanguageAssetRouteLink } from '../components/LanguageAssetRouteLink';
 import { getOrthographyCatalogBadgeInfo } from '../components/orthographyCatalogUi';
 import { LanguageIsoInput, type LanguageIsoInputValue } from '../components/LanguageIsoInput';
@@ -144,7 +144,7 @@ export function OrthographyManagerPanel({
       aria-label={t(locale, 'transcription.importDialog.close')}
       title={t(locale, 'transcription.importDialog.close')}
     >
-      <MaterialSymbol name="close" className={JIEYU_MATERIAL_PANEL} />
+      <JieyuIcon name="X" className={JIEYU_ICON_PANEL} />
     </button>
   ) : null;
 

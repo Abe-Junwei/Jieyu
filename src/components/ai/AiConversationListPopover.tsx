@@ -8,8 +8,8 @@ import {
 } from '../../hooks/ai/conversationSearch';
 import { isPersistedTitleEmptyOrDefault } from '../../hooks/ai/conversationTitleGeneration';
 import { AiConversationListGroup } from './AiConversationListGroup';
-import { MaterialSymbol } from '../ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE } from '../../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../ui/JieyuIcon';
+import { JIEYU_ICON_INLINE } from '../../utils/jieyuIcon';
 import { fireAndForget } from '../../utils/fireAndForget';
 
 export function AiConversationListPopover({
@@ -136,7 +136,7 @@ export function AiConversationListPopover({
           className="ai-conversation-list-new-btn"
           onClick={() => void onStartNewConversation()}
         >
-          <MaterialSymbol name="add" className={JIEYU_MATERIAL_INLINE} aria-hidden />
+          <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE} aria-hidden />
           {t(locale, 'ai.chat.conversationList.newConversation')}
         </button>
         <input

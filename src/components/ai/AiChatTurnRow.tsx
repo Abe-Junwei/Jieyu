@@ -1,5 +1,5 @@
-import { MaterialSymbol } from '../ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE_TIGHT } from '../../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../ui/JieyuIcon';
+import { JIEYU_ICON_INLINE_TIGHT } from '../../utils/jieyuIcon';
 import { AiChatAssistantMessage } from './AiChatAssistantMessage';
 import type { DegradationScenario } from '../../ai/chat/degradationManualOverride';
 import type { WorkflowExplainabilityV0 } from '../../ai/chat/workflowExplainability';
@@ -146,9 +146,9 @@ export function AiChatTurnRow({
                   aria-label={isUserPinned ? cardMessages.unpinMessage : cardMessages.pinMessage}
                   title={isUserPinned ? cardMessages.unpinMessage : cardMessages.pinMessage}
                 >
-                  <MaterialSymbol
-                    name={isUserPinned ? 'close' : 'push_pin'}
-                    className={JIEYU_MATERIAL_INLINE_TIGHT}
+                  <JieyuIcon
+                    name={isUserPinned ? 'X' : 'Pin'}
+                    className={JIEYU_ICON_INLINE_TIGHT}
                   />
                 </button>
               </div>

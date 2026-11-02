@@ -1,6 +1,6 @@
-import { MaterialSymbol } from '../ui/MaterialSymbol';
+import { JieyuIcon } from '../ui/JieyuIcon';
 import { requestPersistOnGesture } from '../../utils/storageDurability';
-import { JIEYU_MATERIAL_NAV } from '../../utils/jieyuMaterialIcon';
+import { JIEYU_ICON_NAV } from '../../utils/jieyuIcon';
 import {
   useCallback,
   useEffect,
@@ -1062,7 +1062,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             : t(locale, 'transcription.projectHub.toggle')
         }
       >
-        <MaterialSymbol name="inventory_2" aria-hidden className={JIEYU_MATERIAL_NAV} />
+        <JieyuIcon name="Package" aria-hidden className={JIEYU_ICON_NAV} />
         <span>
           {activeProjectTitle.length > 0
             ? activeProjectTitle

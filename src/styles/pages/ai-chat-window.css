@@ -178,8 +178,8 @@
   min-width: 24px;
 }
 
-.transcription-chat-window-config-btn .jieyu-material,
-.transcription-chat-window-maximize-btn .jieyu-material {
+.transcription-chat-window-config-btn .jieyu-icon,
+.transcription-chat-window-maximize-btn .jieyu-icon {
   font-size: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
   line-height: 1;
 }

@@ -1,6 +1,6 @@
 /**
- * 图标效果：默认沿用 Google Material Symbols；「动效」模式通过 CSS 做悬停/按压反馈（非 Lottie）。
- * Icon effect: default is Material Symbols; “motion” adds CSS hover/active feedback (not Lottie).
+ * 图标效果：默认静态 Lucide；「动效」模式通过 CSS 做悬停/按压反馈（非 Lottie）。
+ * `material` 为历史存储键值，表示静态（非 motion）。
  */
 
 export type IconEffect = 'material' | 'motion';
