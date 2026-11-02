@@ -589,8 +589,11 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
               className={`voice-agent-mic-btn ${listening ? 'voice-agent-mic-btn-active' : ''} ${isRecording ? 'voice-agent-mic-btn-recording' : ''}`}
               onPointerDown={onMicPointerDown}
               onPointerUp={onMicPointerUp}
+              onPointerCancel={
+                engine === 'whisper-local' && listening ? onMicPointerUp : undefined
+              }
               onPointerLeave={
-                engine === 'whisper-local' && isRecording ? onMicPointerUp : undefined
+                engine === 'whisper-local' && listening ? onMicPointerUp : undefined
               }
               onClick={engine !== 'whisper-local' ? () => onToggle() : undefined}
               title={
