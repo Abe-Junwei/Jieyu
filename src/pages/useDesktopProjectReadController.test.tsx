@@ -254,4 +254,76 @@ describe('useDesktopProjectReadController (#401)', () => {
       expect(result.current.model?.units[0]?.text).toBe('甲句');
     });
   });
+
+  it('forgetDeletedManuscript clears the read when no manuscripts remain (#486)', async () => {
+    let listed: Array<{
+      id: string;
+      title: Record<string, string>;
+      mediaId: string;
+      createdAt: string;
+      updatedAt: string;
+    }> = [{ id: 'ms-a', title: { zh: '甲' }, mediaId: 'm1', createdAt: '', updatedAt: '' }];
+    const host: DesktopReadHost = {
+      projectReadEnabled: true,
+      chooseDesktopFolder: async () => ({ sessionId: 'session-1' }),
+      desktopCall: async (_sessionId, method, args) => {
+        if (method === 'manuscripts.list') return listed;
+        if (method === 'layers.list') {
+          const manuscriptId = (args as { manuscriptId?: string }).manuscriptId;
+          return [
+            {
+              id: `layer-${manuscriptId}`,
+              manuscriptId,
+              key: 'tx',
+              name: { zh: '转写' },
+              tierType: 'time-aligned',
+              contentType: 'transcription',
+              languageId: null,
+              orthographyId: null,
+              parentId: null,
+              sortOrder: 0,
+              createdAt: '',
+              updatedAt: '',
+            },
+          ];
+        }
+        if (method === 'units.list') {
+          return [
+            {
+              id: 'unit-a',
+              layerId: 'layer-ms-a',
+              speakerId: null,
+              parentUnitId: null,
+              startTime: 0,
+              endTime: 1,
+              createdAt: '',
+              updatedAt: '',
+              text: '甲句',
+            },
+          ];
+        }
+        if (method === 'notes.list') return [];
+        if (method === 'projects.get' || method === 'project.get') {
+          return { id: 'p1', title: { zh: '项目' } };
+        }
+        return [];
+      },
+      desktopMediaUrl: async () => ({ url: 'jieyu-media://local/token' }),
+    };
+
+    const { result } = renderHook(() => useDesktopProjectReadController(host, false), { wrapper });
+    await act(async () => {
+      result.current.openFolder();
+    });
+    await waitFor(() => expect(result.current.model?.manuscriptId).toBe('ms-a'));
+
+    listed = [];
+    await act(async () => {
+      result.current.forgetDeletedManuscript('ms-a');
+    });
+    await waitFor(() => {
+      expect(result.current.model?.manuscriptId ?? null).toBeNull();
+      expect(result.current.model?.manuscripts ?? []).toEqual([]);
+    });
+  });
 });
