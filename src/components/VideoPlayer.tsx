@@ -98,12 +98,11 @@ export function VideoPlayer({
   const handleProgressClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       const bar = progressRef.current;
-      const video = player.videoRef.current;
-      if (!bar || !video || !isReady) return;
+      if (!bar || !isReady || duration <= 0) return;
 
       const rect = bar.getBoundingClientRect();
       const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      const newTime = ratio * video.duration;
+      const newTime = ratio * duration;
 
       // Region hit: play the segment on the video too (waveform is driven by onRegionClick).
       if (regions) {
@@ -117,7 +116,7 @@ export function VideoPlayer({
       }
       player.seekTo(newTime);
     },
-    [player, regions, onRegionClick, isReady],
+    [player, regions, onRegionClick, isReady, duration],
   );
 
   const progressRatio = duration > 0 ? currentTime / duration : 0;
