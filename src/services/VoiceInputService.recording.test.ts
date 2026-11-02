@@ -303,6 +303,37 @@ describe('RecordingExecutor — VAD→STT 集成', () => {
     expect(callbackInvoked).toBe(true);
   });
 
+  it('cancels an in-flight start when stop arrives before getUserMedia resolves', async () => {
+    const media = (() => {
+      let resolveMedia!: (stream: MediaStream) => void;
+      const mediaPromise = new Promise<MediaStream>((resolve) => {
+        resolveMedia = resolve;
+      });
+      return { mediaPromise, resolveMedia: () => resolveMedia };
+    })();
+    const fakeTrack = { stop: vi.fn(), kind: 'audio' } as unknown as MediaStreamTrack;
+    const fakeStream = {
+      getTracks: () => [fakeTrack],
+      getAudioTracks: () => [fakeTrack],
+    } as unknown as MediaStream;
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getUserMedia: vi.fn(() => media.mediaPromise) },
+    });
+
+    const executor = new RecordingExecutor(callbacks);
+    const started = executor.startRecording();
+    await executor.stopRecording('whisper-local', {
+      whisperServerUrl: 'http://localhost:8080',
+      lang: 'en',
+    });
+    media.resolveMedia()(fakeStream);
+    await started;
+
+    expect(executor.isRecording).toBe(false);
+    expect(fakeTrack.stop).toHaveBeenCalled();
+    expect(emitError).not.toHaveBeenCalled();
+  });
+
   it('setVadService(null) 清除 VAD 服务 | setVadService(null) clears VAD service', async () => {
     mockDetectSpeechSegments.mockResolvedValue([]);
 
