@@ -55,8 +55,20 @@ export function useRecording({
   const [recordingError, setRecordingError] = useState('');
 
   const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  /** Monotonic session id: bumped to invalidate a pending/active capture (#496/#497). */
+  const sessionIdRef = useRef(0);
+  /** Sync latch occupied before await getUserMedia so concurrent starts are refused (#496). */
+  const sessionBusyRef = useRef(false);
+
+  const clearSessionState = useCallback(() => {
+    sessionBusyRef.current = false;
+    recorderRef.current = null;
+    streamRef.current = null;
+    setRecording(false);
+    setRecordingUnitId(null);
+    setRecordingLayerId(null);
+  }, []);
 
   const startRecordingForUnit = useCallback(
     async (unit: LayerUnitDocType, layer: LayerDocType) => {
@@ -67,15 +79,26 @@ export function useRecording({
         return;
       }
 
+      // Refuse re-entry while a start (or active recording) already owns the session (#496).
+      if (sessionBusyRef.current) return;
+      sessionBusyRef.current = true;
+      const sessionId = ++sessionIdRef.current;
+
       try {
         setRecordingError('');
         setSaveState({ kind: 'idle' });
         manualSelectTsRef.current = Date.now();
         selectUnit(unit.id);
+        // Occupy UI immediately so other segment buttons disable during permission wait.
         setRecordingUnitId(unit.id);
         setRecordingLayerId(layer.id);
+        setRecording(true);
 
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (sessionId !== sessionIdRef.current) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
         streamRef.current = stream;
 
         const recorderOptions = pickVoiceTranslationRecorderOptions();
@@ -83,18 +106,26 @@ export function useRecording({
           ? new MediaRecorder(stream, recorderOptions)
           : new MediaRecorder(stream);
         recorderRef.current = recorder;
-        chunksRef.current = [];
+        // Session-local chunks: never share a buffer across overlapping starts (#496).
+        const chunks: Blob[] = [];
 
         recorder.ondataavailable = (event) => {
+          if (sessionId !== sessionIdRef.current) return;
           if (event.data.size > 0) {
-            chunksRef.current.push(event.data);
+            chunks.push(event.data);
           }
         };
 
         recorder.onstop = async () => {
+          if (sessionId !== sessionIdRef.current) {
+            stream.getTracks().forEach((track) => track.stop());
+            if (streamRef.current === stream) streamRef.current = null;
+            if (recorderRef.current === recorder) recorderRef.current = null;
+            return;
+          }
           try {
             setSaveState({ kind: 'saving' });
-            const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+            const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
             await saveVoiceTranslation(blob, unit, layer);
           } catch (error) {
             setSaveState({
@@ -105,28 +136,30 @@ export function useRecording({
                   : '\u4fdd\u5b58\u7ffb\u8bd1\u5f55\u97f3\u5931\u8d25',
             });
           } finally {
-            streamRef.current?.getTracks().forEach((track) => track.stop());
-            streamRef.current = null;
-            chunksRef.current = [];
-            setRecording(false);
-            setRecordingUnitId(null);
-            setRecordingLayerId(null);
+            if (sessionId === sessionIdRef.current) {
+              stream.getTracks().forEach((track) => track.stop());
+              if (streamRef.current === stream) streamRef.current = null;
+              if (recorderRef.current === recorder) recorderRef.current = null;
+              clearSessionState();
+            }
           }
         };
 
+        if (sessionId !== sessionIdRef.current) {
+          stream.getTracks().forEach((track) => track.stop());
+          if (streamRef.current === stream) streamRef.current = null;
+          return;
+        }
+
         recorder.start();
-        setRecording(true);
       } catch (error) {
+        if (sessionId !== sessionIdRef.current) return;
         streamRef.current?.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        recorderRef.current = null;
-        setRecording(false);
-        setRecordingUnitId(null);
-        setRecordingLayerId(null);
+        clearSessionState();
         setRecordingError(recordingStartFailureDictKey(error));
       }
     },
-    [saveVoiceTranslation, setSaveState, selectUnit, manualSelectTsRef],
+    [saveVoiceTranslation, setSaveState, selectUnit, manualSelectTsRef, clearSessionState],
   );
 
   const stopRecording = useCallback(() => {
@@ -150,9 +183,9 @@ export function useRecording({
         }
         recorderRef.current = null;
       }
-      chunksRef.current = [];
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
+      sessionBusyRef.current = false;
     };
   }, []);
 
