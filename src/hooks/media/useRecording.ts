@@ -168,9 +168,11 @@ export function useRecording({
     recorder.stop();
   }, []);
 
-  // Cleanup on unmount: release mic/recorder without persisting a partial capture.
+  // Cleanup on unmount: invalidate any pending getUserMedia session and release capture (#497).
   useEffect(() => {
     return () => {
+      sessionIdRef.current += 1;
+      sessionBusyRef.current = false;
       const recorder = recorderRef.current;
       if (recorder) {
         recorder.onstop = null;
@@ -185,7 +187,6 @@ export function useRecording({
       }
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
-      sessionBusyRef.current = false;
     };
   }, []);
 
