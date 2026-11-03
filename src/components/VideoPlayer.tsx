@@ -104,11 +104,11 @@ export function VideoPlayer({
       const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       const newTime = ratio * duration;
 
-      // Region hit: play the segment on the video too (waveform is driven by onRegionClick).
+      // Region hit: force replay from region.start so video stays in sync with the waveform seek (#495).
       if (regions) {
         for (const region of regions) {
           if (newTime >= region.start && newTime <= region.end) {
-            player.playRegion(region.start, region.end, true);
+            player.playRegion(region.start, region.end, false);
             onRegionClick?.(region.id, newTime, e.nativeEvent);
             return;
           }
