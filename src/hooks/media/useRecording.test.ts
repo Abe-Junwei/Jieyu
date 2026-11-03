@@ -204,3 +204,79 @@ describe('useRecording concurrent start (#496)', () => {
     expect(result.current.recordingUnitId).toBe('u-a');
   });
 });
+
+describe('useRecording pending permission unmount (#497)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('does not start an unmanaged recorder after unmount while getUserMedia is pending', async () => {
+    const saveVoiceTranslation = vi.fn().mockResolvedValue(undefined);
+    const setSaveState = vi.fn();
+    const selectUnit = vi.fn();
+    const manualSelectTsRef = { current: 0 };
+
+    type Pending = { resolve: (stream: MediaStream) => void };
+    const pending: Pending[] = [];
+    const getUserMedia = vi.fn(
+      () =>
+        new Promise<MediaStream>((resolve) => {
+          pending.push({ resolve });
+        }),
+    );
+
+    const recorders: Array<{ start: ReturnType<typeof vi.fn>; state: string }> = [];
+    class MockMediaRecorder {
+      static isTypeSupported = () => false;
+      state = 'inactive';
+      mimeType = 'audio/webm';
+      ondataavailable: ((event: { data: Blob }) => void) | null = null;
+      onstop: (() => void) | null = null;
+      stop = vi.fn(() => {
+        this.state = 'inactive';
+      });
+      start = vi.fn(() => {
+        this.state = 'recording';
+      });
+      constructor(_stream: MediaStream) {
+        recorders.push(this);
+      }
+    }
+
+    vi.stubGlobal('MediaRecorder', MockMediaRecorder);
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
+
+    const { result, unmount } = renderHook(() =>
+      useRecording({
+        saveVoiceTranslation,
+        setSaveState,
+        selectUnit,
+        manualSelectTsRef,
+      }),
+    );
+
+    const trackStop = vi.fn();
+    let started!: Promise<void>;
+    await act(async () => {
+      started = result.current.startRecordingForUnit(
+        { id: 'u1', layerId: 'l1' } as never,
+        { id: 'l1', modality: 'audio' } as never,
+      );
+    });
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+
+    unmount();
+
+    await act(async () => {
+      pending[0]!.resolve({
+        getTracks: () => [{ stop: trackStop }],
+      } as unknown as MediaStream);
+      await started;
+    });
+
+    expect(recorders).toHaveLength(0);
+    expect(trackStop).toHaveBeenCalled();
+    expect(saveVoiceTranslation).not.toHaveBeenCalled();
+  });
+});
