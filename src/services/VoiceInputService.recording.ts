@@ -142,7 +142,9 @@ export class RecordingExecutor {
     },
   ): Promise<void> {
     // Invalidate any in-flight start; startRecording releases the stream when epoch mismatches.
+    // Clear _startInFlight so a subsequent press starts a new epoch instead of joining the cancelled promise (#494).
     this._startEpoch += 1;
+    this._startInFlight = null;
     // Re-entrant guard: if a stop is already in flight, await it instead of racing
     if (this._stopRecordingPromise) {
       await this._stopRecordingPromise;
