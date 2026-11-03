@@ -115,7 +115,7 @@ describe('VideoPlayer', () => {
     }
   });
 
-  it('plays the video region when the progress bar hits a segment (#489)', () => {
+  it('replays the video region from its start when the progress bar hits a segment (#489 #495)', () => {
     const stub = createPlayerStub();
     vi.mocked(useVideoPlayer).mockReturnValue(stub);
     const onRegionClick = vi.fn();
@@ -145,7 +145,7 @@ describe('VideoPlayer', () => {
     // stub.duration is 120; clientX 15 => 15s inside [10, 20]
     fireEvent(bar as Element, new MouseEvent('click', { bubbles: true, clientX: 15, clientY: 1 }));
 
-    expect(stub.playRegion).toHaveBeenCalledWith(10, 20, true);
+    expect(stub.playRegion).toHaveBeenCalledWith(10, 20, false);
     expect(onRegionClick).toHaveBeenCalledWith('r1', 15, expect.any(MouseEvent));
     expect(stub.seekTo).not.toHaveBeenCalled();
   });

@@ -169,8 +169,9 @@ export const VideoPreviewSection = memo(function VideoPreviewSection({
             onRegionClick={(regionId) => {
               const region = waveformRegions.find((r) => r.id === regionId);
               if (!region) return;
+              // Force both video and waveform from region.start (do not resume mid-segment) (#495).
               onSeek(region.start);
-              onPlayRegion(region.start, region.end, true);
+              onPlayRegion(region.start, region.end, false);
             }}
             onTimeUpdate={(time) => {
               onSeek(time);
