@@ -334,6 +334,55 @@ describe('RecordingExecutor — VAD→STT 集成', () => {
     expect(emitError).not.toHaveBeenCalled();
   });
 
+  it('starts a fresh capture after start→stop→start while permission is still pending (#494)', async () => {
+    type Pending = { resolve: (stream: MediaStream) => void };
+    const pending: Pending[] = [];
+    const getUserMedia = vi.fn(
+      () =>
+        new Promise<MediaStream>((resolve) => {
+          pending.push({ resolve });
+        }),
+    );
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getUserMedia },
+    });
+
+    const makeStream = () => {
+      const track = { stop: vi.fn(), kind: 'audio' } as unknown as MediaStreamTrack;
+      const stream = {
+        getTracks: () => [track],
+        getAudioTracks: () => [track],
+      } as unknown as MediaStream;
+      return { track, stream };
+    };
+
+    const executor = new RecordingExecutor(callbacks);
+    const firstStart = executor.startRecording();
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+
+    await executor.stopRecording('whisper-local', {
+      whisperServerUrl: 'http://localhost:8080',
+      lang: 'en',
+    });
+
+    const secondStart = executor.startRecording();
+    // Must not join the cancelled in-flight promise.
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+
+    const first = makeStream();
+    pending[0]!.resolve(first.stream);
+    await firstStart;
+    expect(first.track.stop).toHaveBeenCalled();
+    expect(executor.isRecording).toBe(false);
+
+    const second = makeStream();
+    pending[1]!.resolve(second.stream);
+    await secondStart;
+    expect(executor.isRecording).toBe(true);
+    expect(second.track.stop).not.toHaveBeenCalled();
+    expect(emitError).not.toHaveBeenCalled();
+  });
+
   it('setVadService(null) 清除 VAD 服务 | setVadService(null) clears VAD service', async () => {
     mockDetectSpeechSegments.mockResolvedValue([]);
 
