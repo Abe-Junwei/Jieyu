@@ -119,10 +119,11 @@ export class RecordingExecutor {
       recorder.start(100); // chunk every 100ms for responsive stop
       this._isRecording = true;
     } catch (err) {
+      // A cancelled start must not tear down a newer epoch's capture (#508).
+      if (epoch !== this._startEpoch) return;
       this.mediaStream?.getTracks().forEach((track) => track.stop());
       this.mediaStream = null;
       this.mediaRecorder = null;
-      if (epoch !== this._startEpoch) return;
       const message = err instanceof Error ? err.message : RECORDING_START_FAILED_MESSAGE;
       this.callbacks.emitError(message);
       throw new Error(message);
