@@ -20,10 +20,18 @@ export function useTranscriptionAutoSaveActions({ autoSaveTimersRef }: Params) {
   const scheduleAutoSave = useCallback(
     (key: string, task: () => Promise<void>) => {
       clearAutoSaveTimer(key);
-      autoSaveTimersRef.current[key] = window.setTimeout(() => {
+      const timerId = window.setTimeout(() => {
+        // Drop our own record as soon as we fire so an in-flight save cannot
+        // erase a newer debounce timer in finally (#504).
+        if (autoSaveTimersRef.current[key] === timerId) {
+          delete autoSaveTimersRef.current[key];
+        }
         fireAndForget(
           task().finally(() => {
-            delete autoSaveTimersRef.current[key];
+            // Only clear if this timer still owns the slot (defensive).
+            if (autoSaveTimersRef.current[key] === timerId) {
+              delete autoSaveTimersRef.current[key];
+            }
           }),
           {
             context: 'src/hooks/transcription/useTranscriptionAutoSaveActions.ts:L22',
@@ -31,6 +39,7 @@ export function useTranscriptionAutoSaveActions({ autoSaveTimersRef }: Params) {
           },
         );
       }, 550);
+      autoSaveTimersRef.current[key] = timerId;
     },
     [autoSaveTimersRef, clearAutoSaveTimer],
   );
