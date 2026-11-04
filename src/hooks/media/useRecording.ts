@@ -164,9 +164,16 @@ export function useRecording({
 
   const stopRecording = useCallback(() => {
     const recorder = recorderRef.current;
-    if (!recorder || recorder.state !== 'recording') return;
-    recorder.stop();
-  }, []);
+    if (recorder && recorder.state === 'recording') {
+      recorder.stop();
+      return;
+    }
+    // Permission still pending: invalidate the session so a late stream is dropped (#507).
+    if (sessionBusyRef.current && !recorder) {
+      sessionIdRef.current += 1;
+      clearSessionState();
+    }
+  }, [clearSessionState]);
 
   // Cleanup on unmount: invalidate any pending getUserMedia session and release capture (#497).
   useEffect(() => {
