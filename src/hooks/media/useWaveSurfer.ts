@@ -185,18 +185,20 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       mode === 'split' ? splitHeights.waveformPrimaryHeight : totalHeight;
     const effectiveSpectrogramHeight =
       mode === 'split' ? splitHeights.spectrogramHeight : totalHeight;
-    const hadPreviousInstance = instanceRef.current != null;
-
-    if (hadPreviousInstance && mediaUrl && mediaUrl === mediaUrlRef.current) {
+    // Cleanup may already have stashed playback before destroying the previous
+    // instance (React runs cleanup before this effect). Keep that stash only for
+    // same-media rebuilds; drop it when the URL changes (#506).
+    const existing = instanceRef.current;
+    if (existing && mediaUrl && mediaUrl === mediaUrlRef.current) {
       restorePlaybackRef.current = {
-        time: instanceRef.current?.getCurrentTime() || 0,
-        shouldResume: instanceRef.current?.isPlaying() || false,
+        time: existing.getCurrentTime() || 0,
+        shouldResume: existing.isPlaying() || false,
       };
-    } else {
+    } else if (!mediaUrl || mediaUrl !== mediaUrlRef.current) {
       restorePlaybackRef.current = null;
     }
 
-    instanceRef.current?.destroy();
+    existing?.destroy();
     instanceRef.current = null;
     regionsRef.current = null;
     setIsReady(false);
@@ -504,7 +506,16 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       // Reset state to prevent stale isReady triggering zoom etc. in StrictMode re-mount
       setIsReady(false);
       setLoadError(null);
-      instanceRef.current?.destroy();
+      // Stash before destroy so a same-media rebuild (e.g. display mode) can restore (#506).
+      // The next effect clears this when mediaUrl differs from mediaUrlRef.
+      const previous = instanceRef.current;
+      if (previous) {
+        restorePlaybackRef.current = {
+          time: previous.getCurrentTime() || 0,
+          shouldResume: previous.isPlaying() || false,
+        };
+        previous.destroy();
+      }
       instanceRef.current = null;
       regionsRef.current = null;
       regionHandlesRef.current = new Map();
