@@ -155,22 +155,30 @@ export function useTranscriptionUndo({
     [dirtyRef, scheduleRecoverySave, segmentUndoRef, snapshotCurrentState],
   );
 
+  /** Persist one undo entry. Caller must already hold the db mutex (or accept races). */
+  const persistUndoEntryToDbCore = useCallback(
+    async (entry: UndoEntry) => {
+      await syncToDbCore(entry.units, entry.translations, entry.speakers ?? [], {
+        conflictGuard: true,
+      });
+      if (entry.layerSegmentUnits !== undefined && segmentUndoRef.current) {
+        await segmentUndoRef.current.restoreLayerSegments(
+          entry.layerSegmentUnits,
+          entry.layerSegmentUnitContents ?? [],
+          entry.segmentLinks ?? [],
+        );
+      }
+    },
+    [segmentUndoRef, syncToDbCore],
+  );
+
   const persistUndoEntryToDb = useCallback(
     async (entry: UndoEntry) => {
       await runWithDbMutex(async () => {
-        await syncToDbCore(entry.units, entry.translations, entry.speakers ?? [], {
-          conflictGuard: true,
-        });
-        if (entry.layerSegmentUnits !== undefined && segmentUndoRef.current) {
-          await segmentUndoRef.current.restoreLayerSegments(
-            entry.layerSegmentUnits,
-            entry.layerSegmentUnitContents ?? [],
-            entry.segmentLinks ?? [],
-          );
-        }
+        await persistUndoEntryToDbCore(entry);
       });
     },
-    [runWithDbMutex, segmentUndoRef, syncToDbCore],
+    [persistUndoEntryToDbCore, runWithDbMutex],
   );
 
   const beginTimingGesture = useCallback(
@@ -221,55 +229,70 @@ export function useTranscriptionUndo({
     [pushUndo],
   );
 
+  const applyUndoEntry = useCallback(
+    async (persist: (entry: UndoEntry) => Promise<void>) => {
+      const entry = undoStackRef.current.pop();
+      if (!entry) return;
+      const segSnapshot = segmentUndoRef.current?.snapshotLayerSegments();
+      const redoEntry = snapshotCurrentState(entry.label, segSnapshot);
+      redoStackRef.current.push(redoEntry);
+      try {
+        await persist(entry);
+        setUnits(entry.units);
+        setTranslations(entry.translations);
+        if (entry.layers) setLayers(entry.layers);
+        if (entry.layerLinks) setLayerLinks(entry.layerLinks);
+        setSpeakers(entry.speakers ?? []);
+        await commandHistoryRef.current.undo();
+        setUndoRedoVersion((v) => v + 1);
+        setSaveState({
+          kind: 'done',
+          message: tf(locale, 'transcription.undo.done', { label: entry.label }),
+        });
+      } catch (error) {
+        // 回滚栈状态，避免“UI看起来已撤销但数据库未回写成功” | Rollback stack mutation when persistence failed.
+        redoStackRef.current.pop();
+        undoStackRef.current.push(entry);
+        log.error('Undo failed during persistence', {
+          label: entry.label,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        reportActionError({
+          actionLabel: getHistoryActionLabel(locale, 'undo'),
+          error,
+          conflictNames: ['TranscriptionPersistenceConflictError'],
+          conflictI18nKey: 'transcription.error.conflict.undo',
+          fallbackI18nKey: 'transcription.error.action.undoFailed',
+          setErrorState: ({ message, meta }) =>
+            setSaveState({ kind: 'error', message, errorMeta: meta }),
+        });
+      }
+    },
+    [
+      locale,
+      segmentUndoRef,
+      setLayerLinks,
+      setLayers,
+      setSaveState,
+      setSpeakers,
+      setTranslations,
+      setUnits,
+      snapshotCurrentState,
+    ],
+  );
+
   const undo = useCallback(async () => {
-    const entry = undoStackRef.current.pop();
-    if (!entry) return;
-    const segSnapshot = segmentUndoRef.current?.snapshotLayerSegments();
-    const redoEntry = snapshotCurrentState(entry.label, segSnapshot);
-    redoStackRef.current.push(redoEntry);
-    try {
-      await persistUndoEntryToDb(entry);
-      setUnits(entry.units);
-      setTranslations(entry.translations);
-      if (entry.layers) setLayers(entry.layers);
-      if (entry.layerLinks) setLayerLinks(entry.layerLinks);
-      setSpeakers(entry.speakers ?? []);
-      await commandHistoryRef.current.undo();
-      setUndoRedoVersion((v) => v + 1);
-      setSaveState({
-        kind: 'done',
-        message: tf(locale, 'transcription.undo.done', { label: entry.label }),
-      });
-    } catch (error) {
-      // 回滚栈状态，避免“UI看起来已撤销但数据库未回写成功” | Rollback stack mutation when persistence failed.
-      redoStackRef.current.pop();
-      undoStackRef.current.push(entry);
-      log.error('Undo failed during persistence', {
-        label: entry.label,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      reportActionError({
-        actionLabel: getHistoryActionLabel(locale, 'undo'),
-        error,
-        conflictNames: ['TranscriptionPersistenceConflictError'],
-        conflictI18nKey: 'transcription.error.conflict.undo',
-        fallbackI18nKey: 'transcription.error.action.undoFailed',
-        setErrorState: ({ message, meta }) =>
-          setSaveState({ kind: 'error', message, errorMeta: meta }),
-      });
-    }
-  }, [
-    locale,
-    segmentUndoRef,
-    setLayerLinks,
-    setLayers,
-    setSaveState,
-    setSpeakers,
-    setTranslations,
-    setUnits,
-    snapshotCurrentState,
-    persistUndoEntryToDb,
-  ]);
+    await applyUndoEntry(persistUndoEntryToDb);
+  }, [applyUndoEntry, persistUndoEntryToDb]);
+
+  /**
+   * Same as undo, but persists without re-entering runWithDbMutex.
+   * Use only from catch paths that already hold the db mutex (batch wrappers),
+   * otherwise the non-reentrant mutex deadlocks (#515).
+   */
+  const undoAssumingDbMutexHeld = useCallback(async () => {
+    await applyUndoEntry(persistUndoEntryToDbCore);
+  }, [applyUndoEntry, persistUndoEntryToDbCore]);
 
   const undoToHistoryIndex = useCallback(
     async (historyIndex: number) => {
@@ -483,6 +506,7 @@ export function useTranscriptionUndo({
     beginTimingGesture,
     endTimingGesture,
     undo,
+    undoAssumingDbMutexHeld,
     undoToHistoryIndex,
     redo,
     resetHistoryOnScopeChange,
