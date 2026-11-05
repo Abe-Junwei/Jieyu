@@ -29,6 +29,27 @@ export interface TextWriteDeps {
   setUnitDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }
 
+function contentHasAudioAssociation(
+  content: Pick<LayerUnitContentDocType, 'translationAudioMediaId' | 'mediaRefId'>,
+): boolean {
+  return (
+    (content.translationAudioMediaId?.trim().length ?? 0) > 0 ||
+    (content.mediaRefId?.trim().length ?? 0) > 0
+  );
+}
+
+function demoteMixedContentToAudio(
+  existing: LayerUnitContentDocType,
+  now: string,
+): LayerUnitContentDocType {
+  const { text: _clearedText, ...rest } = existing;
+  return {
+    ...rest,
+    modality: 'audio',
+    updatedAt: now,
+  } as LayerUnitContentDocType;
+}
+
 export function createSaveUnitText(deps: TextWriteDeps) {
   const {
     defaultTranscriptionLayerId,
@@ -66,9 +87,21 @@ export function createSaveUnitText(deps: TextWriteDeps) {
 
       if (normalizedValue.length === 0) {
         if (existing) {
-          await removeTranscriptionUnitText(existing);
-          setTranslations((prev) => prev.filter((item) => item.id !== existing.id));
-          shouldInvalidateEmbeddings = isDefaultLayer;
+          if (contentHasAudioAssociation(existing)) {
+            const unit = await resolveUnitById(unitId);
+            const updatedTranslation = demoteMixedContentToAudio(existing, now);
+            if (unit) {
+              await syncTranscriptionUnitText(unit, updatedTranslation);
+            }
+            setTranslations((prev) =>
+              prev.map((item) => (item.id === existing.id ? updatedTranslation : item)),
+            );
+            shouldInvalidateEmbeddings = isDefaultLayer;
+          } else {
+            await removeTranscriptionUnitText(existing);
+            setTranslations((prev) => prev.filter((item) => item.id !== existing.id));
+            shouldInvalidateEmbeddings = isDefaultLayer;
+          }
         }
       } else if (existing) {
         const didTextChange = (existing.text ?? '').trim() !== normalizedValue;
@@ -161,8 +194,19 @@ export function createSaveUnitLayerText(deps: TextWriteDeps) {
       const existing = candidates[0];
       if (existing) {
         pushUndo(getUndoLabel(locale, 'clearTranslationText'));
-        await removeTranscriptionUnitText(existing);
-        setTranslations((prev) => prev.filter((item) => item.id !== existing.id));
+        if (contentHasAudioAssociation(existing)) {
+          const unit = await resolveUnitById(unitId);
+          const updatedTranslation = demoteMixedContentToAudio(existing, now);
+          if (unit) {
+            await syncTranscriptionUnitText(unit, updatedTranslation);
+          }
+          setTranslations((prev) =>
+            prev.map((item) => (item.id === existing.id ? updatedTranslation : item)),
+          );
+        } else {
+          await removeTranscriptionUnitText(existing);
+          setTranslations((prev) => prev.filter((item) => item.id !== existing.id));
+        }
         setSaveState({
           kind: 'done',
           message: t(locale, 'transcription.unitAction.done.translationCleared'),
