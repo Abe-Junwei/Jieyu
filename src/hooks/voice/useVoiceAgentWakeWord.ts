@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { WakeWordDetector as WakeWordDetectorType } from '../../services/WakeWordDetector';
 
 interface RefLike<T> {
@@ -24,6 +24,15 @@ export function useVoiceAgentWakeWord({
   setWakeWordEnergyLevel,
   onWake,
 }: UseVoiceAgentWakeWordOptions) {
+  // Keep latest callbacks in refs so energy-driven re-renders (setWakeWordEnergyLevel)
+  // do not rebuild the detector and reset speechMs accumulation (#517).
+  const onWakeRef = useRef(onWake);
+  onWakeRef.current = onWake;
+  const setWakeWordEnergyLevelRef = useRef(setWakeWordEnergyLevel);
+  setWakeWordEnergyLevelRef.current = setWakeWordEnergyLevel;
+  const setWakeWordEnabledStateRef = useRef(setWakeWordEnabledState);
+  setWakeWordEnabledStateRef.current = setWakeWordEnabledState;
+
   useEffect(() => {
     if (!wakeWordEnabled) {
       wakeWordDetectorRef.current?.stop();
@@ -40,15 +49,17 @@ export function useVoiceAgentWakeWord({
         energyThreshold: 0.05,
         speechMs: 400,
         cooldownMs: 3000,
-        onWake,
+        onWake: () => {
+          onWakeRef.current();
+        },
         onEnergy: (rms) => {
-          setWakeWordEnergyLevel(rms);
+          setWakeWordEnergyLevelRef.current(rms);
         },
       });
 
       wakeWordDetectorRef.current = detector;
       detector.start().catch(() => {
-        setWakeWordEnabledState(false);
+        setWakeWordEnabledStateRef.current(false);
       });
     })();
 
@@ -57,13 +68,5 @@ export function useVoiceAgentWakeWord({
       wakeWordDetectorRef.current?.stop();
       wakeWordDetectorRef.current = null;
     };
-  }, [
-    listening,
-    loadWakeWordRuntime,
-    onWake,
-    setWakeWordEnabledState,
-    setWakeWordEnergyLevel,
-    wakeWordDetectorRef,
-    wakeWordEnabled,
-  ]);
+  }, [listening, loadWakeWordRuntime, wakeWordDetectorRef, wakeWordEnabled]);
 }
