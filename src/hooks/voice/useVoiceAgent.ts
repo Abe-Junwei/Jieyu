@@ -327,6 +327,10 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     serviceRef.current?.setLang(effective);
   }, [langOverride, corpusLang, listening]);
 
+  const handleWakeWord = useCallback(() => {
+    void start(DEFAULT_VOICE_MODE);
+  }, [start]);
+
   useVoiceAgentWakeWord({
     wakeWordEnabled,
     listening,
@@ -334,9 +338,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     loadWakeWordRuntime,
     setWakeWordEnabledState,
     setWakeWordEnergyLevel,
-    onWake: () => {
-      void start(DEFAULT_VOICE_MODE);
-    },
+    onWake: handleWakeWord,
   });
 
   useEffect(() => {
