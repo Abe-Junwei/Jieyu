@@ -96,4 +96,53 @@ describe('useWaveSurfer display-mode rebuild (#506)', () => {
     expect(second.setTime).toHaveBeenCalledWith(12);
     expect(second.play).toHaveBeenCalled();
   });
+
+  it('restores segment playback rate after display-mode rebuild (#518)', async () => {
+    type Props = { mode: 'waveform' | 'split' };
+    const { result, rerender } = renderHook(
+      ({ mode }: Props) =>
+        useWaveSurfer({
+          mediaUrl: 'blob:same-rate',
+          waveformDisplayMode: mode,
+          segmentPlaybackRate: 0.5,
+        }),
+      { initialProps: { mode: 'waveform' } as Props },
+    );
+
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    act(() => {
+      result.current.waveformRef.current = host;
+    });
+    await flushFrames();
+
+    const first = instances[instances.length - 1]!;
+    first.getCurrentTime.mockReturnValue(8);
+    first.isPlaying.mockReturnValue(true);
+
+    act(() => {
+      first.emit('ready');
+    });
+
+    act(() => {
+      result.current.playRegion(5, 15);
+    });
+    expect(first.setPlaybackRate).toHaveBeenCalledWith(0.5);
+
+    first.setPlaybackRate.mockClear();
+
+    rerender({ mode: 'split' });
+    await flushFrames();
+
+    const second = instances[instances.length - 1]!;
+    expect(second).not.toBe(first);
+
+    act(() => {
+      second.emit('ready');
+    });
+
+    expect(second.setTime).toHaveBeenCalledWith(8);
+    expect(second.setPlaybackRate).toHaveBeenCalledWith(0.5);
+    expect(second.play).toHaveBeenCalled();
+  });
 });

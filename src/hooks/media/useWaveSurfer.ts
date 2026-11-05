@@ -131,13 +131,20 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
   const instanceRef = useRef<WaveSurfer | null>(null);
   const regionsRef = useRef<ReturnType<typeof RegionsPlugin.create> | null>(null);
   const mediaUrlRef = useRef<string | undefined>(mediaUrl);
-  const restorePlaybackRef = useRef<{ time: number; shouldResume: boolean } | null>(null);
+  const restorePlaybackRef = useRef<{
+    time: number;
+    shouldResume: boolean;
+    segmentRateActive: boolean;
+    playbackRate: number;
+  } | null>(null);
   // Segment-bounded playback: when set, auto-stop (or loop) at this time.
   const segmentBoundsRef = useRef<{ start: number; end: number } | null>(null);
   // Guard that filters stale timeupdate events until the seek lands in segment bounds.
   const segmentSeekGuardRef = useRef<SegmentSeekGuard | null>(null);
   // True while WaveSurfer rate is overridden by segment-specific rate.
   const segmentRateActiveRef = useRef(false);
+  /** Effective segment rate while segmentRateActiveRef is true (for display-mode restore). */
+  const activeSegmentRateRef = useRef<number | null>(null);
   /** Latest audio clock sample; store commits at rAF (or immediate flush); no React state for time. */
   const latestPlaybackTimeRef = useRef(0);
   const playbackVisualRafRef = useRef<number | null>(null);
@@ -190,9 +197,16 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     // same-media rebuilds; drop it when the URL changes (#506).
     const existing = instanceRef.current;
     if (existing && mediaUrl && mediaUrl === mediaUrlRef.current) {
+      const segmentRateActive = segmentRateActiveRef.current;
+      const effectiveRate =
+        segmentRateActive && activeSegmentRateRef.current != null
+          ? activeSegmentRateRef.current
+          : rateRef.current;
       restorePlaybackRef.current = {
         time: existing.getCurrentTime() || 0,
         shouldResume: existing.isPlaying() || false,
+        segmentRateActive,
+        playbackRate: effectiveRate,
       };
     } else if (!mediaUrl || mediaUrl !== mediaUrlRef.current) {
       restorePlaybackRef.current = null;
@@ -396,6 +410,11 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
             ws.setTime(nextTime);
             commitPlaybackVisualRef.current?.(nextTime, false);
           }
+          segmentRateActiveRef.current = restorePlayback.segmentRateActive;
+          activeSegmentRateRef.current = restorePlayback.segmentRateActive
+            ? restorePlayback.playbackRate
+            : null;
+          ws.setPlaybackRate(restorePlayback.playbackRate);
           if (restorePlayback.shouldResume) {
             void ws.play();
           }
@@ -435,6 +454,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
             // Restore global playback rate if segment rate was active
             if (segmentRateActiveRef.current) {
               segmentRateActiveRef.current = false;
+              activeSegmentRateRef.current = null;
               ws.setPlaybackRate(rateRef.current);
             }
             const restartAt = bounds.start;
@@ -473,6 +493,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
         // Restore global rate if segment rate was active
         if (segmentRateActiveRef.current) {
           segmentRateActiveRef.current = false;
+          activeSegmentRateRef.current = null;
           ws.setPlaybackRate(rateRef.current);
         }
         if (cbRef.current.globalLoop) {
@@ -510,9 +531,16 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       // The next effect clears this when mediaUrl differs from mediaUrlRef.
       const previous = instanceRef.current;
       if (previous) {
+        const segmentRateActive = segmentRateActiveRef.current;
+        const effectiveRate =
+          segmentRateActive && activeSegmentRateRef.current != null
+            ? activeSegmentRateRef.current
+            : rateRef.current;
         restorePlaybackRef.current = {
           time: previous.getCurrentTime() || 0,
           shouldResume: previous.isPlaying() || false,
+          segmentRateActive,
+          playbackRate: effectiveRate,
         };
         previous.destroy();
       }
@@ -890,6 +918,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       segmentSeekGuardRef.current = null;
       if (segmentRateActiveRef.current) {
         segmentRateActiveRef.current = false;
+        activeSegmentRateRef.current = null;
         ws.setPlaybackRate(rateRef.current);
       }
       return;
@@ -900,6 +929,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     segmentSeekGuardRef.current = null;
     if (segmentRateActiveRef.current) {
       segmentRateActiveRef.current = false;
+      activeSegmentRateRef.current = null;
       ws.setPlaybackRate(rateRef.current);
     }
 
@@ -934,6 +964,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       const segRate = cbRef.current.segmentPlaybackRate;
       if (segRate != null) {
         segmentRateActiveRef.current = true;
+        activeSegmentRateRef.current = segRate;
         ws.setPlaybackRate(segRate);
       }
       void ws.play();
@@ -950,6 +981,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     segmentSeekGuardRef.current = null;
     if (segmentRateActiveRef.current) {
       segmentRateActiveRef.current = false;
+      activeSegmentRateRef.current = null;
       ws.setPlaybackRate(rateRef.current);
     }
   }, []);
