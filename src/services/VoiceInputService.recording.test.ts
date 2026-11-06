@@ -303,6 +303,137 @@ describe('RecordingExecutor — VAD→STT 集成', () => {
     expect(callbackInvoked).toBe(true);
   });
 
+  it('cancels an in-flight start when stop arrives before getUserMedia resolves', async () => {
+    const media = (() => {
+      let resolveMedia!: (stream: MediaStream) => void;
+      const mediaPromise = new Promise<MediaStream>((resolve) => {
+        resolveMedia = resolve;
+      });
+      return { mediaPromise, resolveMedia: () => resolveMedia };
+    })();
+    const fakeTrack = { stop: vi.fn(), kind: 'audio' } as unknown as MediaStreamTrack;
+    const fakeStream = {
+      getTracks: () => [fakeTrack],
+      getAudioTracks: () => [fakeTrack],
+    } as unknown as MediaStream;
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getUserMedia: vi.fn(() => media.mediaPromise) },
+    });
+
+    const executor = new RecordingExecutor(callbacks);
+    const started = executor.startRecording();
+    await executor.stopRecording('whisper-local', {
+      whisperServerUrl: 'http://localhost:8080',
+      lang: 'en',
+    });
+    media.resolveMedia()(fakeStream);
+    await started;
+
+    expect(executor.isRecording).toBe(false);
+    expect(fakeTrack.stop).toHaveBeenCalled();
+    expect(emitError).not.toHaveBeenCalled();
+  });
+
+  it('starts a fresh capture after start→stop→start while permission is still pending (#494)', async () => {
+    type Pending = { resolve: (stream: MediaStream) => void };
+    const pending: Pending[] = [];
+    const getUserMedia = vi.fn(
+      () =>
+        new Promise<MediaStream>((resolve) => {
+          pending.push({ resolve });
+        }),
+    );
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getUserMedia },
+    });
+
+    const makeStream = () => {
+      const track = { stop: vi.fn(), kind: 'audio' } as unknown as MediaStreamTrack;
+      const stream = {
+        getTracks: () => [track],
+        getAudioTracks: () => [track],
+      } as unknown as MediaStream;
+      return { track, stream };
+    };
+
+    const executor = new RecordingExecutor(callbacks);
+    const firstStart = executor.startRecording();
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+
+    await executor.stopRecording('whisper-local', {
+      whisperServerUrl: 'http://localhost:8080',
+      lang: 'en',
+    });
+
+    const secondStart = executor.startRecording();
+    // Must not join the cancelled in-flight promise.
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+
+    const first = makeStream();
+    pending[0]!.resolve(first.stream);
+    await firstStart;
+    expect(first.track.stop).toHaveBeenCalled();
+    expect(executor.isRecording).toBe(false);
+
+    const second = makeStream();
+    pending[1]!.resolve(second.stream);
+    await secondStart;
+    expect(executor.isRecording).toBe(true);
+    expect(second.track.stop).not.toHaveBeenCalled();
+    expect(emitError).not.toHaveBeenCalled();
+  });
+
+  it('does not tear down a replacement capture when a cancelled start later rejects (#508)', async () => {
+    type Pending = {
+      resolve: (stream: MediaStream) => void;
+      reject: (err: Error) => void;
+    };
+    const pending: Pending[] = [];
+    const getUserMedia = vi.fn(
+      () =>
+        new Promise<MediaStream>((resolve, reject) => {
+          pending.push({ resolve, reject });
+        }),
+    );
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getUserMedia },
+    });
+
+    const makeStream = () => {
+      const track = { stop: vi.fn(), kind: 'audio' } as unknown as MediaStreamTrack;
+      const stream = {
+        getTracks: () => [track],
+        getAudioTracks: () => [track],
+      } as unknown as MediaStream;
+      return { track, stream };
+    };
+
+    const executor = new RecordingExecutor(callbacks);
+    const firstStart = executor.startRecording();
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+
+    await executor.stopRecording('whisper-local', {
+      whisperServerUrl: 'http://localhost:8080',
+      lang: 'en',
+    });
+
+    const secondStart = executor.startRecording();
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+
+    const second = makeStream();
+    pending[1]!.resolve(second.stream);
+    await secondStart;
+    expect(executor.isRecording).toBe(true);
+    expect(second.track.stop).not.toHaveBeenCalled();
+
+    pending[0]!.reject(new Error('Permission denied'));
+    await expect(firstStart).resolves.toBeUndefined();
+
+    expect(executor.isRecording).toBe(true);
+    expect(second.track.stop).not.toHaveBeenCalled();
+    expect(emitError).not.toHaveBeenCalled();
+  });
+
   it('setVadService(null) 清除 VAD 服务 | setVadService(null) clears VAD service', async () => {
     mockDetectSpeechSegments.mockResolvedValue([]);
 

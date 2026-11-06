@@ -134,6 +134,46 @@ describe('DesktopDailyBackupPanel', () => {
     });
   });
 
+  it('runs beforeOpen before openRestoredBackup and skips IPC when leave is cancelled', async () => {
+    const openRestoredBackup = vi.fn().mockResolvedValue({ sessionId: 'session-next' });
+    const onOpened = vi.fn();
+    let proceedOpen: (() => void) | null = null;
+    const beforeOpen = vi.fn((proceed: () => void) => {
+      proceedOpen = proceed;
+    });
+    render(
+      <LocaleProvider locale="zh-CN">
+        <DesktopDailyBackupPanel
+          sessionId="session-1"
+          listDailyBackups={vi.fn().mockResolvedValue({ days: ['2026-10-27'] })}
+          restoreDailyBackup={vi.fn().mockResolvedValue({ folder: '/restored' })}
+          openRestoredBackup={openRestoredBackup}
+          beforeOpen={beforeOpen}
+          onOpened={onOpened}
+        />
+      </LocaleProvider>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: '恢复' }));
+    fireEvent.click(screen.getByRole('button', { name: '继续恢复' }));
+    fireEvent.click(await screen.findByRole('button', { name: '打开恢复副本' }));
+    await waitFor(() => expect(beforeOpen).toHaveBeenCalledTimes(1));
+    expect(openRestoredBackup).not.toHaveBeenCalled();
+    expect(onOpened).not.toHaveBeenCalled();
+
+    // Cancel leave: never call proceed → main process must stay on the current session.
+    expect(proceedOpen).not.toBeNull();
+    expect(openRestoredBackup).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '打开恢复副本' }));
+    await waitFor(() => expect(beforeOpen).toHaveBeenCalledTimes(2));
+    const secondProceed = beforeOpen.mock.calls[1]?.[0] as () => void;
+    secondProceed();
+    await waitFor(() => {
+      expect(openRestoredBackup).toHaveBeenCalledWith('session-1');
+      expect(onOpened).toHaveBeenCalledWith('session-next');
+    });
+  });
+
   it('shows the occupied folder message when the main process wraps that error', async () => {
     render(
       <LocaleProvider locale="zh-CN">

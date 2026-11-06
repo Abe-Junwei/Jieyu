@@ -100,10 +100,11 @@ export const WaveformOverlayDecorations = React.memo(function WaveformOverlayDec
 
   const subSelectLayerRef = React.useRef<HTMLDivElement | null>(null);
 
+  // Include subSelectPreviewPx so a newly mounted preview layer picks up the current scroll offset (#498).
   React.useLayoutEffect(() => {
     if (!subSelectLayerRef.current) return;
     subSelectLayerRef.current.style.transform = `translateX(${waveformOverlayTranslateX}px)`;
-  }, [waveformOverlayTranslateX]);
+  }, [waveformOverlayTranslateX, subSelectPreviewPx]);
 
   React.useLayoutEffect(() => {
     if (!noteIndicatorLayerRef.current) return;

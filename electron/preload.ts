@@ -21,12 +21,12 @@ const desktop = {
     ipcRenderer.invoke('desktop:transcribe-project', sessionId, input),
   cancelProjectTranscription: (sessionId: string, requestId: string) =>
     ipcRenderer.invoke('desktop:cancel-project-transcription', sessionId, requestId),
-  transcribeModel: (input: unknown) => ipcRenderer.invoke('model:transcribe', input),
-  cancelModel: (requestId: string) => ipcRenderer.invoke('model:cancel', requestId),
   projectReadEnabled: true,
   chooseDesktopFolder: () => ipcRenderer.invoke('desktop:choose-folder'),
-  chooseImportFile: () => ipcRenderer.invoke('desktop:choose-import-file'),
-  chooseExportFile: (name: string) => ipcRenderer.invoke('desktop:choose-export-file', name),
+  chooseImportFile: (sessionId: string) =>
+    ipcRenderer.invoke('desktop:choose-import-file', sessionId),
+  chooseExportFile: (sessionId: string, name: string) =>
+    ipcRenderer.invoke('desktop:choose-export-file', sessionId, name),
   listDailyBackups: (sessionId: string) => ipcRenderer.invoke('desktop:list-backups', sessionId),
   restoreDailyBackup: (sessionId: string, day: string) =>
     ipcRenderer.invoke('desktop:restore-backup', sessionId, day),

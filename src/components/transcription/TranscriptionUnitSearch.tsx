@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LayerUnitDocType, Transcription } from '../../db/types';
 import { t, useOptionalLocale } from '../../i18n';
 import { parseCharacterVariantLines } from '../../pages/annotation/annotationCharacterVariants';
@@ -11,6 +11,7 @@ import {
   loadCharacterVariantLines,
   saveCharacterVariantLines,
 } from '../../app/languageAssetPageAccess';
+import { useWorkspaceEventRefresh } from '../../hooks/useWorkspaceEventRefresh';
 import { fireAndForget } from '../../utils/fireAndForget';
 
 function formText(form: Transcription): string {
@@ -39,6 +40,8 @@ export function TranscriptionUnitSearch({
   const [mode, setMode] = useState<AnnotationSearchMode>('surface');
   const [excludeUngrammatical, setExcludeUngrammatical] = useState(false);
   const [variantText, setVariantText] = useState('');
+  const variantEditEpoch = useRef(0);
+  const variantSavedEpoch = useRef(0);
   const textId = units.find((unit) => unit.textId.trim().length > 0)?.textId ?? '';
   const queryClient = useQueryClient();
   const variantQuery = useQuery({
@@ -47,7 +50,10 @@ export function TranscriptionUnitSearch({
     queryFn: () => loadCharacterVariantLines(textId),
   });
   useEffect(() => {
-    if (variantQuery.data !== undefined) setVariantText(variantQuery.data);
+    if (variantQuery.data === undefined) return;
+    // Ignore rereads while a newer local edit has not finished saving.
+    if (variantEditEpoch.current !== variantSavedEpoch.current) return;
+    setVariantText(variantQuery.data);
   }, [variantQuery.data]);
   const variantGroups = useMemo(() => parseCharacterVariantLines(variantText), [variantText]);
   const unitIds = useMemo(
@@ -79,6 +85,12 @@ export function TranscriptionUnitSearch({
         morphemeFormsByUnit.set(morpheme.unitId, forms);
       }
       return { wordFormsByUnit, morphemeFormsByUnit };
+    },
+  });
+  useWorkspaceEventRefresh({
+    onUnitUpdated: (detail) => {
+      if (!unitIds.includes(detail.unitId)) return;
+      void queryClient.invalidateQueries({ queryKey: ['transcription-unit-search-forms'] });
     },
   });
   const hits = useMemo(() => {
@@ -148,13 +160,23 @@ export function TranscriptionUnitSearch({
           aria-label={t(locale, 'workspace.annotation.characterVariants')}
           value={variantText}
           placeholder="ʔ='"
-          onChange={(event) => setVariantText(event.target.value)}
+          onChange={(event) => {
+            setVariantText(event.target.value);
+            variantEditEpoch.current += 1;
+          }}
           onBlur={() => {
             if (textId.length === 0) return;
+            const saving = variantText;
+            const epoch = variantEditEpoch.current;
             fireAndForget(
-              saveCharacterVariantLines(textId, variantText).then(() =>
-                queryClient.invalidateQueries({ queryKey: ['project-character-variants', textId] }),
-              ),
+              saveCharacterVariantLines(textId, saving).then(() => {
+                if (variantEditEpoch.current === epoch) {
+                  variantSavedEpoch.current = epoch;
+                }
+                return queryClient.invalidateQueries({
+                  queryKey: ['project-character-variants', textId],
+                });
+              }),
               {
                 context: 'src/components/transcription/TranscriptionUnitSearch.tsx:L154',
                 policy: 'user-visible',

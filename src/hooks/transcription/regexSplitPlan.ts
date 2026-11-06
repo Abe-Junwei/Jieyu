@@ -113,11 +113,26 @@ export function planRegexSplit(
 
     const keepCertainty = target.selfCertainty !== undefined;
     const first = bounds[0]!;
+
+    // One internal anchor per split boundary so EAF can prefer anchors (#505).
+    const internalAnchors: AnchorDocType[] = [];
+    for (let i = 0; i < bounds.length - 1; i++) {
+      const splitAnchor: AnchorDocType = {
+        id: newId('anc'),
+        mediaId: target.mediaId,
+        time: Number(bounds[i]!.end.toFixed(3)),
+        createdAt: now,
+      };
+      anchors.push(splitAnchor);
+      internalAnchors.push(splitAnchor);
+    }
+
     const updatedFirst = withoutCertainty(
       {
         ...target,
         startTime: Number(first.start.toFixed(3)),
         endTime: Number(first.end.toFixed(3)),
+        endAnchorId: internalAnchors[0]?.id ?? target.endAnchorId,
         updatedAt: now,
       },
       keepCertainty,
@@ -135,23 +150,11 @@ export function planRegexSplit(
       projectionSources.push({ unit: updatedFirst, translation: created });
     }
 
-    let prevEndAnchorId = updatedFirst.endAnchorId;
     for (let i = 1; i < bounds.length; i++) {
       const bound = bounds[i]!;
       const id = newId('utt');
-      const startAnchorId = prevEndAnchorId;
-      let endAnchorId = target.endAnchorId;
-      if (i < bounds.length - 1) {
-        const splitAnchor: AnchorDocType = {
-          id: newId('anc'),
-          mediaId: target.mediaId,
-          time: Number(bound.end.toFixed(3)),
-          createdAt: now,
-        };
-        anchors.push(splitAnchor);
-        endAnchorId = splitAnchor.id;
-        prevEndAnchorId = splitAnchor.id;
-      }
+      const startAnchorId = internalAnchors[i - 1]!.id;
+      const endAnchorId = i < bounds.length - 1 ? internalAnchors[i]!.id : target.endAnchorId;
       const nextUnit = withoutCertainty(
         {
           ...target,

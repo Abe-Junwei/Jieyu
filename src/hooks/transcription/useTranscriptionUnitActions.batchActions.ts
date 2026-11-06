@@ -481,17 +481,29 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
       await LinguisticService.units.save(updated);
 
       const toRemove = sorted.slice(1);
-      let allNewTranslations: LayerUnitContentDocType[] = [];
-      let allUpdatedTranslations: LayerUnitContentDocType[] = [];
+      // Dedupe by id across sequential reassigns: later write wins (full concat).
+      const updatedById = new Map<string, LayerUnitContentDocType>();
+      const newById = new Map<string, LayerUnitContentDocType>();
       for (const u of toRemove) {
         const { newTranslations, updatedTranslations } = await reassignTranslations(
           first.id,
           u.id,
           now,
         );
-        allNewTranslations = [...allNewTranslations, ...newTranslations];
-        allUpdatedTranslations = [...allUpdatedTranslations, ...updatedTranslations];
+        for (const row of updatedTranslations) {
+          updatedById.set(row.id, row);
+          newById.delete(row.id);
+        }
+        for (const row of newTranslations) {
+          if (updatedById.has(row.id)) {
+            updatedById.set(row.id, row);
+          } else {
+            newById.set(row.id, row);
+          }
+        }
       }
+      const allUpdatedTranslations = [...updatedById.values()];
+      const allNewTranslations = [...newById.values()];
 
       const removeIds = new Set(toRemove.map((u) => u.id));
       const updatedIds = new Set(allUpdatedTranslations.map((t) => t.id));

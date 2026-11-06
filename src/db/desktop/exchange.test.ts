@@ -17,6 +17,7 @@ const { JSDOM } = createRequire(import.meta.url)('jsdom') as {
 };
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { releaseAllProjectLocks } from '../../desktop/skeleton/projectLock';
+import { grantExchangePath, resetExchangePathGrants } from '../../desktop/exchangePathGrant';
 import { callDesktopSession } from './desktopCall';
 import { importForeignFile } from './foreignImport';
 import { openProject } from './openProject';
@@ -29,6 +30,7 @@ beforeAll(() => {
 });
 
 afterEach(() => {
+  resetExchangePathGrants();
   resetDesktopSessions();
   releaseAllProjectLocks();
   for (const root of roots) rmSync(root, { recursive: true, force: true });
@@ -51,7 +53,9 @@ describe('desktop exchange', () => {
       text: 'after',
     });
     const exported = join(dir, 'out.jyt');
-    callDesktopSession(session.sessionId, 'exchange.exportJyt', { file: exported });
+    callDesktopSession(session.sessionId, 'exchange.exportJyt', {
+      grantId: grantExchangePath(session.sessionId, exported, 'export'),
+    });
     callDesktopSession(session.sessionId, 'units.undo', {});
     expect(unitText(session.sessionId, seeded.id)).toBe('before');
 
@@ -67,7 +71,9 @@ describe('desktop exchange', () => {
       unitId: seeded.id,
       text: 'later',
     });
-    const imported = callDesktopSession(session.sessionId, 'exchange.importFile', { file }) as {
+    const imported = callDesktopSession(session.sessionId, 'exchange.importFile', {
+      grantId: grantExchangePath(session.sessionId, file, 'import'),
+    }) as {
       written: number;
     };
     expect(imported.written).toBe(1);
@@ -85,9 +91,11 @@ describe('desktop exchange', () => {
     if (importedManuscript === undefined) throw new Error('imported manuscript is missing');
     const jym = join(dir, 'out.jym');
     const manuscriptPackage = join(dir, 'manuscript.jyt');
-    callDesktopSession(session.sessionId, 'exchange.exportJym', { file: jym });
+    callDesktopSession(session.sessionId, 'exchange.exportJym', {
+      grantId: grantExchangePath(session.sessionId, jym, 'export'),
+    });
     callDesktopSession(session.sessionId, 'exchange.exportManuscript', {
-      file: manuscriptPackage,
+      grantId: grantExchangePath(session.sessionId, manuscriptPackage, 'export'),
       manuscriptId: importedManuscript.id,
     });
     expect(statSync(exported).size).toBeGreaterThan(0);
@@ -106,11 +114,21 @@ describe('desktop exchange', () => {
     writeFileSync(join(source, 'kept.eaf'), eaf());
     expect(() =>
       callDesktopSession(session.sessionId, 'exchange.importFile', {
-        file: join(source, 'kept.eaf'),
+        grantId: grantExchangePath(session.sessionId, join(source, 'kept.eaf'), 'import'),
       }),
     ).toThrow('media file is missing');
     expect(listed(join(dir, 'sources'))).toEqual([]);
     expect(callDesktopSession(session.sessionId, 'manuscripts.list', {})).toEqual([]);
+  });
+
+  it('refuses a raw renderer path without a dialog grant (#482)', () => {
+    const dir = tempFolder();
+    const session = openDesktopSession(dir, [dir]);
+    const file = join(dir, 'out.jyt');
+    expect(() => callDesktopSession(session.sessionId, 'exchange.exportJyt', { file })).toThrow();
+    expect(() =>
+      callDesktopSession(session.sessionId, 'exchange.exportJyt', { grantId: 'missing-grant' }),
+    ).toThrow('exchange path is not granted');
   });
 
   it('refuses a bundle import into the open project', () => {
@@ -118,9 +136,11 @@ describe('desktop exchange', () => {
     const session = openDesktopSession(dir, [dir]);
     const file = join(dir, 'kept.jyb');
     writeFileSync(file, 'not a bundle');
-    expect(() => callDesktopSession(session.sessionId, 'exchange.importFile', { file })).toThrow(
-      'import extension is unsupported',
-    );
+    expect(() =>
+      callDesktopSession(session.sessionId, 'exchange.importFile', {
+        grantId: grantExchangePath(session.sessionId, file, 'import'),
+      }),
+    ).toThrow('import extension is unsupported');
     expect(callDesktopSession(session.sessionId, 'project.get', {})).toMatchObject({
       id: expect.any(String),
     });

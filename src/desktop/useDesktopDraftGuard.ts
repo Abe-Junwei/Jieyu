@@ -46,12 +46,19 @@ export function useDesktopDraftGuard(save: (draft: DesktopTextDraft) => Promise<
       return;
     }
     void trySave(current).then((saved) => {
-      if (saved) {
-        pending.current = null;
-        go();
+      if (!saved) {
+        setPrompt({ failed: true });
         return;
       }
-      setPrompt({ failed: true });
+      // User may have typed again while the save was in flight; keep leave pending and retry.
+      if (draftRef.current !== null && draftRef.current !== current) {
+        const next = pending.current;
+        if (next === null) return;
+        leave(next.go, next.cancel);
+        return;
+      }
+      pending.current = null;
+      go();
     });
   };
 
@@ -118,8 +125,17 @@ export function useDesktopDraftGuard(save: (draft: DesktopTextDraft) => Promise<
       if (current === null || current.text.length === 0) return;
       composing.current = false;
       void trySave(current).then((saved) => {
-        if (saved) finish(true);
-        else setPrompt({ failed: true });
+        if (!saved) {
+          setPrompt({ failed: true });
+          return;
+        }
+        if (draftRef.current !== null && draftRef.current !== current) {
+          const next = pending.current;
+          if (next === null) return;
+          leave(next.go, next.cancel);
+          return;
+        }
+        finish(true);
       });
     },
     discard: () => {

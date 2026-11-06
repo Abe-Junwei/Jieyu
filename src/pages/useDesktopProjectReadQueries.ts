@@ -96,6 +96,26 @@ export function useDesktopProjectReadQueries(
       if (sessionId === null) return;
       setPicked({ sessionId, locateKey, manuscriptId: id, layerId, fallback: true });
     },
+    /**
+     * After deleting the explicitly selected manuscript, drop that id from the query key
+     * so React Query reloads (fallback to the first remaining manuscript) instead of
+     * keeping the deleted cache.
+     */
+    forgetDeletedManuscript: (_deletedId: string) => {
+      if (sessionId === null) return;
+      // Drop every project-read for this session. The open/default key uses '' for
+      // manuscriptId, so removing only the deleted id leaves that cache on screen (#486).
+      queryClient.removeQueries({
+        queryKey: desktopQueryKeys.projectReads(sessionId),
+      });
+      setPicked({
+        sessionId,
+        locateKey,
+        manuscriptId: undefined,
+        layerId: undefined,
+        fallback: true,
+      });
+    },
     /** Re-reads this session's project reads; rejects when the read model fails. */
     refetch: async (seen: string) => {
       await queryClient.refetchQueries(

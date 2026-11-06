@@ -457,10 +457,13 @@ export function createReassignTranslations(
   deps: Pick<TimelineMutationDeps, 'resolveUnitById' | 'translations'>,
 ) {
   const { resolveUnitById, translations } = deps;
+  // Sequential merges (mergeSelectedUnits ≥3) must see prior survivor text writes.
+  // Keep a working copy that advances after each reassign within this factory instance.
+  let workingTranslations = translations;
 
   return async (survivorId: string, removedId: string, now: string) => {
-    const removedTranslations = translations.filter((t) => t.unitId === removedId);
-    const survivorTranslations = translations.filter((t) => t.unitId === survivorId);
+    const removedTranslations = workingTranslations.filter((t) => t.unitId === removedId);
+    const survivorTranslations = workingTranslations.filter((t) => t.unitId === survivorId);
     const newTranslations: LayerUnitContentDocType[] = [];
     const updatedTranslations: LayerUnitContentDocType[] = [];
     const survivorUnit = await resolveUnitById(survivorId);
@@ -492,6 +495,13 @@ export function createReassignTranslations(
         newTranslations.push(reassigned);
       }
     }
+
+    const updatedIds = new Set(updatedTranslations.map((t) => t.id));
+    workingTranslations = [
+      ...workingTranslations.filter((t) => t.unitId !== removedId && !updatedIds.has(t.id)),
+      ...updatedTranslations,
+      ...newTranslations,
+    ];
 
     await LinguisticService.cleanup.removeUnit(removedId);
     return { newTranslations, updatedTranslations };

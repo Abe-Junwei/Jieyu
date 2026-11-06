@@ -1743,6 +1743,138 @@ describe('useTranscriptionUnitActions - batch operations', () => {
     whisperSpy.mockRestore();
   });
 
+  it('saveUnitLayerText clearing mixed text keeps audio association (#516)', async () => {
+    const unit = makeUnit('utt-clear-mixed', 0, 1);
+    const translationLayer = makeLayer({
+      id: 'trl-clear-mixed',
+      layerType: 'translation',
+      modality: 'mixed',
+      acceptsAudio: true,
+    });
+
+    await putTestUnitAsLayerUnit(db, unit, 'trc-seed');
+
+    let translationsState: LayerUnitContentDocType[] = [];
+    let mediaItemsState: MediaItemDocType[] = [];
+    const setTranslations = vi.fn(
+      (
+        updater:
+          | LayerUnitContentDocType[]
+          | ((prev: LayerUnitContentDocType[]) => LayerUnitContentDocType[]),
+      ) => {
+        translationsState = typeof updater === 'function' ? updater(translationsState) : updater;
+      },
+    );
+    const setMediaItems = vi.fn(
+      (updater: MediaItemDocType[] | ((prev: MediaItemDocType[]) => MediaItemDocType[])) => {
+        mediaItemsState = typeof updater === 'function' ? updater(mediaItemsState) : updater;
+      },
+    );
+    const setSaveState = vi.fn();
+    const setTranslationDrafts = vi.fn();
+
+    vi.spyOn(LocalWhisperSttProvider.prototype, 'transcribe').mockResolvedValue({
+      text: ' spoken words ',
+      lang: 'en-US',
+      isFinal: true,
+      confidence: 0.9,
+      engine: 'whisper-local',
+    });
+
+    const { result } = renderHook(() =>
+      useTranscriptionUnitActions({
+        defaultTranscriptionLayerId: undefined,
+        layerById: new Map([[translationLayer.id, translationLayer]]),
+        selectedUnitMedia: undefined,
+        translations: [],
+        unitsRef: { current: [unit] },
+        unitsOnCurrentMediaRef: { current: [unit] },
+        getUnitTextForLayer: () => '',
+        timingGestureRef: { current: { active: false, unitId: null } },
+        timingUndoRef: { current: null },
+        pushUndo: vi.fn(),
+        createAnchor: vi.fn(),
+        updateAnchorTime: vi.fn(),
+        pruneOrphanAnchors: vi.fn(),
+        setSaveState,
+        setMediaItems,
+        setTranslations,
+        setUnits: vi.fn(),
+        setUnitDrafts: vi.fn(),
+        setTranslationDrafts,
+        activeUnitId: '',
+        setSelectedUnitIds: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.saveVoiceTranslation(
+        new Blob(['a'], { type: 'audio/webm' }),
+        unit,
+        translationLayer,
+      );
+    });
+
+    expect(translationsState).toHaveLength(1);
+    const rowId = translationsState[0]!.id;
+    const audioMediaId = translationsState[0]!.translationAudioMediaId;
+    expect(audioMediaId).toBeTruthy();
+
+    const sttBlob = mediaItemsState.find((m) => m.id === audioMediaId);
+    const blobFromState =
+      sttBlob?.details &&
+      typeof sttBlob.details === 'object' &&
+      (sttBlob.details as { audioBlob?: unknown }).audioBlob instanceof Blob
+        ? (sttBlob.details as { audioBlob: Blob }).audioBlob
+        : new Blob(['a'], { type: 'audio/webm' });
+
+    await act(async () => {
+      await result.current.transcribeVoiceTranslation(unit, translationLayer, {
+        audioBlob: blobFromState,
+      });
+    });
+
+    expect(translationsState[0]).toEqual(
+      expect.objectContaining({
+        id: rowId,
+        modality: 'mixed',
+        text: 'spoken words',
+        translationAudioMediaId: audioMediaId,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.saveUnitLayerText(unit.id, '   ', translationLayer.id);
+    });
+
+    expect(translationsState).toHaveLength(1);
+    expect(translationsState[0]).toEqual(
+      expect.objectContaining({
+        id: rowId,
+        modality: 'audio',
+        translationAudioMediaId: audioMediaId,
+        mediaRefId: audioMediaId,
+      }),
+    );
+    expect((translationsState[0]!.text ?? '').trim()).toBe('');
+
+    const rows = await db.layer_unit_contents
+      .where('layerId')
+      .equals(translationLayer.id)
+      .toArray();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual(
+      expect.objectContaining({
+        id: rowId,
+        modality: 'audio',
+        mediaRefId: audioMediaId,
+      }),
+    );
+    expect(await db.media_items.get(audioMediaId!)).toEqual(
+      expect.objectContaining({ id: audioMediaId }),
+    );
+  });
+
   it('transcribeVoiceTranslation uses runtime-injected commercial credentials after whisper fallback', async () => {
     const unit = makeUnit('utt-stt-runtime-commercial', 0, 1);
     const translationLayer = makeLayer({

@@ -276,14 +276,21 @@ export function useVoiceInteraction({
     [ensureWhisperLocalReady, runVoiceTask, voiceAgent],
   );
 
+  const micGestureEpoch = useRef(0);
+
   const handleMicPointerDown = useCallback(
     (event: React.PointerEvent<HTMLButtonElement>) => {
       void event;
       if (voiceAgent.listening && voiceAgent.engine === 'whisper-local') {
+        const epoch = ++micGestureEpoch.current;
         runVoiceTask(async () => {
           const ready = await ensureWhisperLocalReady();
-          if (!ready) return;
+          if (!ready || epoch !== micGestureEpoch.current) return;
           await voiceAgent.startRecording();
+          // Release during async start: stop immediately once start settles.
+          if (epoch !== micGestureEpoch.current) {
+            await voiceAgent.stopRecording();
+          }
         }, 'Failed to start recording.');
       }
     },
@@ -291,6 +298,7 @@ export function useVoiceInteraction({
   );
 
   const handleMicPointerUp = useCallback(() => {
+    micGestureEpoch.current += 1;
     if (voiceAgent.listening && voiceAgent.engine === 'whisper-local') {
       runVoiceTask(async () => {
         await voiceAgent.stopRecording();
