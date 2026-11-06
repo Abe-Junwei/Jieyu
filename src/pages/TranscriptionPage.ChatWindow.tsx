@@ -89,24 +89,26 @@ export function TranscriptionPageChatWindow({
             onHeaderPointerUp={controller.stopDragging}
             onHeaderPointerCancel={controller.stopDragging}
           />
-          {!controller.minimized && (
-            <div className="transcription-chat-window-body">
-              <ErrorBoundary>
-                <Suspense fallback={null}>
-                  <AssistantRuntime
-                    {...assistantRuntimeProps}
-                    cardChrome={{
-                      showHeader: false,
-                      showProviderConfigButton: false,
-                      compactChrome: true,
-                      providerConfigOpen: controller.providerConfigOpen,
-                      onProviderConfigOpenChange: controller.setProviderConfigOpen,
-                    }}
-                  />
-                </Suspense>
-              </ErrorBoundary>
-            </div>
-          )}
+          <div
+            className="transcription-chat-window-body"
+            hidden={controller.minimized}
+            style={controller.minimized ? { display: 'none' } : undefined}
+          >
+            <ErrorBoundary>
+              <Suspense fallback={null}>
+                <AssistantRuntime
+                  {...assistantRuntimeProps}
+                  cardChrome={{
+                    showHeader: false,
+                    showProviderConfigButton: false,
+                    compactChrome: true,
+                    providerConfigOpen: controller.providerConfigOpen,
+                    onProviderConfigOpenChange: controller.setProviderConfigOpen,
+                  }}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          </div>
           {!controller.minimized && !controller.maximized && (
             <div
               className="transcription-chat-window-resizer"
