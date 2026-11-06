@@ -145,4 +145,51 @@ describe('useWaveSurfer display-mode rebuild (#506)', () => {
     expect(second.setPlaybackRate).toHaveBeenCalledWith(0.5);
     expect(second.play).toHaveBeenCalled();
   });
+  it.each([false, true])(
+    'keeps latest global rate during rebuild unless a segment rate is active (segment=%s)',
+    async (segment) => {
+      type Props = { mode: 'waveform' | 'split' };
+      const { result, rerender, unmount } = renderHook(
+        ({ mode }: Props) =>
+          useWaveSurfer({
+            mediaUrl: 'blob:rate-race',
+            waveformDisplayMode: mode,
+            segmentPlaybackRate: 0.5,
+          }),
+        { initialProps: { mode: 'waveform' } as Props },
+      );
+      const host = document.createElement('div');
+      document.body.appendChild(host);
+      act(() => {
+        result.current.waveformRef.current = host;
+      });
+      await flushFrames();
+      const first = instances[instances.length - 1]!;
+      first.getCurrentTime.mockReturnValue(8);
+      first.isPlaying.mockReturnValue(true);
+      act(() => {
+        first.emit('ready');
+      });
+      if (segment)
+        act(() => {
+          result.current.playRegion(5, 15);
+        });
+      rerender({ mode: 'split' });
+      await flushFrames();
+      const second = instances[instances.length - 1]!;
+      expect(second).not.toBe(first);
+      expect(second.load).toHaveBeenCalled();
+      act(() => {
+        result.current.setPlaybackRate(1.5);
+      });
+      act(() => {
+        second.emit('ready');
+      });
+      expect(second.setPlaybackRate).toHaveBeenLastCalledWith(segment ? 0.5 : 1.5);
+      expect(second.setTime).toHaveBeenCalledWith(8);
+      expect(second.play).toHaveBeenCalled();
+      unmount();
+      host.remove();
+    },
+  );
 });
