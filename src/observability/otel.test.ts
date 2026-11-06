@@ -1,35 +1,44 @@
-import { describe, expect, it, vi } from 'vitest';
+import { context, propagation, trace } from '@opentelemetry/api';
+import * as core from '@opentelemetry/core';
+import { StackContextManager } from '@opentelemetry/sdk-trace';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { addMetricObserver, type MetricEvent } from './metrics';
 import { initOtelWithResolvedConfig, resolveOtelBootstrapConfig } from './otel';
 
 describe('resolveOtelBootstrapConfig', () => {
   it('disables OTel when endpoint is missing or runtime flag is off', () => {
-    expect(resolveOtelBootstrapConfig({
-      PROD: true,
-      MODE: 'production',
-      VITE_ENABLE_OTEL: 'false',
-      VITE_OTEL_EXPORTER_OTLP_ENDPOINT: 'https://otel.example/v1/traces',
-    }).enabled).toBe(false);
+    expect(
+      resolveOtelBootstrapConfig({
+        PROD: true,
+        MODE: 'production',
+        VITE_ENABLE_OTEL: 'false',
+        VITE_OTEL_EXPORTER_OTLP_ENDPOINT: 'https://otel.example/v1/traces',
+      }).enabled,
+    ).toBe(false);
 
-    expect(resolveOtelBootstrapConfig({
-      PROD: true,
-      MODE: 'production',
-      VITE_ENABLE_OTEL: 'true',
-    }).enabled).toBe(false);
+    expect(
+      resolveOtelBootstrapConfig({
+        PROD: true,
+        MODE: 'production',
+        VITE_ENABLE_OTEL: 'true',
+      }).enabled,
+    ).toBe(false);
   });
 
   it('resolves endpoint, service and environment with bounded sample rate', () => {
-    expect(resolveOtelBootstrapConfig({
-      PROD: true,
-      MODE: 'production',
-      VITE_OTEL_EXPORT_ENABLED: 'true',
-      VITE_OTEL_EXPORTER_OTLP_ENDPOINT: 'https://otel.example/v1/traces',
-      VITE_OTEL_SERVICE_NAME: 'jieyu-web-prod',
-      VITE_OTEL_ENVIRONMENT: 'staging',
-      VITE_OTEL_TRACES_SAMPLE_RATE: '2.5',
-      VITE_APP_VERSION: '2026.04.17',
-      VITE_OTEL_CIRCUIT_BREAKER_FAILURE_THRESHOLD: '5',
-    })).toEqual({
+    expect(
+      resolveOtelBootstrapConfig({
+        PROD: true,
+        MODE: 'production',
+        VITE_OTEL_EXPORT_ENABLED: 'true',
+        VITE_OTEL_EXPORTER_OTLP_ENDPOINT: 'https://otel.example/v1/traces',
+        VITE_OTEL_SERVICE_NAME: 'jieyu-web-prod',
+        VITE_OTEL_ENVIRONMENT: 'staging',
+        VITE_OTEL_TRACES_SAMPLE_RATE: '2.5',
+        VITE_APP_VERSION: '2026.04.17',
+        VITE_OTEL_CIRCUIT_BREAKER_FAILURE_THRESHOLD: '5',
+      }),
+    ).toEqual({
       enabled: true,
       endpoint: 'https://otel.example/v1/traces',
       serviceName: 'jieyu-web-prod',
@@ -43,13 +52,15 @@ describe('resolveOtelBootstrapConfig', () => {
       circuitBreakerFailureThreshold: 5,
     });
 
-    expect(resolveOtelBootstrapConfig({
-      PROD: true,
-      MODE: 'production',
-      VITE_ENABLE_OTEL: 'true',
-      VITE_OTEL_EXPORTER_OTLP_ENDPOINT: 'https://otel.example/v1/traces',
-      VITE_OTEL_TRACES_SAMPLE_RATE: '-1',
-    })).toEqual({
+    expect(
+      resolveOtelBootstrapConfig({
+        PROD: true,
+        MODE: 'production',
+        VITE_ENABLE_OTEL: 'true',
+        VITE_OTEL_EXPORTER_OTLP_ENDPOINT: 'https://otel.example/v1/traces',
+        VITE_OTEL_TRACES_SAMPLE_RATE: '-1',
+      }),
+    ).toEqual({
       enabled: true,
       endpoint: 'https://otel.example/v1/traces',
       serviceName: 'jieyu-web',
@@ -66,26 +77,30 @@ describe('resolveOtelBootstrapConfig', () => {
 });
 
 describe('initOtelWithResolvedConfig', () => {
+  afterEach(() => {
+    trace.disable();
+    context.disable();
+    propagation.disable();
+    vi.restoreAllMocks();
+  });
   it('registers tracer provider with constructor spanProcessors', async () => {
-    const registerSpy = vi.fn();
+    const registerSpy = vi.spyOn(trace, 'setGlobalTracerProvider').mockReturnValue(true);
     let capturedProviderConfig: Record<string, unknown> | undefined;
     let capturedExporterConfig: Record<string, unknown> | undefined;
 
-    class MockWebTracerProvider {
+    class MockTracerProvider {
       constructor(config?: unknown) {
         capturedProviderConfig = config as Record<string, unknown>;
       }
-
-      register(): void {
-        registerSpy();
-      }
     }
 
-    let innerBatchProcessor: {
-      onEnd: ReturnType<typeof vi.fn>;
-      forceFlush: ReturnType<typeof vi.fn>;
-      shutdown: ReturnType<typeof vi.fn>;
-    } | undefined;
+    let innerBatchProcessor:
+      | {
+          onEnd: ReturnType<typeof vi.fn>;
+          forceFlush: ReturnType<typeof vi.fn>;
+          shutdown: ReturnType<typeof vi.fn>;
+        }
+      | undefined;
 
     class MockBatchSpanProcessor {
       onEnd = vi.fn();
@@ -93,7 +108,7 @@ describe('initOtelWithResolvedConfig', () => {
       forceFlush = vi.fn(() => Promise.resolve());
       shutdown = vi.fn(() => Promise.resolve());
 
-      constructor(readonly exporter: unknown) {
+      constructor(readonly config: { exporter: unknown }) {
         innerBatchProcessor = this;
       }
     }
@@ -121,8 +136,10 @@ describe('initOtelWithResolvedConfig', () => {
         tracesSampleRate: 0.5,
       },
       async () => ({
-        sdkWeb: { WebTracerProvider: MockWebTracerProvider },
-        sdkBase: {
+        core,
+        sdkTrace: {
+          TracerProvider: MockTracerProvider,
+          StackContextManager,
           BatchSpanProcessor: MockBatchSpanProcessor,
           ParentBasedSampler: MockParentBasedSampler,
           TraceIdRatioBasedSampler: MockTraceIdRatioBasedSampler,
@@ -171,23 +188,22 @@ describe('initOtelWithResolvedConfig', () => {
     spanProcessors[0]?.onEnd?.(fakeSpan);
     expect(fakeSpan.attributes?.apiKey).toBe('[REDACTED]');
     expect(fakeSpan.attributes?.prompt).toBe('len:15');
-    expect(fakeSpan.attributes?.urlFull).toBe('https://api.example.com/chat?token=[REDACTED]&safe=yes');
+    expect(fakeSpan.attributes?.urlFull).toBe(
+      'https://api.example.com/chat?token=[REDACTED]&safe=yes',
+    );
     expect(innerBatchProcessor?.onEnd).toHaveBeenCalledTimes(1);
     expect(innerBatchProcessor?.onEnd).toHaveBeenCalledWith(fakeSpan);
   });
 
   it('opens exporter circuit after repeated failures and records metrics', async () => {
-    const registerSpy = vi.fn();
-    let exporterRef: { export: (spans: unknown[], cb: (result: { code: number }) => void) => void } | undefined;
+    const registerSpy = vi.spyOn(trace, 'setGlobalTracerProvider').mockReturnValue(true);
+    let exporterRef:
+      { export: (spans: unknown[], cb: (result: { code: number }) => void) => void } | undefined;
     const observedMetrics: MetricEvent[] = [];
     const removeObserver = addMetricObserver((event) => observedMetrics.push(event));
 
-    class MockWebTracerProvider {
+    class MockTracerProvider {
       constructor(readonly config?: unknown) {}
-
-      register(): void {
-        registerSpy();
-      }
     }
 
     class MockBatchSpanProcessor {
@@ -196,8 +212,8 @@ describe('initOtelWithResolvedConfig', () => {
       forceFlush = vi.fn(() => Promise.resolve());
       shutdown = vi.fn(() => Promise.resolve());
 
-      constructor(readonly exporter: unknown) {
-        exporterRef = exporter as typeof exporterRef;
+      constructor(readonly config: { exporter: unknown }) {
+        exporterRef = config.exporter as typeof exporterRef;
       }
     }
 
@@ -229,8 +245,10 @@ describe('initOtelWithResolvedConfig', () => {
         circuitBreakerFailureThreshold: 2,
       },
       async () => ({
-        sdkWeb: { WebTracerProvider: MockWebTracerProvider },
-        sdkBase: {
+        core,
+        sdkTrace: {
+          TracerProvider: MockTracerProvider,
+          StackContextManager,
           BatchSpanProcessor: MockBatchSpanProcessor,
           ParentBasedSampler: MockParentBasedSampler,
           TraceIdRatioBasedSampler: MockTraceIdRatioBasedSampler,
@@ -248,9 +266,15 @@ describe('initOtelWithResolvedConfig', () => {
     exporterRef?.export([], () => undefined);
     exporterRef?.export([], () => undefined);
 
-    expect(observedMetrics.some((event) => event.id === 'ai.trace.otel_export_failure_count')).toBe(true);
-    expect(observedMetrics.some((event) => event.id === 'ai.trace.otel_circuit_open_count')).toBe(true);
-    expect(observedMetrics.some((event) => event.id === 'ai.trace.otel_circuit_short_circuit_count')).toBe(true);
+    expect(observedMetrics.some((event) => event.id === 'ai.trace.otel_export_failure_count')).toBe(
+      true,
+    );
+    expect(observedMetrics.some((event) => event.id === 'ai.trace.otel_circuit_open_count')).toBe(
+      true,
+    );
+    expect(
+      observedMetrics.some((event) => event.id === 'ai.trace.otel_circuit_short_circuit_count'),
+    ).toBe(true);
     removeObserver();
   });
 
@@ -266,8 +290,8 @@ describe('initOtelWithResolvedConfig', () => {
         tracesSampleRate: 0.5,
       },
       async () => ({
-        sdkWeb: {},
-        sdkBase: {},
+        core,
+        sdkTrace: {},
         otlp: {},
         resources: {},
         semantics: {},

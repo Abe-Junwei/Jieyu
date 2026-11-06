@@ -10,6 +10,8 @@ as described in `docs/development/VERSIONING.md` (when present on the default br
 
 ### Changed
 
+- **Dependency compatibility (#481)**: Upgrade the OpenTelemetry stack to API 1.10, SDK/core/resources 3.0 and OTLP exporter 0.300; replace the retired trace-base/web packages with `sdk-trace`, preserving context propagation, export scrubbing and circuit breaking. Retain the other grouped dependency updates.
+
 - **Lexicon entry overview**: The entry overview grid lives in `LexiconEntryOverview`. `LexiconPage` only assembles that panel. Field values and test ids are unchanged.
 - **Annotation page open (B4c/d/e)**: `annotationPageEnabled` now defaults to `true`. `/annotation` is an IGT workbench with unit-range playback, notes/tags/self-certainty, and AutoGloss preview-then-apply. Env `VITE_ANNOTATION_PAGE_ENABLED=false` still shows the placeholder panel. Corpus / MCP / lexicon-attachment flags stay false.
 - **Master roadmap subsequent-slice eval (2026-09-11)**: Next knife is #165 then B5c rebase; added B4c/B4d/B3b leftover rows. Dogfood ≠ product-open. See `docs/execution/audits/后续路线图详细评估-2026-09-11.md`.
