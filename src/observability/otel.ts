@@ -1,3 +1,9 @@
+import {
+  context,
+  propagation,
+  trace,
+  type TracerProvider as ApiTracerProvider,
+} from '@opentelemetry/api';
 import { createMetricTags, recordMetric } from './metrics';
 import { isSensitiveObservabilityKey, scrubSensitiveQueryParams } from './sensitiveKeyPolicy';
 import { createLogger } from './logger';
@@ -65,8 +71,8 @@ function scheduleOtelCircuitHalfOpenProbe(): void {
 }
 
 type OtelRuntimeModules = {
-  sdkWeb: Record<string, unknown>;
-  sdkBase: Record<string, unknown>;
+  sdkTrace: Record<string, unknown>;
+  core: typeof import('@opentelemetry/core');
   otlp: Record<string, unknown>;
   resources: Record<string, unknown>;
   semantics: Record<string, unknown>;
@@ -275,18 +281,18 @@ export function resolveOtelBootstrapConfig(env: OtelBootstrapEnv): ResolvedOtelB
 }
 
 async function loadOtelRuntimeModules(): Promise<OtelRuntimeModules> {
-  const [sdkWebModule, sdkBaseModule, exporterModule, resourcesModule, semanticModule] =
+  const [sdkTraceModule, coreModule, exporterModule, resourcesModule, semanticModule] =
     await Promise.all([
-      import('@opentelemetry/sdk-trace-web'),
-      import('@opentelemetry/sdk-trace-base'),
+      import('@opentelemetry/sdk-trace'),
+      import('@opentelemetry/core'),
       import('@opentelemetry/exporter-trace-otlp-http'),
       import('@opentelemetry/resources'),
       import('@opentelemetry/semantic-conventions'),
     ]);
 
   return {
-    sdkWeb: sdkWebModule as Record<string, unknown>,
-    sdkBase: sdkBaseModule as Record<string, unknown>,
+    sdkTrace: sdkTraceModule as Record<string, unknown>,
+    core: coreModule,
     otlp: exporterModule as Record<string, unknown>,
     resources: resourcesModule as Record<string, unknown>,
     semantics: semanticModule as Record<string, unknown>,
@@ -302,7 +308,7 @@ export async function initOtelWithResolvedConfig(
   }
 
   try {
-    const { sdkWeb, sdkBase, otlp, resources, semantics } = await moduleLoader();
+    const { sdkTrace, core, otlp, resources, semantics } = await moduleLoader();
     const exportTimeoutMillis = config.exportTimeoutMillis ?? OTEL_DEFAULT_EXPORT_TIMEOUT_MILLIS;
     const scheduledDelayMillis = config.scheduledDelayMillis ?? OTEL_DEFAULT_SCHEDULE_DELAY_MILLIS;
     const maxQueueSize = config.maxQueueSize ?? OTEL_DEFAULT_MAX_QUEUE_SIZE;
@@ -314,27 +320,24 @@ export async function initOtelWithResolvedConfig(
         ? config.serviceVersion
         : resolveServiceVersion(undefined);
 
-    const WebTracerProvider = sdkWeb.WebTracerProvider as
-      | (new (config?: unknown) => unknown)
-      | undefined;
-    const BatchSpanProcessor = sdkBase.BatchSpanProcessor as
-      | (new (exporter: unknown, config?: unknown) => unknown)
-      | undefined;
-    const ParentBasedSampler = sdkBase.ParentBasedSampler as
-      | (new (config: { root: unknown }) => unknown)
-      | undefined;
-    const TraceIdRatioBasedSampler = sdkBase.TraceIdRatioBasedSampler as
-      | (new (ratio: number) => unknown)
-      | undefined;
+    const TracerProvider = sdkTrace.TracerProvider as
+      (new (config?: unknown) => unknown) | undefined;
+    const StackContextManager = sdkTrace.StackContextManager as
+      (new () => import('@opentelemetry/api').ContextManager) | undefined;
+    const BatchSpanProcessor = sdkTrace.BatchSpanProcessor as
+      (new (config: unknown) => unknown) | undefined;
+    const ParentBasedSampler = sdkTrace.ParentBasedSampler as
+      (new (config: { root: unknown }) => unknown) | undefined;
+    const TraceIdRatioBasedSampler = sdkTrace.TraceIdRatioBasedSampler as
+      (new (ratio: number) => unknown) | undefined;
     const OTLPTraceExporter = otlp.OTLPTraceExporter as
-      | (new (config?: unknown) => unknown)
-      | undefined;
+      (new (config?: unknown) => unknown) | undefined;
     const resourceFromAttributes = resources.resourceFromAttributes as
-      | ((attributes: Record<string, unknown>) => unknown)
-      | undefined;
+      ((attributes: Record<string, unknown>) => unknown) | undefined;
 
     if (
-      !WebTracerProvider ||
+      !TracerProvider ||
+      !StackContextManager ||
       !BatchSpanProcessor ||
       !OTLPTraceExporter ||
       !ParentBasedSampler ||
@@ -376,7 +379,8 @@ export async function initOtelWithResolvedConfig(
       exporter,
       circuitBreakerFailureThreshold,
     );
-    const spanProcessor = new BatchSpanProcessor(exporterWithCircuitBreaker, {
+    const spanProcessor = new BatchSpanProcessor({
+      exporter: exporterWithCircuitBreaker,
       maxQueueSize,
       maxExportBatchSize: Math.min(maxExportBatchSize, maxQueueSize),
       scheduledDelayMillis,
@@ -391,19 +395,14 @@ export async function initOtelWithResolvedConfig(
       ...(resource !== undefined ? { resource } : {}),
     };
 
-    const provider = new WebTracerProvider(providerConfig) as {
-      register?: () => void;
-    };
-
-    if (typeof provider.register === 'function') {
-      provider.register();
-      return;
-    }
-
-    safeRecordOtelMetric('ai.trace.otel_bootstrap_failure_count', 1, {
-      reason: 'register_unavailable',
-    });
-    log.warn('OTel bootstrap skipped: tracer provider register() is unavailable.');
+    const provider = new TracerProvider(providerConfig) as ApiTracerProvider;
+    trace.setGlobalTracerProvider(provider);
+    propagation.setGlobalPropagator(
+      new core.CompositePropagator({
+        propagators: [new core.W3CTraceContextPropagator(), new core.W3CBaggagePropagator()],
+      }),
+    );
+    context.setGlobalContextManager(new StackContextManager().enable());
   } catch (error) {
     // OTel 初始化失败不应阻塞应用启动 | OTel initialization failure must not block app startup
     safeRecordOtelMetric('ai.trace.otel_bootstrap_failure_count', 1, {

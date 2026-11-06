@@ -58,3 +58,14 @@ override is still needed (upstream may bump `uuid` to ≥14 and make the overrid
 - When `package.json` / `CHANGELOG.md` carry a new **release version**, add a matching
   **annotated Git tag** `v<version>` on the default branch (e.g. `v1.1.0`) so builds and
   Sentry can align on the same string as `VITE_APP_VERSION` (see `VERSIONING.md`).
+
+## OpenTelemetry SDK 3.x
+
+Upgrade API, stable SDK/core/resources and the experimental exporter as a compatible
+set. SDK 3.0 uses API 1.10 and exporter 0.300; do not mix it with SDK 2.x.
+The retired `sdk-trace-base` / `sdk-trace-web` packages are replaced by `sdk-trace`.
+Register the provider, synchronous context manager and W3C trace/baggage propagators
+explicitly. `BatchSpanProcessor` takes one options object containing `exporter`.
+Node.js must be at least 22.15.0. Run `npm ci`, `npm run test:otel-smoke` and a browser
+build: the smoke checks real collector export, scrubbing and context propagation.
+See the [upstream changelog](https://github.com/open-telemetry/opentelemetry-js/blob/main/CHANGELOG.md).
