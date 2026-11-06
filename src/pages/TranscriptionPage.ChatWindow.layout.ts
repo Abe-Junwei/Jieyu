@@ -173,7 +173,7 @@ export type ChatWindowPointerCaptureTarget = {
 };
 
 export const CHAT_WINDOW_HEADER_INTERACTIVE_SELECTOR =
-  'button, input, select, textarea, a, [role="button"], [role="dialog"]';
+  'button, input, select, textarea, a, [role="button"]';
 
 export function isChatWindowHeaderInteractiveTarget(target: unknown): boolean {
   if (target == null || typeof target !== 'object') return false;
@@ -213,8 +213,7 @@ export type ChatWindowPointerInteractionRefs = {
 export type ChatWindowPointerInteractionActions = {
   setPosition: (
     value:
-      | { x: number; y: number }
-      | ((prev: { x: number; y: number }) => { x: number; y: number }),
+      { x: number; y: number } | ((prev: { x: number; y: number }) => { x: number; y: number }),
   ) => void;
   setSize: (value: { width: number; height: number }) => void;
   setDragging: (value: boolean) => void;
@@ -222,11 +221,7 @@ export type ChatWindowPointerInteractionActions = {
 };
 
 export type ChatWindowKeyboardAction =
-  | 'none'
-  | 'toggle-open'
-  | 'toggle-restore'
-  | 'toggle-minimize'
-  | 'escape-minimize';
+  'none' | 'toggle-open' | 'toggle-restore' | 'toggle-minimize' | 'escape-minimize';
 
 export function createChatWindowDragSession(
   pointerX: number,
