@@ -48,6 +48,9 @@ export class RecordingExecutor {
   private recordedChunks: Blob[] = [];
   private _isRecording = false;
   private _stopRecordingPromise: Promise<void> | null = null;
+  /** Bumped to cancel an in-flight start (release before getUserMedia / recorder.start). */
+  private _startEpoch = 0;
+  private _startInFlight: Promise<void> | null = null;
   /** 可选 VAD 服务，启用后在发送 STT 前过滤静音 | Optional VAD service; when set, filters silence before STT */
   private _vadService: WhisperXVadService | null = null;
 
@@ -67,6 +70,16 @@ export class RecordingExecutor {
 
   async startRecording(): Promise<void> {
     if (this._isRecording) return;
+    if (this._startInFlight) return this._startInFlight;
+    const epoch = ++this._startEpoch;
+    const inFlight = this._startRecordingInternal(epoch).finally(() => {
+      if (this._startInFlight === inFlight) this._startInFlight = null;
+    });
+    this._startInFlight = inFlight;
+    return inFlight;
+  }
+
+  private async _startRecordingInternal(epoch: number): Promise<void> {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -75,6 +88,10 @@ export class RecordingExecutor {
           autoGainControl: true,
         },
       });
+      if (epoch !== this._startEpoch) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       this.mediaStream = stream;
       this.recordedChunks = [];
       // Prefer webm; fall back to any browser-supported format
@@ -93,10 +110,17 @@ export class RecordingExecutor {
           `MediaRecorder error: ${typeof err === 'string' ? err : (err ?? 'unknown')}`,
         );
       };
+      if (epoch !== this._startEpoch) {
+        stream.getTracks().forEach((track) => track.stop());
+        this.mediaStream = null;
+        return;
+      }
       this.mediaRecorder = recorder;
       recorder.start(100); // chunk every 100ms for responsive stop
       this._isRecording = true;
     } catch (err) {
+      // A cancelled start must not tear down a newer epoch's capture (#508).
+      if (epoch !== this._startEpoch) return;
       this.mediaStream?.getTracks().forEach((track) => track.stop());
       this.mediaStream = null;
       this.mediaRecorder = null;
@@ -118,6 +142,10 @@ export class RecordingExecutor {
       mediaId?: string;
     },
   ): Promise<void> {
+    // Invalidate any in-flight start; startRecording releases the stream when epoch mismatches.
+    // Clear _startInFlight so a subsequent press starts a new epoch instead of joining the cancelled promise (#494).
+    this._startEpoch += 1;
+    this._startInFlight = null;
     // Re-entrant guard: if a stop is already in flight, await it instead of racing
     if (this._stopRecordingPromise) {
       await this._stopRecordingPromise;
@@ -135,6 +163,7 @@ export class RecordingExecutor {
 
   /** 释放录音相关资源 | Release recording resources */
   dispose(): void {
+    this._startEpoch += 1;
     this._isRecording = false;
     if (this.mediaRecorder) {
       try {
@@ -150,6 +179,7 @@ export class RecordingExecutor {
     }
     this.recordedChunks = [];
     this._stopRecordingPromise = null;
+    this._startInFlight = null;
   }
 
   // ── Internal | 内部实现 ──────────────────────────────────────────────────

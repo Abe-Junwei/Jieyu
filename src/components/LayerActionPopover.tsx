@@ -1,8 +1,8 @@
 import type { CSSProperties } from 'react';
 import { memo, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { MaterialSymbol } from './ui/MaterialSymbol';
-import { JIEYU_MATERIAL_PANEL_CLOSE_LG, JIEYU_MATERIAL_WAVE_MD } from '../utils/jieyuMaterialIcon';
+import { JieyuIcon } from './ui/JieyuIcon';
+import { JIEYU_ICON_PANEL_CLOSE_LG, JIEYU_ICON_WAVE_MD } from '../utils/jieyuIcon';
 import { DialogOverlay, DialogShell } from './ui';
 import type { LayerActionPopoverProps } from './layerActionPopover/LayerActionPopoverTypes';
 import { useLayerActionPopoverFormState } from './layerActionPopover/useLayerActionPopoverFormState';
@@ -154,7 +154,7 @@ export const LayerActionPopover = memo(function LayerActionPopover(props: LayerA
                 aria-label={actionMessages.resetForm}
                 title={actionMessages.resetForm}
               >
-                <MaterialSymbol name="restart_alt" className={JIEYU_MATERIAL_WAVE_MD} />
+                <JieyuIcon name="RotateCcw" className={JIEYU_ICON_WAVE_MD} />
               </button>
             )}
             <button
@@ -164,7 +164,7 @@ export const LayerActionPopover = memo(function LayerActionPopover(props: LayerA
               aria-label={`${label} ${actionMessages.cancel}`}
               title={`${label} ${actionMessages.cancel}`}
             >
-              <MaterialSymbol name="close" className={JIEYU_MATERIAL_PANEL_CLOSE_LG} />
+              <JieyuIcon name="X" className={JIEYU_ICON_PANEL_CLOSE_LG} />
             </button>
           </>
         }

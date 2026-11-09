@@ -1,7 +1,7 @@
 import { type CSSProperties, type RefObject } from 'react';
 import { t } from '../../i18n';
-import { MaterialSymbol } from '../ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE_TIGHT } from '../../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../ui/JieyuIcon';
+import { JIEYU_ICON_INLINE_TIGHT } from '../../utils/jieyuIcon';
 import { AiChatTurnRow, type AiChatTurnRowData } from './AiChatTurnRow';
 import {
   shouldVirtualizeAiChatTurns,
@@ -204,7 +204,7 @@ export function AiChatMessageThread({
                   aria-label={cardMessages.unpinMessage}
                   title={cardMessages.unpinMessage}
                 >
-                  <MaterialSymbol name="close" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+                  <JieyuIcon name="X" className={JIEYU_ICON_INLINE_TIGHT} />
                 </button>
               </article>
             ))}

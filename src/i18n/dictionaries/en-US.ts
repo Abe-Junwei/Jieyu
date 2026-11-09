@@ -4136,7 +4136,7 @@ export const enUSDictionary = {
     iconEffectMaterial: 'Material (default)',
     iconEffectMotion: 'Motion enhanced',
     iconEffectHint:
-      'Still uses Google Material Symbols. Motion mode adds light scale and filled (FILL) states on hover/active; it is disabled when system or “Reduce motion” prefers reduced motion. Per-icon Lottie can be added later via lottie-web and JSON assets.',
+      'Icons are Lucide SVGs. Motion mode adds light scale and heavier stroke on hover/active; it is disabled when system or “Reduce motion” prefers reduced motion. Per-icon Lottie can be added later via lottie-web and JSON assets.',
     shortcutRecording: 'Press a key…',
     shortcutReset: 'Reset',
     shortcutResetAll: 'Reset all',

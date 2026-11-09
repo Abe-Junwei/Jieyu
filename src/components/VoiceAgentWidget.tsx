@@ -16,15 +16,15 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import '../styles/panels/voice-agent.css';
-import { MaterialSymbol } from './ui/MaterialSymbol';
+import { JieyuIcon } from './ui/JieyuIcon';
 import {
-  JIEYU_MATERIAL_INLINE,
-  JIEYU_MATERIAL_INLINE_TIGHT,
-  JIEYU_MATERIAL_MICRO,
-  JIEYU_MATERIAL_VOICE_MIC,
-  JIEYU_MATERIAL_WAVE_MD,
-  jieyuMaterialClass,
-} from '../utils/jieyuMaterialIcon';
+  JIEYU_ICON_INLINE,
+  JIEYU_ICON_INLINE_TIGHT,
+  JIEYU_ICON_MICRO,
+  JIEYU_ICON_VOICE_MIC,
+  JIEYU_ICON_WAVE_MD,
+  jieyuIconClass,
+} from '../utils/jieyuIcon';
 import type {
   VoiceAgentMode,
   VoiceAgentState,
@@ -589,8 +589,11 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
               className={`voice-agent-mic-btn ${listening ? 'voice-agent-mic-btn-active' : ''} ${isRecording ? 'voice-agent-mic-btn-recording' : ''}`}
               onPointerDown={onMicPointerDown}
               onPointerUp={onMicPointerUp}
+              onPointerCancel={
+                engine === 'whisper-local' && listening ? onMicPointerUp : undefined
+              }
               onPointerLeave={
-                engine === 'whisper-local' && isRecording ? onMicPointerUp : undefined
+                engine === 'whisper-local' && listening ? onMicPointerUp : undefined
               }
               onClick={engine !== 'whisper-local' ? () => onToggle() : undefined}
               title={
@@ -610,11 +613,11 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
               aria-pressed={listening}
             >
               {isRecording ? (
-                <MaterialSymbol name="mic" className={JIEYU_MATERIAL_VOICE_MIC} />
+                <JieyuIcon name="Mic" className={JIEYU_ICON_VOICE_MIC} />
               ) : listening ? (
-                <MaterialSymbol name="mic" className={JIEYU_MATERIAL_VOICE_MIC} />
+                <JieyuIcon name="Mic" className={JIEYU_ICON_VOICE_MIC} />
               ) : (
-                <MaterialSymbol name="mic_off" className={JIEYU_MATERIAL_VOICE_MIC} />
+                <JieyuIcon name="MicOff" className={JIEYU_ICON_VOICE_MIC} />
               )}
             </button>
             <div className="voice-agent-header-copy">
@@ -640,9 +643,9 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                 aria-expanded={showSettings}
                 aria-label={t(locale, 'transcription.voiceWidget.settings.toggle')}
               >
-                <MaterialSymbol name="tune" className={JIEYU_MATERIAL_WAVE_MD} />
+                <JieyuIcon name="Settings" className={JIEYU_ICON_WAVE_MD} />
                 <span>{t(locale, 'transcription.voiceWidget.settings.button')}</span>
-                <MaterialSymbol name="expand_more" className={JIEYU_MATERIAL_INLINE} />
+                <JieyuIcon name="ChevronDown" className={JIEYU_ICON_INLINE} />
               </button>
             )}
           </div>
@@ -894,7 +897,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                 <span className="voice-agent-disclosure-title">
                   {t(locale, 'transcription.voiceWidget.settings.title')}
                 </span>
-                <MaterialSymbol name="expand_more" className={JIEYU_MATERIAL_INLINE} />
+                <JieyuIcon name="ChevronDown" className={JIEYU_ICON_INLINE} />
               </button>
 
               {showSettings && (
@@ -1069,10 +1072,10 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                         disabled={providerStatusRefreshing || !onRefreshProviderStatus}
                         onClick={handleRefreshProviderStatus}
                       >
-                        <MaterialSymbol
-                          name="refresh"
-                          className={jieyuMaterialClass(
-                            JIEYU_MATERIAL_MICRO,
+                        <JieyuIcon
+                          name="RefreshCw"
+                          className={jieyuIconClass(
+                            JIEYU_ICON_MICRO,
                             providerStatusRefreshing
                               ? 'voice-agent-provider-refresh-icon spinning'
                               : 'voice-agent-provider-refresh-icon',
@@ -1154,7 +1157,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                         </button>
                         {providerAvailability === 'available' && (
                           <span className="voice-agent-config-ok">
-                            <MaterialSymbol name="check" className={JIEYU_MATERIAL_MICRO} />{' '}
+                            <JieyuIcon name="Check" className={JIEYU_ICON_MICRO} />{' '}
                             {t(locale, 'transcription.voiceWidget.provider.available')}
                           </span>
                         )}
@@ -1450,13 +1453,13 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                 aria-expanded={showInsights}
               >
                 <span className="voice-agent-disclosure-title voice-agent-disclosure-title-with-icon">
-                  <MaterialSymbol name="history" className={JIEYU_MATERIAL_INLINE} />{' '}
+                  <JieyuIcon name="RotateCcwClock" className={JIEYU_ICON_INLINE} />{' '}
                   {t(locale, 'transcription.voiceWidget.insights.title')}
                 </span>
                 {insightCount > 0 && (
                   <span className="voice-agent-learning-count">{insightCount}</span>
                 )}
-                <MaterialSymbol name="expand_more" className={JIEYU_MATERIAL_INLINE} />
+                <JieyuIcon name="ChevronDown" className={JIEYU_ICON_INLINE} />
               </button>
 
               {showInsights && (
@@ -1476,7 +1479,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                         className={`voice-agent-insights-tab panel-edge-nav-btn ${insightTab === 'history' ? 'is-active' : ''}`}
                         onClick={() => setInsightTab('history')}
                       >
-                        <MaterialSymbol name="history" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+                        <JieyuIcon name="RotateCcwClock" className={JIEYU_ICON_INLINE_TIGHT} />
                         <span className="panel-edge-nav-label">
                           <strong className="panel-edge-nav-title">
                             {t(locale, 'transcription.voiceWidget.insights.historyTab')}
@@ -1494,7 +1497,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                         className={`voice-agent-insights-tab panel-edge-nav-btn ${insightTab === 'learning' ? 'is-active' : ''}`}
                         onClick={() => setInsightTab('learning')}
                       >
-                        <MaterialSymbol name="psychology" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+                        <JieyuIcon name="Brain" className={JIEYU_ICON_INLINE_TIGHT} />
                         <span className="panel-edge-nav-label">
                           <strong className="panel-edge-nav-title">
                             {t(locale, 'transcription.voiceWidget.insights.learningTab')}
@@ -1581,7 +1584,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                           }}
                           title={t(locale, 'transcription.voiceWidget.learning.clear')}
                         >
-                          <MaterialSymbol name="close" className={JIEYU_MATERIAL_MICRO} />
+                          <JieyuIcon name="X" className={JIEYU_ICON_MICRO} />
                         </button>
                       </div>
                       <ul className="voice-agent-learning-list">

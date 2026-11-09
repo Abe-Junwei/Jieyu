@@ -72,13 +72,14 @@ const call = (file: string, requestId = 'req-1') => ({
 });
 
 describe('model host', () => {
-  it('exposes transcribe and cancel through the desktop ipc', () => {
+  it('keeps model:transcribe off the renderer ipc surface (#483)', () => {
     const preload = readFileSync(join(process.cwd(), 'electron/preload.ts'), 'utf8');
     const main = readFileSync(join(process.cwd(), 'electron/main.ts'), 'utf8');
-    expect(preload.includes("invoke('model:transcribe'")).toBe(true);
-    expect(preload.includes("invoke('model:cancel'")).toBe(true);
-    expect(main.includes("handle('model:transcribe'")).toBe(true);
-    expect(main.includes("handle('model:cancel'")).toBe(true);
+    expect(preload.includes("invoke('model:transcribe'")).toBe(false);
+    expect(preload.includes("invoke('model:cancel'")).toBe(false);
+    expect(main.includes("handle('model:transcribe'")).toBe(false);
+    expect(main.includes("handle('model:cancel'")).toBe(false);
+    expect(preload.includes("invoke('desktop:transcribe-project'")).toBe(true);
   });
 
   it('splits a long range without overlap and refuses a remote address', async () => {

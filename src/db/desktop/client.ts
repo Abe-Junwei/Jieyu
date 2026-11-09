@@ -35,13 +35,13 @@ export function createDesktopClient(bridge: DesktopBridge) {
     getUnit: (sessionId: string, id: string) => once(sessionId, 'units.get', { id }),
     listManuscripts: (sessionId: string) => once(sessionId, 'manuscripts.list', {}),
     getProject: (sessionId: string) => once(sessionId, 'project.get', {}),
-    importFile: (sessionId: string, input: { file: string; roles?: string }) =>
+    importFile: (sessionId: string, input: { grantId: string; rolesGrantId?: string }) =>
       once(sessionId, 'exchange.importFile', input),
-    exportJyt: (sessionId: string, input: { file: string }) =>
+    exportJyt: (sessionId: string, input: { grantId: string }) =>
       once(sessionId, 'exchange.exportJyt', input),
-    exportJym: (sessionId: string, input: { file: string }) =>
+    exportJym: (sessionId: string, input: { grantId: string }) =>
       once(sessionId, 'exchange.exportJym', input),
-    exportManuscript: (sessionId: string, input: { file: string; manuscriptId: string }) =>
+    exportManuscript: (sessionId: string, input: { grantId: string; manuscriptId: string }) =>
       once(sessionId, 'exchange.exportManuscript', input),
     previewManuscriptDelete: (sessionId: string, id: string) =>
       once(sessionId, 'manuscripts.previewDelete', { id }),

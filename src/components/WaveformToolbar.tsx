@@ -1,7 +1,7 @@
 import { Children, memo, useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { MaterialSymbol } from './ui/MaterialSymbol';
+import { JieyuIcon } from './ui/JieyuIcon';
 import { t, tf, useLocale } from '../i18n';
-import { JIEYU_MATERIAL_WAVE, JIEYU_MATERIAL_WAVE_MD, JIEYU_MATERIAL_WAVE_PLAY, JIEYU_MATERIAL_WAVE_TRIGGER } from '../utils/jieyuMaterialIcon';
+import { JIEYU_ICON_WAVE, JIEYU_ICON_WAVE_MD, JIEYU_ICON_WAVE_PLAY, JIEYU_ICON_WAVE_TRIGGER } from '../utils/jieyuIcon';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import { WAVEFORM_DISPLAY_MODE_OPTIONS, type WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { WAVEFORM_VISUAL_STYLE_OPTIONS, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
@@ -117,7 +117,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
           </div>
         </div>
         <button className="icon-btn" onClick={() => onSeek(-10)} title={t(locale, 'transcription.wave.toolbar.rewind10')} aria-label={t(locale, 'transcription.wave.toolbar.rewind10')}>
-          <MaterialSymbol name="replay_10" aria-hidden className={JIEYU_MATERIAL_WAVE} />
+          <JieyuIcon name="SkipBack" aria-hidden className={JIEYU_ICON_WAVE} />
         </button>
         <button
           className="transcription-wave-toolbar-play-btn"
@@ -126,10 +126,10 @@ export const WaveformToolbar = memo(function WaveformToolbar({
           aria-label={isPlaying ? t(locale, 'transcription.wave.toolbar.pause') : t(locale, 'transcription.wave.toolbar.play')}
           title={isPlaying ? t(locale, 'transcription.wave.toolbar.pause') : t(locale, 'transcription.wave.toolbar.play')}
         >
-          {isPlaying ? <MaterialSymbol name="pause" aria-hidden className={JIEYU_MATERIAL_WAVE_PLAY} /> : <MaterialSymbol name="play_arrow" aria-hidden className={JIEYU_MATERIAL_WAVE_PLAY} />}
+          {isPlaying ? <JieyuIcon name="Pause" aria-hidden className={JIEYU_ICON_WAVE_PLAY} /> : <JieyuIcon name="Play" aria-hidden className={JIEYU_ICON_WAVE_PLAY} />}
         </button>
         <button className="icon-btn" onClick={() => onSeek(10)} title={t(locale, 'transcription.wave.toolbar.forward10')} aria-label={t(locale, 'transcription.wave.toolbar.forward10')}>
-          <MaterialSymbol name="forward_10" aria-hidden className={JIEYU_MATERIAL_WAVE} />
+          <JieyuIcon name="SkipForward" aria-hidden className={JIEYU_ICON_WAVE} />
         </button>
         <select
           className="speed-select"
@@ -150,7 +150,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
           title={loop ? t(locale, 'transcription.wave.toolbar.globalLoopOff') : t(locale, 'transcription.wave.toolbar.globalLoopOn')}
           aria-label={loop ? t(locale, 'transcription.wave.toolbar.globalLoopOff') : t(locale, 'transcription.wave.toolbar.globalLoopOn')}
         >
-          <MaterialSymbol name="repeat" aria-hidden className={JIEYU_MATERIAL_WAVE_MD} />
+          <JieyuIcon name="Repeat" aria-hidden className={JIEYU_ICON_WAVE_MD} />
         </button>
         <div className="waveform-view-options-anchor" ref={viewOptionsAnchorRef}>
           <button
@@ -166,7 +166,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
               setViewOptionsOpen((open) => !open);
             }}
           >
-            <MaterialSymbol name="tune" aria-hidden className={JIEYU_MATERIAL_WAVE_TRIGGER} />
+            <JieyuIcon name="Settings" aria-hidden className={JIEYU_ICON_WAVE_TRIGGER} />
           </button>
           <div
             id={viewOptionsPanelId}
@@ -272,7 +272,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
           </div>
         </div>
         <label className="player-control volume-control compact-volume transcription-wave-toolbar-volume">
-          <MaterialSymbol name="volume_up" aria-hidden className={JIEYU_MATERIAL_WAVE_MD} />
+          <JieyuIcon name="Volume2" aria-hidden className={JIEYU_ICON_WAVE_MD} />
           <input
             type="range"
             min={0}
@@ -294,7 +294,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
                 title={autoSegmentBusy ? autoSegmentRunningTitle : autoSegmentRunTitle}
                 aria-label={autoSegmentBusy ? autoSegmentRunningTitle : autoSegmentRunTitle}
               >
-                <MaterialSymbol name="content_cut" aria-hidden className={JIEYU_MATERIAL_WAVE_MD} />
+                <JieyuIcon name="Scissors" aria-hidden className={JIEYU_ICON_WAVE_MD} />
               </button>
             )}
             {onDeleteCurrentAudio && (
@@ -305,7 +305,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
                 title={t(locale, 'transcription.toolbar.deleteCurrentAudio')}
                 aria-label={t(locale, 'transcription.toolbar.deleteCurrentAudio')}
               >
-                <MaterialSymbol name="delete" aria-hidden className={JIEYU_MATERIAL_WAVE_MD} />
+                <JieyuIcon name="Trash" aria-hidden className={JIEYU_ICON_WAVE_MD} />
               </button>
             )}
           </>

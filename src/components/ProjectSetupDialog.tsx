@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from 'react';
-import { MaterialSymbol } from './ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_PANEL } from '../utils/jieyuMaterialIcon';
+import { JieyuIcon } from './ui/JieyuIcon';
+import { JIEYU_ICON_INLINE, JIEYU_ICON_PANEL } from '../utils/jieyuIcon';
 import { OrthographyBuilderPanel } from './OrthographyBuilderPanel';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
 import { useLanguageCatalogLabelMap } from '~/hooks/languageCatalog/useLanguageCatalogLabelMap';
@@ -158,7 +158,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
         onClick={orthographyPicker.cancelCreate}
         aria-label={messages.title}
       >
-        <MaterialSymbol name="chevron_left" className={JIEYU_MATERIAL_PANEL} />
+        <JieyuIcon name="ChevronLeft" className={JIEYU_ICON_PANEL} />
         <span>{messages.title}</span>
       </button>
       <span className="dialog-breadcrumb-separator">/</span>
@@ -362,7 +362,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
                   }
                   title={messages.createOrthography}
                 >
-                  <MaterialSymbol name="add" className={JIEYU_MATERIAL_INLINE} />
+                  <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE} />
                   <span>{messages.newOrthographyButton}</span>
                 </PanelButton>
               </div>

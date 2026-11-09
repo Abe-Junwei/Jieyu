@@ -841,6 +841,93 @@ describe('useVoiceInteraction', () => {
     expect(setAnalysisFillCallback).toHaveBeenNthCalledWith(2, null, null);
   });
 
+  it('does not start recording when the mic is released during whisper readiness', async () => {
+    let resolveReady: ((value: { available: boolean }) => void) | null = null;
+    const startRecording = vi.fn(async () => undefined);
+    const stopRecording = vi.fn(async () => undefined);
+    const testWhisperLocal = vi.fn(
+      () =>
+        new Promise<{ available: boolean }>((resolve) => {
+          resolveReady = resolve;
+        }),
+    );
+
+    mockUseVoiceAgent.mockReturnValue({
+      mode: 'dictation',
+      agentState: 'idle',
+      listening: true,
+      engine: 'whisper-local',
+      detectedLang: null,
+      notifyAiStreamStarted: vi.fn(),
+      notifyAiStreamFinished: vi.fn(),
+      testWhisperLocal,
+      setExternalError: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      toggle: vi.fn(),
+      switchEngine: vi.fn(),
+      startRecording,
+      stopRecording,
+      isRecording: false,
+      disambiguationOptions: [],
+      pendingConfirm: null,
+      error: null,
+    });
+
+    const { result } = renderHook(() =>
+      useVoiceInteraction({
+        effectiveVoiceCorpusLang: 'zho',
+        voiceCorpusLangOverride: '__auto__',
+        executeAction: vi.fn(),
+        handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+        handleVoiceDictation: vi.fn(),
+        onVoiceAnalysisResult: vi.fn(),
+        selection: {
+          activeUnitId: 'utt-1',
+          selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
+          selectedRowMeta: null,
+          selectedLayerId: 'trc-default',
+          selectedUnitKind: 'unit',
+          selectedTimeRangeLabel: '0.00 - 1.00',
+        },
+        defaultTranscriptionLayerId: 'trc-default',
+        translationLayers: [],
+        layers: [makeLayer('trc-default', 'transcription')],
+        formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+        formatTime: (seconds) => seconds.toFixed(2),
+        aiChatSend: vi.fn(async () => undefined),
+        aiIsStreaming: false,
+        aiMessages: [],
+        localWhisperConfig: {},
+        commercialProviderKind: 'openai' as any,
+        commercialProviderConfig: {},
+        onCommercialConfigChange: vi.fn(),
+        setCommercialProviderKind: vi.fn(),
+        setCommercialProviderConfig: vi.fn(),
+        featureVoiceEnabled: true,
+        toggleVoiceRef: { current: undefined },
+      }),
+    );
+
+    await act(async () => {
+      result.current.handleMicPointerDown({} as Parameters<typeof result.current.handleMicPointerDown>[0]);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      result.current.handleMicPointerUp();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      resolveReady?.({ available: true });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(startRecording).not.toHaveBeenCalled();
+    expect(stopRecording).toHaveBeenCalled();
+  });
+
   it('surfaces whisper stopRecording failures instead of dropping them', async () => {
     const setExternalError = vi.fn();
     const stopRecording = vi.fn(async () => {

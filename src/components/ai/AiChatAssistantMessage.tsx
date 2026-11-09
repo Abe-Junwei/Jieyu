@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
-import { MaterialSymbol } from '../ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE_TIGHT } from '../../utils/jieyuMaterialIcon';
+import { JieyuIcon } from '../ui/JieyuIcon';
+import { JIEYU_ICON_INLINE_TIGHT } from '../../utils/jieyuIcon';
 import { buildCopyableAssistantPlainText, splitCitationMarkers } from '../../utils/citationFootnoteUtils';
 import { formatCitationLabel } from './aiChatCardUtils';
 import { StreamWordsText } from './streamAssistantWords';
@@ -169,7 +169,7 @@ export function AiChatAssistantMessage({
         )}
         {assistantMsg.sourceScopeSummary && assistantMsg.status === 'done' && (
           <div className="ai-chat-source-scope-summary">
-            <MaterialSymbol name="library_books" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+            <JieyuIcon name="LibraryBig" className={JIEYU_ICON_INLINE_TIGHT} />
             <span>
               {cardMessages.sourceScopeSummary(
                 assistantMsg.sourceScopeSummary.evidenceCount,
@@ -248,7 +248,7 @@ export function AiChatAssistantMessage({
         {evidenceCitations.length > 0 && (
           <div className="ai-chat-evidence-stack" role="region" aria-label={cardMessages.evidenceTitle}>
             <div className="ai-chat-evidence-stack__title">
-              <MaterialSymbol name="fact_check" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+              <JieyuIcon name="ListChecks" className={JIEYU_ICON_INLINE_TIGHT} />
               <span>{cardMessages.evidenceTitle}</span>
             </div>
             <div className="ai-chat-evidence-list">
@@ -281,7 +281,7 @@ export function AiChatAssistantMessage({
                         title={cardMessages.evidenceJump}
                         onClick={() => onActivateCitation(citation, citation)}
                       >
-                        <MaterialSymbol name="open_in_new" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+                        <JieyuIcon name="ExternalLink" className={JIEYU_ICON_INLINE_TIGHT} />
                       </button>
                     </div>
                     {quote.length > 0 && (
@@ -298,14 +298,14 @@ export function AiChatAssistantMessage({
         {/* P1: low-confidence evidence warning */}
         {evidenceCitations.length > 0 && evidenceCitations.some((c) => (typeof c.confidence === 'number' ? c.confidence : 0.8) < 0.5) && (
           <div className="ai-chat-low-confidence-banner" role="alert">
-            <MaterialSymbol name="warning" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+            <JieyuIcon name="TriangleAlert" className={JIEYU_ICON_INLINE_TIGHT} />
             <span>{t(locale, 'msg.aiChat.lowConfidenceWarning')}</span>
           </div>
         )}
         {/* P1: no-evidence fallback with actionable next step (scope summary and/or RAG empty) */}
         {showNoEvidenceFallback && (
           <div className="ai-chat-no-evidence-fallback" role="note">
-            <MaterialSymbol name="search_off" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+            <JieyuIcon name="SearchX" className={JIEYU_ICON_INLINE_TIGHT} />
             <div>
               <p>{t(locale, 'msg.aiChat.noEvidenceFallback.title')}</p>
               <p className="ai-chat-no-evidence-fallback__hint">
@@ -342,7 +342,7 @@ export function AiChatAssistantMessage({
         {failedReflectionChecks.length > 0 && assistantMsg.status === 'done' && (
           <details className="ai-chat-reflection-panel" open data-testid="ai-chat-reflection-panel">
             <summary className="ai-chat-reflection-panel__summary" aria-label={t(locale, 'msg.aiChat.reflectionPanel.ariaLabel')}>
-              <MaterialSymbol name="fact_check" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+              <JieyuIcon name="ListChecks" className={JIEYU_ICON_INLINE_TIGHT} />
               <span>{t(locale, 'msg.aiChat.reflectionPanel.title')}</span>
               <span className="ai-chat-reflection-panel__failed-count">({failedReflectionChecks.length})</span>
             </summary>
@@ -352,7 +352,7 @@ export function AiChatAssistantMessage({
                   key={`${assistantMsg.id}-${check.name}`}
                   className="ai-chat-reflection-panel__item is-failed"
                 >
-                  <MaterialSymbol name="error" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+                  <JieyuIcon name="CircleAlert" className={JIEYU_ICON_INLINE_TIGHT} />
                   <span>{check.name}</span>
                 </li>
               ))}
@@ -362,7 +362,7 @@ export function AiChatAssistantMessage({
         {assistantMsg.compatibilityReport && assistantMsg.status === 'done' && (
           <div className="ai-chat-compatibility-report" role="region" aria-label={t(locale, 'msg.aiChat.compatibilityReport.ariaLabel')}>
             <div className="ai-chat-compatibility-report__header">
-              <MaterialSymbol name="sync_alt" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+              <JieyuIcon name="ArrowLeftRight" className={JIEYU_ICON_INLINE_TIGHT} />
               <span>{t(locale, 'msg.aiChat.compatibilityReport.title')}</span>
               <span className="ai-chat-compatibility-report__count">
                 {assistantMsg.compatibilityReport.findings.length}
@@ -374,14 +374,14 @@ export function AiChatAssistantMessage({
             {assistantMsg.compatibilityReport.findings.length > 0 && (
               <div className="ai-chat-compatibility-report__findings">
                 {assistantMsg.compatibilityReport.findings.map((finding) => {
-                  const severityIcon = finding.severity === 'error' ? 'error' : finding.severity === 'warning' ? 'warning' : 'info';
+                  const severityIcon = finding.severity === 'error' ? 'CircleAlert' : finding.severity === 'warning' ? 'TriangleAlert' : 'Info';
                   return (
                     <div
                       key={`${assistantMsg.id}-${finding.findingId}`}
                       className={`ai-chat-compatibility-report__finding is-severity-${finding.severity}`}
                     >
                       <div className="ai-chat-compatibility-report__finding-title">
-                        <MaterialSymbol name={severityIcon} className={JIEYU_MATERIAL_INLINE_TIGHT} />
+                        <JieyuIcon name={severityIcon} className={JIEYU_ICON_INLINE_TIGHT} />
                         <span>{finding.title}</span>
                         <span className="ai-chat-compatibility-report__finding-kind">({finding.kind})</span>
                       </div>
@@ -411,9 +411,9 @@ export function AiChatAssistantMessage({
             aria-label={isAssistantPinned ? cardMessages.unpinMessage : cardMessages.pinMessage}
             title={isAssistantPinned ? cardMessages.unpinMessage : cardMessages.pinMessage}
           >
-            <MaterialSymbol
-              name={isAssistantPinned ? 'close' : 'push_pin'}
-              className={JIEYU_MATERIAL_INLINE_TIGHT}
+            <JieyuIcon
+              name={isAssistantPinned ? 'X' : 'Pin'}
+              className={JIEYU_ICON_INLINE_TIGHT}
             />
           </button>
           )}
@@ -429,7 +429,7 @@ export function AiChatAssistantMessage({
                 : cardMessages.copy}
               onClick={() => onCopyAssistantMessage(assistantMsg.id, copyableAssistantContent)}
             >
-              {copiedMessageId === assistantMsg.id ? <MaterialSymbol name="check" className={JIEYU_MATERIAL_INLINE_TIGHT} /> : <MaterialSymbol name="content_copy" className={JIEYU_MATERIAL_INLINE_TIGHT} />}
+              {copiedMessageId === assistantMsg.id ? <JieyuIcon name="Check" className={JIEYU_ICON_INLINE_TIGHT} /> : <JieyuIcon name="Copy" className={JIEYU_ICON_INLINE_TIGHT} />}
             </button>
           )}
           {hasReasoning && (

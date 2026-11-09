@@ -72,8 +72,8 @@
     },
     {
       "file": "src/styles/foundation/icon-effect-motion.css",
-      "snippet": "--jieyu-material-fill: 0 !important;",
-      "reason": "Icon motion: reset FILL axis under reduced motion"
+      "snippet": "--jieyu-icon-fill: 0 !important;",
+      "reason": "Icon motion: reset stroke fill under reduced motion"
     },
     {
       "file": "src/styles/foundation/waveform-display.css",

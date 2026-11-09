@@ -372,7 +372,7 @@
   stroke-width: 2.1;
 }
 
-.region-action-btn .jieyu-material {
+.region-action-btn .jieyu-icon {
   font-variation-settings:
     'FILL' 0,
     'wght' 500,
@@ -405,7 +405,7 @@
   stroke-width: 2.2;
 }
 
-.region-action-btn-active .jieyu-material {
+.region-action-btn-active .jieyu-icon {
   font-variation-settings:
     'FILL' 0,
     'wght' 500,

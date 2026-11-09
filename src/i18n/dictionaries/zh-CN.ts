@@ -3810,7 +3810,7 @@ export const zhCNDictionary = {
     iconEffectMaterial: 'Material（默认）',
     iconEffectMotion: '动效增强',
     iconEffectHint:
-      '仍为 Google Material Symbols 字形。动效模式仅在悬停/点击时增加轻微缩放与实心填充（FILL）；与系统或下方「减少动态效果」一致时会自动关闭动效。若需逐图标 Lottie 动画，可后续接入 lottie-web 等库单独挂载 JSON。',
+      '图标为 Lucide SVG。动效模式仅在悬停/点击时增加轻微缩放与加粗描边；与系统或下方「减少动态效果」一致时会自动关闭动效。若需逐图标 Lottie 动画，可后续接入 lottie-web 等库单独挂载 JSON。',
     shortcutRecording: '请按下快捷键…',
     shortcutReset: '恢复默认',
     shortcutResetAll: '全部恢复默认',

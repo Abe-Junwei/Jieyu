@@ -1,8 +1,8 @@
 /**
- * 左侧栏可选 Bodymovin 资源：ligature 名 → JSON（与 Material / 路由对齐）。
- * 当前产品 UI 使用 Material Symbols；本映射供 `scripts/build-left-rail-lottie-icons.mjs` 与自选 Lottie 替换用。
+ * 左侧栏可选 Bodymovin 资源：Lucide 名 → JSON（JSON 文件名仍为历史 Material ligature，便于脚本/资源对照）。
+ * 产品 UI 为 Lucide；本映射供 `scripts/build-left-rail-lottie-icons.mjs` 与自选 Lottie 替换用。
  */
-import type { LeftRailNavIconName } from '../../../utils/jieyuMaterialIcon';
+import type { LeftRailNavIconName } from '../../../utils/jieyuIcon';
 import account_tree from './icons/account_tree.json';
 import auto_stories from './icons/auto_stories.json';
 import draw from './icons/draw.json';
@@ -19,17 +19,18 @@ import translate from './icons/translate.json';
 /** @deprecated 使用 LeftRailNavIconName */
 export type LeftRailLottieMaterialName = LeftRailNavIconName;
 
+/** Lucide 导航名 → 历史 Material 文件名 JSON */
 export const LEFT_RAIL_LOTTIE_BY_MATERIAL_NAME: Record<LeftRailNavIconName, object> = {
-  speech_to_text,
-  draw,
-  psychology,
-  edit_note,
-  menu_book,
-  translate,
-  auto_stories,
-  account_tree,
-  local_library,
-  settings,
-  inventory_2,
-  layers,
+  AudioLines: speech_to_text,
+  Pencil: draw,
+  Brain: psychology,
+  NotebookPen: edit_note,
+  BookOpen: menu_book,
+  Languages: translate,
+  BookBookmark: auto_stories,
+  GitBranch: account_tree,
+  Library: local_library,
+  Settings: settings,
+  Package: inventory_2,
+  Layers: layers,
 };

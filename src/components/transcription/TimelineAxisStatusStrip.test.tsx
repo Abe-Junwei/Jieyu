@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { TimelineAxisStatusStrip } from './TimelineAxisStatusStrip';
 
 describe('TimelineAxisStatusStrip', () => {
-  it('shows link_off for no_playable_media without leaking raw suffix text', () => {
+  it('shows Link2Off Lucide icon for no_playable_media without leaking raw suffix text', () => {
     const { container } = render(
       <TimelineAxisStatusStrip
         locale="zh-CN"
@@ -12,10 +12,15 @@ describe('TimelineAxisStatusStrip', () => {
       />,
     );
 
-    expect(container.querySelector('.timeline-axis-status-strip__icon')?.textContent).toBe(
-      'link_off',
-    );
+    const icon = container.querySelector('.timeline-axis-status-strip__icon');
+    expect(icon).toBeTruthy();
+    expect(icon?.tagName.toLowerCase()).toBe('svg');
+    expect(
+      icon?.classList.contains('lucide-link-2-off') ||
+        icon?.getAttribute('class')?.includes('lucide-link-2-off'),
+    ).toBe(true);
     expect(screen.queryByText(/document-placeholder/i)).toBeNull();
+    expect(screen.queryByText('link_off')).toBeNull();
   });
 
   it('shows logical axis length in no_playable_media for document and media timelineMode', () => {
