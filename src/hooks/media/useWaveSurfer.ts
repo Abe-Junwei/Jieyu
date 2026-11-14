@@ -414,7 +414,9 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
           activeSegmentRateRef.current = restorePlayback.segmentRateActive
             ? restorePlayback.playbackRate
             : null;
-          ws.setPlaybackRate(restorePlayback.playbackRate);
+          ws.setPlaybackRate(
+            restorePlayback.segmentRateActive ? restorePlayback.playbackRate : rateRef.current,
+          );
           if (restorePlayback.shouldResume) {
             void ws.play();
           }

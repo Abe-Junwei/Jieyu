@@ -97,7 +97,7 @@ export function AnnotationSentenceAcousticFigure({
       </p>
     );
   }
-  if (status === 'unavailable' || !audioUrl || loadFailed) {
+  if (status === 'unavailable' || !audioUrl) {
     return (
       <p className="annotation-sentence-acoustic-status" data-testid="annotation-sentence-acoustic">
         {t(locale, 'workspace.annotation.acousticUnavailable')}
@@ -107,28 +107,36 @@ export function AnnotationSentenceAcousticFigure({
   if (!showWave && !showSpectrum && !showPitch) return null;
   const width = contentWidth > 0 ? contentWidth : undefined;
   return (
-    <div
-      className="annotation-sentence-acoustic"
-      data-testid="annotation-sentence-acoustic"
-      style={width ? { width, maxWidth: '100%' } : { maxWidth: '100%' }}
-    >
-      <div className="annotation-sentence-acoustic-wave" hidden={!showWave && !showPitch}>
-        <div ref={waveRef} hidden={!showWave} data-testid="annotation-sentence-wave" />
-        {showPitch ? (
-          <svg
-            className="annotation-sentence-acoustic-pitch"
-            viewBox={`0 0 100 ${PITCH_HEIGHT}`}
-            preserveAspectRatio="none"
-            role="img"
-            aria-label={t(locale, 'workspace.annotation.acousticPitch')}
-          >
-            <polyline points={pitchPoints(figure?.pitch ?? [])} />
-          </svg>
-        ) : null}
+    <>
+      {loadFailed ? (
+        <p className="annotation-sentence-acoustic-status">
+          {t(locale, 'workspace.annotation.acousticUnavailable')}
+        </p>
+      ) : null}
+      <div
+        hidden={loadFailed}
+        className="annotation-sentence-acoustic"
+        data-testid="annotation-sentence-acoustic"
+        style={width ? { width, maxWidth: '100%' } : { maxWidth: '100%' }}
+      >
+        <div className="annotation-sentence-acoustic-wave" hidden={!showWave && !showPitch}>
+          <div ref={waveRef} hidden={!showWave} data-testid="annotation-sentence-wave" />
+          {showPitch ? (
+            <svg
+              className="annotation-sentence-acoustic-pitch"
+              viewBox={`0 0 100 ${PITCH_HEIGHT}`}
+              preserveAspectRatio="none"
+              role="img"
+              aria-label={t(locale, 'workspace.annotation.acousticPitch')}
+            >
+              <polyline points={pitchPoints(figure?.pitch ?? [])} />
+            </svg>
+          ) : null}
+        </div>
+        <div className="annotation-sentence-acoustic-spectrum" hidden={!showSpectrum}>
+          <div ref={spectrumRef} data-testid="annotation-sentence-spectrum" />
+        </div>
       </div>
-      <div className="annotation-sentence-acoustic-spectrum" hidden={!showSpectrum}>
-        <div ref={spectrumRef} data-testid="annotation-sentence-spectrum" />
-      </div>
-    </div>
+    </>
   );
 }
