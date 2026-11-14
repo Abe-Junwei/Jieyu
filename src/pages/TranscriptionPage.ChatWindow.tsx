@@ -89,11 +89,7 @@ export function TranscriptionPageChatWindow({
             onHeaderPointerUp={controller.stopDragging}
             onHeaderPointerCancel={controller.stopDragging}
           />
-          <div
-            className="transcription-chat-window-body"
-            hidden={controller.minimized}
-            style={controller.minimized ? { display: 'none' } : undefined}
-          >
+          <div className="transcription-chat-window-body" hidden={controller.minimized}>
             <ErrorBoundary>
               <Suspense fallback={null}>
                 <AssistantRuntime
