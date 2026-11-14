@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { useEffect, useState } from 'react';
 import { act, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_AI_CHAT_CONTEXT_VALUE, type AiChatContextValue } from '../contexts/AiChatContext';
@@ -10,8 +11,25 @@ import {
 import { TranscriptionPageChatWindow } from './TranscriptionPage.ChatWindow';
 import type { TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.runtimeContracts';
 
+const voiceLifecycle = vi.hoisted(() => ({
+  dispose: vi.fn(),
+  finish: undefined as undefined | (() => void),
+}));
 vi.mock('./TranscriptionPage.AssistantRuntime', () => ({
-  TranscriptionPageAssistantRuntime: () => null,
+  TranscriptionPageAssistantRuntime: () => {
+    const [state, setState] = useState('recording');
+    useEffect(() => {
+      voiceLifecycle.finish = () => setState('transcribed');
+      return () => {
+        voiceLifecycle.dispose();
+      };
+    }, []);
+    return (
+      <button data-testid="voice-runtime" onClick={() => setState('recognizing')}>
+        {state}
+      </button>
+    );
+  },
 }));
 
 function makeAssistantRuntimeProps(
@@ -73,6 +91,37 @@ describe('TranscriptionPageChatWindow agent-loop resume bridge', () => {
     window.sessionStorage.removeItem('jieyu.aiChat.resumeAgentLoopTaskId');
     window.localStorage.removeItem('jieyu.aiChatWindow.v1');
   });
+
+  it.each(['recording', 'recognizing'])(
+    'keeps %s voice work alive while minimized',
+    async (phase) => {
+      const view = render(
+        <TranscriptionPageChatWindow
+          locale="zh-CN"
+          assistantRuntimeProps={makeAssistantRuntimeProps()}
+        />,
+      );
+      fireEvent.click(
+        document.querySelector('.transcription-chat-window-trigger') as HTMLButtonElement,
+      );
+      const runtime = await view.findByTestId('voice-runtime');
+      if (phase === 'recognizing') fireEvent.click(runtime);
+      expect(runtime.textContent).toBe(phase);
+      voiceLifecycle.dispose.mockClear();
+      const panel = document.querySelector('.transcription-chat-window') as HTMLElement;
+      fireEvent.keyDown(panel, { key: 'Escape' });
+      expect(panel.classList.contains('is-minimized')).toBe(true);
+      expect(voiceLifecycle.dispose).not.toHaveBeenCalled();
+      expect(runtime.isConnected).toBe(true);
+      await act(async () => {
+        voiceLifecycle.finish?.();
+      });
+      fireEvent.click(view.getByRole('button', { name: '展开窗口' }));
+      expect(panel.classList.contains('is-minimized')).toBe(false);
+      expect(view.getByTestId('voice-runtime')).toBe(runtime);
+      expect(runtime.textContent).toBe('transcribed');
+    },
+  );
 
   it('leaves composing and already-handled shortcuts to their current control', async () => {
     render(
