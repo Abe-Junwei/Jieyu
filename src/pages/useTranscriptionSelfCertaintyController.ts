@@ -1,8 +1,16 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TimelineUnitKind } from '../hooks/transcription/transcriptionTypes';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import { brandLayerUnitWriteTarget, type LayerUnitWriteTarget } from '../app/jieyuDbPageAccess';
+import {
+  overrideMasksAuthoritative,
+  putInflightSelfCertaintyOverrides,
+  reconcileSettledSelfCertaintyOverrides,
+  rollbackSelfCertaintyOverrides,
+  settleSelfCertaintyOverrides,
+  type SelfCertaintyOverrideEntry,
+} from './selfCertaintyOptimisticOverride';
 
 /**
  * ⚠️ per-layer 字段严格分治原则（self-certainty 治理 post-mortem）
@@ -198,8 +206,46 @@ export function useTranscriptionSelfCertaintyController(
   }, [input.units]);
 
   const [localSelfCertaintyByScopedUnitId, setLocalSelfCertaintyByScopedUnitId] = useState<
-    Map<string, UnitSelfCertainty | null>
+    Map<string, SelfCertaintyOverrideEntry>
   >(() => new Map());
+  const overrideGenerationRef = useRef(0);
+  const readModelRef = useRef({
+    segmentsByLayer: input.segmentsByLayer,
+    units: input.units,
+  });
+  readModelRef.current = {
+    segmentsByLayer: input.segmentsByLayer,
+    units: input.units,
+  };
+
+  /**
+   * 层内有段行/视图值时用它。canonical unit 没有层内值时读自己的 unit 行，
+   * 不是段行回退到宿主。段行没有自己的值就是没有。
+   */
+  const authoritativeSelfCertainty = useCallback(
+    (unitId: string, layerId: string): UnitSelfCertainty | undefined => {
+      if (layerId) {
+        const scopedValue = selfCertaintyByScopedUnitId.get(scopedKey(layerId, unitId));
+        if (scopedValue) return scopedValue;
+        if (canonicalUnitIds.has(unitId)) return selfCertaintyByUnitId.get(unitId);
+        return undefined;
+      }
+      return selfCertaintyByUnitId.get(unitId);
+    },
+    [canonicalUnitIds, selfCertaintyByScopedUnitId, selfCertaintyByUnitId],
+  );
+  const authoritativeRef = useRef(authoritativeSelfCertainty);
+  authoritativeRef.current = authoritativeSelfCertainty;
+
+  useEffect(() => {
+    setLocalSelfCertaintyByScopedUnitId((prev) =>
+      reconcileSettledSelfCertaintyOverrides(prev, {
+        segmentsByLayer: input.segmentsByLayer,
+        units: input.units,
+        authoritativeFor: (entry) => authoritativeSelfCertainty(entry.unitId, entry.layerId),
+      }),
+    );
+  }, [authoritativeSelfCertainty, input.segmentsByLayer, input.units]);
 
   const resolveSelfCertaintyForUnit = useCallback(
     (unitId: string, layerId?: string): UnitSelfCertainty | undefined => {
@@ -216,28 +262,27 @@ export function useTranscriptionSelfCertaintyController(
             segmentRowLayerIndex,
           );
 
+      const authoritative = authoritativeSelfCertainty(normalizedUnitId, lookupLayerId);
       const localScopedKey = scopedKey(lookupLayerId, normalizedUnitId);
-      if (localSelfCertaintyByScopedUnitId.has(localScopedKey)) {
-        return localSelfCertaintyByScopedUnitId.get(localScopedKey) ?? undefined;
+      const override = localSelfCertaintyByScopedUnitId.get(localScopedKey);
+      if (
+        override &&
+        overrideMasksAuthoritative(override, authoritative, {
+          segmentsByLayer: input.segmentsByLayer,
+          units: input.units,
+        })
+      ) {
+        return override.value ?? undefined;
       }
-
-      if (lookupLayerId) {
-        const scopedValue = selfCertaintyByScopedUnitId.get(localScopedKey);
-        if (scopedValue) return scopedValue;
-        // ⚠️ 刻意在此 return undefined —— 不向 canonical host 回退读值。
-        //   段行若没自己的 selfCertainty，就是没有；不得把宿主或他层值投影到这里。
-        return undefined;
-      }
-
-      // 无 layer 上下文的读：仅支持真正的 canonical unit 行（unit-intrinsic 语义）。
-      return selfCertaintyByUnitId.get(normalizedUnitId);
+      return authoritative;
     },
     [
+      authoritativeSelfCertainty,
       canonicalUnitIds,
+      input.segmentsByLayer,
+      input.units,
       localSelfCertaintyByScopedUnitId,
       segmentRowLayerIndex,
-      selfCertaintyByScopedUnitId,
-      selfCertaintyByUnitId,
     ],
   );
 
@@ -295,48 +340,87 @@ export function useTranscriptionSelfCertaintyController(
        * 以前的 "segment → parent unit" 解析是串层污染根因；整条 host-resolution 链路已删除。
        */
       const targets: LayerUnitWriteTarget[] = [];
+      const overrideTargets: { id: string; layerId: string }[] = [];
       for (const rawId of normalizedUnitIds) {
-        if (kind === 'segment') {
-          targets.push(brandLayerUnitWriteTarget({ id: rawId, unitType: 'segment' }));
-        } else {
-          // kind === 'unit'：只接受实际存在于 canonical 集里的 id；
-          // 其它（不认识的 id）静默丢弃，避免把野 id 写成 canonical unit。
-          // kind === 'unit': accept only ids present in the canonical set to avoid accidentally
-          // creating/overwriting canonical rows from a stale/unknown id.
-          if (canonicalUnitIds.has(rawId)) {
+        switch (kind) {
+          case 'segment':
+            targets.push(brandLayerUnitWriteTarget({ id: rawId, unitType: 'segment' }));
+            overrideTargets.push({
+              id: rawId,
+              layerId: scopedLayerIdForSegmentWrite(
+                rawId,
+                normalizedLayerId,
+                canonicalUnitIds,
+                segmentRowLayerIndex,
+              ),
+            });
+            break;
+          case 'unit':
+            // 只接受 canonical 集里的 id，避免把野 id 写成 unit 行并留下清不掉的覆盖。
+            if (!canonicalUnitIds.has(rawId)) break;
             targets.push(brandLayerUnitWriteTarget({ id: rawId, unitType: 'unit' }));
+            overrideTargets.push({ id: rawId, layerId: normalizedLayerId });
+            break;
+          default: {
+            const unreachable: never = kind;
+            throw new Error(`unexpected timeline unit kind ${String(unreachable)}`);
           }
         }
       }
       if (targets.length === 0) return;
 
-      // Optimistic 本地压值 — 只压被点击的 scopedKey；不再向"共享同一 host 的 sibling scope"广播，
-      // 因为新语义下写入根本不会跨层落到 sibling。
-      // Optimistic override: only the clicked (layerId, unitId). No sibling-scope broadcast — under
-      // the new semantics writes never leak to siblings, so there is nothing to mirror.
-      //
-      // Segment rows are keyed in Dexie by their storage layerId. Context menus pass the *timeline lane*
-      // id (e.g. symbolic dependent layer). Without remapping, optimistic keys miss reads that use the
-      // segment row's layerId — badges appear only after refresh.
-      setLocalSelfCertaintyByScopedUnitId((prev) => {
-        const next = new Map(prev);
-        for (const rawId of normalizedUnitIds) {
-          const optLayerId =
-            kind === 'segment'
-              ? scopedLayerIdForSegmentWrite(
-                  rawId,
-                  normalizedLayerId,
-                  canonicalUnitIds,
-                  segmentRowLayerIndex,
-                )
-              : normalizedLayerId;
-          next.set(scopedKey(optLayerId, rawId), value ?? null);
-        }
-        return next;
-      });
+      // Optimistic 只压本次真正要写的 (layerId, unitId)，并且只在该次写入等待期间优先于读模型。
+      // Segment rows are keyed by storage layerId. Menus pass the timeline lane id; remap so the
+      // optimistic key matches the read that uses the segment row's layer when the menu layer is empty.
+      const generation = overrideGenerationRef.current + 1;
+      overrideGenerationRef.current = generation;
+      const segmentsByLayerAtStart = input.segmentsByLayer;
+      const unitsAtStart = input.units;
+      const updates = overrideTargets.map((target) => ({
+        key: scopedKey(target.layerId, target.id),
+        unitId: target.id,
+        layerId: target.layerId,
+        value: value ?? null,
+        generation,
+        kind,
+      }));
+      const overrideKeys = updates.map((update) => ({
+        key: update.key,
+        generation: update.generation,
+      }));
+      setLocalSelfCertaintyByScopedUnitId((prev) =>
+        putInflightSelfCertaintyOverrides(prev, updates),
+      );
 
-      fireAndForget(Promise.resolve(input.saveUnitSelfCertainty(targets, value)), {
-        context: 'src/pages/useTranscriptionSelfCertaintyController.ts:L314',
+      let saveResult: unknown;
+      try {
+        saveResult = input.saveUnitSelfCertainty(targets, value);
+      } catch (error) {
+        saveResult = Promise.reject(error);
+      }
+      const task = Promise.resolve(saveResult).then(
+        () => {
+          const sources = readModelRef.current;
+          setLocalSelfCertaintyByScopedUnitId((prev) =>
+            settleSelfCertaintyOverrides(prev, {
+              keys: overrideKeys,
+              authoritativeFor: (entry) => authoritativeRef.current(entry.unitId, entry.layerId),
+              segmentsByLayer: sources.segmentsByLayer,
+              units: sources.units,
+              segmentsByLayerAtStart,
+              unitsAtStart,
+            }),
+          );
+        },
+        (error: unknown) => {
+          setLocalSelfCertaintyByScopedUnitId((prev) =>
+            rollbackSelfCertaintyOverrides(prev, overrideKeys),
+          );
+          throw error;
+        },
+      );
+      fireAndForget(task, {
+        context: 'src/pages/useTranscriptionSelfCertaintyController.ts:L422',
         policy: 'user-visible',
       });
     },
