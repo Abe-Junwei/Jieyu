@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { afterEach, describe, expect, it } from 'vitest';
-import { SpanStatusCode, trace } from '@opentelemetry/api';
+import { context, propagation, SpanStatusCode, trace } from '@opentelemetry/api';
 import { initOtelWithResolvedConfig } from './otel';
 
 type StartedCollector = {
@@ -81,6 +81,8 @@ describe('otel collector smoke', () => {
     null;
   let exportedSpans: Array<{
     name?: string;
+    spanContext?: () => { spanId: string };
+    parentSpanContext?: { spanId: string };
     status?: { code?: number; message?: string };
     attributes?: Record<string, unknown>;
     resource?: { attributes?: Record<string, unknown> };
@@ -89,6 +91,9 @@ describe('otel collector smoke', () => {
   afterEach(async () => {
     await providerRef?.shutdown?.();
     providerRef = null;
+    trace.disable();
+    context.disable();
+    propagation.disable();
     exportedSpans = [];
     if (collector) {
       await collector.close();
@@ -101,14 +106,14 @@ describe('otel collector smoke', () => {
     async () => {
       collector = await startCollector();
 
-      const sdkWeb = await import('@opentelemetry/sdk-trace-web');
-      const sdkBase = await import('@opentelemetry/sdk-trace-base');
+      const sdkTrace = await import('@opentelemetry/sdk-trace');
+      const core = await import('@opentelemetry/core');
       const otlp = await import('@opentelemetry/exporter-trace-otlp-http');
       const resources = await import('@opentelemetry/resources');
       const semantics = await import('@opentelemetry/semantic-conventions');
 
-      class CapturingWebTracerProvider extends sdkWeb.WebTracerProvider {
-        constructor(config?: ConstructorParameters<typeof sdkWeb.WebTracerProvider>[0]) {
+      class CapturingTracerProvider extends sdkTrace.TracerProvider {
+        constructor(config?: ConstructorParameters<typeof sdkTrace.TracerProvider>[0]) {
           super(config);
           providerRef = this;
         }
@@ -149,8 +154,8 @@ describe('otel collector smoke', () => {
           tracesSampleRate: 1,
         },
         async () => ({
-          sdkWeb: { ...sdkWeb, WebTracerProvider: CapturingWebTracerProvider },
-          sdkBase,
+          sdkTrace: { ...sdkTrace, TracerProvider: CapturingTracerProvider },
+          core,
           otlp: { ...otlp, OTLPTraceExporter: CapturingOTLPTraceExporter },
           resources,
           semantics,
@@ -158,12 +163,23 @@ describe('otel collector smoke', () => {
       );
 
       const tracer = trace.getTracer('jieyu-otel-smoke');
-      const span = tracer.startSpan('smoke-span');
-      span.setAttribute('apiKey', 'sk-secret-1234');
-      span.setAttribute('prompt', 'raw prompt must be scrubbed');
-      span.setAttribute('urlFull', 'https://api.example.com/chat?token=abcd&safe=yes');
-      span.setAttribute('gen_ai.jieyu.tool_name', 'tool_slot_resolver');
-      span.end();
+      tracer.startActiveSpan('smoke-parent-span', (parent) => {
+        const carrier: Record<string, string> = {};
+        const baggageContext = propagation.setBaggage(
+          context.active(),
+          propagation.createBaggage({ smoke: { value: 'propagated' } }),
+        );
+        propagation.inject(baggageContext, carrier);
+        expect(carrier.traceparent).toContain(parent.spanContext().traceId);
+        expect(carrier.baggage).toBe('smoke=propagated');
+        const span = tracer.startSpan('smoke-span');
+        span.setAttribute('apiKey', 'sk-secret-1234');
+        span.setAttribute('prompt', 'raw prompt must be scrubbed');
+        span.setAttribute('urlFull', 'https://api.example.com/chat?token=abcd&safe=yes');
+        span.setAttribute('gen_ai.jieyu.tool_name', 'tool_slot_resolver');
+        span.end();
+        parent.end();
+      });
 
       const errorSpan = tracer.startSpan('smoke-error-span');
       errorSpan.recordException(new Error('smoke forced error'));
@@ -193,6 +209,9 @@ describe('otel collector smoke', () => {
       expect(exportedSpans.length).toBeGreaterThan(0);
       const normalSpan = exportedSpans.find((item) => item.name === 'smoke-span');
       const failedSpan = exportedSpans.find((item) => item.name === 'smoke-error-span');
+      const parentSpan = exportedSpans.find((item) => item.name === 'smoke-parent-span');
+      expect(parentSpan).toBeDefined();
+      expect(normalSpan?.parentSpanContext?.spanId).toBe(parentSpan?.spanContext?.().spanId);
       expect(normalSpan).toBeDefined();
       expect(failedSpan).toBeDefined();
 

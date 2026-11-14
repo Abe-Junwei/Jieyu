@@ -184,6 +184,10 @@
   line-height: 1;
 }
 
+.transcription-chat-window-body[hidden] {
+  display: none;
+}
+
 .transcription-chat-window-body {
   display: flex;
   flex-direction: column;
