@@ -58,6 +58,11 @@ export interface AcousticPromptSummary {
   analysisWindowSec?: number;
   frameStepSec?: number;
   hotspotCount?: number;
+  /**
+   * Timeline media id, or media URL when the timeline item has no id.
+   * Prompt assembly uses it to drop another media's summary, then omits the field.
+   */
+  sourceMediaKey?: string;
   diagnostics?: AcousticDiagnosticKey[];
   hotspots?: Array<{
     kind: 'pitch_peak' | 'pitch_break' | 'intensity_peak' | 'unstable_span';

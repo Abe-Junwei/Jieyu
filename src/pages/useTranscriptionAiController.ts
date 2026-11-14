@@ -34,6 +34,7 @@ import type {
   UseTranscriptionAiControllerResult,
 } from './transcriptionAiController.types';
 import { useTranscriptionAiAcousticRuntime } from './useTranscriptionAiAcousticRuntime';
+import { acousticPromptSummaryField } from './transcriptionAcousticMediaScope';
 import {
   bridgeTextForLayerTargetWithFallback,
   refreshRecentAiToolDecisionLogs,
@@ -386,7 +387,7 @@ export function useTranscriptionAiController(
         audioTimeSec: aiAudioTimeRef.current,
         ...(cachedVad ? { vadSegments: cachedVad.segments } : {}),
       }),
-      ...(acousticSummary ? { acousticSummary } : {}),
+      ...acousticPromptSummaryField(acousticSummary, currentMediaId),
       selectionSnapshot: input.selectionSnapshot,
       selectedUnitCount: input.selectedUnitIds.size,
       selectedUnitIds: Array.from(input.selectedUnitIds).slice(0, 12),

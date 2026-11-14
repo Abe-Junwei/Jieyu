@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_ACOUSTIC_ANALYSIS_CONFIG,
@@ -125,10 +125,14 @@ function makeAnalysisResult(): AcousticFeatureResult {
   };
 }
 
-function makeAnalysisResultForMedia(mediaKey: string): AcousticFeatureResult {
+function makeAnalysisResultForMedia(mediaKey: string, peakF0Hz = 182): AcousticFeatureResult {
+  const base = makeAnalysisResult();
   return {
-    ...makeAnalysisResult(),
+    ...base,
     mediaKey,
+    frames: base.frames.map((frame) =>
+      frame.timeSec === 0.5 ? { ...frame, f0Hz: peakF0Hz } : frame,
+    ),
   };
 }
 
@@ -667,6 +671,274 @@ describe('useTranscriptionAiAcousticRuntime', () => {
       expect(result.current.acousticProviderState.fellBackToLocal).toBe(false);
       expect(result.current.acousticProviderState.effectiveProviderId).toBe('enhanced-provider');
     });
+  });
+
+  it('hides the previous media summary while the next media analysis is still loading', async () => {
+    mockAnalyzeMedia.mockReset();
+    mockResolveProviderState.mockReset();
+    mockResolveProviderState.mockReturnValue(makeProviderState());
+
+    type PendingCall = {
+      mediaKey: string;
+      resolve: (value: AcousticFeatureResult) => void;
+    };
+    const pendingCalls: PendingCall[] = [];
+    mockAnalyzeMedia.mockImplementation(
+      (input: unknown) =>
+        new Promise<AcousticFeatureResult>((resolve) => {
+          const mediaKey = (input as { mediaKey?: string }).mediaKey ?? '';
+          pendingCalls.push({ mediaKey, resolve });
+        }),
+    );
+
+    const seekToTimeRef = { current: vi.fn() };
+    const { result, rerender } = renderHook(
+      (props: Parameters<typeof useTranscriptionAiAcousticRuntime>[0]) =>
+        useTranscriptionAiAcousticRuntime(props),
+      {
+        initialProps: {
+          selectedMediaUrl: '/media/a.wav',
+          selectedTimelineMediaId: 'media-a',
+          selectionStartSec: 0,
+          selectionEndSec: 1,
+          batchSelectionRanges: [
+            {
+              selectionId: 'utt-a',
+              selectionLabel: 'utt-a',
+              selectionStartSec: 0.1,
+              selectionEndSec: 0.55,
+            },
+          ],
+          seekToTimeRef,
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(pendingCalls.some((call) => call.mediaKey === 'media-a')).toBe(true);
+    });
+    const mediaACall = pendingCalls.find((call) => call.mediaKey === 'media-a');
+    expect(mediaACall).toBeTruthy();
+    await act(async () => {
+      mediaACall?.resolve(makeAnalysisResultForMedia('media-a', 182));
+    });
+
+    await waitFor(() => {
+      expect(result.current.acousticRuntimeStatus.state).toBe('ready');
+      expect(result.current.acousticSummary?.sourceMediaKey).toBe('media-a');
+      expect(result.current.acousticDetail?.mediaKey).toBe('media-a');
+      expect(result.current.acousticBatchDetails).toHaveLength(1);
+    });
+    const mediaASummary = result.current.acousticSummary;
+    expect(mediaASummary?.f0MeanHz).toEqual(expect.any(Number));
+
+    rerender({
+      selectedMediaUrl: '/media/b.wav',
+      selectedTimelineMediaId: 'media-b',
+      selectionStartSec: 0,
+      selectionEndSec: 1,
+      batchSelectionRanges: [
+        {
+          selectionId: 'utt-b',
+          selectionLabel: 'utt-b',
+          selectionStartSec: 0.1,
+          selectionEndSec: 0.55,
+        },
+      ],
+      seekToTimeRef,
+    });
+
+    await waitFor(() => {
+      expect(result.current.acousticRuntimeStatus.state).toBe('loading');
+    });
+    expect(result.current.acousticSummary).toBeNull();
+    expect(result.current.acousticDetail).toBeNull();
+    expect(result.current.acousticDetailFullMedia).toBeNull();
+    expect(result.current.acousticBatchDetails).toEqual([]);
+    expect(result.current.acousticCalibrationStatus).toBe('exploratory');
+
+    const mediaBCall = pendingCalls.find((call) => call.mediaKey === 'media-b');
+    expect(mediaBCall).toBeTruthy();
+    await act(async () => {
+      mediaBCall?.resolve(makeAnalysisResultForMedia('media-b', 90));
+    });
+
+    await waitFor(() => {
+      expect(result.current.acousticRuntimeStatus.state).toBe('ready');
+      expect(result.current.acousticDetail?.mediaKey).toBe('media-b');
+      expect(result.current.acousticSummary?.sourceMediaKey).toBe('media-b');
+    });
+    expect(result.current.acousticSummary?.f0MeanHz).not.toBe(mediaASummary?.f0MeanHz);
+    expect(result.current.acousticBatchDetails).toHaveLength(1);
+    expect(result.current.acousticBatchDetails[0]?.selectionId).toBe('utt-b');
+  });
+
+  it('ignores a delayed analysis result after the media has changed', async () => {
+    mockAnalyzeMedia.mockReset();
+    mockResolveProviderState.mockReset();
+    mockResolveProviderState.mockReturnValue(makeProviderState());
+
+    type PendingCall = {
+      mediaKey: string;
+      resolve: (value: AcousticFeatureResult) => void;
+      reject: (reason?: unknown) => void;
+    };
+    const pendingCalls: PendingCall[] = [];
+    mockAnalyzeMedia.mockImplementation(
+      (input: unknown) =>
+        new Promise<AcousticFeatureResult>((resolve, reject) => {
+          const mediaKey = (input as { mediaKey?: string }).mediaKey ?? '';
+          pendingCalls.push({ mediaKey, resolve, reject });
+        }),
+    );
+
+    const seekToTimeRef = { current: vi.fn() };
+    const { result, rerender } = renderHook(
+      (props: Parameters<typeof useTranscriptionAiAcousticRuntime>[0]) =>
+        useTranscriptionAiAcousticRuntime(props),
+      {
+        initialProps: {
+          selectedMediaUrl: '/media/a.wav',
+          selectedTimelineMediaId: 'media-a',
+          selectionStartSec: 0,
+          selectionEndSec: 1,
+          seekToTimeRef,
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(pendingCalls).toHaveLength(1);
+    });
+
+    rerender({
+      selectedMediaUrl: '/media/b.wav',
+      selectedTimelineMediaId: 'media-b',
+      selectionStartSec: 0.2,
+      selectionEndSec: 1,
+      seekToTimeRef,
+    });
+
+    await waitFor(() => {
+      expect(pendingCalls.map((call) => call.mediaKey)).toEqual(['media-a', 'media-b']);
+      expect(result.current.acousticRuntimeStatus.state).toBe('loading');
+    });
+
+    await act(async () => {
+      pendingCalls[0]?.resolve(makeAnalysisResultForMedia('media-a', 400));
+    });
+    expect(result.current.acousticRuntimeStatus.state).toBe('loading');
+    expect(result.current.acousticSummary).toBeNull();
+    expect(result.current.acousticDetail).toBeNull();
+    expect(result.current.acousticDetailFullMedia).toBeNull();
+
+    await act(async () => {
+      pendingCalls[1]?.resolve(makeAnalysisResultForMedia('media-b', 90));
+    });
+    await waitFor(() => {
+      expect(result.current.acousticRuntimeStatus.state).toBe('ready');
+      expect(result.current.acousticDetail?.mediaKey).toBe('media-b');
+      expect(result.current.acousticSummary?.sourceMediaKey).toBe('media-b');
+    });
+  });
+
+  it('does not mark the current media failed when a previous request rejects late', async () => {
+    mockAnalyzeMedia.mockReset();
+    mockResolveProviderState.mockReset();
+    mockResolveProviderState.mockReturnValue(makeProviderState());
+
+    type PendingCall = {
+      mediaKey: string;
+      reject: (reason?: unknown) => void;
+    };
+    const pendingCalls: PendingCall[] = [];
+    mockAnalyzeMedia.mockImplementation(
+      (input: unknown) =>
+        new Promise<AcousticFeatureResult>((_resolve, reject) => {
+          const mediaKey = (input as { mediaKey?: string }).mediaKey ?? '';
+          pendingCalls.push({ mediaKey, reject });
+        }),
+    );
+
+    const seekToTimeRef = { current: vi.fn() };
+    const { result, rerender } = renderHook(
+      (props: Parameters<typeof useTranscriptionAiAcousticRuntime>[0]) =>
+        useTranscriptionAiAcousticRuntime(props),
+      {
+        initialProps: {
+          selectedMediaUrl: '/media/a.wav',
+          selectedTimelineMediaId: 'media-a',
+          selectionStartSec: 0,
+          selectionEndSec: 1,
+          seekToTimeRef,
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(pendingCalls).toHaveLength(1);
+    });
+    rerender({
+      selectedMediaUrl: '/media/b.wav',
+      selectedTimelineMediaId: 'media-b',
+      selectionStartSec: 0,
+      selectionEndSec: 1,
+      seekToTimeRef,
+    });
+    await waitFor(() => {
+      expect(result.current.acousticRuntimeStatus.state).toBe('loading');
+      expect(pendingCalls.map((call) => call.mediaKey)).toEqual(['media-a', 'media-b']);
+    });
+
+    await act(async () => {
+      pendingCalls[0]?.reject(new Error('stale media-a failed after switch'));
+    });
+    expect(result.current.acousticRuntimeStatus.state).toBe('loading');
+    expect(result.current.acousticRuntimeStatus.errorMessage).toBeUndefined();
+    expect(result.current.acousticSummary).toBeNull();
+  });
+
+  it('keeps the current media summary when only the selection changes', async () => {
+    mockAnalyzeMedia.mockReset();
+    mockResolveProviderState.mockReset();
+    mockResolveProviderState.mockReturnValue(makeProviderState());
+    mockAnalyzeMedia.mockImplementation(async () => makeAnalysisResultForMedia('media-1'));
+
+    const seekToTimeRef = { current: vi.fn() };
+    const { result, rerender } = renderHook(
+      (props: Parameters<typeof useTranscriptionAiAcousticRuntime>[0]) =>
+        useTranscriptionAiAcousticRuntime(props),
+      {
+        initialProps: {
+          selectedMediaUrl: '/media/demo.wav',
+          selectedTimelineMediaId: 'media-1',
+          selectionStartSec: 0,
+          selectionEndSec: 1,
+          seekToTimeRef,
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.acousticRuntimeStatus.state).toBe('ready');
+      expect(result.current.acousticSummary?.frameCount).toBe(3);
+      expect(result.current.acousticSummary?.sourceMediaKey).toBe('media-1');
+    });
+
+    const callsAfterReady = mockAnalyzeMedia.mock.calls.length;
+    rerender({
+      selectedMediaUrl: '/media/demo.wav',
+      selectedTimelineMediaId: 'media-1',
+      selectionStartSec: 0,
+      selectionEndSec: 0.6,
+      seekToTimeRef,
+    });
+
+    expect(mockAnalyzeMedia.mock.calls.length).toBe(callsAfterReady);
+    expect(result.current.acousticRuntimeStatus.state).toBe('ready');
+    expect(result.current.acousticSummary?.sourceMediaKey).toBe('media-1');
+    expect(result.current.acousticSummary?.frameCount).toBe(2);
+    expect(result.current.acousticDetail?.mediaKey).toBe('media-1');
   });
 
   it('soft-degrades to idle when analysis PCM exceeds the byte cap (WS8-X2)', async () => {
