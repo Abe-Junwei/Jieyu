@@ -38,6 +38,79 @@ async function assertGenericSegmentCreateAllowed(
   }
 }
 
+function normalizeSegmentChainIds(
+  keepId: string,
+  removeIds: readonly string[],
+): { keepId: string; removeIds: string[] } {
+  const keep = keepId.trim();
+  const removes: string[] = [];
+  const seen = new Set<string>();
+  for (const rawId of removeIds) {
+    const id = rawId.trim();
+    if (id.length === 0 || id === keep || seen.has(id)) continue;
+    seen.add(id);
+    removes.push(id);
+  }
+  return { keepId: keep, removeIds: removes };
+}
+
+function compareTimelineSiblings(left: LayerUnitDocType, right: LayerUnitDocType): number {
+  if (left.startTime !== right.startTime) return left.startTime - right.startTime;
+  if (left.endTime !== right.endTime) return left.endTime - right.endTime;
+  return left.id.localeCompare(right.id);
+}
+
+/**
+ * 连续选区的最终保留段。与逐对 mergeAdjacentSegments 一样只扩大时间范围，不拼接正文。
+ * Final kept row for a contiguous selection. Like pairwise merge, this only widens time and does not join text.
+ */
+function planAdjacentSegmentChain(
+  keepId: string,
+  removeIds: readonly string[],
+  members: readonly LayerUnitDocType[],
+  siblings: readonly LayerUnitDocType[],
+): LayerUnitDocType {
+  const segmentById = new Map(
+    members.filter((row) => row.unitType === 'segment').map((row) => [row.id, row] as const),
+  );
+  const keep = segmentById.get(keepId);
+  const removeRows = removeIds.map((id) => segmentById.get(id));
+  if (!keep || removeRows.some((row) => row === undefined)) {
+    throw new Error('Segment(s) not found for merge');
+  }
+  const removes = removeRows as LayerUnitDocType[];
+  const keepLayerId = keep.layerId?.trim();
+  const keepMediaId = keep.mediaId?.trim();
+  if (
+    !keepLayerId ||
+    !keepMediaId ||
+    removes.some((row) => keepLayerId !== row.layerId || keepMediaId !== row.mediaId)
+  ) {
+    throw new Error('Segments must be in the same layer and media to merge');
+  }
+
+  const ordered = siblings
+    .filter((row) => row.unitType === 'segment')
+    .sort(compareTimelineSiblings);
+  const indexById = new Map(ordered.map((row, index) => [row.id, index] as const));
+  const indexes = [keepId, ...removeIds].map((id) => indexById.get(id) ?? -1);
+  if (indexes.some((index) => index < 0)) {
+    throw new Error('Segment(s) not found in layer timeline');
+  }
+  const minIndex = Math.min(...indexes);
+  const maxIndex = Math.max(...indexes);
+  if (maxIndex - minIndex + 1 !== indexes.length) {
+    throw new Error('Only adjacent segments can be merged');
+  }
+
+  return {
+    ...keep,
+    startTime: Math.min(keep.startTime, ...removes.map((row) => row.startTime)),
+    endTime: Math.max(keep.endTime, ...removes.map((row) => row.endTime)),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 async function enforceParentBoundsForSegments(
   db: Awaited<ReturnType<typeof getDb>>,
   segmentIds: readonly string[],
@@ -325,6 +398,76 @@ export class LayerSegmentationV2Service {
 
     const mergedNext = (await LayerSegmentQueryService.listSegmentsByIds([mergedKeep.id]))[0];
 
+    return mergedNext ?? mergedKeep;
+  }
+
+  /**
+   * 一次事务合并连续选区：保留 keepId，级联删除其余段。失败则整单回滚。
+   * Merge a contiguous selection in one transaction. Failure rolls the whole write back.
+   */
+  static async mergeAdjacentSegmentChain(
+    keepId: string,
+    removeIds: readonly string[],
+  ): Promise<LayerUnitDocType> {
+    const chain = normalizeSegmentChainIds(keepId, removeIds);
+    if (chain.keepId.length === 0 || chain.removeIds.length === 0) {
+      throw new Error('Segment(s) not found for merge');
+    }
+
+    const db = await getDb();
+    const mergedKeep = await withTransaction(
+      db,
+      'rw',
+      [...dexieStoresForLayerSegmentGraphRw(db)],
+      async () => {
+        const memberRows = await db.dexie.layer_units.bulkGet([chain.keepId, ...chain.removeIds]);
+        const members = memberRows.filter((row): row is LayerUnitDocType => Boolean(row));
+        const keep = members.find((row) => row.id === chain.keepId && row.unitType === 'segment');
+        const layerId = keep?.layerId?.trim();
+        const mediaId = keep?.mediaId?.trim();
+        const siblingRows =
+          layerId && mediaId
+            ? await db.dexie.layer_units
+                .where('[layerId+mediaId]')
+                .equals([layerId, mediaId])
+                .toArray()
+            : [];
+        const planned = planAdjacentSegmentChain(
+          chain.keepId,
+          chain.removeIds,
+          members,
+          siblingRows,
+        );
+        await LayerUnitSegmentWriteService.upsertSegments(db, [planned]);
+        const [contentIds, sourceRelationIds, targetRelationIds] = await Promise.all([
+          db.dexie.layer_unit_contents
+            .where('unitId')
+            .anyOf(chain.removeIds)
+            .primaryKeys() as Promise<string[]>,
+          db.dexie.unit_relations
+            .where('sourceUnitId')
+            .anyOf(chain.removeIds)
+            .primaryKeys() as Promise<string[]>,
+          db.dexie.unit_relations
+            .where('targetUnitId')
+            .anyOf(chain.removeIds)
+            .primaryKeys() as Promise<string[]>,
+        ]);
+        const relationIds = [...new Set([...sourceRelationIds, ...targetRelationIds])];
+        if (contentIds.length > 0) {
+          await db.dexie.layer_unit_contents.bulkDelete(contentIds);
+        }
+        if (relationIds.length > 0) {
+          await db.dexie.unit_relations.bulkDelete(relationIds);
+        }
+        await db.dexie.layer_units.bulkDelete(chain.removeIds);
+        return planned;
+      },
+    );
+
+    await enforceParentBoundsForSegments(db, [mergedKeep.id]);
+
+    const mergedNext = (await LayerSegmentQueryService.listSegmentsByIds([mergedKeep.id]))[0];
     return mergedNext ?? mergedKeep;
   }
 }
