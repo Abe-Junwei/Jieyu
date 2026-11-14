@@ -97,6 +97,7 @@ export const architectureGuardPageWorkspaceRules = [
       'LayerSegmentationV2Service.createSegmentWithParentConstraint(',
       'LayerSegmentationV2Service.splitSegment(',
       'LayerSegmentationV2Service.mergeAdjacentSegments(',
+      'LayerSegmentationV2Service.mergeAdjacentSegmentChain(',
       'LayerSegmentationV2Service.deleteSegment(',
       'LayerSegmentationV2Service.updateSegment(',
     ],

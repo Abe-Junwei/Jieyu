@@ -35,6 +35,7 @@ function createDeps(
         }) as { first: { id: string }; second: { id: string } },
     ),
     mergeAdjacentSegments: vi.fn(async () => ({ id: 'seg-merged' }) as { id: string }),
+    mergeAdjacentSegmentChain: vi.fn(async () => ({ id: 'seg-merged' }) as { id: string }),
     deleteSegment: vi.fn(async () => undefined),
     updateTextTimeMapping: vi.fn(async () => ({
       id: 'text-1',
@@ -230,6 +231,7 @@ describe('TranscriptionAppService', () => {
     await service.deleteSegments(['seg-1', 'seg-2']);
     await service.splitSegment('seg-1', 1.5);
     await service.mergeAdjacentSegments('seg-1', 'seg-2');
+    await service.mergeAdjacentSegmentChain('seg-1', ['seg-2', 'seg-3']);
     await service.deleteSegment('seg-1');
 
     expect(deps.createProject).toHaveBeenCalledTimes(1);
@@ -244,6 +246,7 @@ describe('TranscriptionAppService', () => {
     expect(deps.deleteSegments).toHaveBeenCalledWith(['seg-1', 'seg-2']);
     expect(deps.splitSegment).toHaveBeenCalledWith('seg-1', 1.5);
     expect(deps.mergeAdjacentSegments).toHaveBeenCalledWith('seg-1', 'seg-2');
+    expect(deps.mergeAdjacentSegmentChain).toHaveBeenCalledWith('seg-1', ['seg-2', 'seg-3']);
     expect(deps.deleteSegment).toHaveBeenCalledWith('seg-1');
   });
 
