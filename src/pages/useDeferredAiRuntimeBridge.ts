@@ -51,6 +51,7 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
   const fallbackFingerprintRef = useRef<string>(
     buildAiStateWorkerFingerprint(latestRuntimeSliceRef.current),
   );
+  const lastSessionMemoryFingerprintRef = useRef<string>('');
   const lastAiChatSettingsFingerprintRef = useRef<string>('');
   const lastAiChatPendingAgentLoopFingerprintRef = useRef<string>('');
 
@@ -113,6 +114,10 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
       const nextSlice = buildAiStateWorkerSlice(runtimeState);
       latestRuntimeSliceRef.current = nextSlice;
 
+      const nextMemoryFp = nextSlice.aiChatSessionMemoryFingerprint;
+      const memoryFingerprintChanged = lastSessionMemoryFingerprintRef.current !== nextMemoryFp;
+      lastSessionMemoryFingerprintRef.current = nextMemoryFp;
+
       const nextSettingsFp = nextSlice.aiChatSettingsFingerprint;
       const settingsFingerprintChanged =
         lastAiChatSettingsFingerprintRef.current !== nextSettingsFp;
@@ -133,7 +138,7 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
         }
         // 设置指纹变则立刻 setState；仅依赖 Worker 回传会晚一拍
         // Agent loop checkpoint 水合（T1-c）也必须立刻推进 deferred，否则聊天 alerts 不刷新。
-        if (settingsFingerprintChanged || agentLoopFingerprintChanged) {
+        if (settingsFingerprintChanged || agentLoopFingerprintChanged || memoryFingerprintChanged) {
           setDeferredAiRuntime(runtimeState);
         }
         if (aiStateWorkerRef.current) {

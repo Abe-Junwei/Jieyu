@@ -203,6 +203,7 @@ export function buildAiStateWorkerSlice(
     aiChatProviderKind: state.aiChat.settings?.providerKind ?? '',
     aiChatModel: state.aiChat.settings?.model ?? '',
     aiChatSettingsFingerprint: buildAiChatSettingsFingerprint(state),
+    aiChatSessionMemoryFingerprint: JSON.stringify(state.aiChat.sessionMemory ?? null),
     aiChatPendingAgentLoopFingerprint: buildPendingAgentLoopFingerprint(state.aiChat.sessionMemory),
     aiChatContextChars: state.aiChat.contextDebugSnapshot?.contextChars ?? 0,
     aiChatHistoryChars: state.aiChat.contextDebugSnapshot?.historyChars ?? 0,

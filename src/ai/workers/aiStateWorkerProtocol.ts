@@ -14,6 +14,8 @@ export interface AiStateWorkerSlice {
   aiChatProviderKind: string;
   aiChatModel: string;
   aiChatSettingsFingerprint: string;
+  /** Includes directive ledger, pins and other session-memory-only updates. */
+  aiChatSessionMemoryFingerprint: string;
   /** 用于 T1-c：冷启动水合 `pendingAgentLoopCheckpoint` 时也要推进 deferred 快照（原指纹不含 sessionMemory）。 */
   aiChatPendingAgentLoopFingerprint: string;
   aiChatContextChars: number;
@@ -65,6 +67,7 @@ export function buildAiStateWorkerFingerprint(slice: AiStateWorkerSlice): string
     slice.aiChatProviderKind,
     slice.aiChatModel,
     slice.aiChatSettingsFingerprint,
+    slice.aiChatSessionMemoryFingerprint,
     slice.aiChatPendingAgentLoopFingerprint,
     String(slice.aiChatContextChars),
     String(slice.aiChatHistoryChars),
@@ -84,30 +87,31 @@ export function computeAiStateWorkerSignalWeight(slice: AiStateWorkerSlice): num
   const summaryStart = slice.acousticSummarySelectionStartSec ?? 0;
   const summaryEnd = slice.acousticSummarySelectionEndSec ?? 0;
   return (
-    slice.aiChatMessageCount * 8
-    + (slice.aiChatIsStreaming ? 19 : 0)
-    + slice.aiChatStreamingPayloadChars
-    + slice.aiChatTurnCount * 7
-    + slice.aiChatSuccessCount * 11
-    + slice.aiChatFailureCount * 13
-    + slice.aiChatContextChars
-    + slice.aiChatHistoryChars
-    + slice.aiToolDecisionLogCount * 5
-    + slice.acousticBatchSelectionCount * 17
-    + (slice.acousticProviderAvailable ? 3 : 0)
-    + Math.round(summaryStart * 10)
-    + Math.round(summaryEnd * 10)
-    + slice.aiChatLastError.length * 2
-    + slice.aiChatConnectionTestStatus.length
-    + slice.aiChatPendingToolCallId.length
-    + slice.aiChatTaskSessionStatus.length
-    + slice.aiChatProviderKind.length
-    + slice.aiChatModel.length
-    + slice.aiChatSettingsFingerprint.length
-    + slice.aiChatPendingAgentLoopFingerprint.length
-    + slice.acousticRuntimeState.length
-    + slice.acousticRuntimePhase.length
-    + slice.acousticCalibrationStatus.length
-    + slice.acousticDetailMediaKey.length
+    slice.aiChatMessageCount * 8 +
+    (slice.aiChatIsStreaming ? 19 : 0) +
+    slice.aiChatStreamingPayloadChars +
+    slice.aiChatTurnCount * 7 +
+    slice.aiChatSuccessCount * 11 +
+    slice.aiChatFailureCount * 13 +
+    slice.aiChatContextChars +
+    slice.aiChatHistoryChars +
+    slice.aiToolDecisionLogCount * 5 +
+    slice.acousticBatchSelectionCount * 17 +
+    (slice.acousticProviderAvailable ? 3 : 0) +
+    Math.round(summaryStart * 10) +
+    Math.round(summaryEnd * 10) +
+    slice.aiChatLastError.length * 2 +
+    slice.aiChatConnectionTestStatus.length +
+    slice.aiChatPendingToolCallId.length +
+    slice.aiChatTaskSessionStatus.length +
+    slice.aiChatProviderKind.length +
+    slice.aiChatModel.length +
+    slice.aiChatSessionMemoryFingerprint.length +
+    slice.aiChatSettingsFingerprint.length +
+    slice.aiChatPendingAgentLoopFingerprint.length +
+    slice.acousticRuntimeState.length +
+    slice.acousticRuntimePhase.length +
+    slice.acousticCalibrationStatus.length +
+    slice.acousticDetailMediaKey.length
   );
 }
