@@ -27,8 +27,8 @@ colors:
   surface-panel-dark: "#20242C"
   surface-header-dark: "#262B35"
   text-primary: "#20242C"
-  text-secondary: "#5B6577"
-  text-tertiary: "#5F6B7C"
+  text-secondary: "#525D6D"
+  text-tertiary: "#556070"
   text-on-accent: "#FFFFFF"
   text-on-chrome: "#FFFFFF"
   border-subtle: "#E7E5E4"
@@ -41,7 +41,7 @@ colors:
   state-warning-text: "#92400E"
   state-danger-solid: "#E5484D"
   state-danger-text: "#B91C1C"
-  state-info-solid: "#3B82F6"
+  state-info-solid: "#1D4ED8"
   state-info-text: "#1D4ED8"
 typography:
   main-h:
@@ -133,7 +133,7 @@ components:
 - 选中 `theme-accent-*`：亮色 tint `#E0E0E0`、文字 `#20242C`；暗色 tint `#393939`、文字 `#F6F7F9`。只表达行、标签页、片段或对象的选中，不当普通卡片底。
 - 焦点 `focus-accent`：亮 `#026370`，暗 `#74A9B0`。2px 外环，离控件 2px；不用于主按钮或选中填充。
 - 工作面 / 面板 / 头部：亮 `#F0EFED` / `#FFFFFF` / `#F7F6F4`，暗 `#181B21` / `#20242C` / `#262B35`。
-- 正文 / 次级 / 辅助：亮 `#20242C` / `#5B6577` / `#5F6B7C`，暗 `#F6F7F9` / `#B4BDCC` / `#8B95A5`。
+- 正文 / 次级 / 辅助：亮 `#20242C` / `#525D6D` / `#556070`，暗 `#F6F7F9` / `#B4BDCC` / `#8B95A5`。
 - 分隔线用 border-subtle / soft；控件可操作边界用 border-control（亮 `#7F8A9B`，暗 `#8B95A5`）。不拿浅分隔线充当输入框边界。
 - 导航轨使用 chrome-rail-*，文字 text-on-chrome 保持常亮；不得误用暗色反相后的 text-on-action。
 - 语义 solid / text / bg 分开：成功 text `#047857`、警告 text `#92400E`、错误 text `#B91C1C`；亮底分别 `#F0FDF4` / `#FFFBEB` / `#FEF2F2`。正文不直接使用高亮 solid 色。

@@ -27,8 +27,8 @@
   --gray-5: #cbd2dc;
   --gray-6: #aeb7c4;
   --gray-7: #7f8a9b;
-  --gray-8: #5f6b7c; /* AA on warm canvas #f0efed */
-  --gray-9: #5b6577;
+  --gray-8: #556070; /* AA on warm canvas #f0efed and info-tinted surfaces */
+  --gray-9: #525d6d;
   --gray-10: #3a3f49;
   --gray-11: #2a2e35;
   --gray-12: #20242c;
@@ -52,14 +52,14 @@
 
   /* 语义映射 — 文本 */
   --text-primary: #20242c;
-  --text-secondary: #5b6577;
-  --text-tertiary: #5f6b7c;
+  --text-secondary: #525d6d;
+  --text-tertiary: #556070;
   --text-muted: var(--text-tertiary);
   --text-on-solid: #ffffff;
   --color-white: #ffffff;
 
   /* 功能色基色 */
-  --blue-9: #3b82f6;
+  --blue-9: #1d4ed8;
   --green-9: #10b981;
   --amber-9: #f59e0b;
   --red-9: #e5484d;
@@ -84,8 +84,8 @@
   --focus-accent-hover: #025763;
   --focus-accent-active: #024d57;
 
-  /* Info — 独立蓝，不绑 accent */
-  --state-info-solid: #3b82f6;
+  /* Info — 独立蓝，不绑 accent（AA >= 4.5:1 vs white and light info tints） */
+  --state-info-solid: #1d4ed8;
   --state-info-text: #1d4ed8;
   --state-info-bg: color-mix(in srgb, var(--state-info-solid) 12%, var(--surface-header));
   --state-info-bg-strong: color-mix(in srgb, var(--state-info-solid) 22%, var(--surface-header));
