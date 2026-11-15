@@ -3,7 +3,7 @@ title: 分析依赖、历史与毫秒时间规格
 doc_type: execution-spec-design
 status: draft
 owner: repo
-last_reviewed: 2026-11-01
+last_reviewed: 2026-11-15
 source_of_truth: desktop-analysis-time-spec
 depends_on:
   - ../../../adr/0100-desktop-engineering-contract.md
@@ -42,7 +42,7 @@ depends_on:
 
 HistoryVersion=`{versionId,targetRef,originalText,textRevision,graph,definitionRevisions,source,timeMappingRevision,operationId,createdAt,reason}`。首次有效→pending保快照；之后连续输入不重复快照。复核/拆合/批量采纳/恢复建新完整版本。普通同一状态的微编辑仍由撤销覆盖，不能误称每按键永久有历史。
 
-拆合操作预览请求带原句段、相关字段修订、文字分割/拼接方案、时间方案、引用迁移表及歧义清单。提交核全部预览集合，分配新段id，旧段退出当前集合但映射/历史保留；新词/语素仅确有结构拆合才新id。可唯一迁移关联记录来源，否则脱离为待定位，不改例句快照文本。
+拆合操作预览请求带原句段、相关字段修订、文字分割/拼接方案、时间方案、引用迁移表及歧义清单。合段遇到依赖子层子标注时（对齐 EF-018 下级保护边界）：保留下级内容、顺序与已有时间，仅调整其上级 `parent_unit_id` 归属，不自动合并下级、不给无时间子标注编造时间；若存在层级结构或时间冲突则阻断合并，禁止调用现行 `src/db/desktop/unitSpan.ts` 中直接删除被合并段子树的 `mergeUnits` 冒充满足（相邻合并候选扫描留第二程 #285）。提交核全部预览集合，分配新段id，旧段退出当前集合但映射/历史保留；新词/语素仅确有结构拆合才新id。可唯一迁移关联记录来源，否则脱离为待定位，不改例句快照文本。
 
 历史恢复是新操作：默认转候选；连原文恢复先建立影响闭包。当前后来修改的备注正文不被历史覆盖；关联恢复和正文恢复分开。清理预览给受保护版本、可删版本、需放弃候选/撤销及已删对象历史列表；commit重查集合/修订。当前、最近有效、正式词典/语料、待复核依赖受保护；到期前对象自身恢复最低所需数据不能删。
 

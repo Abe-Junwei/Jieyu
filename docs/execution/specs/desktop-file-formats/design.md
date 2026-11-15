@@ -3,7 +3,7 @@ title: 文件事务、导入导出与格式损失矩阵
 doc_type: execution-spec-design
 status: draft
 owner: repo
-last_reviewed: 2026-11-01
+last_reviewed: 2026-11-15
 source_of_truth: desktop-file-formats-spec
 depends_on:
   - ../../../adr/0100-desktop-engineering-contract.md
@@ -42,7 +42,7 @@ P=保留声明范围；T=明确转换；L=损失须确认；B=不能生成合法
 
 EAF符号链只用合法schema属性；无同层时间的零语素不硬造时间段，合法引用细分是否可表达须具体profile验；不能因profile可表达一例就宣称复杂图全支持。TextGrid区间层补空隙只为格式序列，重新导入时区分空隙和真实空文本标注；无标准区别时报告歧义并让用户选择，不默吞真实空段。
 
-DMLex完整标准字段按vendored JSON schema枚举资源/entry/sense及受控表；当前`dmlexJsonExport.ts`只挑部分顶层，须修正或列未支持，不靠entry JSON完整掩盖资源损失。LIFT当前仅首个POS/发音/词源和subsense投影；首发profile明确支持全部选定子集，其他预览损失。FLEx打开保存后再导回，不能用Jieyu自身XML解析器代替外部工具证据。
+DMLex完整标准字段按vendored JSON schema枚举资源/entry/sense及受控表；当前`dmlexJsonExport.ts`只挑部分顶层，须修正或列未支持，不靠entry JSON完整掩盖资源损失。LIFT当前仅首个POS/发音/词源和subsense投影；首发profile明确支持全部选定子集，其他预览损失。FLEx打开保存后再导回，不能用Jieyu自身XML解析器代替外部工具证据；此固定受限子集往返核验对应 ADR-0100 E12/V17 与 #311，不扩展为外部异构词典语言/字段映射导入向导（EF-019 无规划，不恢复 #537）。外部既有分析历史材料迁入（FR-045，Toolbox/FLExText/EAF 等带词·语素·gloss 分析）走下方 ImportPlan 与逐项损失报告，不重启已关闭的 #326 旧浏览器库迁入。桌面 SRT/VTT 字幕（FR-080）、默认扩至完整标注边界的片段与媒体批量导出（EF-010）及导出版式复用（EF-013）均排第二程 #285 并复用本规格的 ExportPlan/ExportReport。
 
 ## 文件发布、快照与容量
 

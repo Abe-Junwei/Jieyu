@@ -3,7 +3,7 @@ title: 工程字段与完整词典编辑规格
 doc_type: execution-spec-design
 status: draft
 owner: repo
-last_reviewed: 2026-11-01
+last_reviewed: 2026-11-15
 source_of_truth: desktop-field-editor-spec
 depends_on:
   - ../../../adr/0100-desktop-engineering-contract.md
@@ -79,7 +79,7 @@ repeated=true时值为有序`[{itemId,value}]`，itemId稳定，删除/排序不
 | etymonUnits[].reconstructed/partsOfSpeech/translation | 布尔、词类与翻译文字，不因当前精简Zod缺字段丢标准原数据 |
 | 自定义字段／例句来源快照 | 按上表类型渲染，分别显示未生效草稿和正式值；关联选择非可改id文本框 |
 
-nested ids由既有dmlexNestedIds路径复用；例句exampleKey只用于应用扩展，不改变DMLex标准字段。需要完整标准字段补齐时在原DMLex schema/类型模块上补齐，不新造第二套词典模型。全字段保存用声明字段patch和修订，不能重新构造一个只含可见字段的entry覆盖其余内容。
+nested ids由既有dmlexNestedIds路径复用；例句exampleKey只用于应用扩展，不改变DMLex标准字段。需要完整标准字段补齐时在原DMLex schema/类型模块上补齐，不新造第二套词典模型。全字段保存用声明字段patch和修订，不能重新构造一个只含可见字段的entry覆盖其余内容。形式或意义未定的临时词汇项及按出现项拆分重分析（FR-070/074/075）属第二程 #285 独立设计，本规格禁止用 `lexemes.access_rights` 或 E02 非法输入草稿冒充临时词项。
 
 ## 迁移和引用
 

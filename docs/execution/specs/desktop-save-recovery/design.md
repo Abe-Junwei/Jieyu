@@ -3,7 +3,7 @@ title: 保存回执、草稿、撤销及窗口协调规格
 doc_type: execution-spec-design
 status: draft
 owner: repo
-last_reviewed: 2026-11-01
+last_reviewed: 2026-11-15
 source_of_truth: desktop-save-recovery-spec
 depends_on:
   - ../../../adr/0100-desktop-engineering-contract.md
@@ -59,7 +59,7 @@ close/reopen/切项目均有宿主退出协调，不能仅靠renderer beforeunlo
 
 ## AI协议及诊断最小集
 
-候选记录`{suggestionId,taskId,targetRef,inputDependencyRevisions,model,provider,createdAt,body,editedBody?,reviewState,provenance}`，提交`{suggestionIds,expectedTargetRevisions,chosenPatches}`。依赖变化项过期，批次任一冲突整笔不写；重新对应生成当前版本的人工操作，不修改旧生成凭据以伪称原任务有效。
+候选记录`{suggestionId,taskId,targetRef,inputDependencyRevisions,model,provider,createdAt,body,editedBody?,reviewState,provenance}`，提交`{suggestionIds,expectedTargetRevisions,chosenPatches}`。对齐 EF-014 双路分流与 ADR-0099 R08：目标位置已有任意人工内容（不缩窄为仅保护「已确认」人工内容）时原样保留、仅显式接受后写入；目标位置无人工内容时在工作层轨道原位呈现并标「待确认」（可就地编辑或确认转正），底层仍与正式有效语料隔离、确认前默认不进入有效查询、统计或普通导出。依赖变化项过期，批次任一冲突整笔不写；重新对应生成当前版本的人工操作，不修改旧生成凭据以伪称原任务有效。
 
 运行合并键为目标复合身份＋类型＋输入digest＋配置digest＋provider/model，不包含密钥；未知云结果不以取消本地等同远端已停。query锁时候选仅内存，限额达到显示暂停/拒收未保存新候选，绝不绕锁落盘；不丢已有候选并假称全部完成。
 
