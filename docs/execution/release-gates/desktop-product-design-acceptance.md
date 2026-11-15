@@ -9,7 +9,7 @@ source_of_truth: release-gate
 
 # 桌面首发产品设计验收清单
 
-> 工程范围现已由用户确认：[ADR-0100](../../adr/0100-desktop-engineering-contract.md) 是保存、草稿、分析、字段、查询、文件和容量／性能的新合同；[技术规格](../specs/desktop-engineering-contract/requirements.md) 尚待定稿。UI 以 [DESIGN.md](../../../DESIGN.md) 为准；设计稿自 2026-11-15 改在 Superdesign 中重新探索（[ADR-0101](../../adr/0101-desktop-visual-direction-reexplore-superdesign.md)），对应新稿定稿后，下文 Penpot 板号转为历史引用。下面的旧板编号、数量和截图记录只作历史参考，不是现状或通过证据。
+> 工程范围现已由用户确认：[ADR-0100](../../adr/0100-desktop-engineering-contract.md) 是保存、草稿、分析、字段、查询、文件和容量／性能的新合同；[技术规格](../specs/desktop-engineering-contract/requirements.md) 尚待定稿。UI 以 [DESIGN.md](../../../DESIGN.md) 为准；设计稿自 2026-11-16 改在 Open Design 中做（[ADR-0102](../../adr/0102-desktop-design-drafts-move-to-open-design.md)）；视觉重探仍按 [ADR-0101](../../adr/0101-desktop-visual-direction-reexplore-superdesign.md)，对应新稿定稿后，下文 Penpot 板号转为历史引用。下面的旧板编号、数量和截图记录只作历史参考，不是现状或通过证据。
 
 本清单落实 [ADR-0099](../../adr/0099-desktop-product-design-and-release-contract.md) 的 R01–R12。勾选需附当次 Electron 入口、操作、预期／实得、重启读回与故障证据；设计板存在不等于通过。仅用可重建合成项目，不读取真实研究材料。
 
@@ -63,7 +63,7 @@ Penpot：[19–26 业务合同起点](https://design.penpot.app/?screen=workspac
 
 ## 设计交接门
 
-- [ ] R01：每条要求映射到设计稿（Superdesign）、Electron 可达入口、待补实现与测试；不能用旧浏览器截图或函数存在替代端到端证据。
+- [ ] R01：每条要求映射到设计稿（Open Design）、Electron 可达入口、待补实现与测试；不能用旧浏览器截图或函数存在替代端到端证据。
 - [ ] R02：跨工作区往返保留项目／稿件／层／片段，保存中／失败／重试／放弃和关闭拦截有样例。
 - [ ] R03：正文变化、待复核、逐项对应修复、校验失败与重新生效有样例；有效分析和历史内容区分。
 - [ ] R04：真实结构的 IGT 合成样例覆盖长词、空 gloss、多语素、多语言与跨轨重叠，而非只有输入色块。

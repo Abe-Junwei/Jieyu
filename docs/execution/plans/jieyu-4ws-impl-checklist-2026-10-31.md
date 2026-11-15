@@ -48,7 +48,7 @@ depends_on:
 5. **改库**：仅显式迁移决策；UI 重排本身不是理由。
 6. **冻结依据（ADR-0086）**：M4-C 已落地，本计划各片属「既有首发能力的 SQLite 接替」白名单；该白名单不含新功能，任何「新增」行开工前须单独确认。
 7. **Feature flag**：切片 1 起替换用户已在用的桌面页（转写壳、IGT、完整词典、语料页）时，新界面套 flag 默认 `false`，自用一周后切默认；旧桌面简化页在 flag 关时保持原样。切片 0 **不套 flag**（已拍板；含离开确认框，出问题整片 revert）。
-9. **精稿先行（已拍板）**：切片 1–6 各自的精稿（2026-11-15 起在 Superdesign 中做，见 [ADR-0101](../../adr/0101-desktop-visual-direction-reexplore-superdesign.md)）（区域分工、主操作、键盘流、加载/保存中/失败/空态、组件映射）定稿后才开该片代码。切片 0 与 P0a 不等精稿；等待精稿期间优先做 P0a。
+9. **精稿先行（已拍板）**：切片 1–6 各自的精稿（2026-11-16 起在 Open Design 中做，见 [ADR-0102](../../adr/0102-desktop-design-drafts-move-to-open-design.md)）（区域分工、主操作、键盘流、加载/保存中/失败/空态、组件映射）定稿后才开该片代码。切片 0 与 P0a 不等精稿；等待精稿期间优先做 P0a。
 10. **验收分工（已拍板）**：代理用合成项目跑 Playwright Electron（打开 → 操作 → 关应用 → 重开读回），用例进 `tests/e2e-desktop/`；用户每片末用木雅会话抽验，未抽验不标完成。代理不读写真实材料（D14）。
 11. **优先级（已拍板）**：四页优先于 #312/#313/#277。
 8. **SDD**：切片 0 引入新模块（事件、查询键、离开拦截），按 §5.2.1 写三件套，见 [desktop-4ws-slice0-text-save](../specs/desktop-4ws-slice0-text-save/)；其余各片开工前各自补。标注/词典/语料 PR 须过 `check:r1-r8`。
@@ -71,9 +71,9 @@ depends_on:
 
 | 项 | 内容 |
 |---|---|
-| **目标** | Superdesign 是唯一设计稿来源（[ADR-0101](../../adr/0101-desktop-visual-direction-reexplore-superdesign.md)）；约束 → 小范围探索 → 规范 → 全套方向稿 → 逐片精稿 |
+| **目标** | Open Design 是唯一设计稿来源（[ADR-0102](../../adr/0102-desktop-design-drafts-move-to-open-design.md)）；约束 → 小范围探索 → 规范 → 全套方向稿 → 逐片精稿 |
 | **交付物** | ⓪ 约束：`.superdesign/design-system.md`（工程规则、现有组件清单、桌面范围，不定颜色）。① 小范围探索：工程夹页 + 转写页，2–3 个方向，用户选定一个。② 规范：token 与组件状态表（亮暗两套、核对比度），写进 `DESIGN.md` 并在 `theme.ts` / `tokens.css` 注册为新外观。③ 全套方向稿：用规范铺开标注、词典、语料、分析复核，只核一致性。④ 逐片精稿（实现第 N 片时设计第 N+1 片），定稿标准：1440×1000 主视图，1280×720 下不遮主编辑区；空/加载/保存中/保存失败留草稿/改正文待复核/只读或不可用/暗色；键盘走格、焦点、IME、离开拦截；组件映射表（区域 \| 文件 \| 复用方式 \| CSS owner \| desktopCall / Query key）；token 差异与对比度。⑤ 精稿链接写进该片 SDD `design.md`。导出 HTML 只作参考，不进代码 |
-| **依赖** | 账本十二条；ADR-0101；`.superdesign/design-system.md` |
+| **依赖** | 账本十二条；ADR-0101；ADR-0102；`.superdesign/design-system.md` |
 | **不做** | 把工程稿主画布冻结区当已实现；照搬旧版缺陷；挡切片 0 / P0a 开工（切片 1–6 则须等本页精稿定稿） |
 | **验收** | 精稿前已写清区域分工、主操作、键盘流、失败处理；映射表可给实现直接用 |
 
@@ -98,7 +98,7 @@ depends_on:
 |---|---|
 | **目标** | `/transcription` 桌面进入**独立转写工作区**；工程读页收窄为项目管理；复用波形、时间轴、选区、播放等成熟能力接单库；沿用切片 0 的事件+Query。 |
 | **交付物** | 独立转写路由/壳；工程读页职责拆分（项目/交换/删稿等可留）；Waveform*/Timeline* 映射与 `desktopCall`（boundary/split/merge/focus/playback）；选区与播放头本地状态；本页精稿与组件映射；表单 UI 标为过渡并逐步让位 |
-| **依赖** | 切片 0（**已合入 [#477](https://github.com/Abe-Junwei/Jieyu/pull/477)**）；P1 转写精稿：Penpot 板 51–61（2026-11-02）已由 ADR-0101 重新打开，待 Superdesign 新精稿定稿；期间只做不依赖布局的数据链与测试（[差额](./jieyu-4ws-slice1-transcription-gap-2026-11-01.md)；壳 flag `desktopTranscriptionWorkspaceEnabled` 默认 false） |
+| **依赖** | 切片 0（**已合入 [#477](https://github.com/Abe-Junwei/Jieyu/pull/477)**）；P1 转写精稿：Penpot 板 51–61（2026-11-02）已由 ADR-0101 重新打开，待 Open Design 新精稿定稿；期间只做不依赖布局的数据链与测试（[差额](./jieyu-4ws-slice1-transcription-gap-2026-11-01.md)；壳 flag `desktopTranscriptionWorkspaceEnabled` 默认 false） |
 | **进度（2026-11-01）** | 壳页 + flag + App 分流已落地（spec `desktop-4ws-slice1-transcription-shell` T1–T3）；T4–T6 波形／检查器／桌面 E2E 仍开 |
 | **不做** | 再造第二套波形；VAD/呼吸组自动分段（FR-072）/口译/多轨若属延期则本片不扩；不按参与者复制层结构（EF-017 不做）；不把 `src/db/desktop/unitSpan.ts` 现行删下级子树的 `mergeUnits` 当作已满足带下级子标注合段；完整分析编辑 |
 | **验收** | • 从侧栏进转写 ≠ 工程读页合流体验<br>• 框选/拖界/切分/合并 → 单库正确 → 事件 → Query → 重开；合段遵循 EF-018 下级保护边界（保留下级内容、顺序与已有时间，只改上级归属，层级冲突阻断合并）<br>• 说话人显示与筛选沿项目目录（FR-032，共享层不复制）；允许部分转写与空缺（FR-066）、无文字前置译释（FR-068）及馆藏音频手动定位对齐（FR-082，不含自动对齐）<br>• 播放与选区跟随；快捷键不破坏草稿规则<br>• 改正文路径仍触发 P0 待复核状态<br>• 流程验收含：改界后列表时间与重开一致 |
@@ -213,7 +213,7 @@ P1 设计按页   ██ 转写 ██ 标注 ██ 词典 ██ 语料 ██
 ## 每片开工前检查（短清单）
 
 - [x] 主路线图四页工作区已书面拍板通过（2026-10-31）
-- [ ] 切片 1–6：本页 Superdesign 精稿已按 P1 定稿标准定稿（切片 1 的 Penpot 板 51–61 已由 ADR-0101 重新打开）
+- [ ] 切片 1–6：本页 Open Design 精稿已按 P1 定稿标准定稿（切片 1 的 Penpot 板 51–61 已由 ADR-0101 重新打开）
 - [ ] 账本对应行处理决定仍是复用/修错/延期/删除/新增之一，无混称  
 - [ ] 写出本片「用户流程」验收句（至少一条跨保存+重开）  
 - [ ] 确认写入 API 名称与成功事件名；invalidate 只走统一表  

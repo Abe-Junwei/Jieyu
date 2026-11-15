@@ -1,6 +1,6 @@
 # 解语 Jieyu 桌面版 · Superdesign 设计约束
 
-> 每次生成都要传本文件。依据：ADR-0101（视觉方向重新探索，Superdesign 为唯一设计稿来源）、ADR-0099 R01–R12、`.superdesign/stitch-ui-engineering-addendum.md` §2 起的工程规则。
+> 依据：ADR-0102（设计稿只在 Open Design）、ADR-0101（视觉方向重新探索）、ADR-0099 R01–R12、`.superdesign/stitch-ui-engineering-addendum.md` §2 起的工程规则。Open Design 的设计包从本文件导入。
 > **配色、字体气质、圆角、阴影、密度风格尚未确定**，由方向探索给出；下面只写与风格无关的硬约束。方向选定后，在本文件末尾补「视觉方向」一节。
 
 ## 1. 产品是什么

@@ -41,6 +41,8 @@ docs/execution/release-gates/release-evidence/logs/*
 
 # Design sources (large binaries; keep local only)
 *.pen
+# OpenDesign trial package. Not the chosen visual direction.
+.opendesign/
 # Small authored Pencil boards checked into docs/design/
 !docs/design/*.pen
 
