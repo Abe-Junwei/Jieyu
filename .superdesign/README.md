@@ -4,6 +4,10 @@
 
 ## 设计交付
 
+2026-11-15 起 Superdesign 是唯一设计稿来源（ADR-0101）。`design-system.md` 是每次生成必传的约束；导出 HTML 只作参考，不进代码。下列 Stitch 文件只作历史参考。
+
+当前项目：[解语 Jieyu 桌面版 · 2026-11 视觉重探](https://superdesign.dev/teams/ba181599-d479-4ea1-b06c-02b497e7c282/projects/f55bb565-7d78-46e8-9389-c1239a6ed4d0)（`f55bb565-7d78-46e8-9389-c1239a6ed4d0`）。旧项目 `5333551a…` 只作历史参考。
+
 - `stitch-ui-engineering.latest.html`、`stitch-ui-engineering-addendum.md`、`stitch-ui-spec.md`：当前视觉与工程交接提案。
 - `stitch-ui-manual.html`：设计手册。
 - `stitch-workspace.initial.html`、`stitch-workspace.review.html`、`stitch-workspace.latest.html`：工作区方案迭代，不等于已上线页面。

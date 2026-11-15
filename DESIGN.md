@@ -113,6 +113,8 @@ components:
 
 本文件只规定视觉、组件、交互表达与桌面适配。产品流程样例可作参考；查询语言、存储、并发、文件事务、发布范围等工程规格以后另定，不作为本轮 UI 规范完成门槛。
 
+> 2026-11-15 起视觉方向在 Superdesign 中重新探索（[ADR-0101](docs/adr/0101-desktop-visual-direction-reexplore-superdesign.md)）。新方向获批前本文件和 `tokens.css` 继续有效；获批后整体重写，下文 Penpot 板号届时转为历史引用。与风格无关的工程规则（ADR-0101 第 4 条）保留。
+
 当前设计源为 Penpot「解语 · UI 规范」00–17；代码颜色参考 `src/styles/tokens.css`，主题参考 `src/utils/theme.ts`。UI 规范描述目标表达，不声明现有组件或运行行为已全部实现。
 
 ## 1. 视觉语言与布局
