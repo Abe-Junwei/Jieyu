@@ -44,6 +44,11 @@ export const enUSDictionary = {
     'No transcription record or text-layer progress yet (transcription layer may be missing).',
   'app.home.openProject': 'Open project',
   'app.desktopRead.entry': 'Open folder library',
+  'app.desktopTranscription.workspaceTitle': 'Transcription workspace',
+  'app.desktopTranscription.inspectorTitle': 'Segment inspector',
+  'app.desktopTranscription.contextTitle': 'Manuscript and layers',
+  'app.desktopTranscription.waveformPlaceholder':
+    'Waveform and timeline reuse follows later slice-1 tasks',
   'app.desktopRead.openFolder': 'Open folder',
   'app.desktopRead.empty': 'This folder has no manuscripts',
   'app.desktopRead.audio': 'Recording',
