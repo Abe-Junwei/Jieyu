@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>导航与结构</title>
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="preview.css" />
+  <style>
+    .board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border-soft); background: var(--surface); padding: 0 8px; }
+    .tab { height: 40px; padding: 0 12px; display: inline-flex; align-items: center; gap: 8px; font-size: var(--text-sm); color: var(--fg-2); position: relative; }
+    .tab.on { color: var(--fg); font-weight: 600; }
+    .tab.on::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; background: var(--fg); }
+    .tab.hover { background: var(--surface-warm); }
+    .tab.focus { box-shadow: var(--focus-ring); border-radius: var(--radius-md); }
+    .tab .n { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); }
+    .tab .dirty { width: 6px; height: 6px; border-radius: 50%; background: var(--fg); }
+    .path { display: flex; align-items: center; gap: 4px; font-size: var(--text-sm); color: var(--fg-2); flex-wrap: wrap; }
+    .path a { padding: 0 4px; border-radius: var(--radius-sm); color: var(--fg-2); text-decoration: none; }
+    .path a:hover { background: var(--surface-warm); }
+    .path .sep { color: var(--muted); }
+    .path .cur { color: var(--fg); font-weight: 600; }
+    .tree { width: 280px; background: var(--surface); border: 1px solid var(--border); padding: 4px 0; font-size: var(--text-sm); line-height: var(--leading-sm); }
+    .node { height: 32px; display: flex; align-items: center; gap: 4px; padding-right: 8px; }
+    .node .tw { width: 20px; text-align: center; color: var(--muted); font-size: var(--text-xs); }
+    .node .end { margin-left: auto; color: var(--muted); font-family: var(--font-mono); font-size: var(--text-xs); }
+    .node.sel { background: var(--selection); box-shadow: inset 2px 0 0 var(--fg); }
+    .node.focus { box-shadow: inset 0 0 0 2px var(--fg); }
+    .node.drop { box-shadow: inset 0 -2px 0 var(--fg); }
+    .node .menu-btn { margin-left: 4px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--radius-sm); color: var(--fg-2); }
+    .node.hover { background: var(--surface-warm); }
+    .list { width: 320px; background: var(--surface); border: 1px solid var(--border); }
+    .li { min-height: 44px; padding: 4px 8px 4px 16px; display: grid; grid-template-columns: 1fr auto; align-items: center; border-bottom: 1px solid var(--border-soft); }
+    .li:last-child { border-bottom: 0; }
+    .li .s { font-size: var(--text-xs); line-height: var(--leading-xs); color: var(--muted); }
+    .li .menu-btn { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--radius-md); color: var(--fg-2); }
+    .li.sel { background: var(--selection); box-shadow: inset 2px 0 0 var(--fg); }
+    .li.hover .menu-btn { background: var(--surface); box-shadow: var(--elev-ring); }
+    .sechead { display: flex; align-items: center; gap: 8px; padding: 12px 16px 4px; font: 600 var(--text-xs)/var(--leading-xs) var(--font-body); color: var(--muted); }
+    .sechead .act { margin-left: auto; width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--radius-sm); color: var(--fg-2); }
+    .collapse { display: flex; gap: 0; height: 220px; background: var(--bg); border: 1px solid var(--border); }
+    .rail { width: 52px; background: var(--surface); border-right: 1px solid var(--border-soft); }
+    .strip { width: 32px; background: var(--surface); border-right: 1px solid var(--border-soft); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 0; }
+    .strip span { writing-mode: vertical-rl; font-size: var(--text-xs); color: var(--muted); }
+    .strip b { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--radius-sm); font-weight: 400; box-shadow: var(--focus-ring); }
+    .paneMain { flex: 1; background: var(--surface); display: grid; place-items: center; color: var(--muted); font-size: var(--text-sm); }
+    .resizer { width: 1px; background: var(--border-soft); position: relative; }
+    .resizer.drag { background: var(--fg); width: 2px; }
+    .resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: -4px; width: 9px; }
+  </style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>导航与结构</h1>
+    <p class="note">位置和操作分开：当前项用中性底和位置标识，悬停不替换当前项，焦点离开不清选择。行内菜单有独立命中。</p>
+  </div>
+
+  <section>
+      <h2>面板标签页</h2>
+      <div class="tabs" role="tablist">
+        <span class="tab on" role="tab">义项<span class="n">3</span></span>
+        <span class="tab hover" role="tab">例证<span class="n">12</span></span>
+        <span class="tab" role="tab">词源</span>
+        <span class="tab focus" role="tab">反查<span class="dirty" aria-label="有未保存改动"></span></span>
+      </div>
+      <p class="meta">当前项墨色下划线 2px + 加粗。未保存用小墨点并有读屏名。方向键在标签间移动，Tab 进面板内容。</p>
+    </section>
+
+  <section>
+    <h2>路径</h2>
+    <nav class="path" aria-label="位置">
+      <a href="#">卡朗语田野项目</a><span class="sep">/</span><a href="#">田野录音 03</a><span class="sep">/</span><a href="#">讲述人 A · 转写</a><span class="sep">/</span><span class="cur">第 12 段</span>
+    </nav>
+    <p class="meta">只在跨层级跳转的地方用（引用跳转回来、查询结果定位、词条到出处）。最后一项是当前位置，不可点。过长时从中间折叠成「…」。</p>
+  </section>
+
+  <div class="board">
+    <section>
+      <h2>树形大纲</h2>
+      <div class="tree" role="tree">
+        <div class="node" style="padding-left:4px"><span class="tw">▾</span>卡朗语田野项目</div>
+        <div class="node" style="padding-left:20px"><span class="tw">▾</span>田野录音 03<span class="end">48</span></div>
+        <div class="node sel" style="padding-left:36px"><span class="tw"></span>讲述人 A · 转写<span class="end">31</span></div>
+        <div class="node hover" style="padding-left:36px"><span class="tw"></span>讲述人 B · 转写<span class="end">17</span><span class="menu-btn" aria-label="层操作">⋯</span></div>
+        <div class="node drop" style="padding-left:36px"><span class="tw"></span>释义<span class="end">29</span></div>
+        <div class="node" style="padding-left:20px"><span class="tw">▸</span>田野录音 04<span class="end">22</span></div>
+        <div class="node focus" style="padding-left:20px"><span class="tw">▸</span>田野录音 05<span class="end">0</span></div>
+      </div>
+      <p class="meta">每级缩进 16px。→ 展开 / 进子级，← 收起 / 回父级。拖动排序时目标位置画墨色插入线。行内菜单悬停或焦点时出现。</p>
+    </section>
+    <section>
+      <h2>列表与行内菜单</h2>
+      <div class="list">
+        <div class="sechead">稿件<span class="act" aria-label="新建稿件">＋</span></div>
+        <div class="li sel"><div><div>田野录音 03 · 河边对话</div><div class="s">12:48 · 48 段 · 今天 14:02</div></div><span class="menu-btn">⋯</span></div>
+        <div class="li hover"><div><div>田野录音 04 · 织布</div><div class="s">08:02 · 22 段</div></div><span class="menu-btn" aria-label="稿件操作">⋯</span></div>
+        <div class="li"><div><div>田野录音 05 · 地名</div><div class="s">21:15 · 还没有片段</div></div><span class="menu-btn">⋯</span></div>
+      </div>
+      <p class="meta">行高 36–44px。分组标题右侧放该组的唯一新建入口。行内「⋯」与右键菜单内容一致。</p>
+    </section>
+  </div>
+
+  <section>
+    <h2>上下文栏：拖宽、收起、重开</h2>
+    <div class="row" style="gap:24px;align-items:stretch">
+      <div class="collapse" style="width:460px">
+        <div class="rail"></div>
+        <div style="width:200px;background:var(--surface)"></div>
+        <div class="resizer drag"></div>
+        <div class="paneMain">拖动分隔线：墨色 2px</div>
+      </div>
+      <div class="collapse" style="width:420px">
+        <div class="rail"></div>
+        <div class="strip"><b aria-label="展开侧栏">›</b><span>田野录音 03 · 第 12 段</span></div>
+        <div class="paneMain">收起后：32px 重开条</div>
+      </div>
+    </div>
+    <p class="meta">分隔线可视 1px，命中 9px；拖动时变墨色 2px，限制在 216–272px。收起后留 32px 重开条，写着当前位置；重开后回到原选择和焦点。</p>
+  </section>
+</main>
+</body>
+</html>

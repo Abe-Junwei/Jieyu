@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0103**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0108**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -71,6 +71,11 @@ source_of_truth: decision-index
 
 ## 本轮范围与生命周期
 
+- [0103：纸本田野笔记是唯一默认外观](./0103-paper-field-notes-is-the-only-appearance.md)
+- [0105：遮罩、暗色状态色点与系列墨色第 4 档](./0105-scrim-dark-status-dots-and-series-ink.md)
+- [0106：设计系统包放在仓库，Open Design 软链接读取](./0106-design-system-package-lives-in-repo.md)
+- [0107：动效时长、紧凑高度、时间轴选中底与 ⌘M](./0107-motion-compact-height-selection-and-shortcuts.md)
+- [0104：字号、间距、阴影收敛，系列区分只用墨色](./0104-type-space-shadow-and-ink-only-series.md)
 - [0102：桌面设计稿改用 Open Design](./0102-desktop-design-drafts-move-to-open-design.md)
 - [0101：桌面视觉方向重新探索，设计稿改用 Superdesign](./0101-desktop-visual-direction-reexplore-superdesign.md)
 - [0100：桌面首发完整工程行为与验收合同](./0100-desktop-engineering-contract.md)

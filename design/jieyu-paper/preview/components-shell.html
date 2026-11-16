@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>壳层</title>
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="preview.css" />
+  <style>
+    .shell { display: grid; grid-template-columns: var(--rail-width) 248px 1fr; height: 420px; background: var(--bg); border: 1px solid var(--border); }
+    .rail { background: var(--surface); border-right: 1px solid var(--border-soft); display: grid; align-content: start; justify-items: center; gap: 4px; padding: 8px 0; }
+    .rail b { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 4px; font-size: var(--text-xs); color: var(--fg-2); }
+    .rail b.on { background: var(--surface-warm); color: var(--fg); box-shadow: inset 2px 0 0 var(--fg); }
+    .ctx { background: var(--surface); border-right: 1px solid var(--border-soft); display: grid; align-content: start; }
+    .ctx h3 { margin: 0; padding: 12px 16px 8px; font: 600 var(--text-xs)/var(--leading-xs) var(--font-body); color: var(--muted); }
+    .item { height: 40px; padding: 0 16px; display: flex; align-items: center; gap: 8px; font-size: var(--text-base); }
+    .item.sel { background: var(--selection); box-shadow: inset 2px 0 0 var(--fg); }
+    .item .mono { margin-left: auto; color: var(--muted); }
+    .main { display: grid; grid-template-rows: 44px 1fr; background: var(--surface); }
+    .toolbar { display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--border-soft); }
+    .toolbar .sep { width: 1px; height: 20px; background: var(--border-soft); }
+    .toolbar .save { margin-left: auto; display: flex; gap: 8px; align-items: center; font-size: var(--text-sm); color: var(--fg-2); }
+    .canvas { display: grid; place-items: center; color: var(--muted); font-size: var(--text-sm); }
+    .states { display: grid; grid-template-columns: repeat(4, max-content); gap: 8px 24px; font-size: var(--text-sm); }
+    .states div { display: flex; align-items: center; gap: 8px; }
+  </style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>壳层</h1>
+    <p class="note">52px 左轨 + 上下文栏 + 主区。无右栏检查器，无底部当前片段页，不画窗口标题栏。</p>
+  </div>
+
+  <div class="shell">
+    <nav class="rail" aria-label="左轨">
+      <b class="on">转写</b><b>词典</b><b>语言</b><b>AI</b>
+    </nav>
+    <aside class="ctx">
+      <h3>稿件</h3>
+      <div class="item sel">卡朗语 · 田野录音 03<span class="mono">12:48</span></div>
+      <div class="item">卡朗语 · 田野录音 04<span class="mono">08:02</span></div>
+      <h3>层</h3>
+      <div class="item">转写<span class="mono">48</span></div>
+      <div class="item">释义<span class="mono">31</span></div>
+    </aside>
+    <section class="main">
+      <div class="toolbar">
+        <button class="btn icon" aria-label="播放">▶</button>
+        <span class="mono">00:01:12.480</span>
+        <span class="sep"></span>
+        <button class="btn sm ghost">缩小</button><button class="btn sm ghost">放大</button>
+        <span class="sep"></span>
+        <button class="btn sm ghost">撤销</button><button class="btn sm ghost">重做</button>
+        <span class="save"><span class="dot ok"></span>已保存</span>
+      </div>
+      <div class="canvas">波形与多轨时间轴（见「时间轴」）</div>
+    </section>
+  </div>
+
+  <section>
+    <h2>保存状态</h2>
+    <div class="states">
+      <div><span class="dot idle"></span>未保存</div>
+      <div><span class="dot idle"></span>保存中...</div>
+      <div><span class="dot err"></span>保存失败 <button class="btn sm">重试</button></div>
+      <div><span class="dot ok"></span>已保存</div>
+      <div><span class="dot warn"></span>已保存，界面还没刷新。</div>
+    </div>
+    <p class="meta">未知或未提供状态不显示「已保存」。结果未知时不给重试或放弃。</p>
+  </section>
+
+  <section>
+    <h2>窄窗</h2>
+    <p class="meta">1280 及以下先把上下文栏收成重开条，保留左轨、主时间轴和当前焦点。</p>
+  </section>
+</main>
+</body>
+</html>

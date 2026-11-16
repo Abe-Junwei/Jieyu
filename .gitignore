@@ -62,3 +62,7 @@ tests/fixtures/open-corpora/**/*.flextext
 tests/fixtures/open-corpora/**/*.lift
 tests/fixtures/open-corpora/**/*.xml
 tests/fixtures/open-corpora/**/*.pfsx
+
+# Open Design 私有目录（ADR-0106）
+design/jieyu-paper/.od-frames/
+design/jieyu-paper/.od-skills/

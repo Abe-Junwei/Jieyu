@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>专业查询</title>
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="preview.css" />
+  <style>
+    .board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+    .qbox { background: var(--surface); border: 1px solid var(--border); }
+    .qh { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border-soft); }
+    .qh .push { margin-left: auto; }
+    .seg { display: inline-flex; padding: 2px; gap: 2px; background: var(--surface-warm); border-radius: var(--radius-md); }
+    .seg span { height: 28px; padding: 0 12px; display: inline-flex; align-items: center; border-radius: var(--radius-sm); font-size: var(--text-sm); color: var(--fg-2); }
+    .seg span.on { background: var(--surface); color: var(--fg); box-shadow: var(--elev-ring); font-weight: 600; }
+    .cond { display: flex; align-items: center; gap: 8px; padding: 8px 12px; flex-wrap: wrap; }
+    .cond.sub { margin-left: 24px; padding-left: 12px; box-shadow: inset 2px 0 0 var(--border-strong); background: var(--bg); }
+    .ctl { height: 28px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface); font-size: var(--text-sm); }
+    .ctl.ipa { font: var(--text-base)/1 var(--font-ipa); }
+    .ctl .c { color: var(--muted); font-size: var(--text-xs); }
+    .op { height: 24px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--surface-warm); font: 600 var(--text-xs)/24px var(--font-body); color: var(--fg-2); }
+    .x { width: 28px; height: 28px; display: grid; place-items: center; color: var(--muted); border-radius: var(--radius-md); }
+    .addrow { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border-soft); }
+    .code { margin: 0; padding: 12px; font: var(--text-sm)/var(--leading-base) var(--font-mono); white-space: pre; background: var(--surface); position: relative; }
+    .code .ln { color: var(--muted); display: inline-block; width: 24px; user-select: none; }
+    .code .kw { font-weight: 600; }
+    .code .str { color: var(--secondary); }
+    .code .err { text-decoration: underline wavy var(--danger) 1px; text-underline-offset: 3px; }
+    .errline { display: flex; gap: 8px; align-items: center; padding: 8px 12px; background: var(--danger-bg); color: var(--danger-text); font-size: var(--text-sm); border-top: 1px solid var(--border-soft); }
+    .run { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--border-soft); font-size: var(--text-sm); }
+    .run .push { margin-left: auto; }
+    .bar { width: 160px; height: 4px; background: var(--surface-warm); border-radius: var(--radius-pill); position: relative; overflow: hidden; }
+    .bar i { position: absolute; left: 20%; width: 35%; top: 0; bottom: 0; background: var(--fg); border-radius: var(--radius-pill); }
+    .rh { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); font-size: var(--text-sm); }
+    .rh .push { margin-left: auto; }
+    .hit { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-top: 0; font-size: var(--text-sm); line-height: var(--leading-sm); }
+    .hit .ctx { font: var(--text-base)/var(--leading-base) var(--font-ipa); }
+    .hit mark { background: var(--surface-warm); color: var(--fg); box-shadow: inset 0 -2px 0 var(--fg); padding: 0 2px; }
+    .hit .s { font-size: var(--text-xs); color: var(--muted); }
+    .hit.sel { background: var(--selection); box-shadow: inset 2px 0 0 var(--fg); }
+    .lock { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--surface-warm); color: var(--fg-2); font-size: var(--text-sm); }
+  </style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>专业查询</h1>
+    <p class="note">条件构建器和文本语法是同一个查询的两种视图，切换不丢条件。语法错误就地标出；执行中锁住会改数据的操作并可取消；结果写明条数、截断和是否过期。</p>
+  </div>
+
+  <div class="board">
+    <section>
+      <h2>条件构建器</h2>
+      <div class="qbox">
+        <div class="qh"><span class="seg"><span class="on">条件</span><span>语法</span></span><span class="push"></span><button class="btn sm">保存查询</button></div>
+        <div class="cond"><span class="ctl">转写层<span class="c">▾</span></span><span class="ctl">包含<span class="c">▾</span></span><span class="ctl ipa">ŋa˧</span><span class="x" aria-label="删除条件">×</span></div>
+        <div class="cond"><span class="op">并且</span><span class="ctl">gloss<span class="c">▾</span></span><span class="ctl">匹配正则<span class="c">▾</span></span><span class="ctl mono">-PFV$</span><span class="x">×</span></div>
+        <div class="cond sub"><span class="op">或者</span><span class="ctl">讲述人<span class="c">▾</span></span><span class="ctl">是<span class="c">▾</span></span><span class="ctl">A · 拉姆<span class="c">▾</span></span><span class="x">×</span></div>
+        <div class="addrow"><button class="btn sm ghost">＋ 条件</button><button class="btn sm ghost">＋ 条件组</button><span class="push" style="margin-left:auto"></span><button class="btn sm primary">查询</button></div>
+      </div>
+      <p class="meta">条件组用缩进 + 左侧灰条，不加边框。「并且 / 或者」是可点切换的标签。</p>
+    </section>
+    <section>
+      <h2>文本语法 · 错误定位</h2>
+      <div class="qbox">
+        <div class="qh"><span class="seg"><span>条件</span><span class="on">语法</span></span></div>
+<pre class="code"><span class="ln">1</span><span class="kw">tier</span>(转写) <span class="kw">contains</span> <span class="str">"ŋa˧"</span>
+<span class="ln">2</span><span class="kw">and</span> gloss <span class="kw">matches</span> <span class="str err">/-PFV$</span>
+<span class="ln">3</span><span class="kw">and</span> (speaker = <span class="str">"A"</span>)</pre>
+        <div class="errline"><span class="dot err"></span>第 2 行第 20 列：正则没有闭合，缺少「/」。<button class="btn sm" style="margin-left:auto">跳到错误</button></div>
+      </div>
+      <p class="meta">等宽字体，带行号。错误用波浪线 + 行列号 + 修正建议；语法有错时切回「条件」视图会说明哪条无法转换。语法名称示意，以实现为准。</p>
+    </section>
+  </div>
+
+  <section>
+    <h2>执行中与结果</h2>
+    <div class="qbox" style="max-width:720px">
+      <div class="lock"><span class="dot idle"></span>查询进行中，批量替换和删除暂时不可用。</div>
+      <div class="run"><span>正在查询 · 已扫描 18 / 40 份稿件</span><span class="bar"><i></i></span><span class="push"></span><button class="btn sm">取消</button></div>
+    </div>
+    <div style="max-width:720px">
+      <div class="rh"><strong>213 条结果</strong><span class="meta">只显示前 200 条</span><span class="dot warn"></span><span class="meta">项目数据在查询后改过</span><span class="push"></span><button class="btn sm">重新查询</button><button class="btn sm">导出结果…</button></div>
+      <div class="hit sel"><span class="ctx">… tsa˧ <mark>ŋa˧</mark> rɛ˥ŋu˩ …</span><span class="s mono">03 · #12</span><span class="s">急 -<span style="font-variant:small-caps">pfv</span> · 讲述人 A</span></div>
+      <div class="hit"><span class="ctx">… <mark>ŋa˧</mark> ma˥ tsʰo˩ …</span><span class="s mono">03 · #13</span><span class="s">讲述人 A</span></div>
+    </div>
+    <p class="meta">取消后保留已扫描的结果并写明「已取消，结果不完整」。结果项点击定位到稿件对应片段，路径组件负责返回。</p>
+  </section>
+</main>
+</body>
+</html>

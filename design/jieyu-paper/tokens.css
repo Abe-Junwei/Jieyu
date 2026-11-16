@@ -1,0 +1,143 @@
+/*
+ * 生成文件，不要手改。改 src/styles/tokens.css 后运行 `npm run build:od-tokens`（ADR-0106）。
+ * source-sha256: a111de5f7a9aa22dc75bc31d16a2405b508a105fa524619e719ed7665bdc68a8
+ * body-sha256: 35f39b438554f62ccfb2aa0b2721e335bdf569d364c222392f239147000d3f53
+ */
+:root {
+  /* 纸面与文字 */
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --surface-warm: #f5f5f5;
+  --fg: #111111;
+  --fg-2: #3a3a3a;
+  --muted: #5c5c5c;
+  --meta: #5c5c5c;
+  --border: #e2e2e2;
+  --border-soft: #eeeeee;
+  --border-strong: #c8c8c8;
+  --accent: #111111;
+  --accent-on: #ffffff;
+  --accent-hover: #000000;
+  --accent-active: #000000;
+  --success: #16a34a;
+  --success-text: #166534;
+  --success-bg: #f0fdf4;
+  --warn: #d97706;
+  --warn-text: #92400e;
+  --warn-bg: #fffbeb;
+  --danger: #dc2626;
+  --danger-text: #b91c1c;
+  --danger-bg: #fef2f2;
+  --secondary: #312c85;
+  /* 字体与字号（最小 12px） */
+  --font-display: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'Hiragino Mincho ProN', 'Noto Serif', Georgia, serif;
+  --font-body: 'Noto Sans', 'Noto Sans SC', 'PingFang SC', 'Noto Sans Arabic', 'Noto Sans Devanagari', 'Noto Sans Thai', 'Noto Sans Tibetan', system-ui, sans-serif;
+  --font-mono: 'Noto Sans Mono', ui-monospace, monospace;
+  --font-ipa: 'Noto Sans', 'Charis SIL', serif;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 20px;
+  --text-3xl: 20px;
+  --text-4xl: 20px;
+  --leading-xs: 18px;
+  --leading-sm: 20px;
+  --leading-base: 22px;
+  --leading-lg: 24px;
+  --leading-xl: 28px;
+  --leading-body: 1.57;
+  --leading-tight: 1.4;
+  --tracking-display: 0;
+  /* 间距、圆角、控件 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --section-y-desktop: 24px;
+  --section-y-tablet: 16px;
+  --section-y-phone: 12px;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+  --control-height: 32px;
+  --control-height-compact: 28px;
+  --rail-width: 52px;
+  --lane-height: 54px;
+  --container-max: 1440px;
+  --container-gutter-desktop: 32px;
+  --container-gutter-tablet: 16px;
+  --container-gutter-phone: 12px;
+  /* 遮罩与浮层阴影（工作面、面板、卡片无投影） */
+  --scrim: rgb(17 17 17 / 44%);
+  --shadow-popover: 0 2px 8px rgb(17 17 17 / 8%);
+  --shadow-float: 0 8px 24px rgb(17 17 17 / 12%);
+  --shadow-modal: 0 16px 48px rgb(17 17 17 / 16%);
+  --elev-flat: none;
+  --elev-ring: 0 0 0 1px #e2e2e2;
+  --elev-raised: 0 8px 24px rgb(17 17 17 / 12%);
+  --focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px #111111;
+  /* 时间轴 */
+  --playhead: #111111;
+  --selection: #ececec;
+  --confidence-mid: #111111;
+  --confidence-low: #d97706;
+  --series-ink-0: #111111;
+  --series-ink-1: #3a3a3a;
+  --series-ink-2: #5c5c5c;
+  --series-ink-3: #8a8a8a;
+  /* 动效 */
+  --motion-fast: 160ms;
+  --motion-base: 200ms;
+  --ease-standard: ease-out;
+}
+
+[data-theme="dark"] {
+  --bg: #0c0c09;
+  --surface: #161614;
+  --surface-warm: #242320;
+  --fg: #f4f2ec;
+  --fg-2: #c8c4ba;
+  --muted: #8e8a82;
+  --meta: #8e8a82;
+  --border: #3a3832;
+  --border-soft: #2c2b28;
+  --border-strong: #5c5952;
+  --accent: #f4f2ec;
+  --accent-on: #0c0c09;
+  --accent-hover: #ffffff;
+  --accent-active: #e4e0d6;
+  --success: #4ade80;
+  --success-text: #4ade80;
+  --success-bg: rgb(74 222 128 / 20%);
+  --warn: #fbbf24;
+  --warn-text: #fbbf24;
+  --warn-bg: rgb(251 191 36 / 12%);
+  --danger: #f07171;
+  --danger-text: #f07171;
+  --danger-bg: rgb(240 113 113 / 12%);
+  --secondary: #b6b2f2;
+  --scrim: rgb(0 0 0 / 44%);
+  --shadow-popover: 0 2px 8px rgb(0 0 0 / 50%);
+  --shadow-float: 0 8px 24px rgb(0 0 0 / 55%);
+  --shadow-modal: 0 16px 48px rgb(0 0 0 / 60%);
+  --elev-ring: 0 0 0 1px #3a3832;
+  --elev-raised: 0 8px 24px rgb(0 0 0 / 55%);
+  --focus-ring: 0 0 0 2px #161614, 0 0 0 4px #f4f2ec;
+  --playhead: #f4f2ec;
+  --selection: #282825;
+  --confidence-mid: #f4f2ec;
+  --confidence-low: #fbbf24;
+  --series-ink-0: #f4f2ec;
+  --series-ink-1: #c8c4ba;
+  --series-ink-2: #8e8a82;
+  --series-ink-3: #8a847a;
+}

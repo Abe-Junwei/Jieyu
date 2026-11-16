@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>时间轴</title>
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="preview.css" />
+  <style>
+    .tl { position: relative; background: var(--surface); border: 1px solid var(--border); overflow: hidden; }
+    .ruler { height: 24px; border-bottom: 1px solid var(--border-soft); display: flex; padding-left: 64px; }
+    .ruler span { flex: 1; font: var(--text-xs)/var(--leading-lg) var(--font-mono); color: var(--muted); border-left: 1px solid var(--border-soft); padding-left: 4px; }
+    .wave { height: 56px; margin-left: 64px; display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--border-soft); }
+    .wave i { width: 3px; background: var(--fg-2); opacity: .55; }
+    .lane { height: var(--lane-height); display: flex; border-bottom: 1px solid var(--border-soft); }
+    .lane-label { width: 64px; flex: none; padding: 8px; font-size: var(--text-xs); line-height: var(--leading-xs); color: var(--fg-2); display: grid; gap: 2px; }
+    .lane-body { position: relative; flex: 1; }
+    .seg { position: absolute; top: 8px; bottom: 8px; padding: 4px 8px; background: var(--surface-warm); border-radius: 0; font-size: var(--text-base); line-height: var(--leading-base); white-space: nowrap; overflow: hidden; }
+    .seg.sel { background: var(--selection); box-shadow: inset 2px 0 0 var(--fg); }
+    .seg.focus { box-shadow: var(--focus-ring); }
+    .seg.fail { background: var(--danger-bg); color: var(--fg); }
+    .seg .tag { position: absolute; top: 4px; right: 8px; display: flex; gap: 4px; align-items: center; font-size: var(--text-xs); }
+    .seg.mid span.t { text-decoration: underline dashed var(--confidence-mid) 1.5px; text-underline-offset: 4px; }
+    .seg.low span.t { text-decoration: underline solid var(--confidence-low) 2px; text-underline-offset: 4px; }
+    .handle { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--fg); }
+    .region { position: absolute; top: 24px; bottom: 0; background: var(--selection); opacity: .9; mix-blend-mode: multiply; }
+    .playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--playhead); }
+    .speaker { width: 18px; height: 18px; border: 1.5px solid; border-radius: 50%; display: inline-grid; place-items: center; font: 600 var(--text-xs)/1 var(--font-body); }
+    .legend { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 24px; }
+    .legend div { display: flex; gap: 8px; align-items: center; font-size: var(--text-sm); white-space: nowrap; }
+    .legend svg { flex: none; }
+    .layers { width: 272px; background: var(--surface); border: 1px solid var(--border); }
+    .layer { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: var(--text-base); }
+    .layer.sel { background: var(--selection); box-shadow: inset 2px 0 0 var(--fg); }
+    .layer .meta { margin-left: auto; }
+  </style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>时间轴</h1>
+    <p class="note">播放头墨色 2px 实线，选区浅灰底，焦点墨色外环。红色只表示保存失败。示例为虚构卡朗语。</p>
+  </div>
+
+  <section>
+    <h2>标尺、波形、轨道</h2>
+    <div class="tl">
+      <div class="ruler"><span>00:01:10</span><span>00:01:12</span><span>00:01:14</span><span>00:01:16</span><span>00:01:18</span></div>
+      <div class="wave" id="wave"></div>
+      <div class="lane">
+        <div class="lane-label"><b>转写</b><span class="meta">A · 主</span></div>
+        <div class="lane-body">
+          <div class="seg" style="left:2%;width:20%"><span class="t">naŋ kʰa tə ruŋ</span></div>
+          <div class="seg sel" style="left:24%;width:22%"><span class="t">mi so la ŋe</span><span class="tag">✓</span></div>
+          <div class="seg mid" style="left:48%;width:18%"><span class="t">ta pʰu ʁo</span></div>
+          <div class="seg low" style="left:68%;width:16%"><span class="t">kə ri tsa</span><span class="tag">≈</span></div>
+          <div class="seg fail" style="left:86%;width:13%"><span class="t">o le</span><span class="tag"><span class="dot err"></span></span></div>
+        </div>
+      </div>
+      <div class="lane">
+        <div class="lane-label"><b>释义</b><span class="meta">B · 从属</span></div>
+        <div class="lane-body">
+          <div class="seg" style="left:2%;width:20%">我 去 处所 山</div>
+          <div class="seg focus" style="left:24%;width:22%">他 说 了 吗<span class="tag">?</span></div>
+          <div class="seg" style="left:48%;width:18%">水 冷</div>
+        </div>
+      </div>
+      <div class="region" style="left:calc(64px + 24% * 0.94);width:calc(22% * 0.94)"></div>
+      <div class="playhead" style="left:calc(64px + 36% * 0.94)"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>句段状态</h2>
+    <div class="legend">
+      <div><span class="seg" style="position:static;padding:2px 8px">默认</span></div>
+      <div><span class="seg sel" style="position:static;padding:2px 8px">选中：浅灰 + 左墨条</span></div>
+      <div><span class="seg focus" style="position:static;padding:2px 8px">键盘焦点：墨环</span></div>
+      <div><span class="seg fail" style="position:static;padding:2px 8px">保存失败</span> <button class="btn sm">重试</button></div>
+      <div><span class="seg mid" style="position:static;padding:2px 8px"><span class="t">置信度中</span></span><span class="meta">墨色虚下划线</span></div>
+      <div><span class="seg low" style="position:static;padding:2px 8px"><span class="t">置信度低</span></span><span class="meta">琥珀实线 · 待复核</span></div>
+      <div>✓ 确定　≈ 不确定　? 没听懂</div>
+      <div><span class="dot ok"></span>已保存　<span class="dot idle"></span>保存中　<span class="dot err"></span>失败</div>
+    </div>
+    <p class="meta">拖边手柄可视 2px、命中至少 8px。重叠用斜线纹而不是颜色。极窄句段只留边界与提示入口。</p>
+  </section>
+
+  <section>
+    <h2>说话人与层联动线：墨色深浅 + 线型 + 字母</h2>
+    <div class="legend">
+      <div><span class="speaker" style="color:var(--series-ink-0)">A</span><svg width="48" height="6"><line x1="0" y1="3" x2="48" y2="3" stroke="var(--series-ink-0)" stroke-width="2"/></svg>实线 · 墨</div>
+      <div><span class="speaker" style="color:var(--series-ink-1)">B</span><svg width="48" height="6"><line x1="0" y1="3" x2="48" y2="3" stroke="var(--series-ink-1)" stroke-width="2"/></svg>实线 · 次墨</div>
+      <div><span class="speaker" style="color:var(--series-ink-2)">C</span><svg width="48" height="6"><line x1="0" y1="3" x2="48" y2="3" stroke="var(--series-ink-2)" stroke-width="2"/></svg>实线 · 淡墨</div>
+      <div><span class="speaker" style="color:var(--series-ink-3)">D</span><svg width="48" height="6"><line x1="0" y1="3" x2="48" y2="3" stroke="var(--series-ink-3)" stroke-width="2"/></svg>实线 · 灰</div>
+      <div><span class="speaker" style="color:var(--series-ink-0)">E</span><svg width="48" height="6"><line x1="0" y1="3" x2="48" y2="3" stroke="var(--series-ink-0)" stroke-width="2" stroke-dasharray="4 3"/></svg>虚线 · 墨</div>
+      <div><span class="speaker" style="color:var(--series-ink-1)">F</span><svg width="48" height="6"><line x1="0" y1="3" x2="48" y2="3" stroke="var(--series-ink-1)" stroke-width="2" stroke-dasharray="4 3"/></svg>虚线 · 次墨</div>
+      <div><span class="speaker" style="color:var(--series-ink-2)">G</span><svg width="48" height="6"><line x1="0" y1="3" x2="48" y2="3" stroke="var(--series-ink-2)" stroke-width="2" stroke-dasharray="1 3"/></svg>点线 · 淡墨</div>
+      <div><span class="speaker" style="color:var(--series-ink-3)">H</span><svg width="48" height="6"><line x1="0" y1="3" x2="48" y2="3" stroke="var(--series-ink-3)" stroke-width="2" stroke-dasharray="1 3"/></svg>点线 · 灰</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>层列表</h2>
+    <div class="layers">
+      <div class="layer"><span class="speaker" style="color:var(--series-ink-0)">A</span>转写<span class="meta">48 句段</span></div>
+      <div class="layer sel"><span class="speaker" style="color:var(--series-ink-1)">B</span>释义<span class="meta">31 句段</span></div>
+      <div class="layer"><span class="speaker" style="color:var(--series-ink-2)">C</span>翻译<span class="meta">12 句段</span></div>
+    </div>
+  </section>
+</main>
+<script>
+  const w = document.getElementById('wave');
+  for (let i = 0; i < 220; i++) { const b = document.createElement('i'); b.style.height = (6 + Math.abs(Math.sin(i * 0.37) * Math.cos(i * 0.11)) * 44) + 'px'; w.appendChild(b); }
+</script>
+</body>
+</html>

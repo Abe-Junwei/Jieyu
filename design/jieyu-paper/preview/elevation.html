@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>阴影</title>
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="preview.css" />
+  <style>
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; padding: 32px; }
+    .card { height: 120px; padding: 12px; background: var(--surface); border: 1px solid var(--border); display: grid; align-content: space-between; }
+    .card.menu, .card.float, .card.modal { border-radius: 8px; }
+  </style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>阴影</h1>
+    <p class="note">只有三档，按用途命名。工作面、面板和卡片不加投影。</p>
+  </div>
+  <div class="grid">
+    <div class="card"><b>无</b><span class="mono">工作面 · 面板 · 卡片</span></div>
+    <div class="card menu" style="box-shadow:var(--shadow-popover)"><b>菜单 / Tooltip</b><span class="mono">--shadow-popover</span></div>
+    <div class="card float" style="box-shadow:var(--shadow-float)"><b>浮动面板</b><span class="mono">--shadow-float</span></div>
+    <div class="card modal" style="box-shadow:var(--shadow-modal)"><b>模态</b><span class="mono">--shadow-modal</span></div>
+  </div>
+  <section>
+    <h2>焦点环</h2>
+    <div class="row"><button class="btn is-focus">切分句段</button><span class="mono">--shadow-focus：2px 纸色间隔 + 2px 墨环</span></div>
+  </section>
+  <section data-theme="dark" class="dark">
+    <h2>暗色</h2>
+    <div class="grid" style="padding:0">
+      <div class="card"><b>无</b></div>
+      <div class="card menu" style="box-shadow:var(--shadow-popover)"><b>菜单</b></div>
+      <div class="card float" style="box-shadow:var(--shadow-float)"><b>浮动面板</b></div>
+      <div class="card modal" style="box-shadow:var(--shadow-modal)"><b>模态</b></div>
+    </div>
+  </section>
+</main>
+</body>
+</html>

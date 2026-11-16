@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>IGT 行间注释</title>
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="preview.css" />
+  <style>
+    .board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+    .igt { background: var(--surface); border: 1px solid var(--border); padding: 12px 16px; display: grid; grid-template-columns: 64px 1fr; gap: 4px 12px; }
+    .igt .rl { font-size: var(--text-xs); line-height: var(--leading-lg); color: var(--muted); }
+    .cols { display: flex; gap: 24px; overflow-x: auto; grid-row: span 3; }
+    .w { display: grid; grid-template-rows: repeat(3, auto); gap: 4px; padding: 4px; border-radius: var(--radius-sm); }
+    .w .o { font: 600 var(--text-lg)/var(--leading-lg) var(--font-ipa); }
+    .w .m, .w .g { display: flex; gap: 0; font: var(--text-base)/var(--leading-base) var(--font-ipa); white-space: nowrap; }
+    .w .m span, .w .g span { padding: 0 2px; }
+    .w .g { font-size: var(--text-sm); }
+    .sc { font-variant: small-caps; text-transform: lowercase; letter-spacing: .02em; }
+    .w.sel { background: var(--selection); box-shadow: inset 0 2px 0 var(--fg); }
+    .cell.edit { border: 1px solid var(--fg); border-radius: var(--radius-sm); box-shadow: var(--focus-ring); background: var(--surface); }
+    .cell.miss { min-width: 32px; border-bottom: 1.5px dashed var(--border-strong); color: var(--muted); }
+    .cell.bad { text-decoration: underline wavy var(--danger) 1px; text-underline-offset: 3px; }
+    .cell.auto { color: var(--fg-2); border-bottom: 1.5px dotted var(--fg-2); }
+    .cell.review { box-shadow: inset 0 -2px 0 var(--warn); }
+    .free { grid-column: 2; font-size: var(--text-base); line-height: var(--leading-base); }
+    .free.lit { color: var(--fg-2); font-size: var(--text-sm); }
+    .pop { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-float); width: 300px; }
+    .pop header { padding: 8px 12px; font-weight: 600; font-size: var(--text-sm); border-bottom: 1px solid var(--border-soft); display: flex; }
+    .pop header span { margin-left: auto; font-weight: 400; color: var(--muted); }
+    .opt { padding: 8px 12px; display: grid; gap: 2px; font-size: var(--text-sm); line-height: var(--leading-sm); }
+    .opt.on { background: var(--selection); box-shadow: inset 2px 0 0 var(--fg); }
+    .opt .a { font-family: var(--font-ipa); font-size: var(--text-base); }
+    .opt .s { font-size: var(--text-xs); color: var(--muted); }
+    .pop footer { display: flex; justify-content: flex-end; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border-soft); }
+    .vlist { background: var(--surface); border: 1px solid var(--border); font-size: var(--text-sm); line-height: var(--leading-sm); }
+    .vh { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border-soft); font-weight: 600; }
+    .vh .meta { margin-left: auto; font-weight: 400; }
+    .vi { display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; padding: 8px 12px; align-items: start; }
+    .vi + .vi { border-top: 1px solid var(--border-soft); }
+    .vi .s { font-size: var(--text-xs); color: var(--muted); }
+    .vi .dot { margin-top: 7px; }
+    .scrollhint { display: flex; align-items: center; gap: 8px; font-size: var(--text-xs); color: var(--muted); }
+    .scrollbar { flex: 1; height: 4px; background: var(--surface-warm); border-radius: var(--radius-pill); position: relative; }
+    .scrollbar i { position: absolute; left: 30%; width: 40%; top: 0; bottom: 0; background: var(--fg-2); border-radius: var(--radius-pill); }
+  </style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>IGT 行间注释</h1>
+    <p class="note">词列与语素列按对应关系排列，列宽取同组最长内容；不按字符数插空格。缺 gloss 保留位置。需要横滚时整组一起移动。Leipzig 缩写用小型大写。</p>
+  </div>
+
+  <section>
+    <h2>对齐块与单元状态</h2>
+    <div class="igt">
+      <span class="rl">原文</span>
+      <div class="cols">
+        <div class="w"><span class="o">tsa˧</span><span class="m"><span>tsa</span></span><span class="g"><span>水</span></span></div>
+        <div class="w sel"><span class="o">rɛ˥ŋu˩</span><span class="m"><span>rɛ</span><span>-ŋu</span></span><span class="g"><span>急</span><span class="cell edit">-<span class="sc">pfv</span>|</span></span></div>
+        <div class="w"><span class="o">kʰa˧</span><span class="m"><span>kʰa</span></span><span class="g"><span class="cell miss">　</span></span></div>
+        <div class="w"><span class="o">ʑi˥</span><span class="m"><span>ʑi</span><span>-∅</span></span><span class="g"><span class="cell auto">羊</span><span class="cell bad">-<span class="sc">plx</span></span></span></div>
+        <div class="w"><span class="o">ma˩</span><span class="m"><span>ma</span></span><span class="g"><span class="cell review sc">neg</span></span></div>
+      </div>
+      <span class="rl">语素</span>
+      <span class="rl">gloss</span>
+      <span class="rl">译文</span><span class="free">水很急，羊不肯过去。</span>
+      <span class="rl">直译</span><span class="free lit">水 急-完整体 那 羊-复数 不</span>
+    </div>
+    <div class="legend row" style="gap:24px;font-size:var(--text-sm)">
+      <span><span class="cell edit" style="padding:0 4px">-<span class="sc">pfv</span></span> 编辑中</span>
+      <span><span class="cell miss" style="display:inline-block">　</span> 缺 gloss：虚线占位</span>
+      <span><span class="cell auto">羊</span> 自动 gloss 未确认：点线</span>
+      <span><span class="cell bad">-<span class="sc">plx</span></span> 不认识的缩写：波浪线</span>
+      <span><span class="cell review sc">neg</span> 待复核：琥珀底线</span>
+      <span>∅ 零语素　&lt; &gt; 中缀</span>
+    </div>
+    <p class="meta">选中词列：选中底 + 顶部墨条。Tab 在 gloss 单元间前进，Enter 确认，Esc 还原。自动 gloss 确认后点线消失。错误同时出现在校验面板里，点击定位。</p>
+  </section>
+
+  <section>
+    <h2>整组横滚</h2>
+    <div class="igt" style="max-width:520px">
+      <span class="rl">原文</span>
+      <div class="cols" style="overflow:hidden">
+        <div class="w"><span class="o">pʰu˧ʑa˥</span><span class="m"><span>pʰu</span><span>-ʑa</span></span><span class="g"><span>桥</span><span>-<span class="sc">loc</span></span></span></div>
+        <div class="w"><span class="o">ri˩</span><span class="m"><span>ri</span></span><span class="g"><span class="sc">top</span></span></div>
+        <div class="w"><span class="o">mɛ˩tʂo˧la˥</span><span class="m"><span>mɛ</span><span>-tʂo</span><span>-la</span></span><span class="g"><span>绕</span><span>-<span class="sc">dir</span></span><span>-<span class="sc">pst</span></span></span></div>
+        <div class="w"><span class="o">ja˥ja˧</span><span class="m"><span>ja~ja</span></span><span class="g"><span>是~<span class="sc">red</span></span></span></div>
+      </div>
+      <span class="rl">语素</span><span class="rl">gloss</span>
+    </div>
+    <div class="scrollhint" style="max-width:520px"><span>第 3–6 词 / 共 11 词</span><span class="scrollbar"><i></i></span></div>
+    <p class="meta">原文、语素、gloss 三行共用一条横向滚动，绝不各自错位。长词不截断。</p>
+  </section>
+
+  <div class="board">
+    <section>
+      <h2>候选分析</h2>
+      <div class="pop">
+        <header>rɛ˥ŋu˩ 的分析<span>3 个候选</span></header>
+        <div class="opt on"><span class="a">rɛ -ŋu</span><span>急 -<span class="sc">pfv</span></span><span class="s">当前 · 本稿 14 处</span></div>
+        <div class="opt"><span class="a">rɛŋu</span><span>湍急</span><span class="s">词典 · 1 处</span></div>
+        <div class="opt"><span class="a">rɛ -ŋu</span><span>急 -<span class="sc">prog</span></span><span class="s">AI 建议 · 未确认</span></div>
+        <footer><button class="btn sm">取消</button><button class="btn sm primary">用这个分析</button></footer>
+      </div>
+      <p class="meta">候选写来源和出现次数。AI 建议明确标「未确认」。切换分析只改当前词，批量替换另走确认。</p>
+    </section>
+    <section>
+      <h2>校验面板</h2>
+      <div class="vlist">
+        <div class="vh">结构校验<span class="meta">2 个错误 · 1 个提醒</span></div>
+        <div class="vi"><span class="dot err"></span><div>不认识的缩写 <span class="sc">plx</span><div class="s">第 12 段 · ʑi˥ · 可能是 <span class="sc">pl</span></div></div><button class="btn sm">定位</button></div>
+        <div class="vi"><span class="dot err"></span><div>语素 3 个、gloss 2 个，对不上<div class="s">第 15 段 · mɛ˩tʂo˧la˥</div></div><button class="btn sm">定位</button></div>
+        <div class="vi"><span class="dot warn"></span><div>gloss 为空<div class="s">第 12 段 · kʰa˧</div></div><button class="btn sm">定位</button></div>
+      </div>
+      <p class="meta">错误红点、提醒琥珀点，都配文字。导出前的诊断条复用这个列表。</p>
+    </section>
+  </div>
+</main>
+</body>
+</html>

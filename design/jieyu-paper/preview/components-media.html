@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>播放与时间轴编辑</title>
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="preview.css" />
+  <style>
+    svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+    .bar { height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: var(--surface); border: 1px solid var(--border); }
+    .bar .sep { width: 1px; height: 20px; background: var(--border-soft); }
+    .bar .push { margin-left: auto; }
+    .play { width: 32px; height: 32px; border-radius: var(--radius-md); background: var(--accent); color: var(--accent-on); border: 0; display: grid; place-items: center; }
+    .play svg { fill: currentColor; stroke: none; width: 16px; height: 16px; }
+    .tb { width: 28px; height: 28px; border-radius: var(--radius-md); border: 0; background: transparent; color: var(--fg-2); display: grid; place-items: center; }
+    .tb.on { background: var(--selection); color: var(--fg); }
+    .tb.focus { box-shadow: var(--focus-ring); }
+    .tb.off { color: var(--muted); opacity: .5; }
+    .tc { height: 28px; display: inline-flex; align-items: center; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface); font-family: var(--font-mono); font-size: var(--text-xs); }
+    .tc.focus { border-color: var(--fg); box-shadow: var(--focus-ring); }
+    .tc.error { border-color: var(--danger); }
+    .pick { height: 28px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface); font-size: var(--text-sm); }
+    .slider { width: 96px; height: 16px; position: relative; flex: none; }
+    .slider::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; height: 2px; background: var(--border-strong); }
+    .slider i { position: absolute; left: 0; top: 7px; height: 2px; background: var(--fg); }
+    .slider b { position: absolute; top: 2px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--surface); border: 2px solid var(--fg); }
+    .slider.focus b { box-shadow: var(--focus-ring); }
+
+    .board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+    .tlbox { position: relative; background: var(--surface); border: 1px solid var(--border); height: 132px; overflow: hidden; }
+    .lane { position: absolute; left: 0; right: 0; height: 54px; border-bottom: 1px solid var(--border-soft); }
+    .seg { position: absolute; top: 8px; bottom: 8px; padding: 4px 8px; background: var(--surface-warm); white-space: nowrap; overflow: hidden; font: var(--text-lg)/var(--leading-lg) var(--font-ipa); }
+    .seg.sel { background: var(--selection); box-shadow: inset 2px 0 0 var(--fg); }
+    .seg.focus { box-shadow: inset 2px 0 0 var(--fg), var(--focus-ring); }
+    .shadow-seg { position: absolute; border: 1.5px dashed var(--fg-2); }
+    .handle { position: absolute; top: 4px; bottom: 4px; width: 2px; background: var(--fg); }
+    .handle::after { content: ""; position: absolute; top: 50%; left: -3px; width: 8px; height: 16px; margin-top: -8px; border-radius: var(--radius-sm); background: var(--fg); }
+    .hit { position: absolute; top: 0; bottom: 0; width: 8px; margin-left: -3px; background: var(--fg); opacity: .08; }
+    .guide { position: absolute; top: 0; bottom: 0; border-left: 1.5px dashed var(--fg); }
+    .tip { position: absolute; padding: 4px 8px; background: var(--fg); color: var(--accent-on); border-radius: var(--radius-md); font-size: var(--text-xs); line-height: var(--leading-xs); white-space: nowrap; box-shadow: var(--shadow-popover); }
+    .tip.bad { background: var(--surface); color: var(--danger-text); border: 1px solid var(--border); }
+    .count { position: absolute; top: 4px; right: 4px; height: 20px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--fg); color: var(--accent-on); font-size: var(--text-xs); line-height: 20px; }
+    .pin { position: absolute; width: 12px; height: 12px; margin-left: -6px; transform: rotate(45deg); border: 1.5px solid var(--fg-2); background: var(--surface); }
+    .pin.sel { background: var(--fg); border-color: var(--fg); }
+    .narrow { position: absolute; top: 8px; bottom: 8px; width: 4px; background: var(--border-strong); }
+    .overlap { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--fg) 14%, transparent) 4px 5px); }
+
+    .mini { position: relative; height: 32px; background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; gap: 1px; padding: 0 4px; }
+    .mini i { flex: 1; background: var(--muted); opacity: .35; }
+    .mini .vp { position: absolute; top: 2px; bottom: 2px; border: 1.5px solid var(--fg); border-radius: var(--radius-sm); }
+    .mini .ph { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--playhead); }
+    .strip { height: 28px; display: flex; align-items: center; gap: 16px; padding: 0 12px; background: var(--surface); border: 1px solid var(--border); font-size: var(--text-xs); line-height: var(--leading-xs); color: var(--muted); white-space: nowrap; }
+    .strip .push { margin-left: auto; }
+    .kbd { font-family: var(--font-mono); color: var(--fg-2); }
+    .meter { display: grid; gap: 2px; width: 120px; }
+    .meter i { height: 4px; background: var(--surface-warm); position: relative; border-radius: var(--radius-pill); overflow: hidden; }
+    .meter i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--v); background: var(--fg-2); }
+    .meter i.clip::after { background: var(--danger); }
+  </style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="play" viewBox="0 0 24 24"><polygon points="7 4 20 12 7 20 7 4"/></symbol>
+  <symbol id="pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></symbol>
+  <symbol id="back" viewBox="0 0 24 24"><polygon points="19 20 9 12 19 4 19 20"/><path d="M5 19V5"/></symbol>
+  <symbol id="fwd" viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><path d="M19 5v14"/></symbol>
+  <symbol id="loop" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="vol" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></symbol>
+  <symbol id="zin" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35M11 8v6M8 11h6"/></symbol>
+  <symbol id="zout" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35M8 11h6"/></symbol>
+  <symbol id="magnet" viewBox="0 0 24 24"><path d="m6 15-4-4 6.75-6.77a7.79 7.79 0 0 1 11 11L13 22l-4-4 6.39-6.36a2.14 2.14 0 0 0-3-3L6 15M5 8l4 4M12 15l4 4"/></symbol>
+  <symbol id="down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+</svg>
+<main>
+  <div>
+    <h1>播放与时间轴编辑</h1>
+    <p class="note">「时间轴」页定了基础形状；这页补播放条、缩放与全稿概览、拖边界、吸附、多选、点层和重叠。时间码一律等宽、固定从左到右。示例为虚构卡朗语。</p>
+  </div>
+
+  <section>
+    <h2>播放条</h2>
+    <div class="bar">
+      <button class="play" aria-label="播放（空格）"><svg class="i"><use href="#play"/></svg></button>
+      <button class="tb" aria-label="后退一帧（,）"><svg class="i"><use href="#back"/></svg></button>
+      <button class="tb" aria-label="前进一帧（.）"><svg class="i"><use href="#fwd"/></svg></button>
+      <button class="tb on" aria-label="循环播放选区" aria-pressed="true"><svg class="i"><use href="#loop"/></svg></button>
+      <span class="tc">00:01:12.480</span><span class="mono" style="color:var(--muted)">/ 00:12:48.000</span>
+      <span class="pick">1.0×<svg class="i"><use href="#down"/></svg></span>
+      <svg class="i" style="color:var(--muted)"><use href="#vol"/></svg><span class="slider"><i style="width:72%"></i><b style="left:72%"></b></span>
+      <span class="push"></span>
+      <button class="tb on" aria-label="吸附到边界" aria-pressed="true"><svg class="i"><use href="#magnet"/></svg></button>
+      <span class="sep"></span>
+      <button class="tb" aria-label="缩小"><svg class="i"><use href="#zout"/></svg></button>
+      <span class="slider"><i style="width:58%"></i><b style="left:58%"></b></span>
+      <button class="tb" aria-label="放大"><svg class="i"><use href="#zin"/></svg></button>
+      <button class="btn sm ghost">适应窗口</button>
+    </div>
+    <div class="row" style="gap:24px">
+      <div class="row"><button class="play" aria-label="暂停"><svg class="i"><use href="#pause"/></svg></button><span class="meta">播放中显示暂停</span></div>
+      <div class="row"><button class="tb focus"><svg class="i"><use href="#back"/></svg></button><span class="meta">键盘焦点</span></div>
+      <div class="row"><button class="tb on"><svg class="i"><use href="#loop"/></svg></button><span class="meta">切换开：选中底，不用墨色实心</span></div>
+      <div class="row"><button class="tb off" disabled><svg class="i"><use href="#fwd"/></svg></button><span class="meta">没有录音时禁用</span></div>
+    </div>
+    <p class="meta">播放按钮是全页唯一的墨色实心按钮。切换按钮用 <code>aria-pressed</code>，开着是选中底。每个按钮都有完整名称和快捷键提示。速度只给离散档位（0.5× 0.75× 1.0× 1.25× 1.5× 2.0×）。</p>
+  </section>
+
+  <div class="board">
+    <section>
+      <h2>时间码输入</h2>
+      <div class="row" style="gap:16px">
+        <div class="stack"><span class="label">默认</span><span class="tc">00:01:12.480</span></div>
+        <div class="stack"><span class="label">编辑中</span><span class="tc focus">00:01:1|</span></div>
+        <div class="stack"><span class="label">格式错</span><span class="tc error">01:72.4</span><span class="meta" style="color:var(--danger-text);font-size:var(--text-xs)">写成 时:分:秒.毫秒</span></div>
+      </div>
+      <p class="meta">回车跳转，Esc 还原。错误保留输入。超出录音长度时跳到结尾并说明。</p>
+    </section>
+    <section>
+      <h2>音量与电平</h2>
+      <div class="row" style="gap:24px;align-items:start">
+        <div class="stack"><span class="label">音量 · 焦点</span><span class="slider focus"><i style="width:40%"></i><b style="left:40%"></b></span></div>
+        <div class="stack"><span class="label">电平</span><div class="meter"><i style="--v:62%"></i><i style="--v:48%"></i></div></div>
+        <div class="stack"><span class="label">削波</span><div class="meter"><i class="clip" style="--v:100%"></i><i style="--v:88%"></i></div><span class="meta" style="font-size:var(--text-xs)">0 dB 削波</span></div>
+      </div>
+      <p class="meta">滑块：方向键微调，Shift+方向键大步，旁边显示数值。电平只在录音时出现；削波用红色并配文字。</p>
+    </section>
+  </div>
+
+  <section>
+    <h2>全稿概览与视窗</h2>
+    <div class="mini" id="mini"><span class="vp" style="left:8%;width:6%"></span><span class="ph" style="left:9.4%"></span></div>
+    <p class="meta">概览显示整份录音，框出当前视窗；拖框平移，点击跳转。缩放档位以「每屏秒数」显示在缩放滑块的提示里。</p>
+  </section>
+
+  <section>
+    <h2>显示方式</h2>
+    <div class="row" style="gap:24px">
+      <span class="seg-c" style="display:inline-flex;padding:2px;gap:2px;background:var(--surface-warm);border-radius:var(--radius-md)"><span style="height:28px;padding:0 12px;display:inline-flex;align-items:center;border-radius:var(--radius-sm);background:var(--surface);box-shadow:var(--elev-ring);font-weight:600;font-size:var(--text-sm)">波形</span><span style="height:28px;padding:0 12px;display:inline-flex;align-items:center;font-size:var(--text-sm);color:var(--fg-2)">语谱图</span><span style="height:28px;padding:0 12px;display:inline-flex;align-items:center;font-size:var(--text-sm);color:var(--fg-2)">分屏</span></span>
+      <span class="meta">视频位置：上 / 左 / 右</span>
+    </div>
+    <p class="meta">语谱图默认墨色单色阶（浅到深），设置里可切换为 viridis，不用彩虹色。视频面板贴着波形放，和波形共用播放头，不另加边框层。</p>
+  </section>
+
+  <div class="board">
+    <section>
+      <h2>拖动边界 · 吸附</h2>
+      <div class="tlbox">
+        <div class="lane" style="top:0">
+          <div class="seg" style="left:2%;width:30%">ka˧ lo˥</div>
+          <div class="shadow-seg" style="left:35%;width:46%;top:8px;bottom:8px"></div>
+          <div class="seg sel" style="left:32%;width:49%">tsa˧ rɛ˥ ŋu˩</div>
+          <div class="handle" style="left:32%"></div>
+        </div>
+        <div class="guide" style="left:32%"></div>
+        <div class="tip" style="left:calc(32% - 40px);top:64px">起点 <span class="mono">00:01:10.000</span>　−0.20 s<br>已吸附到上一段段尾</div>
+      </div>
+      <p class="meta">原位置留虚线虚影；新起止实时读数；吸附时出现墨色虚线引导线并写明吸附到了什么。</p>
+    </section>
+    <section>
+      <h2>拖动边界 · 拒绝</h2>
+      <div class="tlbox">
+        <div class="lane" style="top:0">
+          <div class="seg" style="left:2%;width:30%">ka˧ lo˥</div>
+          <div class="seg sel" style="left:32%;width:49%">tsa˧ rɛ˥ ŋu˩</div>
+          <div class="hit" style="left:32%"></div>
+          <div class="handle" style="left:32%"></div>
+        </div>
+        <div class="tip bad" style="left:calc(32% - 40px);top:64px">不能越过上一段段尾</div>
+      </div>
+      <p class="meta">手柄可视 2px，命中 8px（浅灰带示意，实际不显示）。到达极限时手柄停住，就近说明原因，不弹窗。</p>
+    </section>
+  </div>
+
+  <div class="board">
+    <section>
+      <h2>多选</h2>
+      <div class="tlbox">
+        <div class="lane" style="top:0">
+          <div class="seg sel" style="left:2%;width:28%">ka˧ lo˥</div>
+          <div class="seg sel" style="left:32%;width:30%">tsa˧ rɛ˥</div>
+          <div class="seg focus" style="left:64%;width:30%;background:var(--selection)">mɛ˩ tʂo˧</div>
+          <span class="count">已选 3 段</span>
+        </div>
+      </div>
+      <p class="meta">⌘ 点选加减，Shift 点选连续，⇧Home / ⇧End 选到头尾。焦点只在最后操作的一段。右键菜单切成批量项。</p>
+    </section>
+    <section>
+      <h2>点层 · 极短片段 · 跨轨重叠</h2>
+      <div class="tlbox">
+        <div class="lane" style="top:0">
+          <div class="seg" style="left:2%;width:40%">ŋa˧ ma˥</div>
+          <div class="narrow" style="left:48%" title="第 16 段 · 0.35 s"></div>
+          <div class="seg" style="left:56%;width:40%">ja˥ ja˧</div>
+          <div class="overlap" style="left:30%;width:12%"></div>
+        </div>
+        <div class="lane" style="top:54px;height:32px">
+          <span class="pin" style="left:20%;top:9px"></span>
+          <span class="pin sel" style="left:64%;top:9px"></span>
+        </div>
+        <div class="lane" style="top:86px;height:46px;border-bottom:0">
+          <div class="seg" style="left:30%;width:24%;top:4px;bottom:8px;border-top:1.5px dashed var(--series-ink-1)">ʔo˧</div>
+        </div>
+      </div>
+      <p class="meta">点层用菱形标记，选中实心。放不下文字的片段只留灰色边界和悬停提示。跨轨重叠区间在两轨上叠斜线纹，不用颜色。</p>
+    </section>
+  </div>
+
+  <section>
+    <h2>时间轴状态条</h2>
+    <div class="strip">
+      <span>第 12 段 / 共 48 段 · 讲述人 A · <span class="mono">00:01:10.200 – 00:01:14.860</span> · 4.66 s</span>
+      <span class="push"><span class="kbd">空格</span> 播放　<span class="kbd">⌘⇧S</span> 拆分　<span class="kbd">]</span> 下一个待复核</span>
+    </div>
+    <p class="meta">只读信息，不放按钮。窄窗先藏右侧快捷键提示。</p>
+  </section>
+</main>
+<script>
+  const m = document.getElementById('mini');
+  for (let k = 0; k < 180; k++) { const i = document.createElement('i'); i.style.height = (20 + Math.abs(Math.sin(k * 0.29) * Math.cos(k * 0.07)) * 70) + '%'; m.insertBefore(i, m.firstChild); }
+</script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>数据展示与编辑</title>
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="preview.css" />
+  <style>
+    .board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+    table { border-collapse: collapse; width: 100%; background: var(--surface); border: 1px solid var(--border); font-size: var(--text-sm); line-height: var(--leading-sm); }
+    th { height: 36px; padding: 0 12px; text-align: left; font-weight: 600; font-size: var(--text-xs); color: var(--fg-2); background: var(--surface); border-bottom: 1px solid var(--border); position: relative; white-space: nowrap; }
+    th .sort { margin-left: 4px; color: var(--fg); }
+    th .rs { position: absolute; right: 0; top: 8px; bottom: 8px; width: 1px; background: var(--border-soft); }
+    th.drag .rs { background: var(--fg); width: 2px; top: 0; bottom: 0; }
+    td { height: 40px; padding: 0 12px; border-bottom: 1px solid var(--border-soft); white-space: nowrap; }
+    tr.sel td { background: var(--selection); }
+    tr.sel td:first-child { box-shadow: inset 2px 0 0 var(--fg); }
+    tr.hover td { background: var(--surface-warm); }
+    td.num { text-align: right; font-family: var(--font-mono); font-size: var(--text-xs); }
+    td.ipa { font: var(--text-lg)/var(--leading-lg) var(--font-ipa); }
+    td.edit { padding: 0 4px; }
+    td.edit span { display: flex; align-items: center; height: 32px; padding: 0 8px; border: 1px solid var(--fg); border-radius: var(--radius-md); box-shadow: var(--focus-ring); background: var(--surface); }
+    td.cellfocus { box-shadow: inset 0 0 0 2px var(--fg); }
+    td.err { box-shadow: inset 2px 0 0 var(--danger); color: var(--danger-text); }
+    .box { width: 16px; height: 16px; border: 1.5px solid var(--fg); border-radius: 2px; display: inline-grid; place-items: center; font-size: var(--text-xs); line-height: 1; vertical-align: middle; }
+    .box.on { background: var(--fg); color: var(--accent-on); }
+    .tfoot { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-top: 0; font-size: var(--text-xs); color: var(--muted); }
+    .tfoot .push { margin-left: auto; }
+    .notice { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: var(--text-sm); background: var(--surface-warm); color: var(--fg-2); border: 1px solid var(--border); border-bottom: 0; }
+    .notice .btn { margin-left: auto; }
+    .props { display: grid; grid-template-columns: 120px 1fr; background: var(--surface); border: 1px solid var(--border); font-size: var(--text-sm); line-height: var(--leading-sm); }
+    .props dt, .props dd { margin: 0; padding: 8px 12px; border-bottom: 1px solid var(--border-soft); }
+    .props dt { color: var(--muted); }
+    .props dd.mono { font-size: var(--text-xs); }
+    .group { background: var(--surface); border: 1px solid var(--border); }
+    .gh { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border-soft); font-weight: 600; font-size: var(--text-sm); }
+    .gh .push { margin-left: auto; }
+    .item { display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; padding: 12px; align-items: start; }
+    .item + .item { border-top: 1px solid var(--border-soft); }
+    .item.sub { margin-left: 28px; background: var(--bg); }
+    .item.sel { background: var(--selection); box-shadow: inset 2px 0 0 var(--fg); }
+    .grip { color: var(--muted); cursor: grab; line-height: 22px; text-align: center; }
+    .item .acts { display: flex; gap: 4px; }
+    .item .acts span { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--radius-md); color: var(--fg-2); }
+    .item .acts span.off { color: var(--muted); opacity: .5; }
+    .fl { display: grid; grid-template-columns: 72px 1fr; gap: 4px 12px; font-size: var(--text-sm); line-height: var(--leading-sm); }
+    .fl .k { color: var(--muted); }
+    .insert { height: 0; border-top: 2px solid var(--fg); margin: 0 12px; position: relative; }
+    .insert::before { content: ""; position: absolute; left: -4px; top: -5px; width: 8px; height: 8px; border-radius: 50%; background: var(--fg); }
+    .add { display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: var(--fg-2); font-size: var(--text-sm); border-top: 1px solid var(--border-soft); }
+    .cite { display: inline-flex; align-items: center; gap: 4px; color: var(--secondary); text-decoration: underline; text-underline-offset: 3px; }
+    .cite.broken { color: var(--danger-text); text-decoration: line-through; }
+    .diff { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface); border: 1px solid var(--border); font-size: var(--text-sm); line-height: var(--leading-sm); }
+    .diff > div { padding: 12px; }
+    .diff > div + div { border-left: 1px solid var(--border-soft); }
+    .diff .h { font-size: var(--text-xs); color: var(--muted); margin-bottom: 8px; font-weight: 600; }
+    del { text-decoration: line-through 1.5px; color: var(--muted); }
+    ins { text-decoration: none; background: var(--surface-warm); box-shadow: inset 0 -2px 0 var(--fg); padding: 0 2px; }
+  </style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>数据展示与编辑</h1>
+    <p class="note">词典列表、查询结果、导入预览都用同一种表格。表格行高 40px，表头 36px；数字右对齐等宽；研究内容用 IPA 字族。</p>
+  </div>
+
+  <section>
+    <h2>数据表格</h2>
+    <div class="notice"><span class="dot warn"></span>项目数据在查询后改过，结果可能过期。<button class="btn sm">重新查询</button></div>
+    <table>
+      <thead><tr><th style="width:40px"><span class="box">–</span></th><th>词头<span class="sort">▲</span><span class="rs"></span></th><th>词性<span class="rs"></span></th><th class="drag">释义<span class="rs"></span></th><th style="text-align:right">出处数<span class="rs"></span></th><th>状态</th></tr></thead>
+      <tbody>
+        <tr><td><span class="box"></span></td><td class="ipa">ka˧ lo˥</td><td>名</td><td>河岸</td><td class="num">4</td><td><span class="dot ok"></span> 已确认</td></tr>
+        <tr class="sel"><td><span class="box on">✓</span></td><td class="ipa">ŋa˧</td><td>代</td><td class="edit"><span>我（第一人称|</span></td><td class="num">31</td><td><span class="dot idle"></span> 未保存</td></tr>
+        <tr class="hover"><td><span class="box"></span></td><td class="ipa">tsʰo˩</td><td>动</td><td>过（河）</td><td class="num">2</td><td><span class="dot warn"></span> 待复核</td></tr>
+        <tr><td><span class="box"></span></td><td class="ipa">pʰu˧</td><td class="cellfocus">名</td><td>桥（借词？）</td><td class="num">1</td><td></td></tr>
+        <tr><td><span class="box"></span></td><td class="ipa">ri˩</td><td>助</td><td class="err">保存失败，草稿还在</td><td class="num">0</td><td><span class="dot err"></span> 失败</td></tr>
+      </tbody>
+    </table>
+    <div class="tfoot"><span>已选 1 条 · 共 1,248 条</span><span>只显示前 1,000 条，缩小条件可看全部。</span><span class="push">列宽可拖，双击分隔线自适应</span></div>
+    <p class="meta">表头点击排序，方向用箭头标出。单元格焦点墨色内框；双击或 Enter 就地编辑，Esc 还原。行选中复用选中底 + 左墨条。截断、过期、失败都写在表格上方或下方，不只靠颜色。</p>
+  </section>
+
+  <div class="board">
+    <section>
+      <h2>可重复嵌套字段组（义项）</h2>
+      <div class="group">
+        <div class="gh">义项<span class="meta" style="font-weight:400">3</span><span class="push"></span><button class="btn sm ghost">全部展开</button></div>
+        <div class="item"><span class="grip">⋮⋮</span><div class="fl"><span class="k">1</span><span>河岸；河边的平地</span><span class="k">gloss</span><span class="mono">bank</span></div><span class="acts"><span aria-label="上移" class="off">↑</span><span aria-label="下移">↓</span><span aria-label="更多">⋯</span></span></div>
+        <div class="item sub sel"><span class="grip">⋮⋮</span><div class="fl"><span class="k">1.1</span><span>渡口</span><span class="k">例证</span><span class="ipa" style="font-size:var(--text-base)">ka˧ lo˥ tsʰo˩ <span class="cite">录音03 #12</span></span></div><span class="acts"><span aria-label="升一级">←</span><span aria-label="上移" class="off">↑</span><span aria-label="更多">⋯</span></span></div>
+        <div class="insert"></div>
+        <div class="item"><span class="grip">⋮⋮</span><div class="fl"><span class="k">2</span><span>（转）边界</span><span class="k">例证</span><span><span class="cite broken">录音05 #3</span> <span class="meta">出处已删除</span></span></div><span class="acts"><span aria-label="降一级">→</span><span aria-label="上移">↑</span><span aria-label="更多">⋯</span></span></div>
+        <div class="add">＋ 添加义项</div>
+      </div>
+      <p class="meta">子级缩进 28px，用浅底而不是边框。拖动把手或上移/下移按钮排序，升一级/降一级按钮调层级；按钮在首尾或无法再升降时禁用。拖动时画墨色插入线。删除带子项的义项要确认影响范围。</p>
+    </section>
+    <section>
+      <h2>属性列表</h2>
+      <dl class="props">
+        <dt>片段 ID</dt><dd class="mono">seg_0148</dd>
+        <dt>讲述人</dt><dd>A · 拉姆</dd>
+        <dt>起止</dt><dd class="mono">00:01:10.200 – 00:01:14.860</dd>
+        <dt>引用</dt><dd><span class="cite">词典 · ka˧ lo˥</span>、<span class="cite broken">词典 · ʑi˥</span> <span class="meta">词条已删除</span></dd>
+        <dt>修改</dt><dd class="meta">今天 14:02</dd>
+      </dl>
+      <p class="meta">只读信息用属性列表。引用是次要标记色下划线；失效引用删除线 + 原因，可以去「迁移或解除」。</p>
+      <h2 style="margin-top:12px">前后对照</h2>
+      <div class="diff">
+        <div><div class="h">现在</div><span class="ipa" style="font-size:var(--text-base)">tsa˧ <del>rɛ˥ŋu˩</del> kʰa˧</span></div>
+        <div><div class="h">重新分词后</div><span class="ipa" style="font-size:var(--text-base)">tsa˧ <ins>rɛ˥</ins> <ins>ŋu˩</ins> kʰa˧</span></div>
+      </div>
+      <p class="meta">删去：灰色删除线。新增：浅灰底 + 墨色下划线。不用红绿。重新分词、导入预览、历史版本都用这种对照。</p>
+    </section>
+  </div>
+</main>
+</body>
+</html>

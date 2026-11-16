@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>专用输入</title>
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="preview.css" />
+  <style>
+    .form { display: grid; grid-template-columns: repeat(3, 300px); gap: 24px; align-items: start; }
+    .field { display: grid; gap: 4px; }
+    .field > label { font: 600 var(--text-xs)/var(--leading-xs) var(--font-body); color: var(--fg-2); }
+    .control { min-height: 32px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); padding: 0 8px; background: var(--surface); color: var(--fg); display: flex; align-items: center; gap: 8px; font-size: var(--text-base); }
+    .control.focus { border-color: var(--fg); box-shadow: var(--focus-ring); }
+    .control.error { border-color: var(--danger); }
+    .control .end { margin-left: auto; color: var(--muted); }
+    .help { font-size: var(--text-xs); line-height: var(--leading-xs); color: var(--muted); min-height: 18px; }
+    .help.err { color: var(--danger-text); }
+    svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+    .spin { display: grid; grid-template-rows: 1fr 1fr; border-left: 1px solid var(--border-soft); margin: 0 -8px 0 auto; height: 30px; }
+    .spin span { width: 24px; display: grid; place-items: center; font-size: var(--text-xs); line-height: 1; color: var(--fg-2); }
+    .spin span + span { border-top: 1px solid var(--border-soft); }
+    .ime { text-decoration: underline 1.5px var(--fg); text-underline-offset: 4px; }
+    .cand { margin-top: 4px; display: inline-flex; gap: 12px; padding: 4px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-popover); font-size: var(--text-sm); }
+    textarea.control { min-height: 88px; padding: 8px; font: var(--text-base)/var(--leading-base) var(--font-body); resize: vertical; width: 100%; }
+    .tags { flex-wrap: wrap; padding: 4px 8px; }
+    .chip { height: 24px; padding: 0 8px; border-radius: var(--radius-pill); display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); background: var(--surface-warm); }
+    .chip .x { color: var(--muted); }
+    .drop { border: 1.5px dashed var(--border-strong); border-radius: var(--radius-lg); padding: 16px; display: grid; justify-items: center; gap: 8px; text-align: center; background: var(--surface); }
+    .drop.over { border-color: var(--fg); background: var(--surface-warm); }
+    .kbdbar { display: flex; gap: 4px; flex-wrap: wrap; }
+    .kbdbar span { min-width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--radius-md); background: var(--surface-warm); font: var(--text-lg)/1 var(--font-ipa); }
+  </style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>专用输入</h1>
+    <p class="note">通用文本框、下拉、组合框和选择控件见「表单」。这页是项目里会反复出现的专用输入：数字、搜索、长文本、研究内容、标签、文件。</p>
+  </div>
+
+  <section>
+    <h2>数字与搜索</h2>
+    <div class="form">
+      <div class="field"><label>最短片段（毫秒）</label><div class="control"><span class="mono" style="font-size:var(--text-base)">200</span><span class="spin"><span>▲</span><span>▼</span></span></div><div class="help">方向键 ±10，Shift ±100。</div></div>
+      <div class="field"><label>最短片段（毫秒）</label><div class="control error"><span class="mono" style="font-size:var(--text-base)">-40</span><span class="spin"><span>▲</span><span>▼</span></span></div><div class="help err">不能小于 0。</div></div>
+      <div class="field"><label>在本稿查找</label><div class="control focus"><svg class="i" viewBox="0 0 24 24" style="color:var(--muted)"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>ruŋ<span class="end mono">3 / 12</span><span class="end" aria-label="清除">×</span></div><div class="help">⌘F 打开。Esc 先清空，再按一次关闭。</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>研究内容输入（IPA、转写、gloss）</h2>
+    <div class="form">
+      <div class="field"><label>转写</label><div class="control" style="font:var(--text-lg)/var(--leading-lg) var(--font-ipa)">tsa˧ rɛ˥ ŋu˩</div><div class="help">研究内容用 IPA 字族 16/24，界面标签不用。</div></div>
+      <div class="field"><label>释义 · 输入法组字中</label><div class="control focus">水很<span class="ime">ji</span></div><div class="help">候选窗是系统的。组字期间 Enter 只上屏，不提交、不播放、不切段。</div></div>
+      <div class="field"><label>特殊字符</label><div class="kbdbar"><span>ŋ</span><span>ʔ</span><span>ɛ</span><span>ʑ</span><span>ʂ</span><span>ʰ</span><span>˥</span><span>˧</span><span>˩</span></div><div class="help">点击插入光标处。按正字法配置，不写死一套。</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>长文本与标签</h2>
+    <div class="form">
+      <div class="field" style="grid-column:span 2"><label>备注</label><textarea class="control">第二遍听写时发音人改了尾音；地名待和村里人核对。</textarea><div class="help">可拖右下角拉高。⌘Enter 保存，Enter 换行。</div></div>
+      <div class="field"><label>语义域</label><div class="control tags focus"><span class="chip">水<span class="x">×</span></span><span class="chip">地形<span class="x">×</span></span>河|</div><div class="help">回车成标签；退格先选中最后一个再删除。</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>文件选择与拖放</h2>
+    <div class="form">
+      <div class="field"><label>录音文件</label><div class="control"><span class="mono" style="font-size:var(--text-sm)">田野录音03.wav</span><span class="end">48.2 MB</span></div><div class="help">显示文件名和大小，不显示完整路径。</div></div>
+      <div class="drop"><svg class="i" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg><span>把录音或 EAF 拖到这里</span><button class="btn sm">选择文件…</button></div>
+      <div class="drop over"><svg class="i" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg><span>松开即可导入 2 个文件</span><span class="meta">拖入时：墨色虚线 + 浅灰底</span></div>
+    </div>
+    <p class="meta">拖放永远有等价的「选择文件…」按钮。不接受的文件类型在松开前就说明原因。</p>
+  </section>
+</main>
+</body>
+</html>

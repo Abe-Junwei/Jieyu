@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>转写行</title>
+  <link rel="stylesheet" href="../tokens.css" />
+  <style>
+    body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: var(--text-sm); }
+    main { max-width: 720px; margin: 32px auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+    .line { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--border-soft); }
+    .line:first-child { border-top: 0; }
+    .sel { background: var(--surface-warm); box-shadow: inset 2px 0 0 var(--fg); }
+    .bad { color: var(--danger); }
+    .ipa { font-family: var(--font-ipa); }
+    .time { font-family: var(--font-mono); font-size: var(--text-xs); }
+    .tag { color: var(--secondary); font-size: var(--text-xs); }
+    button { height: 32px; padding: 0 12px; border-radius: var(--radius-md); background: var(--surface); color: var(--danger); border: 1px solid var(--danger); font: inherit; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="line sel"><span><span class="time">00:00:04.120</span> <span class="ipa">ŋa˥ tʂʰɐ˧ lo˩</span></span><span>讲述人A</span></div>
+  <div class="line"><span><span class="time">00:00:12.400</span> 正在输入</span><span>未保存</span></div>
+  <div class="line bad"><span><span class="time">00:00:21.000</span> 保存失败，草稿还在</span><button>重试</button></div>
+  <div class="line"><span><span class="time">00:00:31.200</span> <span class="ipa">mi˧ ʑa˥</span></span><span class="tag">待复核</span></div>
+</main>
+</body>
+</html>
