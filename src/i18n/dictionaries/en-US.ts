@@ -4122,8 +4122,6 @@ export const enUSDictionary = {
     themeLight: 'Light',
     themeDark: 'Dark',
     themeSystem: 'System',
-    appearanceSchemeLabel: 'Color scheme',
-    themeAccentLabel: 'Accent color',
     localeLabel: 'Language',
     localeChinese: '中文',
     localeEnglish: 'English',

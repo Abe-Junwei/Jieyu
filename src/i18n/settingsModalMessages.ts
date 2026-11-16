@@ -16,8 +16,6 @@ export type SettingsModalMessages = {
   themeLight: string;
   themeDark: string;
   themeSystem: string;
-  appearanceSchemeLabel: string;
-  themeAccentLabel: string;
   localeLabel: string;
   localeChinese: string;
   localeEnglish: string;

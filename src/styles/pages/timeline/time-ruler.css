@@ -51,15 +51,21 @@
   padding: 0;
   cursor: pointer;
   z-index: var(--z-timeline-sticky);
-  transition: left var(--duration-normal) var(--ease-smooth),
-    background var(--duration-fast) ease, border-color var(--duration-fast) ease,
-    box-shadow var(--duration-fast) ease, transform var(--duration-fast) ease;
+  transition:
+    left var(--duration-normal) var(--ease-smooth),
+    background var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease,
+    transform var(--duration-fast) ease;
 }
 
 /* 拖拽调整 lane-label 宽度期间禁用 left transition | Disable left transition during lane-label resize drag */
 .lane-label-resizing .time-ruler-lane-toggle {
-  transition: background 160ms ease, border-color 160ms ease,
-    box-shadow 160ms ease, transform 160ms ease;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
 .time-ruler-lane-toggle:hover {
@@ -166,7 +172,7 @@
 
 .time-ruler-cursor-line {
   stroke: var(--timeline-playhead-color, var(--state-danger-solid));
-  stroke-width: 1;
+  stroke-width: var(--timeline-playhead-width, 1);
   vector-effect: non-scaling-stroke;
   filter: none;
 }

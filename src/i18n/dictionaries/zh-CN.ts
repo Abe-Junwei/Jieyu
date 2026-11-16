@@ -3796,8 +3796,6 @@ export const zhCNDictionary = {
     themeLight: '浅色',
     themeDark: '深色',
     themeSystem: '跟随系统',
-    appearanceSchemeLabel: '配色方案',
-    themeAccentLabel: '主题色',
     localeLabel: '界面语言',
     localeChinese: '中文',
     localeEnglish: 'English',

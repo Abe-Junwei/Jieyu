@@ -103,7 +103,6 @@ export const SettingsModal = memo(function SettingsModal({
         >
           {activeTab === 'appearance' && (
             <SettingsAppearanceTab
-              locale={locale}
               themeMode={themeMode}
               fontScale={fontScale}
               fontScaleMode={fontScaleMode}

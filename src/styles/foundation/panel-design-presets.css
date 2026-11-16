@@ -6,18 +6,19 @@
   --panel-design-border-color: var(--border-soft);
   --panel-design-surface-color: var(--surface-panel);
   --panel-design-accent-color: var(--header-accent);
-  --panel-typography-dialog-title-size: calc(16px * var(--ui-font-scale, 1));
-  --panel-typography-emphasis-title-size: calc(13px * var(--ui-font-scale, 1));
-  --panel-typography-section-title-size: calc(12px * var(--ui-font-scale, 1));
-  --panel-typography-label-size: calc(12px * var(--ui-font-scale, 1));
-  --panel-typography-body-size: calc(12px * var(--ui-font-scale, 1));
-  --panel-typography-caption-size: calc(11px * var(--ui-font-scale, 1));
-  --panel-typography-micro-size: calc(10px * var(--ui-font-scale, 1));
-  --panel-typography-mini-size: calc(9px * var(--ui-font-scale, 1));
-  --panel-typography-subheading-size: calc(14px * var(--ui-font-scale, 1));
-  --panel-typography-title-size: calc(15px * var(--ui-font-scale, 1));
-  --panel-typography-overlay-title-size: calc(18px * var(--ui-font-scale, 1));
-  --panel-typography-display-size: calc(22px * var(--ui-font-scale, 1));
+  /* 只映射到 tokens.css 的 6 档字号；9–11/15/18/22px 已退役（ADR-0104） */
+  --panel-typography-dialog-title-size: var(--type-sub-h-size);
+  --panel-typography-emphasis-title-size: var(--type-meta-tool-size);
+  --panel-typography-section-title-size: var(--type-code-time-size);
+  --panel-typography-label-size: var(--type-code-time-size);
+  --panel-typography-body-size: var(--type-code-time-size);
+  --panel-typography-caption-size: var(--type-code-time-size);
+  --panel-typography-micro-size: var(--type-code-time-size);
+  --panel-typography-mini-size: var(--type-code-time-size);
+  --panel-typography-subheading-size: var(--type-body-reg-size);
+  --panel-typography-title-size: var(--type-sub-h-size);
+  --panel-typography-overlay-title-size: var(--type-main-h-size);
+  --panel-typography-display-size: var(--type-main-h-size);
 }
 
 .panel-design-match,
@@ -26,8 +27,36 @@
   color: var(--panel-design-text-color);
 }
 
-.panel-design-match :is(.panel-input, .panel-button, .panel-chip, .panel-note, .panel-section__title, .panel-section__description, .panel-subsection__description, .panel-summary__supporting, input, select, textarea, button),
-.panel-design-match-content :is(.panel-input, .panel-button, .panel-chip, .panel-note, .panel-section__title, .panel-section__description, .panel-subsection__description, .panel-summary__supporting, input, select, textarea, button) {
+.panel-design-match
+  :is(
+    .panel-input,
+    .panel-button,
+    .panel-chip,
+    .panel-note,
+    .panel-section__title,
+    .panel-section__description,
+    .panel-subsection__description,
+    .panel-summary__supporting,
+    input,
+    select,
+    textarea,
+    button
+  ),
+.panel-design-match-content
+  :is(
+    .panel-input,
+    .panel-button,
+    .panel-chip,
+    .panel-note,
+    .panel-section__title,
+    .panel-section__description,
+    .panel-subsection__description,
+    .panel-summary__supporting,
+    input,
+    select,
+    textarea,
+    button
+  ) {
   font-family: inherit;
 }
 
@@ -142,8 +171,22 @@
   font-weight: 600;
 }
 
-.panel-design-match :is(.panel-section__description, .panel-subsection__description, .panel-summary__supporting, .panel-note, .dialog-supporting-note),
-.panel-design-match-content :is(.panel-section__description, .panel-subsection__description, .panel-summary__supporting, .panel-note, .dialog-supporting-note) {
+.panel-design-match
+  :is(
+    .panel-section__description,
+    .panel-subsection__description,
+    .panel-summary__supporting,
+    .panel-note,
+    .dialog-supporting-note
+  ),
+.panel-design-match-content
+  :is(
+    .panel-section__description,
+    .panel-subsection__description,
+    .panel-summary__supporting,
+    .panel-note,
+    .dialog-supporting-note
+  ) {
   color: var(--panel-design-text-color);
   font-size: var(--panel-typography-body-size);
   line-height: 1.5;
@@ -163,7 +206,8 @@
 }
 
 .panel-design-match :is(.panel-chip--danger, .panel-note--danger, .dialog-supporting-note-danger),
-.panel-design-match-content :is(.panel-chip--danger, .panel-note--danger, .dialog-supporting-note-danger) {
+.panel-design-match-content
+  :is(.panel-chip--danger, .panel-note--danger, .dialog-supporting-note-danger) {
   color: var(--state-danger-text);
 }
 
