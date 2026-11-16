@@ -78,8 +78,8 @@
     <h2>建议审核队列</h2>
     <div class="queue">
       <div class="qh"><span class="box on">–</span><strong>AI 建议</strong><span class="meta">5 条 · 已选 2</span><span class="push"></span><button class="btn sm">拒绝所选</button><button class="btn sm primary">采纳所选</button></div>
-      <div class="qi"><span class="box on">✓</span><div>第 12 段 · 释义<div><del>（空）</del> <ins>水很急，羊不肯过去</ins></div><div class="s">本地模型 · 置信度中</div></div><span class="acts"><button class="btn sm">拒绝</button><button class="btn sm">采纳</button></span></div>
-      <div class="qi"><span class="box on">✓</span><div>第 13 段 · gloss<div><del>冷</del> <ins>冷-<span style="font-variant:small-caps">pfv</span></ins></div><div class="s">本地模型 · 置信度低</div></div><span class="acts"><button class="btn sm">拒绝</button><button class="btn sm">采纳</button></span></div>
+      <div class="qi"><span class="box on">✓</span><div>第 12 段 · 释义<div><del>（空）</del> <ins>水很急，羊不肯过去</ins></div><div class="s">云端模型 · 置信度中</div></div><span class="acts"><button class="btn sm">拒绝</button><button class="btn sm">采纳</button></span></div>
+      <div class="qi"><span class="box on">✓</span><div>第 13 段 · gloss<div><del>冷</del> <ins>冷-<span style="font-variant:small-caps">pfv</span></ins></div><div class="s">云端模型 · 置信度低</div></div><span class="acts"><button class="btn sm">拒绝</button><button class="btn sm">采纳</button></span></div>
       <div class="qi conflict"><span class="box"></span><div>第 14 段 · 转写<div><del>ma˩</del> <ins>ma˧</ins></div><div class="s"><span class="dot err"></span> 这段在建议生成后被你改过，不能直接采纳。</div></div><span class="acts"><button class="btn sm">对照后决定…</button></span></div>
     </div>
     <p class="meta">每条写位置、前后对照和来源。批量采纳时只要有一条冲突，整批不写入，并指出是哪条。建议在关闭后仍保留，下次打开继续审。</p>
@@ -101,7 +101,7 @@
         <header>AI</header>
         <div style="display:grid;place-content:center;justify-items:center;gap:8px;text-align:center;padding:24px">
           <strong>还没有配置 AI</strong>
-          <span class="meta">选本地模型就不会把语料发出这台电脑。</span>
+          <span class="meta">填入云端服务密钥后可用；每次外发语料前都会先请你确认。</span>
           <button class="btn primary">去设置…</button>
         </div>
       </div>

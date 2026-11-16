@@ -74,13 +74,22 @@
   min-height: var(--input-h-lg);
   box-sizing: border-box;
   padding: 0 10px;
-  border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 100%, transparent);
+  border: 1px solid var(--border-control);
   border-radius: var(--radius-md);
   background: var(--surface-panel);
   color: var(--panel-design-title-color, var(--text-primary));
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.35;
   box-shadow: none;
+}
+
+.orthography-builder-panel
+  :is(
+    .orthography-builder-control,
+    .orthography-builder-language-input input,
+    .script-tag-combobox input
+  ):disabled {
+  border-color: var(--border-soft);
 }
 
 .orthography-builder-panel

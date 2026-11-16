@@ -118,7 +118,7 @@
 .panel-design-match-content {
   --input-min-height: var(--input-h-sm);
   --input-padding: 6px 8px;
-  --input-border-color: var(--panel-design-border-color);
+  --input-border-color: var(--border-control);
   --input-border-radius: var(--radius-sm);
   --input-background: var(--panel-design-surface-color);
   --input-color: var(--panel-design-title-color);
@@ -128,14 +128,14 @@
   --btn-min-height: var(--input-h-sm);
   --btn-padding: 6px 10px;
   --btn-border-radius: var(--radius-sm);
-  --btn-border-color: var(--panel-design-border-color);
+  --btn-border-color: var(--border-control);
   --btn-background: var(--panel-design-surface-color);
   --btn-color: var(--panel-design-text-color);
   --btn-font-size: var(--panel-typography-body-size);
   --btn-line-height: 1.5;
   --btn-font-weight: 600;
   --btn-box-shadow: none;
-  --btn-ghost-border-color: var(--panel-design-border-color);
+  --btn-ghost-border-color: var(--border-control);
   --btn-ghost-background: var(--panel-design-surface-color);
   --btn-ghost-color: var(--panel-design-text-color);
   --btn-ghost-hover-background: var(--panel-design-surface-color);
@@ -215,12 +215,22 @@
 .panel-design-match-content :is(.panel-input) {
   min-height: var(--input-h-sm);
   padding: 6px 8px;
-  border-color: var(--panel-design-border-color);
+  border-color: var(--border-control);
   border-radius: var(--radius-sm);
   background: var(--panel-design-surface-color);
   color: var(--panel-design-title-color);
   font-size: var(--panel-typography-body-size);
   line-height: 1.5;
+}
+
+.panel-design-match :is(.panel-input:hover:not(:disabled):not(:focus)),
+.panel-design-match-content :is(.panel-input:hover:not(:disabled):not(:focus)) {
+  border-color: var(--text-secondary);
+}
+
+.panel-design-match :is(.panel-input:disabled),
+.panel-design-match-content :is(.panel-input:disabled) {
+  border-color: var(--border-soft);
 }
 
 .panel-design-match :is(textarea.panel-input),
@@ -233,7 +243,7 @@
   min-height: var(--input-h-sm);
   padding: 6px 10px;
   border-radius: var(--radius-sm);
-  border-color: var(--panel-design-border-color);
+  border-color: var(--border-control);
   background: var(--panel-design-surface-color);
   color: var(--panel-design-text-color);
   font-size: var(--panel-typography-body-size);
@@ -251,9 +261,39 @@
 
 .panel-design-match :is(.panel-button--ghost),
 .panel-design-match-content :is(.panel-button--ghost) {
-  border-color: var(--panel-design-border-color);
+  border-color: var(--border-control);
   background: var(--panel-design-surface-color);
   color: var(--panel-design-text-color);
+}
+
+.panel-design-match
+  :is(.panel-button, .panel-button--ghost):hover:not(:disabled):not(.panel-button--primary):not(
+    .panel-button--danger
+  ),
+.panel-design-match-content
+  :is(.panel-button, .panel-button--ghost):hover:not(:disabled):not(.panel-button--primary):not(
+    .panel-button--danger
+  ) {
+  border-color: var(--text-secondary);
+}
+
+.panel-design-match
+  :is(.panel-button, .panel-button--ghost):disabled:not(.panel-button--primary):not(
+    .panel-button--danger
+  ),
+.panel-design-match-content
+  :is(.panel-button, .panel-button--ghost):disabled:not(.panel-button--primary):not(
+    .panel-button--danger
+  ) {
+  border-color: var(--border-soft);
+}
+
+.panel-design-match
+  :is(.panel-input:focus-visible, .panel-button:focus-visible, .panel-button--ghost:focus-visible),
+.panel-design-match-content
+  :is(.panel-input:focus-visible, .panel-button:focus-visible, .panel-button--ghost:focus-visible) {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
 }
 
 .panel-design-match :is(.panel-button--danger),

@@ -1,7 +1,7 @@
 /*
  * 生成文件，不要手改。改 src/styles/tokens.css 后运行 `npm run build:od-tokens`（ADR-0106）。
- * source-sha256: a111de5f7a9aa22dc75bc31d16a2405b508a105fa524619e719ed7665bdc68a8
- * body-sha256: 35f39b438554f62ccfb2aa0b2721e335bdf569d364c222392f239147000d3f53
+ * source-sha256: 90216a377c0ac0245bd4a2dad0b6bd4afe9590335d041a97b78f9b882c69430e
+ * body-sha256: d762875b8493d02640c72557da83440dfc6c2d138989acf9e18f6aae234522c1
  */
 :root {
   /* 纸面与文字 */
@@ -15,6 +15,7 @@
   --border: #e2e2e2;
   --border-soft: #eeeeee;
   --border-strong: #c8c8c8;
+  --border-control: #949494;
   --accent: #111111;
   --accent-on: #ffffff;
   --accent-hover: #000000;
@@ -33,7 +34,7 @@
   --font-display: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'Hiragino Mincho ProN', 'Noto Serif', Georgia, serif;
   --font-body: 'Noto Sans', 'Noto Sans SC', 'PingFang SC', 'Noto Sans Arabic', 'Noto Sans Devanagari', 'Noto Sans Thai', 'Noto Sans Tibetan', system-ui, sans-serif;
   --font-mono: 'Noto Sans Mono', ui-monospace, monospace;
-  --font-ipa: 'Noto Sans', 'Charis SIL', serif;
+  --font-ipa: 'Noto Sans', sans-serif;
   --text-xs: 12px;
   --text-sm: 13px;
   --text-base: 14px;
@@ -111,6 +112,7 @@
   --border: #3a3832;
   --border-soft: #2c2b28;
   --border-strong: #5c5952;
+  --border-control: #6a675f;
   --accent: #f4f2ec;
   --accent-on: #0c0c09;
   --accent-hover: #ffffff;

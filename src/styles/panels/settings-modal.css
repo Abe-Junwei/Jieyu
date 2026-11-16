@@ -252,8 +252,8 @@
 }
 
 .settings-option-btn[aria-pressed='true'] {
-  background: var(--header-accent);
-  color: var(--text-on-solid);
+  background: var(--action-solid);
+  color: var(--text-on-action);
 }
 
 .settings-option-btn:focus-visible {
@@ -471,13 +471,21 @@
   min-height: var(--input-h-md);
   padding: 8px 10px;
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border-control);
   border-radius: var(--radius-sm);
   background: var(--surface-panel);
   color: var(--text-primary);
   min-width: 160px;
   line-height: 1.4;
   box-sizing: border-box;
+}
+
+.settings-select:hover:not(:disabled):not(:focus) {
+  border-color: var(--text-secondary);
+}
+
+.settings-select:disabled {
+  border-color: var(--border-soft);
 }
 
 .settings-select:focus-visible {
@@ -489,13 +497,21 @@
   min-height: var(--input-h-md);
   padding: 8px 10px;
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border-control);
   border-radius: var(--radius-sm);
   background: var(--surface-panel);
   color: var(--text-primary);
   min-width: 180px;
   line-height: 1.4;
   box-sizing: border-box;
+}
+
+.settings-input:hover:not(:disabled):not(:focus) {
+  border-color: var(--text-secondary);
+}
+
+.settings-input:disabled {
+  border-color: var(--border-soft);
 }
 
 .settings-input:focus-visible {

@@ -451,7 +451,7 @@
   justify-self: end;
   max-width: 50%;
   margin-left: auto;
-  color: var(--text-on-solid);
+  color: var(--text-on-action);
 }
 
 .ai-chat-message-user .ai-chat-message-surface {

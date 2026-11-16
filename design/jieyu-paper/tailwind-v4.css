@@ -63,6 +63,7 @@
   /* 以下超出 Open Design 的 TAILWIND_V4_THEME_BINDINGS。官方生成器重跑时会丢掉这几行。 */
   --color-secondary: var(--secondary);
   --color-border-strong: var(--border-strong);
+  --color-border-control: var(--border-control);
   --color-danger-text: var(--danger-text);
   --color-danger-bg: var(--danger-bg);
   --color-success-text: var(--success-text);

@@ -140,14 +140,19 @@
 }
 
 .la-shell :is(.panel-button--ghost, .btn-ghost) {
-  border-color: color-mix(in srgb, var(--border-soft) 88%, transparent);
+  border-color: var(--border-control);
   background: var(--surface-panel);
   color: var(--text-secondary);
 }
 
 .la-shell :is(.panel-button--ghost, .btn-ghost):is(:hover, :focus-visible):not(:disabled) {
+  border-color: var(--text-secondary);
   background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
   color: var(--text-primary);
+}
+
+.la-shell :is(.panel-button--ghost, .btn-ghost):disabled {
+  border-color: var(--border-soft);
 }
 
 .la-shell .panel-button--ghost:focus-visible,

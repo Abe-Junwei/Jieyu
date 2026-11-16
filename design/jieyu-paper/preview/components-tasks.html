@@ -23,7 +23,7 @@
     .map + .map { border-top: 1px solid var(--border-soft); }
     .map .src { font-family: var(--font-mono); font-size: var(--text-xs); }
     .map .arr { color: var(--muted); text-align: center; }
-    .ctl { height: 28px; display: flex; align-items: center; gap: 4px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface); }
+    .ctl { height: 28px; display: flex; align-items: center; gap: 4px; padding: 0 8px; border: 1px solid var(--border-control); border-radius: var(--radius-md); background: var(--surface); }
     .ctl .c { margin-left: auto; color: var(--muted); font-size: var(--text-xs); }
     .ctl.error { border-color: var(--danger); }
     .map .why { grid-column: 3; font-size: var(--text-xs); color: var(--danger-text); padding-top: 4px; }
@@ -103,16 +103,16 @@
     <section>
       <h2>备份恢复与回收站</h2>
       <div class="card">
-        <div class="ch">自动备份<span class="meta">保留 14 天</span></div>
+        <div class="ch">自动备份<span class="meta">每日快照 · 保留 3 份</span></div>
         <div class="bk sel"><div>今天 14:00<div class="s">48 段 · 3 层 · 12.4 MB</div></div><span class="meta">最新</span><button class="btn sm">恢复到这里…</button></div>
-        <div class="bk"><div>今天 10:00<div class="s">45 段 · 3 层</div></div><span></span><button class="btn sm">恢复到这里…</button></div>
+        <div class="bk"><div>昨天 18:20<div class="s">45 段 · 3 层</div></div><span></span><button class="btn sm">恢复到这里…</button></div>
       </div>
       <div class="card">
-        <div class="ch">回收站<span class="meta">删除 30 天后清除</span></div>
-        <div class="bk"><div>层 · 讲述人 C · 转写<div class="s">昨天删除 · 还剩 29 天</div></div><button class="btn sm">还原</button><button class="btn sm danger">永久删除…</button></div>
-        <div class="bk"><div>词条 · ʑi˥<div class="s">3 天前删除 · 还剩 27 天 · 被 2 处引用</div></div><button class="btn sm">还原</button><button class="btn sm danger">永久删除…</button></div>
+        <div class="ch">回收站<span class="meta">删除满 90 天且提醒 7 天后清除</span></div>
+        <div class="bk"><div>文稿 · 卡朗语田野录音 02<div class="s">昨天删除 · 还剩 89 天</div></div><button class="btn sm">还原</button><button class="btn sm danger">永久删除…</button></div>
+        <div class="bk"><div>录音 · session_02.wav<div class="s">3 天前删除 · 还剩 87 天 · 无其他文稿引用</div></div><button class="btn sm">还原</button><button class="btn sm danger">永久删除…</button></div>
       </div>
-      <p class="meta">恢复前先存一份当前状态，并在确认框里写明。永久删除写明引用影响。保留天数示意，以设置为准。</p>
+      <p class="meta">恢复前先存一份当前状态，并在确认框里写明。永久删除写明引用影响；仍有引用的录音保留不清除。</p>
     </section>
   </div>
 </main>

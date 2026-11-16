@@ -47,7 +47,8 @@
   --border-subtle: #eeeeee;
   --border-soft: #e2e2e2;
   --border-strong: #c8c8c8;
-  --border-control: #111111;
+  /* 控件边界 ≥ 3:1 对纸面 #ffffff（3.03:1，ADR-0108） */
+  --border-control: #949494;
 
   /* 语义映射 — 文本 */
   --text-primary: #111111;
@@ -135,7 +136,7 @@
     'Noto Sans', 'Noto Sans SC', 'PingFang SC', 'Noto Sans Arabic', 'Noto Sans Devanagari',
     'Noto Sans Thai', 'Noto Sans Tibetan', system-ui, sans-serif;
   --font-mono: 'Noto Sans Mono', ui-monospace, monospace;
-  --font-ipa: 'Noto Sans', 'Charis SIL', serif;
+  --font-ipa: 'Noto Sans', sans-serif;
   --font-display:
     'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'Hiragino Mincho ProN', 'Noto Serif',
     Georgia, serif;
@@ -503,7 +504,8 @@
   --border-subtle: #2c2b28;
   --border-soft: #3a3832;
   --border-strong: #5c5952;
-  --border-control: #c8c4ba;
+  /* 控件边界 ≥ 3:1 对纸页 #161614（3.21:1，ADR-0108） */
+  --border-control: #6a675f;
 
   --text-primary: #f4f2ec;
   --text-secondary: #c8c4ba;

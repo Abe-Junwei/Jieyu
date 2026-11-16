@@ -33,6 +33,7 @@ const GROUPS = [
     ['border', 'color', 'border-soft'],
     ['border-soft', 'color', 'border-subtle'],
     ['border-strong', 'color', 'border-strong'],
+    ['border-control', 'color', 'border-control'],
     ['accent', 'color', 'action-solid'],
     ['accent-on', 'color', 'text-on-action'],
     ['accent-hover', 'color', 'action-hover'],
@@ -113,6 +114,28 @@ function readHeaderHash(text, key) {
   return text.match(new RegExp(`${key}: ([0-9a-f]{64})`))?.[1] ?? null;
 }
 
+function parseBlockVars(block) {
+  const vars = {};
+  for (const [, k, v] of block.matchAll(/--([a-z0-9-]+):\s*([^;]+);/gi)) vars[k] = v.trim();
+  return vars;
+}
+
+function contrastRatio(hexA, hexB) {
+  const relLum = (hex) => {
+    if (!/^#[0-9a-f]{6}$/i.test(hex ?? '')) return null;
+    const n = parseInt(hex.slice(1), 16);
+    const lin = (c) => {
+      const s = c / 255;
+      return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  };
+  const a = relLum(hexA);
+  const b = relLum(hexB);
+  if (a === null || b === null) return null;
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
 function check() {
   const errors = [];
   const out = readFileSync(outPath, 'utf8');
@@ -122,6 +145,19 @@ function check() {
   }
   if (readHeaderHash(out, 'body-sha256') !== sha256(body)) {
     errors.push('design/jieyu-paper/tokens.css was edited by hand; edit src/styles/tokens.css and run `npm run build:od-tokens`.');
+  }
+  const lightVars = parseBlockVars(body.match(/:root\s*\{([^}]*)\}/)?.[1] ?? '');
+  const darkVars = {
+    ...lightVars,
+    ...parseBlockVars(body.match(/\[data-theme="dark"\]\s*\{([^}]*)\}/)?.[1] ?? ''),
+  };
+  for (const [mode, vars] of [['light', lightVars], ['dark', darkVars]]) {
+    const ratio = contrastRatio(vars['border-control'], vars.surface);
+    if (ratio === null || ratio < 3) {
+      errors.push(
+        `--border-control (${vars['border-control']}) vs --surface (${vars.surface}) in ${mode} mode is ${ratio === null ? 'invalid' : `${ratio.toFixed(2)}:1`} (< 3:1, ADR-0108).`,
+      );
+    }
   }
   if (!lstatSync(designLink).isSymbolicLink() || readlinkSync(designLink) !== designTarget) {
     errors.push(`DESIGN.md must be a symlink to ${designTarget}.`);

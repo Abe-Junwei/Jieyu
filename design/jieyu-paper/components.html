@@ -19,7 +19,7 @@
     .line.sel { background: var(--selection); box-shadow: inset 2px 0 0 var(--fg); }
     .line.bad { background: var(--danger-bg); }
     .line .end { margin-left: auto; display: flex; gap: 8px; align-items: center; }
-    .ctl { height: 32px; width: 220px; border: 1px solid var(--border); border-radius: 4px; padding: 0 8px; font: var(--text-base)/var(--leading-base) var(--font-body); background: var(--surface); color: var(--fg); }
+    .ctl { height: 32px; width: 220px; border: 1px solid var(--border-control); border-radius: 4px; padding: 0 8px; font: var(--text-base)/var(--leading-base) var(--font-body); background: var(--surface); color: var(--fg); }
     .ctl.bad { border-color: var(--danger); }
     .low { text-decoration: underline solid var(--confidence-low) 2px; text-underline-offset: 4px; }
     .mid { text-decoration: underline dashed var(--confidence-mid) 1.5px; text-underline-offset: 4px; }
@@ -79,7 +79,7 @@
       <button class="btn primary">保存</button>
       <button class="btn is-focus">取消</button>
       <button class="btn danger">删除层</button>
-      <button class="btn" disabled style="color:var(--muted);background:var(--surface-warm);border-color:var(--border-soft)">禁用</button>
+      <button class="btn" disabled style="color:var(--muted);background:var(--surface-warm);border-color:var(--border)">禁用</button>
       <button class="btn sm">紧凑 28</button>
     </div>
     <div class="row">

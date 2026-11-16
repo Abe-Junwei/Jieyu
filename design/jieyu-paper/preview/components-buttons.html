@@ -8,17 +8,17 @@
   <style>
     .grid { display: grid; grid-template-columns: 96px repeat(6, max-content); gap: 12px 16px; align-items: center; }
     .grid .h { font-size: var(--text-xs); line-height: var(--leading-xs); color: var(--muted); }
-    .b { height: 32px; padding: 0 12px; border-radius: var(--radius-md); font: 600 var(--text-sm)/var(--leading-sm) var(--font-body); display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--fg); white-space: nowrap; }
+    .b { height: 32px; padding: 0 12px; border-radius: var(--radius-md); font: 600 var(--text-sm)/var(--leading-sm) var(--font-body); display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border-control); background: var(--surface); color: var(--fg); white-space: nowrap; }
     .b.p { background: var(--accent); color: var(--accent-on); border-color: var(--accent); }
     .b.p.hover { background: var(--accent-hover); border-color: var(--accent-hover); }
     .b.p.active { background: var(--accent-active); border-color: var(--accent-active); }
-    .b.s.hover { background: var(--surface-warm); }
+    .b.s.hover { background: var(--surface-warm); border-color: var(--fg-2); }
     .b.s.active { background: var(--surface-warm); border-color: var(--fg-2); }
     .b.d { color: var(--danger-text); border-color: var(--danger); }
     .b.d.hover { background: var(--danger-bg); }
     .b.d.active { background: var(--danger-bg); border-color: var(--danger-text); }
     .b.focus { box-shadow: var(--focus-ring); }
-    .b[disabled] { background: var(--surface-warm); color: var(--muted); border-color: var(--border-soft); }
+    .b[disabled] { background: var(--surface-warm); color: var(--muted); border-color: var(--border); }
     .spin { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; }
     .b.t { border-color: transparent; background: transparent; }
     .b.t.hover { background: var(--surface-warm); }

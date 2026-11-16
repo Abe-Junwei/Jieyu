@@ -14,7 +14,7 @@ section { display: grid; gap: 12px; }
 .meta { color: var(--muted); font-size: var(--text-sm); line-height: var(--leading-sm); }
 .label { color: var(--fg-2); font-size: var(--text-xs); line-height: var(--leading-xs); font-weight: 600; }
 
-.btn { height: 32px; padding: 0 12px; border-radius: var(--radius-md); font: 600 var(--text-sm)/var(--leading-sm) var(--font-body); border: 1px solid var(--border); background: var(--surface); color: var(--fg); display: inline-flex; align-items: center; gap: 8px; }
+.btn { height: 32px; padding: 0 12px; border-radius: var(--radius-md); font: 600 var(--text-sm)/var(--leading-sm) var(--font-body); border: 1px solid var(--border-control); background: var(--surface); color: var(--fg); display: inline-flex; align-items: center; gap: 8px; }
 .btn.sm { height: 28px; padding: 0 8px; }
 .btn.primary { background: var(--accent); color: var(--accent-on); border-color: var(--accent); }
 .btn.danger { color: var(--danger-text); border-color: var(--danger); }

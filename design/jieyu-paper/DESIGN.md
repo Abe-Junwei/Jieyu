@@ -37,28 +37,27 @@ colors:
   border-subtle: "#EEEEEE"
   border-soft: "#E2E2E2"
   border-strong: "#C8C8C8"
-  border-control: "#111111"
+  border-control: "#949494"
+  border-control-dark: "#6A675F"
   state-success-solid: "#16A34A"
   state-success-text: "#166534"
   state-warning-solid: "#D97706"
   state-warning-text: "#92400E"
   state-danger-solid: "#DC2626"
   state-danger-text: "#B91C1C"
-  state-info-solid: "#1D4ED8"
-  state-info-text: "#1D4ED8"
 typography:
   main-h:
-    fontFamily: "Noto Sans, Noto Sans SC, PingFang SC, system-ui, sans-serif"
+    fontFamily: "Noto Sans, Noto Sans SC, PingFang SC, Noto Sans Arabic, Noto Sans Devanagari, Noto Sans Thai, Noto Sans Tibetan, system-ui, sans-serif"
     fontSize: "20px"
     fontWeight: 600
     lineHeight: "28px"
   sub-h:
-    fontFamily: "Noto Sans, Noto Sans SC, PingFang SC, system-ui, sans-serif"
+    fontFamily: "Noto Sans, Noto Sans SC, PingFang SC, Noto Sans Arabic, Noto Sans Devanagari, Noto Sans Thai, Noto Sans Tibetan, system-ui, sans-serif"
     fontSize: "16px"
     fontWeight: 600
     lineHeight: "24px"
   body-reg:
-    fontFamily: "Noto Sans, Noto Sans SC, PingFang SC, system-ui, sans-serif"
+    fontFamily: "Noto Sans, Noto Sans SC, PingFang SC, Noto Sans Arabic, Noto Sans Devanagari, Noto Sans Thai, Noto Sans Tibetan, system-ui, sans-serif"
     fontSize: "14px"
     fontWeight: 400
     lineHeight: "22px"
@@ -68,7 +67,7 @@ typography:
     fontWeight: 400
     lineHeight: "20px"
   ipa-display:
-    fontFamily: "Noto Sans, Charis SIL, serif"
+    fontFamily: "Noto Sans, sans-serif"
     fontSize: "16px"
     fontWeight: 400
     lineHeight: "24px"
@@ -147,16 +146,16 @@ components:
 - 次要标记 `mark-secondary`：亮 `#312C85`，暗 `#B6B2F2`。只给链接和次要标签。
 - 工作面 / 面板：亮 `#FAFAFA` / `#FFFFFF`，暗 `#0C0C09` / `#161614`。
 - 正文 / 次级 / 辅助：亮 `#111111` / `#3A3A3A` / `#5C5C5C`，暗 `#F4F2EC` / `#C8C4BA` / `#8E8A82`。
-- 分隔线用 border-subtle / soft；控件可操作边界用 border-control（亮 `#111111`，暗 `#C8C4BA`）。不拿浅分隔线充当输入框边界。
+- 分隔线用 border-subtle / soft；控件可操作边界（输入类控件、复选框、单选框、带边按钮）用 border-control（亮 `#949494`，暗 `#6A675F`；悬停加深到次级文字色，禁用退回 border-soft；转写工具栏与对话框关闭按钮保持无边框，[ADR-0108](../../docs/adr/0108-control-border-contrast-3-to-1.md)）。不拿浅分隔线充当控件边界。
 - 导航轨使用 chrome-rail-*，与纸面同色，文字用正文色。
-- 语义 solid / text 分开：成功 solid `#16A34A`、文字亮色 `#166534`、暗色 `#4ADE80`；警告 solid `#D97706`、文字亮色 `#92400E`、暗色 `#FBBF24`；错误 solid 亮色 `#DC2626`、暗色 `#F07171`。正文不直接使用未达对比度的 solid 色。
+- 语义 solid / text 分开：成功 solid `#16A34A`、文字亮色 `#166534`、暗色 `#4ADE80`；警告 solid `#D97706`、文字亮色 `#92400E`、暗色 `#FBBF24`；错误 solid 亮色 `#DC2626`、暗色 `#F07171`。正文不直接使用未达对比度的 solid 色。没有第四种语义蓝色；一般信息提示用中性浅灰底或墨色壳加墨点（[ADR-0109](../../docs/adr/0109-design-system-no-info-blue-noto-ipa-and-menu-target.md)）。
 
 语义状态同时给图形／色点与文字。Toast 使用墨色壳 + 色点，Chip 使用中性壳 + 色点；内联反馈可以使用浅语义底。只有这一套外观，设置里只切换亮色、暗色或跟随系统。
 
 ## 3. 字体与排版
 
 - UI：Noto Sans / Noto Sans SC；主标题 20/28、分组标题 16/24、正文 14/22、工具与说明 13/20。需要衬线时用 Noto Serif / Noto Serif SC。
-- IPA / IGT / 例句：Noto Sans，缺字回退 Charis SIL；默认 16/24，内容展示可在 14–18px 范围调整并保持足够行高。不得用于按钮、菜单、导航和 UI 标题。
+- IPA / IGT / 例句：统一使用 Noto Sans（`--font-ipa: 'Noto Sans', sans-serif`，不用 Charis SIL）；默认 16/24，内容展示可在 14–18px 范围调整并保持足够行高。不得用于按钮、菜单、导航和 UI 标题。界面、衬线、等宽与 IPA 所用的 Noto 字体全部随应用打包，不从网络加载（[ADR-0109](../../docs/adr/0109-design-system-no-info-blue-noto-ipa-and-menu-target.md)）。
 - 时间码与参数：Noto Sans Mono / ui-monospace；12/18，固定 LTR。
 - 只有这 6 档（20、16、14、13、12，加 IPA 16），全部随设置里的字号缩放。最小 12px；面板里旧的 9–11、15、18、22px 已并入相邻档（[ADR-0104](../../docs/adr/0104-type-space-shadow-and-ink-only-series.md)）。
 - 附标、声调、送气和长音符号不得截顶压底。字族回退仍需保证可读，不用额外空格弥补字体或对齐问题。
@@ -168,7 +167,7 @@ components:
 
 - 工作面圆角 0；菜单、提示和对话框 8px；控件 4px。
 - 按钮默认 32px、紧凑 28px；单行输入默认 32px、紧凑不低于 28px。领域编辑单元可随字号与内容增高。
-- 图标统一使用 Lucide（`lucide-react`）轮廓风格，经由 `MaterialSymbol` 入口；默认 20px，紧凑伴随文字可用 16px；图标与文字间距 8px，不混用彩色 emoji。命中优先 28×28，最低 24×24；时间轴细手柄例外见领域模式。
+- 图标统一使用 Lucide（`lucide-react`）轮廓风格，经由 `JieyuIcon` 入口；默认 20px，紧凑伴随文字可用 16px；图标与文字间距 8px，不混用彩色 emoji。命中优先 28×28，最低 24×24；时间轴细手柄例外见领域模式。
 - 列表／表格默认行高 36–44px，密度一致；不要单凭缩小字形制造紧凑感。
 - 工作平面、面板和卡片不加投影。浮层用发丝边加三档阴影之一：`--shadow-popover`（菜单、Tooltip）、`--shadow-float`（层操作、备注等浮动面板）、`--shadow-modal`（模态）。焦点环用 `--shadow-focus`，不手写 box-shadow。最多两层可见容器边框，内层用间距和底色分组。
 
@@ -214,7 +213,7 @@ components:
 
 ### 桌面外壳
 
-窗口标题栏和菜单栏用系统原生。工具栏上的每个动作在菜单栏里都能找到，快捷键两处一致，以 `KeybindingService` 默认值为准；⌘M 是「与后一句合并」，窗口菜单的「最小化」不带快捷键；不可用项置灰不隐藏。工具栏分前段（编辑历史）、中段（视图）、后段（保存状态与「更多」），变窄时从中段收起，保存状态最后收。设置左侧分类、右侧即时生效，没有「应用」按钮；影响数据的设置单独确认。首次打开只有一个主要操作；找不到的最近项目给重新定位，不删除。拖放永远有等价的「选择文件…」，不接受的类型在松开前说明。
+窗口标题栏和菜单栏用系统原生。完整应用菜单（文件、编辑、播放、片段、视图、窗口、帮助）是桌面版目标规格：工具栏上的每个动作在菜单栏里都能找到，快捷键两处一致，以 `KeybindingService` 默认值为准；⌘M 是「与后一句合并」，窗口菜单的「最小化」不带快捷键；不可用项置灰不隐藏（当前 Electron 骨架期仅先按 [ADR-0107](../../docs/adr/0107-motion-compact-height-selection-and-shortcuts.md) 让出 ⌘M，完整动作与置灰同步随各工作区切片落地，见 [ADR-0109](../../docs/adr/0109-design-system-no-info-blue-noto-ipa-and-menu-target.md)）。工具栏分前段（编辑历史）、中段（视图）、后段（保存状态与「更多」），变窄时从中段收起，保存状态最后收。设置左侧分类、右侧即时生效，没有「应用」按钮；影响数据的设置单独确认。首次打开只有一个主要操作；找不到的最近项目给重新定位，不删除。拖放永远有等价的「选择文件…」，不接受的类型在松开前说明。
 
 ### 反馈
 
@@ -245,6 +244,10 @@ components:
 ### 播放与时间轴编辑
 
 播放按钮是播放条上唯一的墨色实心按钮；循环、吸附等切换按钮用 `aria-pressed`，开着是选中底。速度只给离散档 0.5–2×。时间码输入等宽，回车跳转、Esc 还原，格式错保留输入。全稿概览框出当前视窗，拖框平移。拖边界：原位置留虚线虚影，实时读新起止，吸附时出现墨色虚线引导线并写明吸附到什么；到极限时手柄停住并就近说明，不弹窗。多选时焦点只在最后操作的一段，右键菜单切成批量项。点层用菱形，选中实心。跨轨重叠在两轨上叠斜线纹。语谱图默认墨色单色阶；设置里可切换为 viridis，不提供彩虹色阶。
+
+### 嵌入媒体与文档视图
+
+视频面板与 PDF 查看器直接贴合所属分栏边界，用 1px 分隔线相接，不另套卡片外框、圆角或投影；视频面板紧贴波形并与波形共用播放头。第三方地图默认使用灰阶底图与墨色标点（不用彩色图钉）；卫星影像与彩色地形底图只在用户主动切换图层时显示（[ADR-0109](../../docs/adr/0109-design-system-no-info-blue-noto-ipa-and-menu-target.md)）。
 
 ### 转写主工作区（应用主稿）
 
@@ -282,7 +285,7 @@ components:
 
 亮暗保持相同角色，主要操作反相、导航文字常亮。选中+焦点+错误在两种模式里含义相同。字号放大不裁内容；减少动态不消失状态说明。
 
-按 sRGB 相对亮度公式计算的基线（`npm run build:od-tokens` 生成值）：亮色正文／panel 18.88、次级／panel 11.37、弱文字／panel 6.69、正文／选中 15.98、CTA 18.88、焦点／panel 18.88；暗色对应 16.19、10.41、5.27、13.21、17.50、16.19。正文目标 ≥4.5，焦点及控件边界目标 ≥3。控件边界目前不达标：`--border-strong`／panel 亮 1.67、暗 2.59，待定。
+按 sRGB 相对亮度公式计算的基线（`npm run build:od-tokens` 生成值）：亮色正文／panel 18.88、次级／panel 11.37、弱文字／panel 6.69、正文／选中 15.98、CTA 18.88、焦点／panel 18.88、控件边界 `--border-control`／panel 3.03；暗色对应 16.19、10.41、5.27、13.21、17.50、16.19、3.21。正文目标 ≥4.5，焦点及控件边界目标 ≥3（已达标，并由 `check:docs-governance` 自动拦截退化，[ADR-0108](../../docs/adr/0108-control-border-contrast-3-to-1.md)）。分隔线 `--border-strong`／`--border-soft` 不承担控件识别，不受 3:1 约束。
 
 这些只是明确颜色对的计算结果，不表示所有透明叠层、动画、屏幕阅读器或运行中的 Tab／Esc 已通过验证。UI 规范本轮不以后台功能、数据库或发布验收作为完成条件。
 
