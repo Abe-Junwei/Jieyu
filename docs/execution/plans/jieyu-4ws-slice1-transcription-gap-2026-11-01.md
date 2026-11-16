@@ -12,7 +12,7 @@ depends_on:
 
 # 转写切片 1 · 复杂度差额（相对设计系统）
 
-> **精稿待定（2026-11-16）**：外观已定为「纸本田野笔记」（[ADR-0103](../../adr/0103-paper-field-notes-is-the-only-appearance.md)–[ADR-0107](../../adr/0107-motion-compact-height-selection-and-shortcuts.md)），设计系统包在 `design/jieyu-paper/`。转写主工作区精稿在 Open Design 里按该包重画（[ADR-0102](../../adr/0102-desktop-design-drafts-move-to-open-design.md)），尚未定稿。Penpot 板 27–61 只作历史参考，不再作为实现依据。实现规格：[desktop-4ws-slice1-transcription-shell](../specs/desktop-4ws-slice1-transcription-shell/)。
+> **精稿待定（2026-11-16）**：外观已定为「纸本田野笔记」（[ADR-0103](../../adr/0103-paper-field-notes-is-the-only-appearance.md)–[ADR-0107](../../adr/0107-motion-compact-height-selection-and-shortcuts.md)），设计系统包在 `design/jieyu-paper/`。转写主工作区精稿在 Open Design 里按该包重画（[ADR-0102](../../adr/0102-desktop-design-drafts-move-to-open-design.md)），尚未定稿。实现规格：[desktop-4ws-slice1-transcription-shell](../specs/desktop-4ws-slice1-transcription-shell/)。
 
 ## 壳层（规范与预览页已覆盖）
 

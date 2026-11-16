@@ -15,7 +15,7 @@ source_of_truth: desktop-lexicon-complete-editor-spec
 
 - **要做什么**：桌面完整词典编辑器接替旧 `/lexicon` 可编辑字段（义项嵌套、引用、附件、删除前迁移／解除）。
 - **为什么**：ADR-0099 首发阻断；4ws 切片 3。
-- **不做什么**：不直接改冻结格式加列；不把 Penpot 样例当实现通过；LIFT 往返若延期则本片不扩。
+- **不做什么**：不直接改冻结格式加列；不把设计稿当实现通过；LIFT 往返若延期则本片不扩。
 
 ## 2. 用户场景
 
@@ -36,4 +36,4 @@ source_of_truth: desktop-lexicon-complete-editor-spec
 | 桌面页 | `DesktopLexiconPage`／附件面板 |
 | 旧完整页 | `LexiconPage`／`LexiconEntryEditForm` |
 | 持久化 | `src/db/desktop` lexicon／attachments |
-| 设计样例 | Penpot 33–35／47–48 |
+| 设计样例 | Open Design 词典页精稿（待画） |

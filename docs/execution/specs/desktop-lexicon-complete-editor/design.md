@@ -13,7 +13,7 @@ depends_on:
 
 ## 1. 成熟方案扫描 / Research
 
-- 仓库既有：`LexiconEntryEditForm`、桌面 `DesktopLexiconPage`、M5-B JSON 义项行、附件 ADR-0095、Penpot 35／47／48 字段分组。
+- 仓库既有：`LexiconEntryEditForm`、桌面 `DesktopLexiconPage`、M5-B JSON 义项行、附件 ADR-0095、[首发设计验收清单](../../release-gates/desktop-product-design-acceptance.md)「词典字段分组依据」。
 - 同类产品：FLEx／WeSay／Lexique Pro — 义项树 + 引用 + 媒体；SIL LIFT／DMLex 为交换事实标准。
 - Best practice：嵌套编辑按分组，不单屏塞满；被引用删除必须迁移／解除（ADR-0099 相对 ADR-0090 收紧入口）。
 - 反模式：浏览器截图冒充 Electron 验收；为 UI 方便直接加冻结列；把设计稿字硬编码进产品。

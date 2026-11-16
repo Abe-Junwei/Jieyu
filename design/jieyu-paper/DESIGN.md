@@ -119,11 +119,11 @@ components:
 
 本文件只规定视觉、组件、交互表达与桌面适配。产品流程样例可作参考；查询语言、存储、并发、文件事务、发布范围等工程规格以后另定，不作为本轮 UI 规范完成门槛。
 
-> 2026-11-16 起，默认外观是 Open Design 里定下的「纸本田野笔记」（[ADR-0103](../../docs/adr/0103-paper-field-notes-is-the-only-appearance.md)）。旧的多套配色不再可用。Penpot 板号只作历史引用。与风格无关的工程规则（ADR-0101 第 4 条）保留。
+> 2026-11-16 起，默认外观是 Open Design 里定下的「纸本田野笔记」（[ADR-0103](../../docs/adr/0103-paper-field-notes-is-the-only-appearance.md)）。旧的多套配色不再可用。与风格无关的工程规则（ADR-0101 第 4 条）保留。
 
 设计系统只有一套，在 `design/jieyu-paper/`：本文件是正文（根目录 `DESIGN.md` 是指向它的软链接），`preview/` 是组件预览页，`tokens.css` 由 `npm run build:od-tokens` 从 `src/styles/tokens.css` 生成、不手改。Open Design 通过软链接直接读这个目录（[ADR-0106](../../docs/adr/0106-design-system-package-lives-in-repo.md)）。
 
-历史设计源为 Penpot「解语 · UI 规范」00–17，板号只作出处引用；颜色与尺寸以 `src/styles/tokens.css` 为准。UI 规范描述目标表达，不声明现有组件或运行行为已全部实现。
+颜色与尺寸以 `src/styles/tokens.css` 为准。UI 规范描述目标表达，不声明现有组件或运行行为已全部实现。
 
 ## 1. 视觉语言与布局
 
@@ -274,7 +274,7 @@ components:
 
 ### 转写主工作区（应用主稿）
 
-转写壳主稿在 Open Design 里按本规范重画（[ADR-0101](../../docs/adr/0101-desktop-visual-direction-reexplore-superdesign.md)、[ADR-0102](../../docs/adr/0102-desktop-design-drafts-move-to-open-design.md)），定稿前以下布局与状态清单就是要求。Penpot 板 51–61 只作历史参考。切片 1 差额见 [jieyu-4ws-slice1-transcription-gap-2026-11-01.md](../../docs/execution/plans/jieyu-4ws-slice1-transcription-gap-2026-11-01.md)。
+转写壳主稿在 Open Design 里按本规范重画（[ADR-0101](../../docs/adr/0101-desktop-visual-direction-reexplore-superdesign.md)、[ADR-0102](../../docs/adr/0102-desktop-design-drafts-move-to-open-design.md)），定稿前以下布局与状态清单就是要求。切片 1 差额见 [jieyu-4ws-slice1-transcription-gap-2026-11-01.md](../../docs/execution/plans/jieyu-4ws-slice1-transcription-gap-2026-11-01.md)。
 
 布局：52px 左轨 + 上下文（稿件／层／片段列表）+ 主区（播放／波形／多轨时间轴）。**无右栏检查器、无底部「当前片段」页**。正文在时间轴选中块内就地编辑；拆分／合并／删除／备注／进标注等对象操作进右键菜单（按选中对象与数量启用），不把每个动作做成常驻工具栏按钮。常驻仅保留播放／视图／缩放／撤销与保存状态。
 
@@ -328,6 +328,6 @@ components:
 
 ## 10. 设计包与稿件位置
 
-设计系统包在 `design/jieyu-paper/`（[ADR-0106](../../docs/adr/0106-design-system-package-lives-in-repo.md)）：本文件是规则正文，`preview/` 是组件预览页，`tokens.css` 由代码 token 生成。页面精稿在 Open Design 里画，只用这里的组件与 token；导出 HTML 只作参考，不进代码。Penpot「解语 · UI 规范」00–17 与板 27–61 已停止维护，只作历史出处。
+设计系统包在 `design/jieyu-paper/`（[ADR-0106](../../docs/adr/0106-design-system-package-lives-in-repo.md)）：本文件是规则正文，`preview/` 是组件预览页，`tokens.css` 由代码 token 生成。页面精稿在 Open Design 里画，只用这里的组件与 token；导出 HTML 只作参考，不进代码。
 
 现有组件映射和后台工程规格后续单独制定。代码实现仍须遵守仓库既有约束；本文件不修改产品数据语义、冻结格式或发布范围。用户可见文案接入产品时统一经过字典。
