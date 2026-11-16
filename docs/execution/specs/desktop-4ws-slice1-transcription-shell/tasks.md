@@ -3,7 +3,7 @@ title: desktop-4ws-slice1-transcription-shell tasks
 doc_type: execution-spec-tasks
 status: active
 owner: repo
-last_reviewed: 2026-11-01
+last_reviewed: 2026-11-16
 source_of_truth: desktop-4ws-slice1-transcription-shell-spec
 depends_on:
   - ./requirements.md
@@ -15,7 +15,7 @@ depends_on:
 ## Implementation tasks
 
 - [x] T1 注册 `desktopTranscriptionWorkspaceEnabled`（默认 false）→ 验证：typecheck
-- [x] T2 新增 `DesktopTranscriptionWorkspacePage` 壳 + CSS（过渡三栏；目标对齐板 51 上下文+主区、无右栏检查器）→ 验证：定向 vitest
+- [x] T2 新增 `DesktopTranscriptionWorkspacePage` 壳 + CSS（过渡三栏；目标对齐 Open Design 转写精稿：上下文+主区、无右栏检查器）→ 验证：定向 vitest
 - [x] T3 `App.tsx`：flag 开时 `/transcription` 挂新页，否则保持读页 → 验证：页面测试
 - [ ] T4 复用 Waveform／Timeline 组件接 `desktopCall`（boundary／split／merge）→ 验证：Electron 合成 + vitest
 - [ ] T5 核对片段起止／说话人／备注现有操作入口，按已确认设计接单库 → 验证：重开读回
