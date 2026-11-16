@@ -368,10 +368,6 @@
     box-shadow 0.14s;
 }
 
-.region-action-btn svg {
-  stroke-width: 2.1;
-}
-
 .region-action-btn .jieyu-icon {
   font-variation-settings:
     'FILL' 0,
@@ -399,10 +395,6 @@
   background: color-mix(in srgb, var(--state-info-bg) 86%, transparent);
   opacity: 1;
   box-shadow: 0 1px 3px color-mix(in srgb, var(--state-info-solid) 16%, transparent);
-}
-
-.region-action-btn-active svg {
-  stroke-width: 2.2;
 }
 
 .region-action-btn-active .jieyu-icon {

@@ -10,10 +10,6 @@
   --wave-toolbar-btn-active-bg: color-mix(in srgb, var(--state-info-bg) 88%, var(--surface-header));
   --wave-toolbar-active-foreground: var(--wave-toolbar-accent);
   --wave-toolbar-play-foreground: var(--surface-panel);
-  --wave-toolbar-icon-fill: 0;
-  --wave-toolbar-icon-wght: 430;
-  --wave-toolbar-icon-active-fill: 1;
-  --wave-toolbar-icon-active-wght: 620;
   position: relative;
   z-index: var(--z-popover);
   min-height: 52px;
@@ -199,11 +195,6 @@
   --icon-btn-box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 6%, transparent);
 }
 
-.transcription-wave-toolbar .jieyu-icon {
-  --jieyu-icon-fill: var(--wave-toolbar-icon-fill);
-  --jieyu-icon-wght: var(--wave-toolbar-icon-wght);
-}
-
 .transcription-wave-toolbar .icon-btn {
   transition:
     background 0.14s ease,
@@ -228,12 +219,6 @@
     filter 0.14s ease,
     box-shadow 0.14s ease,
     transform 0.1s ease;
-}
-
-.transcription-wave-toolbar .transcription-wave-toolbar-play-btn .jieyu-icon,
-.transcription-wave-toolbar .icon-btn-active .jieyu-icon {
-  --jieyu-icon-fill: var(--wave-toolbar-icon-active-fill);
-  --jieyu-icon-wght: var(--wave-toolbar-icon-active-wght);
 }
 
 .transcription-wave-toolbar .transcription-wave-toolbar-play-btn:hover:not(:disabled),
@@ -352,17 +337,6 @@
   background: color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header));
   cursor: not-allowed;
   box-shadow: none;
-}
-
-/* 双档字号：常规 16px，主播放 18px（仅顶栏，避免动到其他页面 wave 用法） */
-.transcription-wave-toolbar svg.jieyu-icon.jieyu-icon.jieyu-icon--wave,
-.transcription-wave-toolbar svg.jieyu-icon.jieyu-icon.jieyu-icon--wave-md,
-.transcription-wave-toolbar svg.jieyu-icon.jieyu-icon.jieyu-icon--wave-trigger {
-  --jieyu-icon-size: 16px;
-}
-
-.transcription-wave-toolbar svg.jieyu-icon.jieyu-icon.jieyu-icon--wave-play {
-  --jieyu-icon-size: 18px;
 }
 
 .waveform-view-options-anchor {

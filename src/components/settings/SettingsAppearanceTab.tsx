@@ -3,16 +3,13 @@ import { OptionGroup, SettingRow, SettingsSection } from '../settingsModalPrimit
 import type { SettingsModalMessages } from '../../i18n/messages';
 import type { ThemeMode } from './settingsConstants';
 import type { UiFontScaleMode } from '../../utils/panelAdaptiveLayout';
-import type { IconEffect } from '../../utils/iconEffect';
 
 interface SettingsAppearanceTabProps {
   themeMode: ThemeMode;
   fontScale: number;
   fontScaleMode: UiFontScaleMode;
-  iconEffect: IconEffect;
   onThemeChange: (mode: ThemeMode) => void;
   onFontScaleModeChange: (mode: UiFontScaleMode) => void;
-  onIconEffectChange: (effect: IconEffect) => void;
   onFontScaleChange: (scale: number) => void;
   msg: SettingsModalMessages;
 }
@@ -21,10 +18,8 @@ export function SettingsAppearanceTab({
   themeMode,
   fontScale,
   fontScaleMode,
-  iconEffect,
   onThemeChange,
   onFontScaleModeChange,
-  onIconEffectChange,
   onFontScaleChange,
   msg,
 }: SettingsAppearanceTabProps) {
@@ -41,14 +36,6 @@ export function SettingsAppearanceTab({
     () => [
       { value: 'auto' as const, label: msg.fontScaleModeAuto },
       { value: 'manual' as const, label: msg.fontScaleModeManual },
-    ],
-    [msg],
-  );
-
-  const iconEffectOptions = useMemo(
-    () => [
-      { value: 'material' as const, label: msg.iconEffectMaterial },
-      { value: 'motion' as const, label: msg.iconEffectMotion },
     ],
     [msg],
   );
@@ -102,11 +89,6 @@ export function SettingsAppearanceTab({
             </button>
           )}
         </div>
-      </SettingsSection>
-
-      <SettingsSection title={msg.iconEffectTitle}>
-        <OptionGroup value={iconEffect} options={iconEffectOptions} onChange={onIconEffectChange} />
-        <p className="small-text settings-icon-effect-hint">{msg.iconEffectHint}</p>
       </SettingsSection>
     </div>
   );

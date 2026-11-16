@@ -124,8 +124,6 @@ function renderModal(overrides: Partial<SettingsModalProps> = {}) {
     fontScaleMode: 'auto',
     onFontScaleChange: vi.fn(),
     onFontScaleModeChange: vi.fn(),
-    iconEffect: 'material',
-    onIconEffectChange: vi.fn(),
     version: '0.1.0',
     ...overrides,
   };
@@ -143,11 +141,10 @@ afterEach(cleanup);
 // ── 外观标签 | Appearance tab ──────────────────────────────
 
 describe('Appearance tab', () => {
-  it('renders icon effect toggle (Material vs motion)', () => {
+  it('has no icon effect setting (ADR-0111: icons are static only)', () => {
     renderModal();
-    expect(screen.getByText('图标效果')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Material（默认）' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '动效增强' })).toBeTruthy();
+    expect(screen.queryByText('图标效果')).toBeNull();
+    expect(screen.queryByRole('button', { name: '动效增强' })).toBeNull();
   });
 
   it('renders theme and font-scale settings', () => {

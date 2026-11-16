@@ -36,8 +36,6 @@ export const SettingsModal = memo(function SettingsModal({
   fontScaleMode,
   onFontScaleChange,
   onFontScaleModeChange,
-  iconEffect,
-  onIconEffectChange,
   version,
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
@@ -106,10 +104,8 @@ export const SettingsModal = memo(function SettingsModal({
               themeMode={themeMode}
               fontScale={fontScale}
               fontScaleMode={fontScaleMode}
-              iconEffect={iconEffect}
               onThemeChange={onThemeChange}
               onFontScaleModeChange={onFontScaleModeChange}
-              onIconEffectChange={onIconEffectChange}
               onFontScaleChange={onFontScaleChange}
               msg={msg}
             />
