@@ -1,5 +1,10 @@
 /* 预览页共用：只引用 ../tokens.css 里的变量。示例语料为虚构卡朗语。 */
-* { box-sizing: border-box; }
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: var(--radius-pill); }
+*::-webkit-scrollbar-thumb:hover { background: var(--border-control); }
+::selection { background: var(--text-selection); color: var(--fg); }
 body { margin: 0; background: var(--bg); color: var(--fg); font: var(--text-base)/var(--leading-base) var(--font-body); }
 main { padding: 32px; display: grid; gap: 32px; max-width: 1180px; }
 h1 { margin: 0; font: 600 var(--text-xl)/var(--leading-xl) var(--font-body); }
@@ -20,8 +25,37 @@ section { display: grid; gap: 12px; }
 .btn.danger { color: var(--danger-text); border-color: var(--danger); }
 .btn.ghost { border-color: transparent; background: transparent; }
 .btn.icon { width: 28px; height: 28px; padding: 0; justify-content: center; }
-.is-focus { box-shadow: var(--focus-ring); }
+/* Lucide 图标，sprite 由 icons.js 注入。16px 用于按钮与伴随文字，.lg 20px 用于左轨与空状态。 */
+svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+svg.i.lg { width: 20px; height: 20px; }
+.is-focus { outline: 1.5px solid var(--focus-color); outline-offset: 2px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
 .dot.ok { background: var(--success); } .dot.warn { background: var(--warn); } .dot.err { background: var(--danger); } .dot.idle { background: var(--border-strong); }
 
+/* 标签家族，见 DESIGN §5「标签与徽标」与 components-tags.html。 */
+.badge { min-width: 20px; height: 20px; padding: 0 8px; border-radius: var(--radius-pill); display: inline-grid; place-items: center; font: 600 var(--text-xs)/1 var(--font-body); background: var(--surface-warm); color: var(--fg-2); }
+.badge.ink { background: var(--fg); color: var(--accent-on); }
+.badge.err { background: var(--danger-bg); color: var(--danger-text); }
+.chip { height: 24px; max-width: 200px; padding: 0 8px; border-radius: var(--radius-pill); display: inline-flex; align-items: center; gap: 4px; font: var(--text-xs)/var(--leading-xs) var(--font-body); background: var(--surface-warm); color: var(--fg-2); white-space: nowrap; }
+.chip .t { overflow: hidden; text-overflow: ellipsis; }
+.chip .dot { margin-right: 4px; }
+.chip.sec { color: var(--secondary); }
+.chip.filter { background: var(--surface); border: 1px solid var(--border-control); color: var(--fg); }
+.chip.filter.hover { background: var(--surface-warm); }
+.chip.filter.on { background: var(--selection); border-color: var(--fg); }
+.chip.filter[aria-disabled="true"] { color: var(--muted); border-color: var(--border); }
+.chip.input { padding-right: 4px; color: var(--fg); }
+.chip.input.on { background: var(--selection); box-shadow: inset 0 0 0 1px var(--fg); }
+.chip .rm { position: relative; width: 16px; height: 16px; display: grid; place-items: center; border-radius: 50%; color: var(--fg-2); }
+.chip .rm::after { content: ""; position: absolute; inset: -4px; }
+/* 链接、键帽、多行等宽块与 sticky 头，见 DESIGN §2–§5。 */
+a.link { color: var(--secondary); text-decoration: underline 1px; text-underline-offset: 3px; }
+a.link:hover { color: var(--fg); }
+kbd.kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 4px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface-warm); color: var(--fg-2); font: 500 var(--text-xs)/1 var(--font-mono); direction: ltr; }
+.code-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.code-block header { height: 32px; padding: 0 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border-soft); background: var(--bg); font-size: var(--text-xs); color: var(--muted); }
+.code-block header .push { margin-left: auto; }
+.code-block pre { margin: 0; padding: 12px; overflow-x: auto; font: var(--text-xs)/var(--leading-xs) var(--font-mono); color: var(--fg); direction: ltr; }
+.sticky-head { position: sticky; top: 0; z-index: var(--z-sticky); background: var(--surface); border-bottom: 1px solid var(--border); box-shadow: none; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
 .dark { background: var(--bg); color: var(--fg); padding: 24px; }

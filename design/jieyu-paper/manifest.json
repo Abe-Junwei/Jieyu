@@ -49,6 +49,11 @@
         "title": "阴影"
       },
       {
+        "path": "preview/icons.html",
+        "role": "icons",
+        "title": "图标"
+      },
+      {
         "path": "preview/components-buttons.html",
         "role": "buttons",
         "title": "按钮"
@@ -62,6 +67,11 @@
         "path": "preview/components-forms.html",
         "role": "forms",
         "title": "表单"
+      },
+      {
+        "path": "preview/components-tags.html",
+        "role": "tags",
+        "title": "标签与徽标"
       },
       {
         "path": "preview/components-timeline.html",

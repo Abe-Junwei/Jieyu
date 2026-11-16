@@ -5,6 +5,7 @@
   <title>AI 侧栏</title>
   <link rel="stylesheet" href="../tokens.css" />
   <link rel="stylesheet" href="preview.css" />
+  <script src="icons.js"></script>
   <style>
     .side { width: 360px; height: 560px; background: var(--surface); border: 1px solid var(--border); display: grid; grid-template-rows: 44px 1fr auto; }
     .side header { display: flex; align-items: center; padding: 0 12px; border-bottom: 1px solid var(--border-soft); font: 600 var(--text-base)/var(--leading-base) var(--font-body); }
@@ -60,7 +61,7 @@
       </div>
       <div class="composer">
         <textarea placeholder="问 AI，或描述要改的句段" aria-label="消息"></textarea>
-        <button class="btn icon primary" aria-label="发送">↑</button>
+        <button class="btn icon primary" aria-label="发送" title="发送"><svg class="i"><use href="#arrow-up"/></svg></button>
       </div>
     </div>
 
@@ -70,7 +71,7 @@
         <div class="bubble user">只看待复核的句段。</div>
         <div class="bubble ai">有 12 个低置信度句段，按 [ / ] 跳转。</div>
       </div>
-      <div class="composer"><textarea aria-label="消息"></textarea><button class="btn icon primary" aria-label="发送">↑</button></div>
+      <div class="composer"><textarea aria-label="消息"></textarea><button class="btn icon primary" aria-label="发送" title="发送"><svg class="i"><use href="#arrow-up"/></svg></button></div>
     </div>
   </div>
 

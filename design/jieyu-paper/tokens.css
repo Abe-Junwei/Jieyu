@@ -1,7 +1,7 @@
 /*
  * 生成文件，不要手改。改 src/styles/tokens.css 后运行 `npm run build:od-tokens`（ADR-0106）。
  * source-sha256: 90216a377c0ac0245bd4a2dad0b6bd4afe9590335d041a97b78f9b882c69430e
- * body-sha256: d762875b8493d02640c72557da83440dfc6c2d138989acf9e18f6aae234522c1
+ * body-sha256: 9b1da8e7ec16191f32ceeb7c4c736c29b5d61ff870312b01893fce230866577f
  */
 :root {
   /* 纸面与文字 */
@@ -16,6 +16,8 @@
   --border-soft: #eeeeee;
   --border-strong: #c8c8c8;
   --border-control: #949494;
+  --focus-color: #5c5c5c;
+  --text-selection: #e2e2e2;
   --accent: #111111;
   --accent-on: #ffffff;
   --accent-hover: #000000;
@@ -85,7 +87,8 @@
   --elev-flat: none;
   --elev-ring: 0 0 0 1px #e2e2e2;
   --elev-raised: 0 8px 24px rgb(17 17 17 / 12%);
-  --focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px #111111;
+  --focus-ring: 0 0 0 3px rgb(17 17 17 / 14%);
+  --focus-ring-danger: 0 0 0 3px rgb(220 38 38 / 16%);
   /* 时间轴 */
   --playhead: #111111;
   --selection: #ececec;
@@ -95,10 +98,17 @@
   --series-ink-1: #3a3a3a;
   --series-ink-2: #5c5c5c;
   --series-ink-3: #8a8a8a;
-  /* 动效 */
+  /* 动效与层级 */
   --motion-fast: 160ms;
   --motion-base: 200ms;
   --ease-standard: ease-out;
+  --z-base: 1;
+  --z-sticky: 20;
+  --z-shell: 40;
+  --z-drawer: 80;
+  --z-popover: 160;
+  --z-toast: 240;
+  --z-modal: 320;
 }
 
 [data-theme="dark"] {
@@ -113,6 +123,8 @@
   --border-soft: #2c2b28;
   --border-strong: #5c5952;
   --border-control: #6a675f;
+  --focus-color: #9e998f;
+  --text-selection: #3a3832;
   --accent: #f4f2ec;
   --accent-on: #0c0c09;
   --accent-hover: #ffffff;
@@ -133,7 +145,8 @@
   --shadow-modal: 0 16px 48px rgb(0 0 0 / 60%);
   --elev-ring: 0 0 0 1px #3a3832;
   --elev-raised: 0 8px 24px rgb(0 0 0 / 55%);
-  --focus-ring: 0 0 0 2px #161614, 0 0 0 4px #f4f2ec;
+  --focus-ring: 0 0 0 3px rgb(244 242 236 / 18%);
+  --focus-ring-danger: 0 0 0 3px rgb(240 113 113 / 22%);
   --playhead: #f4f2ec;
   --selection: #282825;
   --confidence-mid: #f4f2ec;

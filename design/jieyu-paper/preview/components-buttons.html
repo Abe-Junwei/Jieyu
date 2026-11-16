@@ -5,6 +5,7 @@
   <title>按钮</title>
   <link rel="stylesheet" href="../tokens.css" />
   <link rel="stylesheet" href="preview.css" />
+  <script src="icons.js"></script>
   <style>
     .grid { display: grid; grid-template-columns: 96px repeat(6, max-content); gap: 12px 16px; align-items: center; }
     .grid .h { font-size: var(--text-xs); line-height: var(--leading-xs); color: var(--muted); }
@@ -17,7 +18,7 @@
     .b.d { color: var(--danger-text); border-color: var(--danger); }
     .b.d.hover { background: var(--danger-bg); }
     .b.d.active { background: var(--danger-bg); border-color: var(--danger-text); }
-    .b.focus { box-shadow: var(--focus-ring); }
+    .b.focus { outline: 1.5px solid var(--focus-color); outline-offset: 2px; }
     .b[disabled] { background: var(--surface-warm); color: var(--muted); border-color: var(--border); }
     .spin { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; }
     .b.t { border-color: transparent; background: transparent; }
@@ -33,7 +34,6 @@
     .group .b { border-radius: 0; margin-left: -1px; }
     .group .b:first-child { border-radius: var(--radius-md) 0 0 var(--radius-md); margin-left: 0; }
     .group .b:last-child { border-radius: 0 var(--radius-md) var(--radius-md) 0; padding: 0 8px; }
-    svg.i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
   </style>
 </head>
 <body>
@@ -55,7 +55,7 @@
       <span class="h">文字</span>
       <button class="b t">全部展开</button><button class="b t hover">全部展开</button><button class="b t" style="background:var(--surface-warm)">全部展开</button><button class="b t focus">全部展开</button><button class="b t" disabled style="background:transparent">全部展开</button><span></span>
     </div>
-    <p class="meta">处理中保持原宽度，文字说明正在做什么。禁用的原因写在旁边或悬停提示里。危险按钮红字红边，不铺红底。</p>
+    <p class="meta">处理中保持原宽度，文字说明正在做什么。禁用的原因写在旁边或悬停提示里。危险按钮红字红边，不铺红底。旋转环只允许 12px（按钮内）或 16px（行内伴随状态文字）单色细环，耗时超过 300ms 才显现；禁止在页面中央单放无文字大转圈。</p>
   </section>
 
   <section>
@@ -63,11 +63,11 @@
     <div class="row" style="gap:16px">
       <button class="b p">默认 32</button>
       <button class="b s sm">紧凑 28</button>
-      <button class="b s"><svg class="i" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>导入录音</button>
-      <button class="b ic" aria-label="撤销 ⌘Z"><svg class="i" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
-      <button class="b ic hover" aria-label="重做"><svg class="i" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
-      <button class="b ic on" aria-pressed="true" aria-label="吸附"><svg class="i" viewBox="0 0 24 24"><path d="m6 15-4-4 6.75-6.77a7.79 7.79 0 0 1 11 11L13 22l-4-4 6.39-6.36a2.14 2.14 0 0 0-3-3L6 15"/></svg></button>
-      <button class="b ic focus" aria-label="更多"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+      <button class="b s"><svg class="i"><use href="#upload"/></svg>导入录音</button>
+      <button class="b ic" aria-label="撤销 ⌘Z"><svg class="i"><use href="#undo-2"/></svg></button>
+      <button class="b ic hover" aria-label="重做"><svg class="i"><use href="#redo-2"/></svg></button>
+      <button class="b ic on" aria-pressed="true" aria-label="吸附"><svg class="i"><use href="#magnet"/></svg></button>
+      <button class="b ic focus" aria-label="更多"><svg class="i"><use href="#ellipsis"/></svg></button>
     </div>
     <p class="meta">图标按钮 28×28，最低 24×24，必须有完整名称（悬停提示 + 读屏名）。切换按钮开着用选中底。图标与文字间距 8px。</p>
   </section>
@@ -76,7 +76,7 @@
     <h2>分段控件与组合按钮</h2>
     <div class="row" style="gap:24px">
       <span class="seg" role="radiogroup"><span class="on">多轨</span><span>双列对照</span></span>
-      <span class="group"><button class="b s">导出为 EAF</button><button class="b s" aria-label="其他导出格式"><svg class="i" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button></span>
+      <span class="group"><button class="b s">导出为 EAF</button><button class="b s" aria-label="其他导出格式"><svg class="i"><use href="#chevron-down"/></svg></button></span>
     </div>
     <p class="meta">分段控件用于 2–4 个互斥视图，当前项白底加发丝环。组合按钮左侧执行默认动作，右侧展开其他选项，两部分各有独立焦点。</p>
   </section>

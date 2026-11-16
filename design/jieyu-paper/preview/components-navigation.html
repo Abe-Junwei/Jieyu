@@ -5,6 +5,7 @@
   <title>导航与结构</title>
   <link rel="stylesheet" href="../tokens.css" />
   <link rel="stylesheet" href="preview.css" />
+  <script src="icons.js"></script>
   <style>
     .board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
     .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border-soft); background: var(--surface); padding: 0 8px; }
@@ -12,7 +13,7 @@
     .tab.on { color: var(--fg); font-weight: 600; }
     .tab.on::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; background: var(--fg); }
     .tab.hover { background: var(--surface-warm); }
-    .tab.focus { box-shadow: var(--focus-ring); border-radius: var(--radius-md); }
+    .tab.focus { outline: 1.5px solid var(--focus-color); outline-offset: -2px; border-radius: var(--radius-md); }
     .tab .n { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); }
     .tab .dirty { width: 6px; height: 6px; border-radius: 50%; background: var(--fg); }
     .path { display: flex; align-items: center; gap: 4px; font-size: var(--text-sm); color: var(--fg-2); flex-wrap: wrap; }
@@ -22,10 +23,10 @@
     .path .cur { color: var(--fg); font-weight: 600; }
     .tree { width: 280px; background: var(--surface); border: 1px solid var(--border); padding: 4px 0; font-size: var(--text-sm); line-height: var(--leading-sm); }
     .node { height: 32px; display: flex; align-items: center; gap: 4px; padding-right: 8px; }
-    .node .tw { width: 20px; text-align: center; color: var(--muted); font-size: var(--text-xs); }
+    .node .tw { width: 20px; display: grid; place-items: center; color: var(--muted); }
     .node .end { margin-left: auto; color: var(--muted); font-family: var(--font-mono); font-size: var(--text-xs); }
     .node.sel { background: var(--selection); box-shadow: inset 2px 0 0 var(--fg); }
-    .node.focus { box-shadow: inset 0 0 0 2px var(--fg); }
+    .node.focus { box-shadow: inset 0 0 0 1.5px var(--focus-color); }
     .node.drop { box-shadow: inset 0 -2px 0 var(--fg); }
     .node .menu-btn { margin-left: 4px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--radius-sm); color: var(--fg-2); }
     .node.hover { background: var(--surface-warm); }
@@ -42,11 +43,22 @@
     .rail { width: 52px; background: var(--surface); border-right: 1px solid var(--border-soft); }
     .strip { width: 32px; background: var(--surface); border-right: 1px solid var(--border-soft); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 0; }
     .strip span { writing-mode: vertical-rl; font-size: var(--text-xs); color: var(--muted); }
-    .strip b { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--radius-sm); font-weight: 400; box-shadow: var(--focus-ring); }
+    .strip b { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--radius-sm); font-weight: 400; outline: 1.5px solid var(--focus-color); outline-offset: 2px; }
     .paneMain { flex: 1; background: var(--surface); display: grid; place-items: center; color: var(--muted); font-size: var(--text-sm); }
     .resizer { width: 1px; background: var(--border-soft); position: relative; }
     .resizer.drag { background: var(--fg); width: 2px; }
     .resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: -4px; width: 9px; }
+    .disc-list { width: 360px; background: var(--surface); border: 1px solid var(--border); }
+    .disc + .disc { border-top: 1px solid var(--border-soft); }
+    .disc-h { height: 36px; padding: 0 12px; display: flex; align-items: center; gap: 8px; font: 600 var(--text-sm)/var(--leading-sm) var(--font-body); color: var(--fg); }
+    .disc-h svg { color: var(--muted); }
+    .disc-h.hover { background: var(--surface-warm); }
+    .disc-h.off { color: var(--muted); font-weight: 400; }
+    .disc-h .end { margin-left: auto; }
+    .disc-b { padding: 8px 12px 12px 36px; font-size: var(--text-sm); color: var(--fg-2); display: grid; gap: 4px; }
+    .scrollbox { width: 360px; height: 140px; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); font-size: var(--text-sm); }
+    .scrollbox .sh { height: 32px; padding: 0 12px; display: flex; align-items: center; font: 600 var(--text-xs)/1 var(--font-body); color: var(--fg-2); }
+    .scrollbox .sr { height: 36px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-soft); }
   </style>
 </head>
 <body>
@@ -79,25 +91,25 @@
     <section>
       <h2>树形大纲</h2>
       <div class="tree" role="tree">
-        <div class="node" style="padding-left:4px"><span class="tw">▾</span>卡朗语田野项目</div>
-        <div class="node" style="padding-left:20px"><span class="tw">▾</span>田野录音 03<span class="end">48</span></div>
+        <div class="node" style="padding-left:4px"><span class="tw"><svg class="i"><use href="#chevron-down"/></svg></span>卡朗语田野项目</div>
+        <div class="node" style="padding-left:20px"><span class="tw"><svg class="i"><use href="#chevron-down"/></svg></span>田野录音 03<span class="end">48</span></div>
         <div class="node sel" style="padding-left:36px"><span class="tw"></span>讲述人 A · 转写<span class="end">31</span></div>
-        <div class="node hover" style="padding-left:36px"><span class="tw"></span>讲述人 B · 转写<span class="end">17</span><span class="menu-btn" aria-label="层操作">⋯</span></div>
+        <div class="node hover" style="padding-left:36px"><span class="tw"></span>讲述人 B · 转写<span class="end">17</span><span class="menu-btn" aria-label="层操作"><svg class="i"><use href="#ellipsis"/></svg></span></div>
         <div class="node drop" style="padding-left:36px"><span class="tw"></span>释义<span class="end">29</span></div>
-        <div class="node" style="padding-left:20px"><span class="tw">▸</span>田野录音 04<span class="end">22</span></div>
-        <div class="node focus" style="padding-left:20px"><span class="tw">▸</span>田野录音 05<span class="end">0</span></div>
+        <div class="node" style="padding-left:20px"><span class="tw"><svg class="i"><use href="#chevron-right"/></svg></span>田野录音 04<span class="end">22</span></div>
+        <div class="node focus" style="padding-left:20px"><span class="tw"><svg class="i"><use href="#chevron-right"/></svg></span>田野录音 05<span class="end">0</span></div>
       </div>
       <p class="meta">每级缩进 16px。→ 展开 / 进子级，← 收起 / 回父级。拖动排序时目标位置画墨色插入线。行内菜单悬停或焦点时出现。</p>
     </section>
     <section>
       <h2>列表与行内菜单</h2>
       <div class="list">
-        <div class="sechead">稿件<span class="act" aria-label="新建稿件">＋</span></div>
-        <div class="li sel"><div><div>田野录音 03 · 河边对话</div><div class="s">12:48 · 48 段 · 今天 14:02</div></div><span class="menu-btn">⋯</span></div>
-        <div class="li hover"><div><div>田野录音 04 · 织布</div><div class="s">08:02 · 22 段</div></div><span class="menu-btn" aria-label="稿件操作">⋯</span></div>
-        <div class="li"><div><div>田野录音 05 · 地名</div><div class="s">21:15 · 还没有片段</div></div><span class="menu-btn">⋯</span></div>
+        <div class="sechead">稿件<span class="act" aria-label="新建稿件"><svg class="i"><use href="#plus"/></svg></span></div>
+        <div class="li sel"><div><div>田野录音 03 · 河边对话</div><div class="s">12:48 · 48 段 · 今天 14:02</div></div><span class="menu-btn" aria-label="稿件操作"><svg class="i"><use href="#ellipsis"/></svg></span></div>
+        <div class="li hover"><div><div>田野录音 04 · 织布</div><div class="s">08:02 · 22 段</div></div><span class="menu-btn" aria-label="稿件操作"><svg class="i"><use href="#ellipsis"/></svg></span></div>
+        <div class="li"><div><div>田野录音 05 · 地名</div><div class="s">21:15 · 还没有片段</div></div><span class="menu-btn" aria-label="稿件操作"><svg class="i"><use href="#ellipsis"/></svg></span></div>
       </div>
-      <p class="meta">行高 36–44px。分组标题右侧放该组的唯一新建入口。行内「⋯」与右键菜单内容一致。</p>
+      <p class="meta">行高 36–44px。分组标题右侧放该组的唯一新建入口。行内「更多」与右键菜单内容一致。</p>
     </section>
   </div>
 
@@ -112,12 +124,41 @@
       </div>
       <div class="collapse" style="width:420px">
         <div class="rail"></div>
-        <div class="strip"><b aria-label="展开侧栏">›</b><span>田野录音 03 · 第 12 段</span></div>
+        <div class="strip"><b aria-label="展开侧栏"><svg class="i"><use href="#panel-left-open"/></svg></b><span>田野录音 03 · 第 12 段</span></div>
         <div class="paneMain">收起后：32px 重开条</div>
       </div>
     </div>
     <p class="meta">分隔线可视 1px，命中 9px；拖动时变墨色 2px，限制在 216–272px。收起后留 32px 重开条，写着当前位置；重开后回到原选择和焦点。</p>
   </section>
+
+  <div class="board">
+    <section>
+      <h2>折叠头（Disclosure）</h2>
+      <div class="disc-list">
+        <div class="disc">
+          <div class="disc-h" aria-expanded="true"><svg class="i"><use href="#chevron-down"/></svg>发音人元数据<span class="end badge">3</span></div>
+          <div class="disc-b"><div>A · 拉姆（女，54 岁）</div><div>B · 达瓦（男，61 岁）</div></div>
+        </div>
+        <div class="disc"><div class="disc-h hover" aria-expanded="false"><svg class="i"><use href="#chevron-right"/></svg>声学参数与采样率<span class="end meta">48 kHz</span></div></div>
+        <div class="disc"><div class="disc-h is-focus" aria-expanded="false" style="outline-offset:-1.5px"><svg class="i"><use href="#chevron-right"/></svg>关联词条引用<span class="end badge">14</span></div></div>
+        <div class="disc"><div class="disc-h off" aria-expanded="false" aria-disabled="true"><svg class="i"><use href="#chevron-right"/></svg>外部转写对账<span class="end meta">尚无外部稿</span></div></div>
+      </div>
+      <p class="meta">高 36px，箭头在前（收起向右、展开向下），不用正负号，不套内层卡片边框。Enter / Space 切换 <code>aria-expanded</code>。</p>
+    </section>
+
+    <section>
+      <h2>Sticky 表头与 6px 细滚动条</h2>
+      <div class="scrollbox">
+        <div class="sh sticky-head"><span>句段</span><span class="mono">起止</span></div>
+        <div class="sr"><span>#12 mi so la ŋe</span><span class="mono">01:12.48</span></div>
+        <div class="sr"><span>#13 ta pʰu ʁo</span><span class="mono">01:15.02</span></div>
+        <div class="sr"><span>#14 kə ri tsa</span><span class="mono">01:17.30</span></div>
+        <div class="sr"><span>#15 o le naŋ˥</span><span class="mono">01:19.84</span></div>
+        <div class="sr"><span>#16 ruŋ˥ kʰa˧</span><span class="mono">01:22.10</span></div>
+      </div>
+      <p class="meta">粘顶头只用 1px 底边分隔（<code>--z-sticky</code>），不加投影。滚动条统一 6px 药丸拇指、透明轨道。</p>
+    </section>
+  </div>
 </main>
 </body>
 </html>

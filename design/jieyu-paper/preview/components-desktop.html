@@ -5,6 +5,7 @@
   <title>桌面外壳</title>
   <link rel="stylesheet" href="../tokens.css" />
   <link rel="stylesheet" href="preview.css" />
+  <script src="icons.js"></script>
   <style>
     .board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
     .menus { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
@@ -77,11 +78,11 @@
   <section>
     <h2>工具栏分组</h2>
     <div class="tbar">
-      <span class="grp"><span class="tb">撤销</span><span class="tb">重做</span></span>
+      <span class="grp"><span class="tb" aria-label="撤销 ⌘Z" title="撤销 ⌘Z"><svg class="i"><use href="#undo-2"/></svg></span><span class="tb" aria-label="重做 ⇧⌘Z" title="重做 ⇧⌘Z"><svg class="i"><use href="#redo-2"/></svg></span></span>
       <span class="sep"></span>
       <span class="grp"><span class="tb on">多轨</span><span class="tb">双列对照</span></span>
-      <span class="grp c"><span class="tb">缩小</span><span class="tb">放大</span></span>
-      <span class="grp"><span class="save"><span class="dot ok"></span>已保存</span><span class="tb" aria-label="更多">⋯</span></span>
+      <span class="grp c"><span class="tb" aria-label="缩小" title="缩小"><svg class="i"><use href="#zoom-out"/></svg></span><span class="tb" aria-label="放大" title="放大"><svg class="i"><use href="#zoom-in"/></svg></span></span>
+      <span class="grp"><span class="save"><span class="dot ok"></span>已保存</span><span class="tb" aria-label="更多" title="更多"><svg class="i"><use href="#ellipsis"/></svg></span></span>
     </div>
     <p class="meta">前段放编辑历史，中段放视图，后段放状态和「更多」。窗口变窄时从中段开始收进「更多」，保存状态最后才收。常驻只留播放、视图、缩放、撤销和保存状态。</p>
   </section>
@@ -112,7 +113,7 @@
           <h4>最近</h4>
           <div class="recent sel">卡朗语田野项目<div class="s">今天 14:02 · ~/田野/卡朗语</div></div>
           <div class="recent">地名调查 2026<div class="s">上周</div></div>
-          <div class="recent missing">旧项目备份<div class="s">找不到文件夹 · <a style="color:var(--secondary)">重新定位…</a></div></div>
+          <div class="recent missing">旧项目备份<div class="s">找不到文件夹 · <a class="link" href="#">重新定位…</a></div></div>
         </div>
       </div>
       <p class="meta">只有一个主要操作。示例项目是合成数据，打开后标明「示例」。找不到的项目不删，给重新定位。</p>
@@ -129,6 +130,28 @@
     </div>
     <p class="meta">每项都写结论和影响范围。复制的诊断信息不含语料内容。</p>
   </section>
+
+  <div class="board">
+    <section>
+      <h2>快捷键键帽（&lt;kbd&gt;）</h2>
+      <div class="paper" style="padding:12px 16px;display:grid;gap:8px;font-size:var(--text-sm)">
+        <div class="row" style="justify-content:space-between"><span>合并下一个（macOS）</span><span class="row" style="gap:4px"><kbd class="kbd">⌘</kbd><kbd class="kbd">M</kbd></span></div>
+        <div class="row" style="justify-content:space-between"><span>合并下一个（Windows / Linux）</span><span class="row" style="gap:4px"><kbd class="kbd">Ctrl</kbd><span>+</span><kbd class="kbd">M</kbd></span></div>
+        <div class="row" style="justify-content:space-between"><span>拆分句段</span><span class="row" style="gap:4px"><kbd class="kbd">⌘</kbd><kbd class="kbd">⇧</kbd><kbd class="kbd">S</kbd></span></div>
+        <div class="row" style="justify-content:space-between"><span>播放 / 暂停</span><kbd class="kbd">空格</kbd></div>
+      </div>
+      <p class="meta">20px 高、12px 等宽字、浅灰底 1px 细边，不画拟物立体底边。菜单右列用纯等宽文字，说明正文与速查表里用键帽。</p>
+    </section>
+
+    <section>
+      <h2>链接与文字选区</h2>
+      <div class="paper" style="padding:16px;display:grid;gap:8px;font-size:var(--text-base)">
+        <div>参见 <a class="link" href="#">正字法桥接规则</a> 与 <a class="link is-focus" href="#">Leipzig 缩写表</a>（焦点态）。</div>
+        <div>拖选文字：<span style="background:var(--text-selection);color:var(--fg);padding:0 2px">naŋ˥ kʰa˧ tə˨ ruŋ˥</span>（暖灰底，不用系统默认亮蓝）。</div>
+      </div>
+      <p class="meta">靛青链接常驻 1px 下划线，不单靠颜色区分正文与链接；悬停转墨色。<code>::selection</code> 用 <code>--text-selection</code>。</p>
+    </section>
+  </div>
 </main>
 </body>
 </html>

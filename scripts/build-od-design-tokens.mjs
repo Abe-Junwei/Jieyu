@@ -7,7 +7,7 @@
  *   node scripts/build-od-design-tokens.mjs --check  hash-only check, no browser
  */
 import { createHash } from 'node:crypto';
-import { lstatSync, readFileSync, readlinkSync, writeFileSync } from 'node:fs';
+import { lstatSync, readdirSync, readFileSync, readlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -34,6 +34,8 @@ const GROUPS = [
     ['border-soft', 'color', 'border-subtle'],
     ['border-strong', 'color', 'border-strong'],
     ['border-control', 'color', 'border-control'],
+    ['focus-color', 'pair', ['#5c5c5c', '#9e998f']],
+    ['text-selection', 'pair', ['#e2e2e2', '#3a3832']],
     ['accent', 'color', 'action-solid'],
     ['accent-on', 'color', 'text-on-action'],
     ['accent-hover', 'color', 'action-hover'],
@@ -94,7 +96,8 @@ const GROUPS = [
     ['elev-flat', 'const', 'none'],
     ['elev-ring', 'shadow', '0 0 0 1px var(--border-soft)'],
     ['elev-raised', 'shadow', 'var(--shadow-float)'],
-    ['focus-ring', 'shadow', 'var(--shadow-focus)'],
+    ['focus-ring', 'pair', ['0 0 0 3px rgb(17 17 17 / 14%)', '0 0 0 3px rgb(244 242 236 / 18%)']],
+    ['focus-ring-danger', 'pair', ['0 0 0 3px rgb(220 38 38 / 16%)', '0 0 0 3px rgb(240 113 113 / 22%)']],
   ]],
   ['时间轴', [
     ['playhead', 'color', 'timeline-playhead-color'],
@@ -103,10 +106,17 @@ const GROUPS = [
     ['confidence-low', 'color', 'confidence-low-mark'],
     ...[0, 1, 2, 3].map((n) => [`series-ink-${n}`, 'color', `series-ink-${n}`]),
   ]],
-  ['动效', [
+  ['动效与层级', [
     ['motion-fast', 'raw', 'duration-fast'],
     ['motion-base', 'raw', 'duration-normal'],
     ['ease-standard', 'raw', 'ease-default'],
+    ['z-base', 'const', '1'],
+    ['z-sticky', 'const', '20'],
+    ['z-shell', 'const', '40'],
+    ['z-drawer', 'const', '80'],
+    ['z-popover', 'const', '160'],
+    ['z-toast', 'const', '240'],
+    ['z-modal', 'const', '320'],
   ]],
 ];
 
@@ -152,15 +162,35 @@ function check() {
     ...parseBlockVars(body.match(/\[data-theme="dark"\]\s*\{([^}]*)\}/)?.[1] ?? ''),
   };
   for (const [mode, vars] of [['light', lightVars], ['dark', darkVars]]) {
-    const ratio = contrastRatio(vars['border-control'], vars.surface);
-    if (ratio === null || ratio < 3) {
-      errors.push(
-        `--border-control (${vars['border-control']}) vs --surface (${vars.surface}) in ${mode} mode is ${ratio === null ? 'invalid' : `${ratio.toFixed(2)}:1`} (< 3:1, ADR-0108).`,
-      );
+    for (const token of ['border-control', 'focus-color']) {
+      const ratio = contrastRatio(vars[token], vars.surface);
+      if (ratio === null || ratio < 3) {
+        errors.push(
+          `--${token} (${vars[token]}) vs --surface (${vars.surface}) in ${mode} mode is ${ratio === null ? 'invalid' : `${ratio.toFixed(2)}:1`} (< 3:1).`,
+        );
+      }
     }
   }
   if (!lstatSync(designLink).isSymbolicLink() || readlinkSync(designLink) !== designTarget) {
     errors.push(`DESIGN.md must be a symlink to ${designTarget}.`);
+  }
+  const previewDir = path.join(root, 'design/jieyu-paper/preview');
+  for (const name of readdirSync(previewDir)) {
+    if (!/\.(html|css)$/.test(name)) continue;
+    const text = readFileSync(path.join(previewDir, name), 'utf8');
+    const cssChunks = name.endsWith('.css')
+      ? [text]
+      : [
+          ...[...text.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]),
+          ...[...text.matchAll(/\sstyle="([^"]*)"/gi)].map((m) => m[1]),
+        ];
+    for (const chunk of cssChunks) {
+      const stripped = chunk.replace(/\/\*[\s\S]*?\*\//g, '');
+      const hex = stripped.match(/#[0-9a-f]{3,8}\b/i);
+      if (hex) errors.push(`preview/${name} contains raw color ${hex[0]}; use tokens.css variables.`);
+      const fs = stripped.match(/font-size\s*:\s*\d+(?:\.\d+)?(?:px|rem)\b/i);
+      if (fs) errors.push(`preview/${name} contains raw "${fs[0]}"; use --text-* variables.`);
+    }
   }
   if (errors.length) {
     for (const e of errors) console.error(`[check:od-design-tokens] ${e}`);
@@ -204,6 +234,7 @@ async function build() {
     const read = ([, kind, src]) => {
       switch (kind) {
         case 'const': return src;
+        case 'pair': return theme === 'dark' ? src[1] : src[0];
         case 'raw': return getComputedStyle(document.documentElement).getPropertyValue(`--${src}`).trim().replace(/\s+/g, ' ');
         case 'color':
           probe.style.backgroundColor = `var(--${src})`;

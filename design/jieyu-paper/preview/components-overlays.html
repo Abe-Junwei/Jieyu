@@ -5,6 +5,7 @@
   <title>浮层</title>
   <link rel="stylesheet" href="../tokens.css" />
   <link rel="stylesheet" href="preview.css" />
+  <script src="icons.js"></script>
   <style>
     .board { display: grid; grid-template-columns: 240px 300px 1fr; gap: 32px; align-items: start; }
     .menu { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-popover); padding: 4px; }
@@ -37,6 +38,11 @@
     .modal .bar { height: 4px; margin: 0 16px 16px; background: var(--surface-warm); border-radius: 999px; position: relative; overflow: hidden; }
     .modal .bar i { position: absolute; left: 30%; width: 32%; top: 0; bottom: 0; background: var(--fg); border-radius: 999px; }
     .modal footer .left { margin-right: auto; }
+    .drawer-demo { display: grid; grid-template-columns: 1fr 240px; height: 180px; background: var(--bg); border: 1px solid var(--border); position: relative; }
+    .drawer-main { padding: 16px; color: var(--muted); font-size: var(--text-sm); }
+    .drawer { background: var(--surface); border-left: 1px solid var(--border); display: grid; grid-template-rows: auto 1fr; z-index: var(--z-drawer); }
+    .drawer header { height: 36px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-soft); font: 600 var(--text-sm)/1 var(--font-body); }
+    .drawer .dbody { padding: 12px; font-size: var(--text-sm); color: var(--fg-2); }
   </style>
 </head>
 <body>
@@ -65,7 +71,7 @@
     <section>
       <h2>备注浮动面板</h2>
       <div class="pop">
-        <header>句段备注<button class="btn icon ghost" aria-label="关闭备注面板">×</button></header>
+        <header>句段备注<button class="btn icon ghost" aria-label="关闭备注面板" title="关闭（Esc）"><svg class="i"><use href="#x"/></svg></button></header>
         <div class="body">
           <textarea>第二遍听写时发音人改了尾音。</textarea>
           <div class="row" style="justify-content:flex-end"><button class="btn sm">取消</button><button class="btn sm primary">保存备注</button></div>
@@ -135,6 +141,18 @@
       </div>
     </div>
     <p class="meta">按「帮助 → 快捷键速查」打开，分组与 KeybindingService 的分类一致，可查找；改键在设置的「快捷键」里，这里只读。</p>
+  </section>
+
+  <section>
+    <h2>贴边非模态抽屉 vs 悬浮面板</h2>
+    <div class="drawer-demo" style="max-width:720px">
+      <div class="drawer-main">主画布保持可滚、可播放，不铺遮罩</div>
+      <aside class="drawer" aria-label="校验抽屉">
+        <header><span>校验结果（2）</span><button class="btn icon ghost" aria-label="关闭抽屉"><svg class="i"><use href="#x"/></svg></button></header>
+        <div class="dbody">#12 未知缩写 <code>PFX</code><br/>#19 缺少句段终点</div>
+      </aside>
+    </div>
+    <p class="meta">贴合窗口或分栏边缘滑出的非模态抽屉（<code>--z-drawer</code>）用 1px <code>--border</code> 分隔、圆角 0、<strong>不加投影</strong>；只有脱离边缘悬在画布上方的面板（如上方的备注浮动面板）才用 8px 圆角 + <code>--shadow-float</code>。</p>
   </section>
 </main>
 </body>

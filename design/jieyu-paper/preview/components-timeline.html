@@ -16,7 +16,7 @@
     .lane-body { position: relative; flex: 1; }
     .seg { position: absolute; top: 8px; bottom: 8px; padding: 4px 8px; background: var(--surface-warm); border-radius: 0; font-size: var(--text-base); line-height: var(--leading-base); white-space: nowrap; overflow: hidden; }
     .seg.sel { background: var(--selection); box-shadow: inset 2px 0 0 var(--fg); }
-    .seg.focus { box-shadow: var(--focus-ring); }
+    .seg.focus { outline: 1.5px solid var(--focus-color); outline-offset: -1.5px; }
     .seg.fail { background: var(--danger-bg); color: var(--fg); }
     .seg .tag { position: absolute; top: 4px; right: 8px; display: flex; gap: 4px; align-items: center; font-size: var(--text-xs); }
     .seg.mid span.t { text-decoration: underline dashed var(--confidence-mid) 1.5px; text-underline-offset: 4px; }

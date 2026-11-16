@@ -5,11 +5,12 @@
   <title>数据展示与编辑</title>
   <link rel="stylesheet" href="../tokens.css" />
   <link rel="stylesheet" href="preview.css" />
+  <script src="icons.js"></script>
   <style>
     .board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
     table { border-collapse: collapse; width: 100%; background: var(--surface); border: 1px solid var(--border); font-size: var(--text-sm); line-height: var(--leading-sm); }
     th { height: 36px; padding: 0 12px; text-align: left; font-weight: 600; font-size: var(--text-xs); color: var(--fg-2); background: var(--surface); border-bottom: 1px solid var(--border); position: relative; white-space: nowrap; }
-    th .sort { margin-left: 4px; color: var(--fg); }
+    th .sort { margin-left: 4px; color: var(--fg); display: inline-grid; vertical-align: middle; }
     th .rs { position: absolute; right: 0; top: 8px; bottom: 8px; width: 1px; background: var(--border-soft); }
     th.drag .rs { background: var(--fg); width: 2px; top: 0; bottom: 0; }
     td { height: 40px; padding: 0 12px; border-bottom: 1px solid var(--border-soft); white-space: nowrap; }
@@ -19,11 +20,11 @@
     td.num { text-align: right; font-family: var(--font-mono); font-size: var(--text-xs); }
     td.ipa { font: var(--text-lg)/var(--leading-lg) var(--font-ipa); }
     td.edit { padding: 0 4px; }
-    td.edit span { display: flex; align-items: center; height: 32px; padding: 0 8px; border: 1px solid var(--fg); border-radius: var(--radius-md); box-shadow: var(--focus-ring); background: var(--surface); }
-    td.cellfocus { box-shadow: inset 0 0 0 2px var(--fg); }
+    td.edit span { display: flex; align-items: center; height: 32px; padding: 0 8px; border: 1px solid var(--fg-2); border-radius: var(--radius-md); box-shadow: var(--focus-ring); background: var(--surface); }
+    td.cellfocus { box-shadow: inset 0 0 0 1.5px var(--focus-color); }
     td.err { box-shadow: inset 2px 0 0 var(--danger); color: var(--danger-text); }
-    .box { width: 16px; height: 16px; border: 1.5px solid var(--fg); border-radius: 2px; display: inline-grid; place-items: center; font-size: var(--text-xs); line-height: 1; vertical-align: middle; }
-    .box.on { background: var(--fg); color: var(--accent-on); }
+    .box { width: 16px; height: 16px; border: 1.5px solid var(--border-control); border-radius: 2px; display: inline-grid; place-items: center; font-size: var(--text-xs); line-height: 1; vertical-align: middle; }
+    .box.on { background: var(--fg); border-color: var(--fg); color: var(--accent-on); }
     .tfoot { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-top: 0; font-size: var(--text-xs); color: var(--muted); }
     .tfoot .push { margin-left: auto; }
     .notice { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: var(--text-sm); background: var(--surface-warm); color: var(--fg-2); border: 1px solid var(--border); border-bottom: 0; }
@@ -39,7 +40,7 @@
     .item + .item { border-top: 1px solid var(--border-soft); }
     .item.sub { margin-left: 28px; background: var(--bg); }
     .item.sel { background: var(--selection); box-shadow: inset 2px 0 0 var(--fg); }
-    .grip { color: var(--muted); cursor: grab; line-height: 22px; text-align: center; }
+    .grip { color: var(--muted); cursor: grab; height: 22px; display: grid; place-items: center; }
     .item .acts { display: flex; gap: 4px; }
     .item .acts span { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--radius-md); color: var(--fg-2); }
     .item .acts span.off { color: var(--muted); opacity: .5; }
@@ -69,7 +70,7 @@
     <h2>数据表格</h2>
     <div class="notice"><span class="dot warn"></span>项目数据在查询后改过，结果可能过期。<button class="btn sm">重新查询</button></div>
     <table>
-      <thead><tr><th style="width:40px"><span class="box">–</span></th><th>词头<span class="sort">▲</span><span class="rs"></span></th><th>词性<span class="rs"></span></th><th class="drag">释义<span class="rs"></span></th><th style="text-align:right">出处数<span class="rs"></span></th><th>状态</th></tr></thead>
+      <thead><tr><th style="width:40px"><span class="box">–</span></th><th>词头<span class="sort" aria-label="升序"><svg class="i"><use href="#arrow-up"/></svg></span><span class="rs"></span></th><th>词性<span class="rs"></span></th><th class="drag">释义<span class="rs"></span></th><th style="text-align:right">出处数<span class="rs"></span></th><th>状态</th></tr></thead>
       <tbody>
         <tr><td><span class="box"></span></td><td class="ipa">ka˧ lo˥</td><td>名</td><td>河岸</td><td class="num">4</td><td><span class="dot ok"></span> 已确认</td></tr>
         <tr class="sel"><td><span class="box on">✓</span></td><td class="ipa">ŋa˧</td><td>代</td><td class="edit"><span>我（第一人称|</span></td><td class="num">31</td><td><span class="dot idle"></span> 未保存</td></tr>
@@ -87,11 +88,11 @@
       <h2>可重复嵌套字段组（义项）</h2>
       <div class="group">
         <div class="gh">义项<span class="meta" style="font-weight:400">3</span><span class="push"></span><button class="btn sm ghost">全部展开</button></div>
-        <div class="item"><span class="grip">⋮⋮</span><div class="fl"><span class="k">1</span><span>河岸；河边的平地</span><span class="k">gloss</span><span class="mono">bank</span></div><span class="acts"><span aria-label="上移" class="off">↑</span><span aria-label="下移">↓</span><span aria-label="更多">⋯</span></span></div>
-        <div class="item sub sel"><span class="grip">⋮⋮</span><div class="fl"><span class="k">1.1</span><span>渡口</span><span class="k">例证</span><span class="ipa" style="font-size:var(--text-base)">ka˧ lo˥ tsʰo˩ <span class="cite">录音03 #12</span></span></div><span class="acts"><span aria-label="升一级">←</span><span aria-label="上移" class="off">↑</span><span aria-label="更多">⋯</span></span></div>
+        <div class="item"><span class="grip" aria-label="拖动排序"><svg class="i"><use href="#grip-vertical"/></svg></span><div class="fl"><span class="k">1</span><span>河岸；河边的平地</span><span class="k">gloss</span><span class="mono">bank</span></div><span class="acts"><span aria-label="上移" class="off"><svg class="i"><use href="#arrow-up"/></svg></span><span aria-label="下移"><svg class="i"><use href="#arrow-down"/></svg></span><span aria-label="更多"><svg class="i"><use href="#ellipsis"/></svg></span></span></div>
+        <div class="item sub sel"><span class="grip" aria-label="拖动排序"><svg class="i"><use href="#grip-vertical"/></svg></span><div class="fl"><span class="k">1.1</span><span>渡口</span><span class="k">例证</span><span class="ipa" style="font-size:var(--text-base)">ka˧ lo˥ tsʰo˩ <span class="cite">录音03 #12</span></span></div><span class="acts"><span aria-label="升一级"><svg class="i"><use href="#list-indent-decrease"/></svg></span><span aria-label="上移" class="off"><svg class="i"><use href="#arrow-up"/></svg></span><span aria-label="更多"><svg class="i"><use href="#ellipsis"/></svg></span></span></div>
         <div class="insert"></div>
-        <div class="item"><span class="grip">⋮⋮</span><div class="fl"><span class="k">2</span><span>（转）边界</span><span class="k">例证</span><span><span class="cite broken">录音05 #3</span> <span class="meta">出处已删除</span></span></div><span class="acts"><span aria-label="降一级">→</span><span aria-label="上移">↑</span><span aria-label="更多">⋯</span></span></div>
-        <div class="add">＋ 添加义项</div>
+        <div class="item"><span class="grip" aria-label="拖动排序"><svg class="i"><use href="#grip-vertical"/></svg></span><div class="fl"><span class="k">2</span><span>（转）边界</span><span class="k">例证</span><span><span class="cite broken">录音05 #3</span> <span class="meta">出处已删除</span></span></div><span class="acts"><span aria-label="降一级"><svg class="i"><use href="#list-indent-increase"/></svg></span><span aria-label="上移"><svg class="i"><use href="#arrow-up"/></svg></span><span aria-label="更多"><svg class="i"><use href="#ellipsis"/></svg></span></span></div>
+        <div class="add"><svg class="i"><use href="#plus"/></svg>添加义项</div>
       </div>
       <p class="meta">子级缩进 28px，用浅底而不是边框。拖动把手或上移/下移按钮排序，升一级/降一级按钮调层级；按钮在首尾或无法再升降时禁用。拖动时画墨色插入线。删除带子项的义项要确认影响范围。</p>
     </section>

@@ -15,6 +15,7 @@
     "build:guard": "npm run build && npm run profile:build-assets && npm run check:build-budgets && npm run audit:prod",
     "build:language-tag-mappings": "node scripts/build-language-tag-mappings.mjs",
     "build:od-tokens": "node scripts/build-od-design-tokens.mjs",
+    "build:od-icons": "node scripts/build-od-icon-sprite.mjs",
     "// === Type Check & Lint ===": "",
     "typecheck": "tsc --noEmit && tsc -p electron --noEmit",
     "lint:css": "stylelint \"src/styles/**/*.css\"",

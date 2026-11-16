@@ -5,6 +5,7 @@
   <title>导入、导出与长任务</title>
   <link rel="stylesheet" href="../tokens.css" />
   <link rel="stylesheet" href="preview.css" />
+  <script src="icons.js"></script>
   <style>
     .board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
     .steps { display: flex; align-items: center; gap: 8px; font-size: var(--text-sm); }
@@ -24,7 +25,7 @@
     .map .src { font-family: var(--font-mono); font-size: var(--text-xs); }
     .map .arr { color: var(--muted); text-align: center; }
     .ctl { height: 28px; display: flex; align-items: center; gap: 4px; padding: 0 8px; border: 1px solid var(--border-control); border-radius: var(--radius-md); background: var(--surface); }
-    .ctl .c { margin-left: auto; color: var(--muted); font-size: var(--text-xs); }
+    .ctl .c { margin-left: auto; color: var(--muted); display: grid; }
     .ctl.error { border-color: var(--danger); }
     .map .why { grid-column: 3; font-size: var(--text-xs); color: var(--danger-text); padding-top: 4px; }
     .loss { padding: 8px 16px; display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; font-size: var(--text-sm); line-height: var(--leading-sm); align-items: start; }
@@ -68,10 +69,10 @@
       <h2>层与讲述人映射</h2>
       <div class="card">
         <div class="ch">EAF 里的层<span class="meta">4 层 · 1 处待定</span></div>
-        <div class="map"><span class="src">tx@A</span><span class="arr">→</span><span class="ctl">讲述人 A · 转写<span class="c">▾</span></span></div>
-        <div class="map"><span class="src">ft@A</span><span class="arr">→</span><span class="ctl">释义 · 跟随 A<span class="c">▾</span></span></div>
-        <div class="map"><span class="src">tx@B</span><span class="arr">→</span><span class="ctl error">选择角色<span class="c">▾</span></span><span class="why">这一层既像转写又像释义，选一个才能继续。</span></div>
-        <div class="map"><span class="src">notes</span><span class="arr">→</span><span class="ctl">不导入<span class="c">▾</span></span></div>
+        <div class="map"><span class="src">tx@A</span><span class="arr">→</span><span class="ctl">讲述人 A · 转写<span class="c"><svg class="i"><use href="#chevron-down"/></svg></span></span></div>
+        <div class="map"><span class="src">ft@A</span><span class="arr">→</span><span class="ctl">释义 · 跟随 A<span class="c"><svg class="i"><use href="#chevron-down"/></svg></span></span></div>
+        <div class="map"><span class="src">tx@B</span><span class="arr">→</span><span class="ctl error">选择角色<span class="c"><svg class="i"><use href="#chevron-down"/></svg></span></span><span class="why">这一层既像转写又像释义，选一个才能继续。</span></div>
+        <div class="map"><span class="src">notes</span><span class="arr">→</span><span class="ctl">不导入<span class="c"><svg class="i"><use href="#chevron-down"/></svg></span></span></div>
         <div class="cf"><button class="btn sm">上一步</button><span class="push"></span><button class="btn sm" disabled style="background:var(--surface-warm);color:var(--muted);border-color:var(--border-soft)">下一步：预览</button></div>
       </div>
       <p class="meta">源名用等宽。歧义项错误边 + 原因，阻止下一步；「下一步」禁用时原因就在列表里。</p>

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>标签与徽标</title>
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="preview.css" />
+  <script src="icons.js"></script>
+  <style>
+    .kinds { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); font-size: var(--text-sm); line-height: var(--leading-sm); }
+    .kinds th, .kinds td { height: 40px; padding: 0 12px; text-align: left; border-bottom: 1px solid var(--border-soft); }
+    .kinds th { height: 36px; font-size: var(--text-xs); color: var(--fg-2); }
+    .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; }
+    .cols section { align-content: start; }
+    .row .cap { width: 100%; }
+    .control { min-height: 32px; width: 300px; border: 1px solid var(--fg-2); border-radius: var(--radius-md); padding: 4px 8px; background: var(--surface); display: flex; flex-wrap: wrap; align-items: center; gap: 4px; box-shadow: var(--focus-ring); }
+    .lex { display: grid; grid-template-columns: 96px 1fr; gap: 8px 16px; align-items: center; width: 420px; padding: 12px 16px; background: var(--surface); border: 1px solid var(--border); }
+    .lex .ipa { font-size: var(--text-lg); }
+  </style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>标签与徽标</h1>
+    <p class="note">一个家族、五种用途。全部 pill 圆角、12px 字、不给分类配色。只有可以点的才带控件边。</p>
+  </div>
+
+  <section>
+    <table class="kinds">
+      <thead><tr><th>类型</th><th>用来</th><th>外观</th><th>交互</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge">17</span> 计数徽标</td><td>页签、左轨、分组标题旁的数量</td><td>20px 高，浅灰底；错误浅红底，需要处理的新项墨底</td><td>只读</td></tr>
+        <tr><td><span class="chip"><span class="dot warn"></span>待复核</span> 状态片</td><td>句段、词条、任务的状态</td><td>24px 高，浅灰底 + 色点 + 文字</td><td>只读</td></tr>
+        <tr><td><span class="chip">名词</span> 只读标签</td><td>词性、语义域、层类型、讲述人</td><td>24px 高，浅灰底，无色点</td><td>只读；点它不做事</td></tr>
+        <tr><td><span class="chip filter">转写</span> 筛选标签</td><td>列表和查询的快速筛选</td><td>白底 + 控件边；选中为选中底 + 墨边 + 勾</td><td>多选切换</td></tr>
+        <tr><td><span class="chip input"><span class="t">水</span><span class="rm" aria-label="移除 水"><svg class="i"><use href="#x"/></svg></span></span> 输入标签</td><td>标签输入框里已录入的值</td><td>浅灰底 + 末尾移除</td><td>移除；退格先选中再删</td></tr>
+      </tbody>
+    </table>
+    <p class="meta">靛青 <span class="chip sec">AI 候选</span> 只给次要标记（未确认的机器候选、引用来源），不表示状态，也不当分类色。</p>
+  </section>
+
+  <section>
+    <h2>计数徽标</h2>
+    <div class="row" style="gap:24px">
+      <span class="row">校验<span class="badge err">2</span></span>
+      <span class="row">AI 建议<span class="badge ink">5</span></span>
+      <span class="row">待复核<span class="badge">17</span></span>
+      <span class="row">例证<span class="badge" aria-label="128 条">99+</span></span>
+    </div>
+    <p class="meta">只放数字。超过 99 写「99+」，读屏读完整数字。数量为 0 时不显示徽标，不显示「0」。</p>
+  </section>
+
+  <div class="cols">
+    <section>
+      <h2>状态片</h2>
+      <div class="row">
+        <span class="chip"><span class="dot ok"></span>已确认</span>
+        <span class="chip"><span class="dot warn"></span>待复核</span>
+        <span class="chip"><span class="dot idle"></span>草稿</span>
+        <span class="chip"><span class="dot err"></span>保存失败</span>
+      </div>
+      <p class="meta">颜色只在色点上，文字一直是次墨。状态名和反馈页、时间轴用同一组词。</p>
+    </section>
+    <section>
+      <h2>只读标签</h2>
+      <div class="lex">
+        <span class="ipa">tsʰo˩</span><span class="row"><span class="chip">动词</span><span class="chip">水</span><span class="chip">地形</span><span class="chip" title="移动、河流、渡口">+3</span></span>
+        <span class="meta">讲述人</span><span class="row"><span class="chip" title="A · 拉姆（卡朗语，女，1958）"><span class="t">A · 拉姆（卡朗语，女，1958）</span></span></span>
+      </div>
+      <p class="meta">一行最多 3 个，其余收成「+N」，悬停和读屏给全部。最长 200px，超出省略，悬停看全名。</p>
+    </section>
+  </div>
+
+  <div class="cols">
+    <section>
+      <h2>筛选标签</h2>
+      <div class="row">
+        <span class="chip filter" role="checkbox" aria-checked="false">默认</span>
+        <span class="chip filter hover" role="checkbox" aria-checked="false">悬停</span>
+        <span class="chip filter on" role="checkbox" aria-checked="true"><svg class="i"><use href="#check"/></svg>选中</span>
+        <span class="chip filter is-focus" role="checkbox" aria-checked="false">焦点</span>
+        <span class="chip filter on is-focus" role="checkbox" aria-checked="true"><svg class="i"><use href="#check"/></svg>选中 + 焦点</span>
+        <span class="chip filter" role="checkbox" aria-checked="false" aria-disabled="true">禁用</span>
+      </div>
+      <p class="meta">选中靠底色、墨边和勾三者，不只靠颜色。空格切换，方向键在同组里移动。点击区是整片，高 24px。</p>
+    </section>
+    <section>
+      <h2>输入标签</h2>
+      <div class="control">
+        <span class="chip input"><span class="t">水</span><span class="rm" aria-label="移除 水"><svg class="i"><use href="#x"/></svg></span></span>
+        <span class="chip input on"><span class="t">地形</span><span class="rm" aria-label="移除 地形"><svg class="i"><use href="#x"/></svg></span></span>
+        河|
+      </div>
+      <p class="meta">回车成标签。第一次退格选中最后一个（选中底 + 墨边），第二次删除。移除按钮图标 16px，命中区向外扩到 24×24，不与标签本身的点击混用。</p>
+    </section>
+  </div>
+
+  <section>
+    <h2>不要这样</h2>
+    <ul class="meta" style="margin:0;padding-left:20px;display:grid;gap:4px">
+      <li>不给词性、语义域、讲述人配彩色底；要区分讲述人，用字母和墨色深浅（见「时间轴」）。</li>
+      <li>不用靛青、琥珀或红色文字表示状态；状态一律色点 + 次墨文字。</li>
+      <li>只读标签不加边框、不加悬停效果，免得像能点。</li>
+      <li>不在标签里放图标装饰；只有筛选的勾和输入标签的移除是图标。</li>
+    </ul>
+  </section>
+
+  <section class="dark" data-theme="dark">
+    <h2>暗色</h2>
+    <div class="row" style="gap:12px">
+      <span class="badge err">2</span><span class="badge ink">5</span><span class="badge">17</span>
+      <span class="chip"><span class="dot ok"></span>已确认</span>
+      <span class="chip"><span class="dot warn"></span>待复核</span>
+      <span class="chip">动词</span>
+      <span class="chip filter">转写</span>
+      <span class="chip filter on"><svg class="i"><use href="#check"/></svg>释义</span>
+      <span class="chip input"><span class="t">水</span><span class="rm" aria-label="移除 水"><svg class="i"><use href="#x"/></svg></span></span>
+      <span class="chip sec">AI 候选</span>
+    </div>
+  </section>
+</main>
+</body>
+</html>

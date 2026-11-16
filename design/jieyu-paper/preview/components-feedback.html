@@ -5,6 +5,7 @@
   <title>反馈</title>
   <link rel="stylesheet" href="../tokens.css" />
   <link rel="stylesheet" href="preview.css" />
+  <script src="icons.js"></script>
   <style>
     .banner { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); font-size: var(--text-sm); line-height: var(--leading-sm); }
     .banner .btn { margin-left: auto; }
@@ -19,10 +20,10 @@
     .inline { padding: 8px 12px; border-radius: 4px; font-size: var(--text-sm); line-height: var(--leading-sm); display: flex; gap: 8px; align-items: center; }
     .inline.err { background: var(--danger-bg); color: var(--danger-text); }
     .inline.note { background: var(--surface-warm); color: var(--fg-2); }
-    .badge { min-width: 20px; height: 20px; padding: 0 8px; border-radius: 999px; display: inline-grid; place-items: center; font: 600 var(--text-xs)/1 var(--font-body); background: var(--surface-warm); color: var(--fg-2); }
-    .badge.ink { background: var(--fg); color: var(--accent-on); }
-    .badge.err { background: var(--danger-bg); color: var(--danger-text); }
-    .chipst { height: 24px; padding: 0 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 8px; font-size: var(--text-xs); background: var(--surface-warm); color: var(--fg-2); }
+    .board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: stretch; }
+    .block-card { background: var(--surface); border: 1px solid var(--border); padding: 24px; display: grid; align-content: center; justify-items: start; gap: 12px; }
+    .block-card h3 { margin: 0; font: 600 var(--text-lg)/var(--leading-lg) var(--font-body); display: flex; align-items: center; gap: 8px; }
+    .block-card p { margin: 0; font-size: var(--text-sm); color: var(--fg-2); }
   </style>
 </head>
 <body>
@@ -85,12 +86,29 @@
       <span class="row" style="gap:8px">校验<span class="badge err">2</span></span>
       <span class="row" style="gap:8px">待复核<span class="badge">17</span></span>
       <span class="row" style="gap:8px">AI 建议<span class="badge ink">5</span></span>
-      <span class="chipst"><span class="dot ok"></span>已确认</span>
-      <span class="chipst"><span class="dot warn"></span>待复核</span>
-      <span class="chipst"><span class="dot idle"></span>草稿</span>
-      <span class="chipst"><span class="dot err"></span>保存失败</span>
+      <span class="chip"><span class="dot ok"></span>已确认</span>
+      <span class="chip"><span class="dot warn"></span>待复核</span>
+      <span class="chip"><span class="dot idle"></span>草稿</span>
+      <span class="chip"><span class="dot err"></span>保存失败</span>
     </div>
-    <p class="meta">徽标只放数量：错误浅红底，需要处理的新项墨色，其余浅灰。状态片中性壳加色点和文字。数量超过 99 写「99+」，读屏读完整数字。</p>
+    <p class="meta">徽标只放数量，状态片是中性壳加色点和文字。完整规则和其余标签见「标签与徽标」。</p>
+  </section>
+
+  <section>
+    <h2>阻断与恢复（桌面两态）</h2>
+    <div class="board">
+      <div class="block-card" role="alert">
+        <h3><svg class="i lg"><use href="#file-exclamation-point"/></svg>无法打开这个项目</h3>
+        <p>项目数据库结构版本不兼容（读取到 v19，当前支持 v27），或者文件已损坏。为免破坏原文件，解语没有改动磁盘上的任何内容。</p>
+        <div class="row"><button class="btn primary">从快照备份恢复…</button><button class="btn">返回项目列表</button></div>
+      </div>
+      <div class="block-card" role="alert">
+        <h3><span class="dot err"></span>波形与语谱图区域出错</h3>
+        <p>渲染这一栏时发生异常。你的转写正文和句段保存在数据库里，没有丢失。</p>
+        <div class="row"><button class="btn primary">重新加载此区域</button><button class="btn">复制诊断摘要</button></div>
+      </div>
+    </div>
+    <p class="meta">桌面阻断只保留这两类：① 文件损坏或版本不兼容拒绝打开（说明未改原文件 + 恢复出口）；② 局部面板异常边界（隔离故障区、保住其他分栏、给重试与不含语料的诊断复制）。不设浏览器时代的迁移遮罩或全站离线阻断。</p>
   </section>
 </main>
 </body>

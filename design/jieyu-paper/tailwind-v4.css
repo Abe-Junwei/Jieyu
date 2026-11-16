@@ -64,6 +64,9 @@
   --color-secondary: var(--secondary);
   --color-border-strong: var(--border-strong);
   --color-border-control: var(--border-control);
+  --color-focus: var(--focus-color);
+  --color-text-selection: var(--text-selection);
+  --shadow-focus-ring-danger: var(--focus-ring-danger);
   --color-danger-text: var(--danger-text);
   --color-danger-bg: var(--danger-bg);
   --color-success-text: var(--success-text);

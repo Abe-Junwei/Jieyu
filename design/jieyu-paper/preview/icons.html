@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>图标</title>
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="preview.css" />
+  <script src="icons.js"></script>
+  <style>
+    .set { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 24px; }
+    .set div { display: grid; grid-template-columns: 28px 1fr; gap: 0 8px; align-items: center; min-height: 40px; }
+    .set div svg { color: var(--fg-2); justify-self: center; }
+    .set b { font: var(--text-xs)/var(--leading-xs) var(--font-mono); font-weight: 400; direction: ltr; }
+    .set span { grid-column: 2; font-size: var(--text-xs); line-height: var(--leading-xs); color: var(--muted); }
+    h3 { margin: 8px 0 0; font: 600 var(--text-sm)/var(--leading-sm) var(--font-body); color: var(--fg-2); }
+    .sizes { display: flex; gap: 32px; align-items: end; }
+    .sizes figure { margin: 0; display: grid; justify-items: center; gap: 8px; }
+    .sizes figcaption { font-size: var(--text-xs); color: var(--muted); }
+    .tb { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--radius-md); color: var(--fg-2); }
+    .tb.hover { background: var(--surface-warm); color: var(--fg); }
+    .tb.on { background: var(--selection); color: var(--fg); }
+    .rules { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .rules ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: var(--text-sm); line-height: var(--leading-sm); }
+  </style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>图标</h1>
+    <p class="note">Lucide 轮廓图标（产品里经 <code>JieyuIcon</code>，预览里经 <code>icons.js</code>，同一来源）。只给没有文字也能认出的通用操作；状态、语言学内容和带动词的按钮不用图标。</p>
+  </div>
+
+  <section>
+    <h2>尺寸、线宽与颜色</h2>
+    <div class="sizes">
+      <figure><svg class="i lg"><use href="#audio-lines"/></svg><figcaption>20px · 左轨、空状态、拖放区</figcaption></figure>
+      <figure><svg class="i"><use href="#undo-2"/></svg><figcaption>16px · 按钮、伴随文字、控件内</figcaption></figure>
+      <figure><span class="tb"><svg class="i"><use href="#repeat"/></svg></span><figcaption>默认 次墨</figcaption></figure>
+      <figure><span class="tb hover"><svg class="i"><use href="#repeat"/></svg></span><figcaption>悬停 墨色 + 浅灰底</figcaption></figure>
+      <figure><span class="tb on"><svg class="i"><use href="#repeat"/></svg></span><figcaption>开着 选中底</figcaption></figure>
+      <figure><span class="tb" style="color:var(--muted)"><svg class="i"><use href="#search"/></svg></span><figcaption>输入框前缀 淡墨</figcaption></figure>
+    </div>
+    <p class="meta">只有 20 和 16 两档，线宽 1.75，颜色跟随文字（<code>currentColor</code>）。图标不单独上语义色：危险按钮里的图标跟着按钮变红，状态仍用色点。图标与文字间距 8px；图标按钮 28×28，最低 24×24，必须有悬停提示和读屏名。</p>
+  </section>
+
+  <section>
+    <h2>在用的图标</h2>
+    <h3>左轨导航</h3>
+    <div class="set">
+      <div><svg class="i lg"><use href="#audio-lines"/></svg><b>audio-lines</b><span>转写</span></div>
+      <div><svg class="i lg"><use href="#book-open"/></svg><b>book-open</b><span>词典</span></div>
+      <div><svg class="i lg"><use href="#languages"/></svg><b>languages</b><span>语言</span></div>
+      <div><svg class="i lg"><use href="#brain"/></svg><b>brain</b><span>AI 分析</span></div>
+      <div><svg class="i lg"><use href="#settings"/></svg><b>settings</b><span>设置（沉底）</span></div>
+      <div><svg class="i"><use href="#panel-left-open"/></svg><b>panel-left-open</b><span>重开上下文栏</span></div>
+    </div>
+    <h3>播放与视图</h3>
+    <div class="set">
+      <div><svg class="i"><use href="#play"/></svg><b>play</b><span>播放</span></div>
+      <div><svg class="i"><use href="#pause"/></svg><b>pause</b><span>暂停</span></div>
+      <div><svg class="i"><use href="#skip-back"/></svg><b>skip-back</b><span>后退</span></div>
+      <div><svg class="i"><use href="#skip-forward"/></svg><b>skip-forward</b><span>前进</span></div>
+      <div><svg class="i"><use href="#repeat"/></svg><b>repeat</b><span>循环选区</span></div>
+      <div><svg class="i"><use href="#volume-2"/></svg><b>volume-2</b><span>音量</span></div>
+      <div><svg class="i"><use href="#zoom-in"/></svg><b>zoom-in</b><span>放大</span></div>
+      <div><svg class="i"><use href="#zoom-out"/></svg><b>zoom-out</b><span>缩小</span></div>
+      <div><svg class="i"><use href="#magnet"/></svg><b>magnet</b><span>吸附到边界</span></div>
+    </div>
+    <h3>编辑与文件</h3>
+    <div class="set">
+      <div><svg class="i"><use href="#undo-2"/></svg><b>undo-2</b><span>撤销</span></div>
+      <div><svg class="i"><use href="#redo-2"/></svg><b>redo-2</b><span>重做</span></div>
+      <div><svg class="i"><use href="#upload"/></svg><b>upload</b><span>导入、拖放区</span></div>
+      <div><svg class="i"><use href="#file-exclamation-point"/></svg><b>file-exclamation-point</b><span>文件损坏 / 版本拒绝打开（20px）</span></div>
+      <div><svg class="i"><use href="#copy"/></svg><b>copy</b><span>复制代码块或诊断摘要</span></div>
+      <div><svg class="i"><use href="#search"/></svg><b>search</b><span>查找框前缀</span></div>
+      <div><svg class="i"><use href="#arrow-up"/></svg><b>arrow-up</b><span>发送、上移、升序</span></div>
+      <div><svg class="i"><use href="#arrow-down"/></svg><b>arrow-down</b><span>下移、降序</span></div>
+      <div><svg class="i"><use href="#list-indent-decrease"/></svg><b>list-indent-decrease</b><span>升一级</span></div>
+      <div><svg class="i"><use href="#list-indent-increase"/></svg><b>list-indent-increase</b><span>降一级</span></div>
+    </div>
+    <h3>通用控件</h3>
+    <div class="set">
+      <div><svg class="i"><use href="#chevron-down"/></svg><b>chevron-down</b><span>下拉、展开的树节点</span></div>
+      <div><svg class="i"><use href="#chevron-right"/></svg><b>chevron-right</b><span>收起的树节点</span></div>
+      <div><svg class="i"><use href="#chevron-up"/></svg><b>chevron-up</b><span>数字加</span></div>
+      <div><svg class="i"><use href="#ellipsis"/></svg><b>ellipsis</b><span>行内「更多」</span></div>
+      <div><svg class="i"><use href="#x"/></svg><b>x</b><span>关闭、清除、移除标签</span></div>
+      <div><svg class="i"><use href="#plus"/></svg><b>plus</b><span>列表末尾「添加」、分组新建</span></div>
+      <div><svg class="i"><use href="#check"/></svg><b>check</b><span>筛选标签已选</span></div>
+      <div><svg class="i"><use href="#grip-vertical"/></svg><b>grip-vertical</b><span>拖动把手</span></div>
+    </div>
+    <p class="meta">新增图标先在这里登记用途，再改 <code>scripts/build-od-icon-sprite.mjs</code> 的清单并运行 <code>npm run build:od-icons</code>。同一个意思只用一个图标。</p>
+  </section>
+
+  <section>
+    <h2>什么时候用</h2>
+    <div class="rules">
+      <div class="stack">
+        <h3>用图标</h3>
+        <ul>
+          <li>纯图标按钮：播放、缩放、撤销、吸附等工具栏常驻动作。</li>
+          <li>控件里的通用记号：下拉、树展开、关闭、清除、移除、更多、拖动把手。</li>
+          <li>左轨导航：图标 20px，名称在悬停提示和读屏里。</li>
+          <li>列表末尾的「添加」行和分组标题的新建入口：加号 + 文字。</li>
+          <li>空状态和拖放区的主图形：一个 20px 图标，不放插画。</li>
+        </ul>
+      </div>
+      <div class="stack">
+        <h3>不用图标</h3>
+        <ul>
+          <li>状态：已保存、待复核、失败一律色点 + 文字。</li>
+          <li>转写人确定度 ✓ ≈ ?、IGT、gloss、IPA、说话人字母：这是语料的字形，不换成图标。</li>
+          <li>带动词的文字按钮：保存、取消、删除层、导出为 EAF 不加前置图标。</li>
+          <li>菜单项、标签页、表单标签、列表行：只写文字（和系统菜单一致）。</li>
+          <li>复选框的勾、步骤圈里的 ✓ 和 !：随控件绘制，不算图标。</li>
+          <li>不用彩色 emoji，不用 Unicode 箭头和三角充当控件（▾ ▸ ⋯ × ＋）。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="dark" data-theme="dark">
+    <h2>暗色</h2>
+    <div class="row" style="gap:16px">
+      <span class="tb"><svg class="i"><use href="#play"/></svg></span>
+      <span class="tb hover"><svg class="i"><use href="#zoom-in"/></svg></span>
+      <span class="tb on"><svg class="i"><use href="#repeat"/></svg></span>
+      <svg class="i lg"><use href="#audio-lines"/></svg>
+      <span class="tb" style="color:var(--muted)"><svg class="i"><use href="#search"/></svg></span>
+    </div>
+  </section>
+</main>
+</body>
+</html>
