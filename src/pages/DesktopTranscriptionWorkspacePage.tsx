@@ -145,6 +145,7 @@ export function DesktopTranscriptionWorkspacePage() {
               onSelectManuscript={read.selectManuscript}
               draft={draft.draft}
               onEditText={draft.edit}
+              onSelectUnit={setFocusUnitId}
               onUnitText={(unitId, savedText) => {
                 draft.syncSaved(unitId, savedText);
                 void read.readTextDraft(unitId).then((row) => {
