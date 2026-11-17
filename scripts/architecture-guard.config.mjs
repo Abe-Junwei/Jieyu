@@ -13,6 +13,7 @@ import { architectureGuardCssFileRules } from './architecture-guard/rules.css.mj
 import { architectureGuardPreCssPatternRules } from './architecture-guard/rules.patterns.preCss.mjs';
 import { architectureGuardPostCssPatternRules } from './architecture-guard/rules.patterns.postCss.mjs';
 import { architectureGuardAppLayerRules } from './architecture-guard/rules.app.mjs';
+import { architectureGuardDesktopRules } from './architecture-guard/rules.desktop.mjs';
 
 export const architectureGuardRules = [
   ...architectureGuardPageWorkspaceRules,
@@ -24,4 +25,5 @@ export const architectureGuardRules = [
   ...architectureGuardPageRatchetFileRules,
   ...architectureGuardPostCssPatternRules,
   ...architectureGuardAppLayerRules,
+  ...architectureGuardDesktopRules,
 ];
