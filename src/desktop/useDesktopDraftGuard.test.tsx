@@ -2,11 +2,8 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider, useNavigate } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  useDesktopDraftGuard,
-  type DesktopTextDraft,
-  type TextSaveResult,
-} from './useDesktopDraftGuard';
+import type { DesktopTextDraft, TextSaveResult } from './desktopTextDraft';
+import { useDesktopDraftGuard } from './useDesktopDraftGuard';
 
 afterEach(cleanup);
 

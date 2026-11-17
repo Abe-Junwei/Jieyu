@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
-import { createDesktopClient, type ContentNoteCategory } from '../app/desktopProjectReadPageAccess';
+import { createDesktopClient } from '../app/desktopProjectReadPageAccess';
 import { emitAfterWrite } from '../desktop/desktopDomainEvents';
 import { readOpenProjectSession, rememberOpenProjectSession } from '../desktop/openProjectSession';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
+import { createDesktopUnitNoteActions } from './desktopUnitNoteActions';
 import { useDesktopProjectReadQueries } from './useDesktopProjectReadQueries';
 
 export function useDesktopProjectReadController(
@@ -210,126 +211,16 @@ export function useDesktopProjectReadController(
       });
   };
 
-  const saveUnitNote = (unitId: string, text: string): Promise<void> => {
-    if (host === null || sessionId === null || text.length === 0) {
-      return Promise.reject(new Error('note save unavailable'));
-    }
-    const seen = sessionId;
-    setError('');
-    return createDesktopClient({ desktopCall: host.desktopCall })
-      .createNote(seen, { anchor: { kind: 'unit', unitId }, content: { default: text } })
-      .then(() => reads.refetchNotes(seen))
-      .catch((err: unknown) => {
-        if (shownSession.current === seen) setError(t(locale, 'app.desktopRead.loadFailed'));
-        throw err;
-      });
-  };
-
-  const saveCategorizedUnitNote = (
-    unitId: string,
-    text: string,
-    category: ContentNoteCategory,
-  ): Promise<boolean> => {
-    if (
-      host === null ||
-      sessionId === null ||
-      text.trim().length === 0 ||
-      !model?.units.some((unit) => unit.id === unitId)
-    ) {
-      return Promise.resolve(false);
-    }
-    const seen = sessionId;
-    setError('');
-    return createDesktopClient({ desktopCall: host.desktopCall })
-      .createNote(seen, {
-        anchor: { kind: 'unit', unitId },
-        content: { default: text.trim() },
-        category,
-      })
-      .then(async () => {
-        if (shownSession.current !== seen) return false;
-        await reads.refetchNotes(seen);
-        return true;
-      })
-      .catch(() => {
-        if (shownSession.current === seen) setError(t(locale, 'app.desktopRead.loadFailed'));
-        return false;
-      });
-  };
-
-  const segmentNote = (noteId: string) =>
-    notes.find(
-      (note) =>
-        note.id === noteId &&
-        note.view === null &&
-        (model?.units.some((unit) => unit.id === note.unitId) ?? false),
-    );
-
-  const updateCategorizedUnitNote = (
-    noteId: string,
-    text: string,
-    category: ContentNoteCategory,
-  ): Promise<boolean> => {
-    if (host === null || sessionId === null || text.trim().length === 0 || !segmentNote(noteId)) {
-      return Promise.resolve(false);
-    }
-    const seen = sessionId;
-    setError('');
-    return createDesktopClient({ desktopCall: host.desktopCall })
-      .updateNote(seen, {
-        id: noteId,
-        content: { default: text.trim() },
-        category,
-      })
-      .then(async () => {
-        if (shownSession.current !== seen) return false;
-        await reads.refetchNotes(seen);
-        return true;
-      })
-      .catch(() => {
-        if (shownSession.current === seen) setError(t(locale, 'app.desktopRead.loadFailed'));
-        return false;
-      });
-  };
-
-  const deleteUnitNote = (noteId: string): Promise<boolean> => {
-    if (host === null || sessionId === null || !segmentNote(noteId)) return Promise.resolve(false);
-    const seen = sessionId;
-    setError('');
-    return createDesktopClient({ desktopCall: host.desktopCall })
-      .deleteNote(seen, noteId)
-      .then(async () => {
-        if (shownSession.current !== seen) return false;
-        await reads.refetchNotes(seen);
-        return true;
-      })
-      .catch(() => {
-        if (shownSession.current === seen) setError(t(locale, 'app.desktopRead.loadFailed'));
-        return false;
-      });
-  };
-
-  const saveTierNote = (
-    unitId: string,
-    view: 'timeline' | 'waveform',
-    text: string,
-  ): Promise<void> => {
-    if (host === null || sessionId === null || text.length === 0) {
-      return Promise.reject(new Error('note save unavailable'));
-    }
-    const seen = sessionId;
-    setError('');
-    return createDesktopClient({ desktopCall: host.desktopCall })
-      .createNote(seen, {
-        anchor: { kind: 'unit', unitId, view },
-        content: { default: text },
-      })
-      .then(() => reads.refetchNotes(seen))
-      .catch((err: unknown) => {
-        if (shownSession.current === seen) setError(t(locale, 'app.desktopRead.loadFailed'));
-        throw err;
-      });
-  };
+  const noteActions = createDesktopUnitNoteActions({
+    host,
+    sessionId,
+    unitIds: model?.units.map((unit) => unit.id) ?? [],
+    notes,
+    isShown: (seen) => shownSession.current === seen,
+    refetchNotes: reads.refetchNotes,
+    clearError: () => setError(''),
+    showLoadFailed: () => setError(t(locale, 'app.desktopRead.loadFailed')),
+  });
 
   return {
     sessionId,
@@ -358,10 +249,6 @@ export function useDesktopProjectReadController(
     mergeUnits,
     moveBoundary,
     saveMapping,
-    saveUnitNote,
-    saveCategorizedUnitNote,
-    updateCategorizedUnitNote,
-    deleteUnitNote,
-    saveTierNote,
+    ...noteActions,
   };
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useBlocker } from 'react-router-dom';
-import type { DesktopTextDraft } from '../../desktop/useDesktopDraftGuard';
+import type { DesktopTextDraft } from '../../desktop/desktopTextDraft';
 
 /** Owns pending navigation and unload blocking; persistence remains in the text guard. */
 export function useDesktopDraftLeaveGuard(
