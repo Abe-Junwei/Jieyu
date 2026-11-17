@@ -33,38 +33,47 @@
 .lane-link-connector-svg-color-0 {
   --lane-link-color: var(--timeline-link-color-0);
   --lane-link-color-active: var(--timeline-link-color-active-0);
+  --lane-link-dash: var(--timeline-link-dash-0);
 }
 
 .lane-link-connector-svg-color-1 {
   --lane-link-color: var(--timeline-link-color-1);
   --lane-link-color-active: var(--timeline-link-color-active-1);
+  --lane-link-dash: var(--timeline-link-dash-1);
 }
 
 .lane-link-connector-svg-color-2 {
   --lane-link-color: var(--timeline-link-color-2);
   --lane-link-color-active: var(--timeline-link-color-active-2);
+  --lane-link-dash: var(--timeline-link-dash-2);
 }
 
 .lane-link-connector-svg-color-3 {
   --lane-link-color: var(--timeline-link-color-3);
   --lane-link-color-active: var(--timeline-link-color-active-3);
+  --lane-link-dash: var(--timeline-link-dash-3);
 }
 
 .lane-link-connector-svg-color-4 {
   --lane-link-color: var(--timeline-link-color-4);
   --lane-link-color-active: var(--timeline-link-color-active-4);
+  --lane-link-dash: var(--timeline-link-dash-4);
 }
 
 .lane-link-connector-svg-color-5 {
   --lane-link-color: var(--timeline-link-color-5);
   --lane-link-color-active: var(--timeline-link-color-active-5);
+  --lane-link-dash: var(--timeline-link-dash-5);
 }
 
 .lane-link-connector-svg-trunk,
 .lane-link-connector-svg-elbow,
 .lane-link-connector-svg-dot,
 .lane-link-connector-svg-arrow {
-  transition: stroke 160ms ease, fill 160ms ease, opacity 160ms ease;
+  transition:
+    stroke 160ms ease,
+    fill 160ms ease,
+    opacity 160ms ease;
 }
 
 .timeline-lane-label-bundle-root .lane-link-connector-svg-trunk {
@@ -91,6 +100,7 @@
 .lane-link-connector-svg-elbow {
   stroke: var(--lane-link-color);
   stroke-width: var(--lane-link-stroke);
+  stroke-dasharray: var(--lane-link-dash, none);
   vector-effect: non-scaling-stroke;
   shape-rendering: crispEdges;
 }

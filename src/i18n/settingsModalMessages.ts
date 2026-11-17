@@ -16,8 +16,6 @@ export type SettingsModalMessages = {
   themeLight: string;
   themeDark: string;
   themeSystem: string;
-  appearanceSchemeLabel: string;
-  themeAccentLabel: string;
   localeLabel: string;
   localeChinese: string;
   localeEnglish: string;
@@ -27,10 +25,6 @@ export type SettingsModalMessages = {
   fontScaleModeManual: string;
   fontScaleReset: string;
   /** 图标效果：Material 默认 / 动效增强 | Icon effect: Material vs motion-enhanced */
-  iconEffectTitle: string;
-  iconEffectMaterial: string;
-  iconEffectMotion: string;
-  iconEffectHint: string;
   // 快捷键 | Shortcuts
   shortcutRecording: string;
   shortcutReset: string;

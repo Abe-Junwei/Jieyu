@@ -59,17 +59,22 @@ import {
   type LanguageAssetPanel,
 } from './contexts/AssetPanelContext';
 import { syncDocumentDataTheme, THEME_MODE_STORAGE_KEY } from './utils/theme';
-import { type IconEffect, getIconEffect, setIconEffect } from './utils/iconEffect';
 import { isTranscriptionWorkspacePathname } from './utils/transcriptionWorkspaceRoute';
 import { JIEYU_ICON_NAV, type LeftRailNavIconName } from './utils/jieyuIcon';
 import { CatalogProjectGate } from './components/CatalogProjectGate';
 import { DesktopRoute } from './components/DesktopRoute';
 import { electronDesktopPresent } from './desktop/desktopSurface';
+import { featureFlags } from './ai/config/featureFlags';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
 const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
 const DesktopProjectReadPage = lazy(() =>
   import('./pages/DesktopProjectReadPage').then((m) => ({ default: m.DesktopProjectReadPage })),
+);
+const DesktopTranscriptionWorkspacePage = lazy(() =>
+  import('./pages/DesktopTranscriptionWorkspacePage').then((m) => ({
+    default: m.DesktopTranscriptionWorkspacePage,
+  })),
 );
 const DesktopCorpusPage = lazy(() =>
   import('./pages/DesktopCorpusPage').then((m) => ({ default: m.DesktopCorpusPage })),
@@ -371,14 +376,8 @@ export function App() {
   const shellBodyRef = useRef<HTMLDivElement | null>(null);
   const shellDragCleanupRef = useRef<(() => void) | null>(null);
   const [themeMode, setThemeMode] = useState<ThemeMode>(readInitialThemeMode);
-  const [iconEffect, setIconEffectState] = useState<IconEffect>(() => getIconEffect());
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { uiFontScale, uiFontScaleMode } = useUiFontScaleRuntime(locale);
-
-  const handleIconEffectChange = useCallback((next: IconEffect) => {
-    setIconEffect(next);
-    setIconEffectState(next);
-  }, []);
 
   useEffect(() => {
     try {
@@ -859,11 +858,7 @@ export function App() {
                       title={collaborationMessages.title}
                       onClick={handleCollaborationEntryOpen}
                     >
-                      <JieyuIcon
-                        name="CloudSync"
-                        aria-hidden
-                        className={JIEYU_ICON_NAV}
-                      />
+                      <JieyuIcon name="CloudSync" aria-hidden className={JIEYU_ICON_NAV} />
                       <span>{collaborationMessages.entryLabel}</span>
                     </button>
                   ) : null}
@@ -921,7 +916,13 @@ export function App() {
                           path="/transcription"
                           element={
                             <DesktopRoute
-                              desktop={() => <DesktopProjectReadPage />}
+                              desktop={() =>
+                                featureFlags.desktopTranscriptionWorkspaceEnabled ? (
+                                  <DesktopTranscriptionWorkspacePage />
+                                ) : (
+                                  <DesktopProjectReadPage />
+                                )
+                              }
                               legacy={<TranscriptionPage />}
                             />
                           }
@@ -1075,8 +1076,6 @@ export function App() {
               fontScaleMode={uiFontScaleMode}
               onFontScaleChange={handleFontScaleChange}
               onFontScaleModeChange={handleFontScaleModeChange}
-              iconEffect={iconEffect}
-              onIconEffectChange={handleIconEffectChange}
               version={resolveHostVersion()}
             />
           </div>

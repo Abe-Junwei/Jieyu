@@ -35,7 +35,7 @@
 
 .batch-operation-preview-card {
   border: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface-panel) 99%, var(--surface-header));
   box-shadow: var(--shadow-md);
 }

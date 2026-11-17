@@ -7,7 +7,7 @@ import {
   resetProjectTranscriptions,
 } from '../src/desktop/projectTranscription';
 import type { ProjectTranscriptionInput } from '../src/desktop/transcriptionTypes';
-import { app, BrowserWindow, dialog, ipcMain, protocol, safeStorage, session } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, safeStorage, session } from 'electron';
 import type { IpcMainInvokeEvent, WebContents } from 'electron';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -758,9 +758,32 @@ async function chooseProject(): Promise<void> {
   }
 }
 
+// Electron's default menu, except Minimize has no accelerator: ⌘M is "merge with next" (ADR-0107).
+function installAppMenu(): void {
+  const isMac = process.platform === 'darwin';
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      ...(isMac ? [{ role: 'appMenu' as const }] : []),
+      { role: 'fileMenu' },
+      { role: 'editMenu' },
+      { role: 'viewMenu' },
+      {
+        role: 'window',
+        submenu: [
+          { label: 'Minimize', click: (_item, win) => win?.minimize() },
+          ...(isMac
+            ? [{ role: 'zoom' as const }, { type: 'separator' as const }, { role: 'front' as const }]
+            : [{ role: 'close' as const }]),
+        ],
+      },
+    ]),
+  );
+}
+
 app
   .whenReady()
   .then(async () => {
+    installAppMenu();
     ensureUserDataLayout(app.getPath('userData'));
     configureDesktopDiagnosticStore(app.getPath('userData'));
     installCsp();

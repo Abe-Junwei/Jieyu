@@ -6,14 +6,14 @@ import type { SpeakerDocType, LayerUnitDocType } from '../../db/types';
 import type { SpeakerFilterOption, SpeakerVisual } from './types';
 
 const SPEAKER_TRACK_COLORS = [
-  'var(--state-info-solid)',
-  'var(--state-success-text)',
-  'var(--state-warning-text)',
-  'color-mix(in srgb, var(--state-info-solid) 72%, var(--state-danger-solid))',
-  'var(--state-danger-solid)',
-  'var(--state-success-solid)',
-  'var(--state-warning-solid)',
-  'color-mix(in srgb, var(--state-info-solid) 82%, var(--state-success-solid))',
+  'var(--speaker-track-0)',
+  'var(--speaker-track-1)',
+  'var(--speaker-track-2)',
+  'var(--speaker-track-3)',
+  'var(--speaker-track-4)',
+  'var(--speaker-track-5)',
+  'var(--speaker-track-6)',
+  'var(--speaker-track-7)',
 ] as const;
 
 type SpeakerKeyAssignment = {

@@ -33,8 +33,7 @@
 .input {
   width: 100%;
   min-height: var(--input-min-height, var(--input-h-md));
-  border: 1px solid
-    var(--input-border-color, color-mix(in srgb, var(--border-soft) 90%, transparent));
+  border: 1px solid var(--input-border-color, var(--border-control));
   border-radius: var(--input-border-radius, var(--radius-md));
   background: var(--input-background, var(--surface-panel));
   color: var(--input-color, var(--text-primary));
@@ -42,6 +41,85 @@
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: var(--input-line-height, 1.4);
   box-sizing: border-box;
+}
+
+.input:hover:not(:disabled):not(:focus) {
+  border-color: var(--input-hover-border-color, var(--text-secondary));
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex-shrink: 0;
+  display: inline-grid;
+  place-content: center;
+  border: 1.5px solid var(--border-control);
+  background: var(--surface-panel);
+  color: var(--text-on-action);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+input[type='checkbox'] {
+  border-radius: 2px;
+}
+
+input[type='radio'] {
+  border-radius: 50%;
+}
+
+input[type='checkbox']:hover:not(:disabled),
+input[type='radio']:hover:not(:disabled) {
+  border-color: var(--text-secondary);
+}
+
+input[type='checkbox']:checked,
+input[type='checkbox']:indeterminate {
+  background: var(--action-solid);
+  border-color: var(--action-solid);
+}
+
+input[type='checkbox']:checked::before {
+  content: '';
+  width: 9px;
+  height: 5px;
+  border-left: 1.75px solid var(--text-on-action);
+  border-bottom: 1.75px solid var(--text-on-action);
+  transform: translateY(-1px) rotate(-45deg);
+}
+
+input[type='checkbox']:indeterminate::before {
+  content: '';
+  width: 8px;
+  height: 1.75px;
+  background: var(--text-on-action);
+}
+
+input[type='radio']:checked {
+  border-color: var(--action-solid);
+}
+
+input[type='radio']:checked::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--action-solid);
+}
+
+input[type='checkbox']:focus-visible,
+input[type='radio']:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
 }
 
 .textarea {
@@ -86,45 +164,42 @@
 .btn-ghost {
   background: var(--btn-ghost-background, var(--surface-panel));
   color: var(--btn-ghost-color, var(--text-primary));
-  border-color: var(--btn-ghost-border-color, var(--header-border));
+  border-color: var(--btn-ghost-border-color, var(--border-control));
 }
 
-.btn-ghost:hover {
+.btn-ghost:hover:not(:disabled) {
   background: var(--btn-ghost-hover-background, var(--state-info-bg));
   color: var(--btn-ghost-hover-color, var(--btn-ghost-color, var(--text-primary)));
-  border-color: var(--btn-ghost-hover-border-color, var(--header-accent));
+  border-color: var(--btn-ghost-hover-border-color, var(--text-secondary));
 }
 
 .btn-secondary {
-  border-color: var(--btn-secondary-border-color, var(--btn-border-color, var(--header-border)));
+  border-color: var(--btn-secondary-border-color, var(--btn-border-color, var(--border-control)));
   background: var(--btn-secondary-background, var(--surface-panel));
   color: var(--btn-secondary-color, var(--text-primary));
 }
 
-.btn-secondary:hover,
+.btn-secondary:hover:not(:disabled),
 .btn-secondary:focus-visible {
   border-color: var(
     --btn-secondary-hover-border-color,
-    var(--btn-secondary-border-color, var(--header-border))
+    var(--btn-secondary-border-color, var(--text-secondary))
   );
   background: var(--btn-secondary-hover-background, var(--surface-elevated));
   color: var(--btn-secondary-hover-color, var(--btn-secondary-color, var(--text-primary)));
 }
 
 .btn-primary {
-  border-color: var(--btn-primary-border-color, var(--header-accent));
-  background: var(--btn-primary-background, var(--header-accent));
-  color: var(--btn-primary-color, var(--text-on-solid));
+  border-color: var(--btn-primary-border-color, var(--action-solid));
+  background: var(--btn-primary-background, var(--action-solid));
+  color: var(--btn-primary-color, var(--text-on-action));
 }
 
 .btn-primary:hover,
 .btn-primary:focus-visible {
-  border-color: var(--btn-primary-hover-border-color, var(--header-accent));
-  background: var(
-    --btn-primary-hover-background,
-    color-mix(in srgb, var(--header-accent) 88%, var(--surface-panel))
-  );
-  color: var(--btn-primary-hover-color, var(--text-on-solid));
+  border-color: var(--btn-primary-hover-border-color, var(--action-hover));
+  background: var(--btn-primary-hover-background, var(--action-hover));
+  color: var(--btn-primary-hover-color, var(--text-on-action));
 }
 
 a.btn {
@@ -159,14 +234,15 @@ a.btn {
 :root[data-theme='dark'] .btn-ghost {
   background: var(--btn-ghost-background-dark, var(--surface-panel));
   color: var(--btn-ghost-color-dark, var(--text-primary));
-  border-color: var(--btn-ghost-border-color-dark, var(--border-strong));
+  border-color: var(--btn-ghost-border-color-dark, var(--border-control));
 }
 
-:root[data-theme='dark'] .btn-ghost:hover {
+:root[data-theme='dark'] .btn-ghost:hover:not(:disabled) {
   background: var(
     --btn-ghost-hover-background-dark,
     color-mix(in srgb, var(--surface-header) 88%, transparent)
   );
+  border-color: var(--btn-ghost-hover-border-color-dark, var(--text-secondary));
 }
 
 :root[data-theme='dark'] .btn-danger {
@@ -188,13 +264,25 @@ a.btn {
 
 .btn:disabled,
 .btn-ghost:disabled,
-.input:disabled {
+.icon-btn:disabled,
+.input:disabled,
+input[type='checkbox']:disabled,
+input[type='radio']:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
+.btn-ghost:disabled,
+.btn-secondary:disabled,
+.icon-btn:disabled,
+.input:disabled,
+input[type='checkbox']:disabled:not(:checked):not(:indeterminate),
+input[type='radio']:disabled:not(:checked) {
+  border-color: var(--border-soft);
+}
+
 .icon-btn {
-  border: var(--icon-btn-border, 1px solid var(--border-soft));
+  border: var(--icon-btn-border, 1px solid var(--border-control));
   background: var(--icon-btn-background, var(--surface-panel));
   color: var(--icon-btn-color, var(--text-primary));
   border-radius: var(--icon-btn-border-radius, var(--radius-lg));
@@ -209,7 +297,7 @@ a.btn {
 }
 
 .icon-btn:hover:not(:disabled) {
-  border-color: var(--icon-btn-hover-border-color, currentColor);
+  border-color: var(--icon-btn-hover-border-color, var(--text-secondary));
   background: var(--icon-btn-hover-background, var(--icon-btn-background, var(--surface-panel)));
   color: var(--icon-btn-hover-color, var(--icon-btn-color, var(--text-primary)));
   transform: var(--icon-btn-hover-transform, none);

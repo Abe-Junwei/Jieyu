@@ -107,7 +107,7 @@ function buildPanelCss(classRoot) {
   return `.${classRoot} {
   display: grid;
   gap: 10px;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border-soft);
   background: var(--surface-panel);
   padding: 12px;

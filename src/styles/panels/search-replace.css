@@ -24,7 +24,7 @@
 .search-replace-input,
 .search-replace-select,
 .search-replace-btn {
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border-control);
   background: color-mix(in srgb, var(--surface-panel) 92%, white 8%);
   color: var(--text-primary);
 }
@@ -69,6 +69,7 @@
 }
 
 .search-replace-btn:disabled {
+  border-color: var(--border-soft);
   cursor: not-allowed;
   opacity: 0.5;
 }
