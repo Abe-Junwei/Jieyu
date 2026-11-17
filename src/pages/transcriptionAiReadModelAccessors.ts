@@ -65,7 +65,8 @@ export function createTranscriptionAiReadModelAccessors<TUnit extends UnitDocLit
       const words = doc?.words;
       if (words === undefined || words.length === 0) continue;
       const token = words.find((word) => word.id === tokenId);
-      if (token?.gloss === undefined || token.gloss === null) return null;
+      if (!token) continue;
+      if (token.gloss === undefined || token.gloss === null) return null;
       const gloss = token.gloss[language];
       if (gloss === undefined || gloss === null) return null;
       const normalized = String(gloss).trim();
