@@ -1327,13 +1327,58 @@ export const desktopOperations = {
   'layers.list': spec<'keep', { manuscriptId: string }, Layer[]>('keep', (input) => ({
     manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
   })),
-  'units.updateText': spec<'replace-on-success', { unitId: string; text: string }, Unit>(
+  'units.updateText': spec<
     'replace-on-success',
-    (input) => ({
+    { unitId: string; text: string; operationId?: string },
+    Unit
+  >('replace-on-success', (input) => {
+    const checked = {
       unitId: requiredString(input.unitId, 'unitId'),
       text: requiredString(input.text, 'text'),
-    }),
-  ),
+    };
+    if (input.operationId === undefined) return checked;
+    return { ...checked, operationId: requiredString(input.operationId, 'operationId') };
+  }),
+  'units.readTextDraft': spec<
+    'keep',
+    { unitId: string },
+    { unitId: string; rawInput: string; baseBody: string; updatedAt: string } | null
+  >('keep', (input) => {
+    knownKeys(input, ['unitId']);
+    return { unitId: requiredString(input.unitId, 'unitId') };
+  }),
+  'units.putTextDraft': spec<
+    'keep',
+    { unitId: string; rawInput: string; baseBody: string },
+    { unitId: string; rawInput: string; baseBody: string; updatedAt: string } | null
+  >('keep', (input) => {
+    knownKeys(input, ['unitId', 'rawInput', 'baseBody']);
+    if (typeof input.rawInput !== 'string') {
+      throw new Error('desktop call rawInput must be a string');
+    }
+    return {
+      unitId: requiredString(input.unitId, 'unitId'),
+      rawInput: input.rawInput,
+      baseBody: requiredString(input.baseBody, 'baseBody'),
+    };
+  }),
+  'units.inspectTextSave': spec<
+    'keep',
+    { operationId: string; unitId: string; text: string },
+    'committed' | 'not-submitted' | 'conflict'
+  >('keep', (input) => {
+    knownKeys(input, ['operationId', 'unitId', 'text']);
+    if (typeof input.text !== 'string') throw new Error('desktop call text must be a string');
+    return {
+      operationId: requiredString(input.operationId, 'operationId'),
+      unitId: requiredString(input.unitId, 'unitId'),
+      text: input.text,
+    };
+  }),
+  'units.discardTextDraft': spec<'keep', { unitId: string }, null>('keep', (input) => {
+    knownKeys(input, ['unitId']);
+    return { unitId: requiredString(input.unitId, 'unitId') };
+  }),
   'media.finishCleanup': spec<'clear', { id: string; operationId: string }, MediaCleanup>(
     'clear',
     (input) => {

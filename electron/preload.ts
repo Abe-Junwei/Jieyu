@@ -38,6 +38,21 @@ const desktop = {
   startRequest: (requestId: string, url: string) =>
     ipcRenderer.invoke('skeleton:start-request', requestId, url),
   abortRequest: (requestId: string) => ipcRenderer.invoke('skeleton:abort-request', requestId),
+  onTextClose: (listener: () => void) => {
+    const wrapped = () => listener();
+    ipcRenderer.on('desktop:flush-close', wrapped);
+    return () => {
+      ipcRenderer.removeListener('desktop:flush-close', wrapped);
+    };
+  },
+  reportTextClose: (result: string) => ipcRenderer.send('desktop:flush-close-result', result),
+  onDiscardClose: (listener: () => void) => {
+    const wrapped = () => listener();
+    ipcRenderer.on('desktop:discard-close', wrapped);
+    return () => {
+      ipcRenderer.removeListener('desktop:discard-close', wrapped);
+    };
+  },
   onRequestChunk: (listener: (event: RequestChunkEvent) => void) => {
     const wrapped = (_event: unknown, payload: RequestChunkEvent) => listener(payload);
     ipcRenderer.on('skeleton:request-chunk', wrapped);

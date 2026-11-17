@@ -139,6 +139,13 @@ import {
   updateUnitText,
   type UnitTextUndo,
 } from './units';
+import {
+  discardUnitTextDraft,
+  inspectUnitTextSave,
+  putUnitTextDraft,
+  readUnitTextDraft,
+  textSaveDigest,
+} from './textSave';
 import { mergeUnits, splitUnit } from './unitSpan';
 
 type ContractCtx = {
@@ -734,6 +741,29 @@ const operationHandlers = {
     },
     remember: (sessionId, undo) => {
       rememberSessionEdit(sessionId, { kind: 'text', undo });
+    },
+  },
+  'units.inspectTextSave': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['units.inspectTextSave']['check']>,
+    ) => inspectUnitTextSave(ctx.db, input.operationId, textSaveDigest(input.unitId, input.text)),
+  },
+  'units.readTextDraft': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.readTextDraft']['check']>) =>
+      readUnitTextDraft(ctx.db, input.unitId),
+  },
+  'units.putTextDraft': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.putTextDraft']['check']>) =>
+      putUnitTextDraft(ctx.db, input),
+  },
+  'units.discardTextDraft': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['units.discardTextDraft']['check']>,
+    ) => {
+      discardUnitTextDraft(ctx.db, input.unitId);
+      return null;
     },
   },
   'media.finishCleanup': {

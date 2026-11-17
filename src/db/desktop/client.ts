@@ -69,8 +69,22 @@ export function createDesktopClient(bridge: DesktopBridge) {
         cursor?: CorpusQueryCursor;
       },
     ) => once(sessionId, 'corpus.query', input),
-    updateUnitText: (sessionId: string, input: { unitId: string; text: string }) =>
-      once(sessionId, 'units.updateText', input),
+    updateUnitText: (
+      sessionId: string,
+      input: { unitId: string; text: string; operationId?: string },
+    ) => once(sessionId, 'units.updateText', input),
+    readTextDraft: (sessionId: string, unitId: string) =>
+      once(sessionId, 'units.readTextDraft', { unitId }),
+    inspectTextSave: (
+      sessionId: string,
+      input: { operationId: string; unitId: string; text: string },
+    ) => once(sessionId, 'units.inspectTextSave', input),
+    putTextDraft: (
+      sessionId: string,
+      input: { unitId: string; rawInput: string; baseBody: string },
+    ) => once(sessionId, 'units.putTextDraft', input),
+    discardTextDraft: (sessionId: string, unitId: string) =>
+      once(sessionId, 'units.discardTextDraft', { unitId }),
     undoUnitText: (sessionId: string) => once(sessionId, 'units.undoText', {}),
     undoStep: (sessionId: string) => once(sessionId, 'units.undo', {}),
     splitUnit: (sessionId: string, input: { unitId: string; time: number }) =>

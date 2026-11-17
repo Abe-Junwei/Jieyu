@@ -21,19 +21,24 @@ export function subscribeDesktopDomainEvents(listener: Listener): () => void {
   };
 }
 
-/** A failing listener is logged and does not stop the others. Resolves once every listener has settled. */
-export async function emitDesktopDomainEvent(event: DesktopDomainEvent): Promise<void> {
+/** A failing listener is logged and does not stop the others. Resolves false when any listener failed. */
+export async function emitDesktopDomainEvent(event: DesktopDomainEvent): Promise<boolean> {
+  let refreshed = true;
   const pending: Promise<unknown>[] = [];
+  const note = (error: unknown) => {
+    refreshed = false;
+    fail(event, error);
+  };
   for (const listener of [...listeners]) {
     try {
       const result = listener(event);
-      if (result instanceof Promise)
-        pending.push(result.catch((error: unknown) => fail(event, error)));
+      if (result instanceof Promise) pending.push(result.catch(note));
     } catch (error) {
-      fail(event, error);
+      note(error);
     }
   }
   await Promise.all(pending);
+  return refreshed;
 }
 
 function fail(event: DesktopDomainEvent, error: unknown): void {
@@ -44,8 +49,8 @@ function fail(event: DesktopDomainEvent, error: unknown): void {
 export async function emitAfterWrite<T>(
   write: Promise<T>,
   toEvent: (result: T) => DesktopDomainEvent,
-): Promise<T> {
-  const result = await write;
-  await emitDesktopDomainEvent(toEvent(result));
-  return result;
+): Promise<{ value: T; refreshed: boolean }> {
+  const value = await write;
+  const refreshed = await emitDesktopDomainEvent(toEvent(value));
+  return { value, refreshed };
 }

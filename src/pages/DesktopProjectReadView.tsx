@@ -47,6 +47,7 @@ export function DesktopProjectReadView(props: {
   onSelectManuscript: (id: string) => void;
   draft: { unitId: string; text: string } | null;
   onEditText: (unitId: string, text: string, savedText: string) => void;
+  onUnitText?: (unitId: string, savedText: string) => void;
   onComposeText: (composing: boolean) => void;
   onSaveText: () => void;
   /** Runs `go` once any unsaved text draft is saved or discarded. */
@@ -74,6 +75,8 @@ export function DesktopProjectReadView(props: {
   const offsetRef = useRef<HTMLInputElement>(null);
   const scaleRef = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLInputElement>(null);
+  const onUnitText = useRef(props.onUnitText);
+  onUnitText.current = props.onUnitText;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const pendingFocus = useRef<string | null>(null);
   const selected = props.units.find((unit) => unit.id === selectedId) ?? null;
@@ -101,6 +104,11 @@ export function DesktopProjectReadView(props: {
     if (audio === null) return;
     audio.currentTime = playerStart(unit, props.timeMapping);
   }, [props.focusUnitId, props.units, props.timeMapping]);
+  const selectedText = selected?.text;
+  useEffect(() => {
+    if (selectedId === null || selectedText === undefined) return;
+    onUnitText.current?.(selectedId, selectedText);
+  }, [selectedId, selectedText]);
   const readNoteText = () => noteRef.current?.value ?? '';
   const clearNoteText = () => {
     if (noteRef.current !== null) noteRef.current.value = '';

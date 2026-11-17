@@ -74,21 +74,66 @@ export function useDesktopProjectReadController(
     });
   };
 
-  /** Resolves true once saved and re-read through the invalidation table; false keeps the draft. */
-  const saveText = (unitId: string, text: string): Promise<boolean> => {
-    if (host === null || sessionId === null) return Promise.resolve(false);
+  /** `saved` was re-read. `refresh-failed` is already committed and must not be written again. */
+  const saveText = (
+    unitId: string,
+    text: string,
+    operationId?: string,
+  ): Promise<'saved' | 'failed' | 'refresh-failed' | 'unknown'> => {
+    if (host === null || sessionId === null) return Promise.resolve('failed');
     const seen = sessionId;
     const manuscriptId = model?.manuscriptId ?? '';
     setError('');
+    const client = createDesktopClient({ desktopCall: host.desktopCall });
     return emitAfterWrite(
-      createDesktopClient({ desktopCall: host.desktopCall }).updateUnitText(seen, { unitId, text }),
+      client.updateUnitText(seen, {
+        unitId,
+        text,
+        ...(operationId === undefined ? {} : { operationId }),
+      }),
       () => ({ type: 'unit.textSaved', sessionId: seen, manuscriptId, unitId }),
     )
-      .then(() => true)
-      .catch(() => {
+      .then(({ refreshed }) => {
+        if (!refreshed && shownSession.current === seen) {
+          setError(t(locale, 'app.desktopRead.saveTextUnrefreshed'));
+        }
+        return refreshed ? 'saved' : 'refresh-failed';
+      })
+      .catch(async () => {
+        if (operationId !== undefined) {
+          try {
+            const found = await client.inspectTextSave(seen, { operationId, unitId, text });
+            if (found === 'committed') {
+              if (shownSession.current === seen) {
+                setError(t(locale, 'app.desktopRead.saveTextUnrefreshed'));
+              }
+              return 'refresh-failed';
+            }
+          } catch {
+            if (shownSession.current === seen)
+              setError(t(locale, 'app.desktopRead.saveTextUnknown'));
+            return 'unknown';
+          }
+        }
         if (shownSession.current === seen) setError(t(locale, 'app.desktopRead.saveTextFailed'));
-        return false;
+        return 'failed';
       });
+  };
+  const persistTextDraft = (unitId: string, text: string, baseBody: string) => {
+    if (host === null || sessionId === null) return Promise.resolve();
+    return createDesktopClient({ desktopCall: host.desktopCall })
+      .putTextDraft(sessionId, { unitId, rawInput: text, baseBody })
+      .then(() => undefined);
+  };
+  const readTextDraft = (unitId: string) => {
+    if (host === null || sessionId === null) return Promise.resolve(null);
+    return createDesktopClient({ desktopCall: host.desktopCall }).readTextDraft(sessionId, unitId);
+  };
+  const discardTextDraft = (unitId: string) => {
+    if (host === null || sessionId === null) return Promise.resolve();
+    return createDesktopClient({ desktopCall: host.desktopCall })
+      .discardTextDraft(sessionId, unitId)
+      .then(() => undefined);
   };
   const undoText = () => {
     if (host === null || sessionId === null) return;
@@ -296,6 +341,16 @@ export function useDesktopProjectReadController(
     selectManuscript,
     forgetDeletedManuscript,
     saveText,
+    inspectTextSave: (draft: { unitId: string; text: string }, operationId: string) => {
+      if (host === null || sessionId === null) return Promise.reject(new Error('no session'));
+      return createDesktopClient({ desktopCall: host.desktopCall }).inspectTextSave(sessionId, {
+        ...draft,
+        operationId,
+      });
+    },
+    persistTextDraft,
+    readTextDraft,
+    discardTextDraft,
     undoText,
     refresh: reload,
     adoptOpenedSession,

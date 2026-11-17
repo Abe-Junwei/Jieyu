@@ -167,6 +167,8 @@ function removeOwnedRows(db: SqliteDatabase, manuscriptId: string): void {
   ).run(manuscriptId);
   db.prepare(`DELETE FROM tokens WHERE unit_id IN (${units})`).run(manuscriptId);
   db.prepare(`DELETE FROM unit_texts WHERE unit_id IN (${units})`).run(manuscriptId);
+  db.prepare(`DELETE FROM unit_text_drafts WHERE unit_id IN (${units})`).run(manuscriptId);
+  db.prepare(`DELETE FROM text_save_receipts WHERE unit_id IN (${units})`).run(manuscriptId);
   db.prepare(
     `DELETE FROM units WHERE layer_id IN (SELECT id FROM layers WHERE manuscript_id = ?)`,
   ).run(manuscriptId);

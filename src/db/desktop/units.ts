@@ -16,6 +16,7 @@ import {
   type AnalysisAssociationNote,
 } from './analysisCandidates';
 import { assertStoredCustomFields, writeUnitFieldValues } from './customFields';
+import { claimTextSave, finishTextSave, textSaveDigest } from './textSave';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -205,17 +206,35 @@ export interface UnitTextUndo {
 
 export function updateUnitText(
   db: SqliteDatabase,
-  input: { unitId: string; text: string },
+  input: { unitId: string; text: string; operationId?: string },
   afterSnapshot?: () => void,
   remember?: (undo: UnitTextUndo) => void,
 ): Unit {
   if (input.text.length === 0) throw new Error('unit text is empty');
+  const digest = input.operationId === undefined ? null : textSaveDigest(input.unitId, input.text);
   let remembered: UnitTextUndo | null = null;
   const write = db.transaction(() => {
+    if (input.operationId !== undefined && digest !== null) {
+      if (claimTextSave(db, input.operationId, digest) === 'replay') {
+        const current = readStoredUnit(db, input.unitId);
+        if (!current) throw new Error('unit is missing');
+        return current;
+      }
+    }
     const existing = readStoredUnit(db, input.unitId);
     if (!existing) throw new Error('unit is missing');
     assertManuscriptEditable(db, input.unitId);
-    if (existing.text === input.text) return existing;
+    if (existing.text === input.text) {
+      if (input.operationId !== undefined && digest !== null) {
+        finishTextSave(db, {
+          operationId: input.operationId,
+          digest,
+          unitId: input.unitId,
+          text: input.text,
+        });
+      }
+      return existing;
+    }
     const material = readAnalysisMaterial(db, input.unitId);
     if (material.graph !== null) {
       insertReviewSnapshot(db, material);
@@ -259,6 +278,14 @@ export function updateUnitText(
       if (root.graph !== null || root.analysisGeneration !== material.analysisGeneration + 1) {
         throw new Error('unit text readback failed');
       }
+    }
+    if (input.operationId !== undefined && digest !== null) {
+      finishTextSave(db, {
+        operationId: input.operationId,
+        digest,
+        unitId: input.unitId,
+        text: input.text,
+      });
     }
     remembered = {
       unitId: input.unitId,
