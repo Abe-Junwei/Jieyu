@@ -485,6 +485,98 @@ describe('buildTranscriptionAiPromptContext', () => {
     });
     expect(context.shortTerm?.timelineReadModelEpoch).toBe(99);
   });
+
+  it('omits an acoustic summary that belongs to another media', () => {
+    const context = buildTranscriptionAiPromptContext({
+      selectionSnapshot: {
+        activeUnitId: 'utt-1',
+        selectedUnit: null,
+        selectedRowMeta: null,
+        selectedUnitKind: 'unit',
+        selectedUnitStartSec: 0,
+        selectedUnitEndSec: 1,
+        selectedLayerId: 'layer-1',
+        selectedLayerType: 'transcription',
+        selectedTranscriptionLayerId: 'layer-1',
+        selectedText: 'test',
+        selectedTimeRangeLabel: '0.00-1.00',
+        timelineUnit: null,
+      },
+      selectedUnitIds: ['utt-1'],
+      selectedUnitCount: 1,
+      currentMediaUnits: MOCK_CURRENT_MEDIA_UNITS,
+      unitCount: 12,
+      translationLayerCount: 1,
+      aiConfidenceAvg: 0.5,
+      currentMediaId: 'media-b',
+      acousticSummary: {
+        selectionStartSec: 0,
+        selectionEndSec: 1,
+        f0MinHz: 300,
+        f0MaxHz: 400,
+        f0MeanHz: 350,
+        intensityPeakDb: -8,
+        reliabilityMean: 0.4,
+        voicedFrameCount: 1,
+        frameCount: 1,
+        sourceMediaKey: 'media-a',
+      },
+      observerStage: null,
+      topLexemes: [],
+      recommendations: [],
+    });
+
+    expect(context.longTerm?.acousticSummary).toBeUndefined();
+    expect(JSON.stringify(context.longTerm)).not.toContain('sourceMediaKey');
+    expect(JSON.stringify(context.longTerm)).not.toContain('350');
+  });
+
+  it('keeps the current media acoustic summary and does not copy its media key into the prompt', () => {
+    const context = buildTranscriptionAiPromptContext({
+      selectionSnapshot: {
+        activeUnitId: 'utt-1',
+        selectedUnit: null,
+        selectedRowMeta: null,
+        selectedUnitKind: 'unit',
+        selectedUnitStartSec: 0,
+        selectedUnitEndSec: 1,
+        selectedLayerId: 'layer-1',
+        selectedLayerType: 'transcription',
+        selectedTranscriptionLayerId: 'layer-1',
+        selectedText: 'test',
+        selectedTimeRangeLabel: '0.00-1.00',
+        timelineUnit: null,
+      },
+      selectedUnitIds: ['utt-1'],
+      selectedUnitCount: 1,
+      currentMediaUnits: MOCK_CURRENT_MEDIA_UNITS,
+      unitCount: 12,
+      translationLayerCount: 1,
+      aiConfidenceAvg: 0.5,
+      currentMediaId: 'media-b',
+      acousticSummary: {
+        selectionStartSec: 0,
+        selectionEndSec: 1,
+        f0MinHz: 90,
+        f0MaxHz: 110,
+        f0MeanHz: 100,
+        intensityPeakDb: -16,
+        reliabilityMean: 0.9,
+        voicedFrameCount: 2,
+        frameCount: 2,
+        sourceMediaKey: 'media-b',
+      },
+      observerStage: null,
+      topLexemes: [],
+      recommendations: [],
+    });
+
+    expect(context.longTerm?.acousticSummary).toMatchObject({ f0MeanHz: 100 });
+    expect(context.longTerm?.acousticSummary).not.toHaveProperty('sourceMediaKey');
+    const block = buildPromptContextBlock(context, 4000);
+    expect(block).toContain('acousticSummary(');
+    expect(block).toContain('f0Mean=100');
+  });
 });
 
 describe('buildUnitTimelineDigest', () => {

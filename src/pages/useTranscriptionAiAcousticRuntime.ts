@@ -5,10 +5,12 @@ import {
   isAcousticAnalysisPayloadTooLargeSkip,
 } from '../app/transcriptionServicesPageAccess';
 import type { AcousticRuntimeStatus } from '../contexts/AiPanelContext';
+import type { AcousticPromptSummary } from './transcriptionAcousticSummary';
 import {
-  buildAcousticPromptSummary,
-  type AcousticPromptSummary,
-} from './transcriptionAcousticSummary';
+  resolveCurrentAcousticMediaKey,
+  selectReadyAcousticAnalysis,
+  summarizeVisibleAnalysis,
+} from './transcriptionAcousticMediaScope';
 import {
   buildAcousticPanelBatchBuildResult,
   buildAcousticPanelDetail,
@@ -63,9 +65,13 @@ export function useTranscriptionAiAcousticRuntime(
     state: 'idle',
   });
   const progressSnapshotRef = useRef<ProgressSnapshot>({ ratio: 0, timestampMs: 0 });
+  const acousticRequestGenerationRef = useRef(0);
   const acousticProviderState = service.resolveProviderState(input.providerPreference);
 
   useEffect(() => {
+    const requestGeneration = acousticRequestGenerationRef.current + 1;
+    acousticRequestGenerationRef.current = requestGeneration;
+
     if (input.selectedMediaUrl === undefined || input.selectedMediaUrl.length === 0) {
       setAcousticAnalysis(null);
       setAcousticRuntimeStatus({ state: 'idle' });
@@ -74,6 +80,8 @@ export function useTranscriptionAiAcousticRuntime(
 
     const controller = new AbortController();
     const mediaKey = input.selectedTimelineMediaId ?? input.selectedMediaUrl;
+    const isCurrentRequest = (): boolean =>
+      requestGeneration === acousticRequestGenerationRef.current && !controller.signal.aborted;
     const configPartial =
       input.configOverride && Object.keys(input.configOverride).length > 0
         ? input.configOverride
@@ -83,6 +91,7 @@ export function useTranscriptionAiAcousticRuntime(
       ratio: 0,
       timestampMs: Date.now(),
     };
+    setAcousticAnalysis(null);
     setAcousticRuntimeStatus({
       state: 'loading',
       phase: 'analyzing',
@@ -102,7 +111,7 @@ export function useTranscriptionAiAcousticRuntime(
         signal: controller.signal,
         ...(configPartial ? { config: configPartial } : {}),
         onProgress: (progress) => {
-          if (controller.signal.aborted) return;
+          if (!isCurrentRequest()) return;
           const now = Date.now();
           const previous = progressSnapshotRef.current;
           const isFinal = progress.processedFrames >= progress.totalFrames;
@@ -129,9 +138,9 @@ export function useTranscriptionAiAcousticRuntime(
         },
       })
       .then((result) => {
-        if (controller.signal.aborted) return;
+        if (!isCurrentRequest()) return;
         // Soft-skip (resolved, not rejected): disable analysis only (WS8-X2).
-        if (isAcousticAnalysisPayloadTooLargeSkip(result)) {
+        if (isAcousticAnalysisPayloadTooLargeSkip(result) || result.mediaKey !== mediaKey) {
           setAcousticAnalysis(null);
           setAcousticRuntimeStatus({ state: 'idle' });
           return;
@@ -155,7 +164,7 @@ export function useTranscriptionAiAcousticRuntime(
         }));
       })
       .catch((error) => {
-        if (controller.signal.aborted) return;
+        if (!isCurrentRequest()) return;
         setAcousticAnalysis(null);
         // Oversize PCM: skip analysis only — do not show "Analysis failed" or disturb waveform (WS8-X2).
         if (isAcousticAnalysisPayloadTooLargeError(error)) {
@@ -178,34 +187,33 @@ export function useTranscriptionAiAcousticRuntime(
     service,
   ]);
 
-  const acousticSummary = useMemo(
-    () =>
-      buildAcousticPromptSummary(acousticAnalysis, input.selectionStartSec, input.selectionEndSec),
-    [acousticAnalysis, input.selectionEndSec, input.selectionStartSec],
-  );
-
-  const acousticDetail = useMemo(
-    () =>
-      buildAcousticPanelDetail(acousticAnalysis, input.selectionStartSec, input.selectionEndSec),
-    [acousticAnalysis, input.selectionEndSec, input.selectionStartSec],
-  );
-
-  const acousticDetailFullMedia = useMemo(() => {
-    if (!acousticAnalysis) return null;
-    return buildAcousticPanelDetail(acousticAnalysis, 0, acousticAnalysis.durationSec);
-  }, [acousticAnalysis]);
-
-  const acousticBatchBuildResult = useMemo(
-    () => buildAcousticPanelBatchBuildResult(acousticAnalysis, input.batchSelectionRanges),
-    [acousticAnalysis, input.batchSelectionRanges],
-  );
-  const acousticBatchDetails = acousticBatchBuildResult.details;
-  const acousticBatchDroppedSelectionRanges = acousticBatchBuildResult.droppedSelectionRanges;
-  const acousticBatchSelectionCount = input.batchSelectionRanges?.length ?? 0;
+  const visibleAcoustic = useMemo(() => {
+    const analysis = selectReadyAcousticAnalysis(
+      acousticAnalysis,
+      acousticRuntimeStatus,
+      resolveCurrentAcousticMediaKey(input.selectedMediaUrl, input.selectedTimelineMediaId),
+    );
+    return {
+      summary: summarizeVisibleAnalysis(analysis, input.selectionStartSec, input.selectionEndSec),
+      detail: buildAcousticPanelDetail(analysis, input.selectionStartSec, input.selectionEndSec),
+      detailFullMedia: analysis
+        ? buildAcousticPanelDetail(analysis, 0, analysis.durationSec)
+        : null,
+      batch: buildAcousticPanelBatchBuildResult(analysis, input.batchSelectionRanges),
+    };
+  }, [
+    acousticAnalysis,
+    acousticRuntimeStatus,
+    input.batchSelectionRanges,
+    input.selectedMediaUrl,
+    input.selectedTimelineMediaId,
+    input.selectionEndSec,
+    input.selectionStartSec,
+  ]);
 
   const acousticCalibrationStatus = useMemo(
-    () => deriveAcousticCalibrationStatus(acousticDetailFullMedia),
-    [acousticDetailFullMedia],
+    () => deriveAcousticCalibrationStatus(visibleAcoustic.detailFullMedia),
+    [visibleAcoustic.detailFullMedia],
   );
 
   const handleJumpToAcousticHotspot = (timeSec: number): void => {
@@ -214,12 +222,12 @@ export function useTranscriptionAiAcousticRuntime(
 
   return {
     acousticRuntimeStatus,
-    acousticSummary,
-    acousticDetail,
-    acousticDetailFullMedia,
-    acousticBatchDetails,
-    acousticBatchSelectionCount,
-    acousticBatchDroppedSelectionRanges,
+    acousticSummary: visibleAcoustic.summary,
+    acousticDetail: visibleAcoustic.detail,
+    acousticDetailFullMedia: visibleAcoustic.detailFullMedia,
+    acousticBatchDetails: visibleAcoustic.batch.details,
+    acousticBatchSelectionCount: input.batchSelectionRanges?.length ?? 0,
+    acousticBatchDroppedSelectionRanges: visibleAcoustic.batch.droppedSelectionRanges,
     acousticCalibrationStatus,
     acousticProviderState,
     handleJumpToAcousticHotspot,

@@ -1095,6 +1095,9 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('LayerSegmentationV2Service.mergeAdjacentSegments(')).toBe(
       false,
     );
+    expect(orchestratorCode.includes('LayerSegmentationV2Service.mergeAdjacentSegmentChain(')).toBe(
+      false,
+    );
     expect(orchestratorCode.includes('LayerSegmentationV2Service.deleteSegment(')).toBe(false);
     expect(orchestratorCode.includes('LayerSegmentationV2Service.updateSegment(')).toBe(false);
   });
