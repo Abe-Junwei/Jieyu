@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-/** Electron proof for the one-sqlite folder flow. Not the Chromium merge gate. */
+/** Electron proof for the one-sqlite folder flow. Runs in CI as `desktop-flow` (electron-smoke.yml). */
 export default defineConfig({
   testDir: './tests/e2e-desktop',
   timeout: 180_000,
