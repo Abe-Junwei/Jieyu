@@ -46,7 +46,24 @@ depends_on:
 
 ## 4. ADR
 
-- 需新 ADR（1b-0）：user_version 29 的毫秒时间、点层、拆合映射与旧库拒绝规则。E06 的行为规则已由 ADR-0100 决定，不重复。
+- 需新 ADR（1b-0）：user_version 29 的毫秒时间、点层、拆合映射与旧库拒绝规则，接在 ADR-0121（v28）之后。E06 的行为规则已由 ADR-0100 决定，不重复。
+
+必须遵守的既有规范（开工清单第 0 步逐条写遵守方式；冲突回用户定）：
+
+| 条款 | 管哪片 | 约束 |
+| --- | --- | --- |
+| [ADR-0100](../../../adr/0100-desktop-engineering-contract.md) E01 | 1b-2～1b-6 | 自动保存节奏、失败重试、离开守卫；操作标识与回执同事务 |
+| ADR-0100 E02 | 1b-2 | 时间码框半成品可存草稿；拖动非法才按 E06 回退 |
+| ADR-0100 E03 | 1b-2～1b-4 | 时间／说话人变化只使依赖项待复核 |
+| ADR-0100 E04 | 1b-2～1b-6 | 撤销分组、各稿件独立、跨对象无后续修改才可撤；拆合形成完整分析版本 |
+| ADR-0100 E06、EF-018 | 全部 | 时间、句段、点、层；合并保留下级 |
+| ADR-0100 E13 | 1b-1～1b-6 | 快捷键双平台固定可查、优先级明确、有非快捷键入口 |
+| [ADR-0099](../../../adr/0099-desktop-product-design-and-release-contract.md) R02／R04／R11 | 全部 | 破坏性操作预览确认、整步提交；合法跨轨重叠；全键盘与焦点返回 |
+| [ADR-0107](../../../adr/0107-motion-compact-height-selection-and-shortcuts.md) | 1b-1、1b-4 | ⌘M 合并下一个；选中底色比悬停深一档 |
+| [ADR-0115](../../../adr/0115-timeline-waveform-and-segment-highlights.md)／[0117](../../../adr/0117-active-segment-uses-input-focus-chrome.md) | 1b-1 | 波形与语段高亮、当前语段用输入焦点样式 |
+| [ADR-0116](../../../adr/0116-page-notices-as-toasts-with-durable-carriers.md) | 1b-2～1b-6 | 拒绝原因与失败提示用 toast 加持久承载，不用页顶横幅 |
+| [ADR-0086](../../../adr/0086-desktop-release-scope-and-format-freeze.md)、[0097](../../../adr/0097-desktop-write-entry-initialization-and-reference-identity.md) | 1b-0、1b-3、1b-4 | 严格拒绝旧格式不迁移；写入入口与引用身份 |
+| `src/services/KeybindingService.ts` | 1b-1～1b-6 | 新按键注册到这里，不在组件里单独监听 |
 
 ## 5. Flag
 
