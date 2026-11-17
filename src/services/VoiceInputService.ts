@@ -476,6 +476,11 @@ export class VoiceInputService {
     this.releaseSharedAnalysisStream();
   }
 
+  /** True only while a MediaRecorder capture is running, not while a cancelled start is resolving. */
+  get isRecording(): boolean {
+    return this.recordingExecutor.isRecording;
+  }
+
   /**
    * Start push-to-talk audio recording (for whisper-local engine).
    * Begins capturing microphone audio via MediaRecorder.

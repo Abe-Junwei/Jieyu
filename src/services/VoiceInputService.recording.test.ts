@@ -91,6 +91,7 @@ function installMediaStubs(options?: { audioChunks?: Blob[] }) {
   // MediaRecorder
   let dataHandler: ((e: BlobEvent) => void) | null = null;
   let stopHandler: (() => void) | null = null;
+  const recorders: Array<{ stop: ReturnType<typeof vi.fn> }> = [];
   vi.stubGlobal(
     'MediaRecorder',
     class FakeMediaRecorder {
@@ -112,6 +113,9 @@ function installMediaStubs(options?: { audioChunks?: Blob[] }) {
         if (type === 'stop') stopHandler = handler as never;
       });
       removeEventListener = vi.fn();
+      constructor() {
+        recorders.push(this);
+      }
     },
   );
 
@@ -143,7 +147,7 @@ function installMediaStubs(options?: { audioChunks?: Blob[] }) {
     },
   );
 
-  return { fakeStream, fakeTrack, fakeAudioBuffer, audioContexts };
+  return { fakeStream, fakeTrack, fakeAudioBuffer, audioContexts, recorders };
 }
 
 // ── 测试 | tests ──────────────────────────────────────────────────────────
@@ -536,5 +540,71 @@ describe('RecordingExecutor — VAD→STT 集成', () => {
         speakerTurns: expect.arrayContaining([expect.objectContaining({ speaker: 'S1' })]),
       }),
     );
+  });
+
+  it('writes each dataavailable payload once (#552)', async () => {
+    const chunk = new Blob(['abcde']);
+    installMediaStubs({ audioChunks: [chunk] });
+    const posted: { body: { get(key: string): unknown } | null } = { body: null };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: { body: { get(key: string): unknown } }) => {
+        posted.body = init.body;
+        return {
+          ok: true,
+          json: async () => ({ text: 'once' }),
+          text: async () => '',
+        };
+      }),
+    );
+    const executor = new RecordingExecutor(callbacks);
+    await executor.startRecording();
+    await executor.stopRecording('whisper-local', {
+      whisperServerUrl: 'http://localhost:8080',
+      lang: 'en',
+    });
+    const file = posted.body?.get('file');
+    expect(file).toBeInstanceOf(Blob);
+    // start() and stop() each emit the chunk once. A second stop listener would make this 3x.
+    expect((file as Blob).size).toBe(chunk.size * 2);
+  });
+
+  it('stops a later recording while the previous transcription is still running (#551)', async () => {
+    const { recorders } = installMediaStubs();
+    const releases: Array<() => void> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise((resolve) => {
+            releases.push(() =>
+              resolve({
+                ok: true,
+                json: async () => ({ text: 'done' }),
+                text: async () => '',
+              }),
+            );
+          }),
+      ),
+    );
+    const executor = new RecordingExecutor(callbacks);
+    await executor.startRecording();
+    const firstStop = executor.stopRecording('whisper-local', {
+      whisperServerUrl: 'http://localhost:8080',
+      lang: 'en',
+    });
+    await vi.waitUntil(() => recorders[0]?.stop.mock.calls.length === 1);
+    await executor.startRecording();
+    expect(executor.isRecording).toBe(true);
+    const secondStop = executor.stopRecording('whisper-local', {
+      whisperServerUrl: 'http://localhost:8080',
+      lang: 'en',
+    });
+    await vi.waitUntil(() => recorders[1]?.stop.mock.calls.length === 1 && releases.length === 2);
+    expect(recorders).toHaveLength(2);
+    for (const release of releases) release();
+    await firstStop;
+    await secondStop;
+    expect(executor.isRecording).toBe(false);
   });
 });
