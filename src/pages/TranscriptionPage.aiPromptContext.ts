@@ -15,6 +15,7 @@ import {
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import type { WaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
 import type { AcousticPromptSummary } from './transcriptionAcousticSummary';
+import { acousticPromptSummaryField } from './transcriptionAcousticMediaScope';
 import { buildWorldModelSnapshot } from '../ai/chat';
 import type { LayerDocType } from '../types/jieyuDbDocTypes';
 import { resolveSegmentTimelineSourceLayer } from '~/hooks/layer/useLayerSegments';
@@ -195,7 +196,8 @@ export function buildTranscriptionAiPromptContext({
 
   // FS-O1: shadowed subdivided parents on the current media (AI read only; regions/counts unchanged).
   const subdividedParentGaps = (timelineUnitViewIndex?.subdividedParentGaps ?? []).filter(
-    (row) => !currentMediaId || row.mediaId === currentMediaId || isUnboundTimelineMedia(row.mediaId),
+    (row) =>
+      !currentMediaId || row.mediaId === currentMediaId || isUnboundTimelineMedia(row.mediaId),
   );
 
   const localUnitIndex =
@@ -324,7 +326,7 @@ export function buildTranscriptionAiPromptContext({
         aiConfidenceAvg,
       },
       ...(waveformAnalysis ? { waveformAnalysis } : {}),
-      ...(acousticSummary ? { acousticSummary } : {}),
+      ...acousticPromptSummaryField(acousticSummary, currentMediaId),
       ...(observerStage ? { observerStage } : {}),
       topLexemes,
       recommendations,
