@@ -654,6 +654,33 @@ describe('useTranscriptionTimelineInteractionController', () => {
     });
   });
 
+  it('follows playback back onto a longer overlapping interval (#546)', () => {
+    const selectTimelineUnit = vi.fn();
+    const { result } = renderHook(() =>
+      useTranscriptionTimelineInteractionController(
+        createBaseInput({
+          selectTimelineUnit,
+          selectedWaveformRegionId: 'short',
+          waveformTimelineItems: [
+            { id: 'long', startTime: 0, endTime: 10, mediaId: 'media-1' },
+            { id: 'short', startTime: 1, endTime: 2, mediaId: 'media-1' },
+            { id: 'later', startTime: 3, endTime: 4, mediaId: 'media-1' },
+          ],
+        }),
+      ),
+    );
+
+    act(() => {
+      result.current.handleWaveformTimeUpdate(5);
+    });
+
+    expect(selectTimelineUnit).toHaveBeenCalledWith({
+      layerId: 'layer-main',
+      unitId: 'long',
+      kind: 'segment',
+    });
+  });
+
   it('blocks waveform time-subdivision resize when dragged beyond parent unit bounds', () => {
     mockUpdateSegment.mockClear();
     const setSaveState = vi.fn();
