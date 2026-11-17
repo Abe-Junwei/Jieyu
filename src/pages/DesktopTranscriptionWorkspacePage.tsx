@@ -126,6 +126,7 @@ export function DesktopTranscriptionWorkspacePage() {
               onSelectManuscript={read.selectManuscript}
               draft={draft.draft}
               onEditText={draft.edit}
+              onSelectUnit={setFocusUnitId}
               onComposeText={draft.setComposing}
               onSaveText={() => void draft.commit()}
               onLeaveUnit={(go) => draft.leave(go)}

@@ -47,6 +47,8 @@ export function DesktopProjectReadView(props: {
   onSelectManuscript: (id: string) => void;
   draft: { unitId: string; text: string } | null;
   onEditText: (unitId: string, text: string, savedText: string) => void;
+  /** Fired when the visible selection changes, including deep-link focus. */
+  onSelectUnit?: (unitId: string) => void;
   onComposeText: (composing: boolean) => void;
   onSaveText: () => void;
   /** Runs `go` once any unsaved text draft is saved or discarded. */
@@ -74,12 +76,18 @@ export function DesktopProjectReadView(props: {
   const offsetRef = useRef<HTMLInputElement>(null);
   const scaleRef = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLInputElement>(null);
+  const onSelectUnit = useRef(props.onSelectUnit);
+  onSelectUnit.current = props.onSelectUnit;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const pendingFocus = useRef<string | null>(null);
   const selected = props.units.find((unit) => unit.id === selectedId) ?? null;
+  const publishSelection = (unitId: string) => {
+    setSelectedId(unitId);
+    onSelectUnit.current?.(unitId);
+  };
   const focusUnit = (unit: DesktopProjectReadUnit) => {
     const go = () => {
-      setSelectedId(unit.id);
+      publishSelection(unit.id);
       const audio = audioRef.current;
       if (audio === null) return;
       audio.currentTime = playerStart(unit, props.timeMapping);
@@ -96,7 +104,7 @@ export function DesktopProjectReadView(props: {
     const unit = props.units.find((item) => item.id === id);
     if (unit === undefined) return;
     pendingFocus.current = null;
-    setSelectedId(unit.id);
+    publishSelection(unit.id);
     const audio = audioRef.current;
     if (audio === null) return;
     audio.currentTime = playerStart(unit, props.timeMapping);
