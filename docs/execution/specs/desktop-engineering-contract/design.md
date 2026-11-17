@@ -109,4 +109,12 @@ depends_on:
 | 6 导入、成果与备份 | E12；R10 |
 | 7 首发终验 | E13、E14；R11；本节 V01–V19 |
 
-第二程 [#285](https://github.com/Abe-Junwei/Jieyu/issues/285) 本程不排，不在此表。
+第二程 [#285](https://github.com/Abe-Junwei/Jieyu/issues/285) 本程不排。下面只收已经写进规格的部分，开工引用、不再重问；没有规格的条目（VAD、外链视频层、命名工作视图等）不在此表，排到时才单独立规格。
+
+| 已有规格的第二程内容 | 规格 | 已定、不再重问 |
+| --- | --- | --- |
+| 模型下载、持久设置、转码、随包 | [ADR-0098](../../../adr/0098-model-delivery-followups-in-second-stage.md)；[本机 Whisper](../desktop-local-whisper/design.md)、[模拟候选](../desktop-model-candidates/design.md) | 不挡第一程；已完成宿主、采纳与 Whisper 闭环保留；延期不等于通过；默认关，不自动打开 |
+| 临时词项 FR-070/074/075 | [字段词典](../desktop-field-editor/design.md) | 同词典标待确认、默认不发布、研究导出可含；禁止用 `access_rights` 或 E02 草稿冒充 |
+| 相邻合并候选扫描 | [分析时间](../desktop-analysis-time/design.md) | 扫描留第二程；保下级、不编造时间、冲突阻断属第一程 1b/2 |
+| 字幕、片段媒体、版式复用 | [文件格式](../desktop-file-formats/design.md) | FR-080 空文本与无时间不生成条、不编造时间；EF-010 扩到完整边界并预览确认；EF-013 复用 ExportPlan／ExportReport |
+| B16a／B16b／B17 | [查询](../corpus-analysis-query-tools/design.md)、[主张核对](../corpus-analysis-report/design.md)、[外部证据](../corpus-external-evidence/design.md) | 已落地、flag 默认关；三工具只读；主张必须对上本次结果行 id；多步只走 ToolLoopAgent（[ADR-0056](../../../adr/0056-single-agent-runtime-toolloopagent.md)）；外发过 [ADR-0055](../../../adr/0055-corpus-analysis-cloud-forms.md) |
