@@ -4,7 +4,7 @@
   min-width: 0;
   padding: var(--space-section-padding, var(--space-3, 12px));
   border: 0;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface-panel) 96%, var(--surface-bg));
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--surface-panel) 60%, transparent),
@@ -148,12 +148,22 @@
   min-width: 0;
   min-height: var(--input-h-md);
   padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
+  border: 1px solid var(--border-control);
   border-radius: var(--radius-md);
   background: var(--surface-panel);
   color: var(--text-primary);
   font: inherit;
   box-sizing: border-box;
+}
+
+.panel-input:hover:not(:disabled):not(:focus) {
+  border-color: var(--text-secondary);
+}
+
+.panel-input:disabled {
+  border-color: var(--border-soft);
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .panel-input:focus {
@@ -169,7 +179,7 @@
   gap: var(--space-1-5, 6px);
   min-height: var(--btn-h-md);
   padding: var(--space-1-5, 6px) var(--space-3, 10px);
-  border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
+  border: 1px solid var(--border-control);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface-header) 74%, transparent);
   color: var(--text-primary);
@@ -184,6 +194,7 @@
 }
 
 .panel-button:hover:not(:disabled) {
+  border-color: var(--text-secondary);
   background: color-mix(in srgb, var(--surface-header) 60%, var(--surface-panel));
 }
 
@@ -192,15 +203,21 @@
   cursor: default;
 }
 
+.panel-button:disabled:not(.panel-button--primary):not(.panel-button--success):not(
+    .panel-button--danger
+  ) {
+  border-color: var(--border-soft);
+}
+
 .panel-button--primary {
-  border-color: var(--header-accent);
-  background: var(--header-accent);
-  color: var(--text-on-solid);
+  border-color: var(--action-solid);
+  background: var(--action-solid);
+  color: var(--text-on-action);
 }
 
 .panel-button--primary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--header-accent) 88%, var(--surface-panel));
-  color: var(--text-on-solid);
+  background: var(--action-hover);
+  color: var(--text-on-action);
 }
 
 .panel-button--success {
@@ -441,7 +458,7 @@
     --entry-card-border,
     1px solid color-mix(in srgb, var(--border-soft) 70%, transparent)
   );
-  border-radius: var(--entry-card-radius, var(--radius-2xl));
+  border-radius: var(--entry-card-radius, var(--radius-lg));
   background: var(
     --entry-card-background,
     color-mix(in srgb, var(--surface-panel) 96%, var(--surface-bg))
