@@ -180,14 +180,12 @@ export function useTranscriptionSegmentBatchMerge({
               pendingView,
               reloadSegments,
               refreshSegmentUndoSnapshot,
-              write: async () => {
+              write: () => {
                 const appService = getTranscriptionAppService();
-                for (let index = 1; index < orderedSegments.length; index += 1) {
-                  await appService.mergeAdjacentSegments(
-                    firstSegment.id,
-                    orderedSegments[index]!.id,
-                  );
-                }
+                return appService.mergeAdjacentSegmentChain(
+                  firstSegment.id,
+                  orderedSegments.slice(1).map((segment) => segment.id),
+                );
               },
             });
             finishSegmentLayerWrite({
@@ -209,6 +207,11 @@ export function useTranscriptionSegmentBatchMerge({
               },
             });
           } catch (error) {
+            try {
+              await reloadSegments();
+            } catch {
+              // 刷新失败时仍抛出原来的合并错误。
+            }
             setSegmentBatchMergeError(
               setSaveState,
               t(locale, 'transcription.unitAction.undo.mergeSelection'),

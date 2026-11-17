@@ -11,6 +11,7 @@ import { useTranscriptionSegmentMutationController } from './useTranscriptionSeg
 const {
   mockSplitSegment,
   mockMergeAdjacentSegments,
+  mockMergeAdjacentSegmentChain,
   mockDeleteSegment,
   mockDeleteSegmentsBatch,
   mockUpdateUnit,
@@ -27,6 +28,9 @@ const {
   mockMergeAdjacentSegments: vi.fn<(leftId: string, rightId: string) => Promise<void>>(
     async () => undefined,
   ),
+  mockMergeAdjacentSegmentChain: vi.fn<
+    (keepId: string, removeIds: readonly string[]) => Promise<{ id: string }>
+  >(async (keepId) => ({ id: keepId })),
   mockDeleteSegment: vi.fn<(segmentId: string) => Promise<void>>(async () => undefined),
   mockDeleteSegmentsBatch: vi.fn<(segmentIds: readonly string[]) => Promise<void>>(
     async () => undefined,
@@ -41,6 +45,8 @@ vi.mock('../services/LayerSegmentationV2Service', () => ({
     splitSegment: (segmentId: string, splitTime: number) => mockSplitSegment(segmentId, splitTime),
     mergeAdjacentSegments: (leftId: string, rightId: string) =>
       mockMergeAdjacentSegments(leftId, rightId),
+    mergeAdjacentSegmentChain: (keepId: string, removeIds: readonly string[]) =>
+      mockMergeAdjacentSegmentChain(keepId, removeIds),
     deleteSegment: (segmentId: string) => mockDeleteSegment(segmentId),
     deleteSegmentsBatch: (segmentIds: readonly string[]) => mockDeleteSegmentsBatch(segmentIds),
   },
@@ -149,6 +155,7 @@ describe('useTranscriptionSegmentMutationController', () => {
     window.localStorage.setItem(LOCALE_PREFERENCE_STORAGE_KEY, 'zh-CN');
     mockSplitSegment.mockClear();
     mockMergeAdjacentSegments.mockClear();
+    mockMergeAdjacentSegmentChain.mockClear();
     mockDeleteSegment.mockClear();
     mockDeleteSegmentsBatch.mockClear();
     mockUpdateUnit.mockClear();
@@ -422,10 +429,11 @@ describe('useTranscriptionSegmentMutationController', () => {
     });
 
     expect(pushUndo).toHaveBeenCalledWith('批量合并句段');
-    expect(mockMergeAdjacentSegments).toHaveBeenNthCalledWith(1, 'seg-1', 'seg-2');
-    expect(mockMergeAdjacentSegments).toHaveBeenNthCalledWith(2, 'seg-1', 'seg-3');
-    expect(reloadSegments).toHaveBeenCalled();
-    expect(refreshSegmentUndoSnapshot).toHaveBeenCalled();
+    expect(mockMergeAdjacentSegments).not.toHaveBeenCalled();
+    expect(mockMergeAdjacentSegmentChain).toHaveBeenCalledTimes(1);
+    expect(mockMergeAdjacentSegmentChain).toHaveBeenCalledWith('seg-1', ['seg-2', 'seg-3']);
+    expect(reloadSegments).toHaveBeenCalledTimes(1);
+    expect(refreshSegmentUndoSnapshot).toHaveBeenCalledTimes(2);
     expect(selectTimelineUnit).toHaveBeenCalledWith({
       layerId: 'layer-seg',
       unitId: 'seg-1',
@@ -450,11 +458,49 @@ describe('useTranscriptionSegmentMutationController', () => {
     ).rejects.toThrow('请先选择相邻句段再执行合并。');
 
     expect(mockMergeAdjacentSegments).not.toHaveBeenCalled();
+    expect(mockMergeAdjacentSegmentChain).not.toHaveBeenCalled();
     expect(pushUndo).not.toHaveBeenCalled();
     expect(setSaveState).toHaveBeenCalledWith({
       kind: 'error',
       message: '请先选择相邻句段再执行合并。',
     });
+  });
+
+  it('reloads the segment view when a batch merge fails after the undo snapshot is captured', async () => {
+    mockMergeAdjacentSegmentChain.mockRejectedValueOnce(new Error('cascade failed'));
+    const pushUndo = vi.fn();
+    const reloadSegments = vi.fn(async () => undefined);
+    const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
+    const selectTimelineUnit = vi.fn();
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const { result } = renderHook(() =>
+      useTranscriptionSegmentMutationController(
+        createBaseInput({
+          pushUndo,
+          reloadSegments,
+          refreshSegmentUndoSnapshot,
+          selectTimelineUnit,
+          setSaveState,
+        }),
+      ),
+    );
+
+    await expect(
+      result.current.mergeSelectedSegmentsRouted(new Set(['seg-1', 'seg-2', 'seg-3'])),
+    ).rejects.toThrow('cascade failed');
+
+    expect(mockMergeAdjacentSegmentChain).toHaveBeenCalledWith('seg-1', ['seg-2', 'seg-3']);
+    expect(mockMergeAdjacentSegments).not.toHaveBeenCalled();
+    expect(pushUndo).toHaveBeenCalledWith('批量合并句段');
+    expect(refreshSegmentUndoSnapshot).toHaveBeenCalledTimes(1);
+    expect(reloadSegments).toHaveBeenCalledTimes(1);
+    expect(selectTimelineUnit).not.toHaveBeenCalled();
+    expect(setSaveState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'error',
+        message: '批量合并句段失败：cascade failed',
+      }),
+    );
   });
 
   it('surfaces an error without reloading when batch segment delete fails', async () => {
