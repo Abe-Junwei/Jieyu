@@ -16,20 +16,21 @@
     .mi .mono { margin-left: auto; color: var(--muted); }
     .mi-sep { height: 1px; background: var(--border-soft); margin: 4px 0; }
     .pop { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-float); }
-    .pop header { padding: 12px 16px; border-bottom: 1px solid var(--border-soft); font: 600 var(--text-base)/var(--leading-base) var(--font-body); display: flex; }
+    .pop header { padding: 12px 16px; border-bottom: 1px solid var(--border-soft); font: 600 var(--text-base)/var(--leading-base) var(--font-body); display: flex; align-items: center; }
     .pop header .btn { margin-left: auto; }
     .pop .body { padding: 12px 16px; display: grid; gap: 8px; }
     .pop textarea { width: 100%; min-height: 72px; border: 1px solid var(--border-control); border-radius: 4px; padding: 8px; font: var(--text-base)/var(--leading-base) var(--font-body); background: var(--surface); color: var(--fg); }
-    .tip { justify-self: start; display: inline-block; background: var(--fg); color: var(--accent-on); padding: 4px 8px; border-radius: 4px; font-size: var(--text-xs); line-height: var(--leading-xs); box-shadow: var(--shadow-popover); }
+    .tip { justify-self: start; }
     .modal-wrap { position: relative; height: 260px; background: var(--scrim); display: grid; place-items: center; }
-    .modal { width: 400px; background: var(--surface); border-radius: 8px; box-shadow: var(--shadow-modal); }
+    .modal { width: 400px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-modal); }
     .modal h3 { margin: 0; padding: 16px 16px 8px; font: 600 var(--text-lg)/var(--leading-lg) var(--font-body); }
     .modal p { margin: 0; padding: 0 16px 16px; color: var(--fg-2); }
     .modal footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border-soft); }
     .find { display: flex; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-float); padding: 8px; width: max-content; }
     .find input { height: 28px; width: 180px; border: 1px solid var(--border-control); border-radius: 4px; padding: 0 8px; font: var(--text-sm)/var(--leading-sm) var(--font-body); background: var(--surface); color: var(--fg); }
     .sheet { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-modal); width: 560px; }
-    .sheet header { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border-soft); font-weight: 600; }
+    .sheet header { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border-soft); }
+    .sheet header h3 { margin: 0; font: 600 var(--text-lg)/var(--leading-lg) var(--font-body); }
     .sheet header input { margin-left: auto; height: 28px; width: 180px; border: 1px solid var(--border-control); border-radius: 4px; padding: 0 8px; font: var(--text-sm)/1 var(--font-body); background: var(--surface); color: var(--fg); }
     .keys { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; padding: 12px 16px; }
     .keys h4 { grid-column: span 2; margin: 8px 0 4px; font: 600 var(--text-xs)/var(--leading-xs) var(--font-body); color: var(--muted); }
@@ -49,23 +50,23 @@
 <main>
   <div>
     <h1>浮层</h1>
-    <p class="note">菜单与 Tooltip 用 popover 阴影，浮动面板用 float，模态用 modal。Esc 只关最上层，关闭后焦点回到触发控件。</p>
+    <p class="note">菜单与 Tooltip 用 popover 阴影，浮动面板用 float，模态用 modal（带 1px 发丝边）。Esc 只关最上层，关闭后焦点回到触发控件。</p>
   </div>
 
   <div class="board">
     <section>
-      <h2>句段右键菜单</h2>
-      <div class="menu" role="menu">
-        <div class="mi hover">从当前位置拆分句段<span class="mono">⌘⇧S</span></div>
-        <div class="mi">向前合并句段<span class="mono">⌘⇧M</span></div>
-        <div class="mi">向后合并句段<span class="mono">⌘M</span></div>
-        <div class="mi off">合并 2 个句段<span class="mono" style="font-family:var(--font-body)">需多选</span></div>
-        <div class="mi-sep"></div>
-        <div class="mi">添加备注<span class="mono">⌘⇧N</span></div>
-        <div class="mi-sep"></div>
-        <div class="mi danger">删除句段<span class="mono">⌫</span></div>
+      <h2>波形选区右键菜单</h2>
+      <div class="menu" role="menu" aria-label="波形选区操作">
+        <div class="mi hover" role="menuitem" tabindex="0">从当前位置拆分句段<span class="mono">⌘⇧S</span></div>
+        <div class="mi" role="menuitem" tabindex="-1">向前合并<span class="mono">⌘⇧M</span></div>
+        <div class="mi" role="menuitem" tabindex="-1">向后合并<span class="mono">⌘M</span></div>
+        <div class="mi off" role="menuitem" aria-disabled="true" tabindex="-1">合并 2 个句段<span class="mono" style="font-family:var(--font-body)">需多选</span></div>
+        <div class="mi-sep" role="separator"></div>
+        <div class="mi" role="menuitem" tabindex="-1">添加备注<span class="mono">⌘⇧N</span></div>
+        <div class="mi-sep" role="separator"></div>
+        <div class="mi danger" role="menuitem" tabindex="-1">删除句段<span class="mono">⌫</span></div>
       </div>
-      <p class="meta">按选中对象与数量启用。不可用项置灰、保留位置并写原因。快捷键与 KeybindingService 默认值一致。</p>
+      <p class="meta">菜单右列直接排等宽文字，不加键帽框。按选中对象与数量启用；不可用项置灰、保留位置并写原因。</p>
     </section>
 
     <section>
@@ -82,7 +83,7 @@
     <section>
       <h2>Tooltip</h2>
       <span class="tip">上一条待复核 [</span>
-      <p class="meta">只放说明，不放必须点击的操作。悬停 120–180ms 出现。</p>
+      <p class="meta">只放说明，不放必须点击的操作。亮暗共用暖黑外壳，悬停 120–180ms 出现。</p>
       <h2 style="margin-top:16px">查找替换</h2>
       <div class="find">
         <input value="ruŋ" aria-label="查找" />
@@ -97,7 +98,7 @@
   <section>
     <h2>确认删除（模态）</h2>
     <div class="modal-wrap">
-      <div class="modal" role="dialog">
+      <div class="modal" role="dialog" aria-label="删除层">
         <h3>删除层</h3>
         <p>删除后无法恢复。关联的转写链接与未共享附件会一并去掉。</p>
         <footer><button class="btn is-focus">取消</button><button class="btn danger">删除层</button></footer>
@@ -110,14 +111,14 @@
     <h2>离开守卫</h2>
     <div class="board" style="grid-template-columns:1fr 1fr">
       <div class="modal-wrap" style="height:300px">
-        <div class="modal" role="alertdialog">
+        <div class="modal" role="alertdialog" aria-label="未保存离开守卫">
           <h3>第 12 段还没保存</h3>
           <p>保存失败：项目文件正被其他程序占用。可以留下重试；也可以先离开，改动作为草稿留在本机，下次打开继续。</p>
           <footer><button class="btn danger left">放弃改动</button><button class="btn is-focus">留下</button><button class="btn primary">保留草稿并离开</button></footer>
         </div>
       </div>
       <div class="modal-wrap" style="height:300px">
-        <div class="modal" role="alertdialog">
+        <div class="modal" role="alertdialog" aria-label="核实中离开守卫">
           <h3>正在核实第 12 段是否已保存</h3>
           <p>上次保存的结果还不能确认。核实完成前不能离开，也不能放弃，以免同一段写两次或丢掉。</p>
           <div class="bar"><i></i></div>
@@ -131,11 +132,11 @@
   <section>
     <h2>快捷键速查</h2>
     <div class="modal-wrap" style="height:auto;padding:24px">
-      <div class="sheet" role="dialog">
-        <header>快捷键<input placeholder="查找快捷键" aria-label="查找快捷键" /></header>
+      <div class="sheet" role="dialog" aria-label="快捷键速查">
+        <header><h3>快捷键</h3><input placeholder="查找快捷键" aria-label="查找快捷键" /><button class="btn icon ghost" aria-label="关闭快捷键面板" title="关闭（Esc）"><svg class="i"><use href="#x"/></svg></button></header>
         <div class="keys">
           <h4>播放</h4><div>播放 / 暂停<kbd>空格</kbd></div><div>后退一帧<kbd>,</kbd></div><div>前进一帧<kbd>.</kbd></div><div>Tab 播放下一个<kbd>Tab</kbd></div>
-          <h4>编辑</h4><div>拆分句段<kbd>⌘⇧S</kbd></div><div>合并上一个<kbd>⌘⇧M</kbd></div><div>合并下一个<kbd>⌘M</kbd></div><div>删除句段<kbd>⌫</kbd></div>
+          <h4>编辑</h4><div>拆分句段<kbd>⌘⇧S</kbd></div><div>向前合并<kbd>⌘⇧M</kbd></div><div>向后合并<kbd>⌘M</kbd></div><div>删除句段<kbd>⌫</kbd></div>
           <h4>导航</h4><div>下一个待复核<kbd>]</kbd></div><div>上一个待复核<kbd>[</kbd></div><div>选到开头<kbd>⇧Home</kbd></div><div>选到结尾<kbd>⇧End</kbd></div>
         </div>
       </div>

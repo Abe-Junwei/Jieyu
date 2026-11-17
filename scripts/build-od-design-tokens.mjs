@@ -207,7 +207,7 @@ function check() {
 }
 
 async function build() {
-  const { chromium } = await import('playwright');
+  const { chromium } = await import('@playwright/test');
   const source = readFileSync(sourcePath, 'utf8');
   const browser = await chromium.launch();
   const page = await browser.newPage();
