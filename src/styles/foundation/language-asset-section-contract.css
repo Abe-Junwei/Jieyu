@@ -51,7 +51,7 @@
 
   .la-shell.embedded-panel-shell {
     width: 100%;
-    border-radius: var(--radius-2xl);
+    border-radius: var(--radius-lg);
   }
 }
 
@@ -140,14 +140,19 @@
 }
 
 .la-shell :is(.panel-button--ghost, .btn-ghost) {
-  border-color: color-mix(in srgb, var(--border-soft) 88%, transparent);
+  border-color: var(--border-control);
   background: var(--surface-panel);
   color: var(--text-secondary);
 }
 
 .la-shell :is(.panel-button--ghost, .btn-ghost):is(:hover, :focus-visible):not(:disabled) {
+  border-color: var(--text-secondary);
   background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
   color: var(--text-primary);
+}
+
+.la-shell :is(.panel-button--ghost, .btn-ghost):disabled {
+  border-color: var(--border-soft);
 }
 
 .la-shell .panel-button--ghost:focus-visible,
@@ -163,7 +168,7 @@
   gap: var(--space-stack-section, 12px);
   padding: 14px 16px;
   border: none;
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface-header) 36%, var(--surface-panel));
 }
 
@@ -198,7 +203,7 @@
   display: grid;
   gap: var(--space-title-content, 8px);
   padding: 10px 12px;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   border: none;
   background: color-mix(in srgb, var(--surface-panel) 90%, var(--surface-header));
 }
@@ -281,7 +286,7 @@
   width: 100%;
   padding: var(--space-3, 12px) var(--space-4, 14px);
   border: 1px solid transparent;
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
   color: var(--text-primary);
   text-align: left;

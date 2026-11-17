@@ -1,23 +1,11 @@
 /* ── 设计令牌 | Design Tokens ─────────────────────────────────
- * 架构：data-appearance（配色方案）+ data-theme（明暗模式）+ data-theme-accent（主题色覆盖）
+ * 架构：墨色 action CTA + 中性 selection accent（One Voice）+ data-theme（明暗）
  *
- * data-appearance="…|googleLightModern|solarizedDark|…" — 配色方案（完整列表见文末主题块与 theme.ts）
- *   默认（default）= 青墨纸本（冷纸底 + 青绿主操作，取样自科研工具纸本气质）
- * data-theme="dark" — 暗色模式（不设 = 浅色）；solarizedDark 时由 JS 固定为 dark
- *
- * CSS 选择器优先级：
- *   :root                                          → 默认浅色
- *   :root[data-theme='dark']                       → 默认暗色
- *   :root[data-appearance='xxx']                   → 主题浅色（覆盖默认浅色）
- *   :root[data-appearance='xxx'][data-theme='dark'] → 主题暗色（覆盖主题浅色）
- *
- * 可用主题：default(青墨纸本) / mogao(鸣沙石窟) / qinglv(远山叠翠)
- *          / digital(数字青金) / mural(壁画矿脉)
- *          / mogaoNarrative(莫高窟叙事) / palaceVermilion(古建筑与朱墨) / jiangnanMist(烟雨江南)
- *          / googleLightModern(Light Modern) / solarizedDark(Solarized Dark)
- *          / antigravity(纯粹禅意)
- *
- * 配色色阶以本文件为唯一事实源（与 src/utils/theme.ts 中展示用文案配合）。
+ * data-theme="dark" — 暗色（不设 = 浅色）
+ * --action-* — 主按钮墨色（暗色反相）
+ * --theme-accent-* — 选中/媒体锚点（中性墨灰）；--header-accent 为其 alias
+ * --focus-accent / --focus-ring* — 焦点用墨色，不另设青色
+ * 只有这一套外观（纸本田野笔记）。视觉真源见仓库根 DESIGN.md。
  * ─────────────────────────────────────────────────────────── */
 
 /* ═══════════════════════════════════════════════════════════
@@ -29,66 +17,94 @@
 /* ── 默认浅色 | Default light ── */
 :root {
   /* ═══════════════════════════════════════════════════════
-     青墨纸本 — 冷纸底 × 青绿墨（浅色）
-     纸(#FCFCF8) → 薄荷洗(#EAEBE4) → 主按钮(#026370) → 正文青墨(#083D44)
-     点缀柠绿 #E5FF97 只作次强调，不进灰阶正文
+     纸本田野笔记 — 白纸 #FFFFFF · 书桌 #FAFAFA · 墨色 #111111 · 靛青只作次要标记
      ═══════════════════════════════════════════════════════ */
   --gray-1: #ffffff;
-  --gray-2: #fcfcf8;
-  --gray-3: #f4f5ee;
-  --gray-4: #eaebe4;
-  --gray-5: #d6d8ce;
-  --gray-6: #b8bdb0;
-  --gray-7: #8a948c;
-  --gray-8: #5c706c;
-  --gray-9: #3d5554;
-  --gray-10: #1a4549;
-  --gray-11: #083d44;
-  --gray-12: #062e33;
+  --gray-2: #fafafa;
+  --gray-3: #f5f5f5;
+  --gray-4: #eeeeee;
+  --gray-5: #e2e2e2;
+  --gray-6: #c8c8c8;
+  --gray-7: #8a8a8a;
+  --gray-8: #5c5c5c;
+  --gray-9: #3a3a3a;
+  --gray-10: #2a2a2a;
+  --gray-11: #1a1a1a;
+  --gray-12: #111111;
 
   /* 语义映射 — 表面与底色 */
-  --surface-bg: var(--gray-3);
-  --surface-panel: var(--gray-1);
-  --surface-header: var(--gray-2);
-  --surface-elevated: color-mix(in srgb, var(--gray-2) 88%, var(--gray-1));
-  --surface-overlay: var(--gray-1);
-  --surface-dark-card: color-mix(in srgb, var(--gray-1) 60%, transparent);
+  --surface-bg: #fafafa;
+  --surface-canvas: var(--surface-bg);
+  --surface-panel: #ffffff;
+  --surface-header: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-overlay: var(--surface-panel);
+  --surface-dark-card: color-mix(in srgb, var(--surface-panel) 60%, transparent);
+  --chrome-rail-bg: #ffffff;
+  --chrome-rail-active: #f5f5f5;
+  /* 上下文栏只比纸面浅一档，对齐 VS Code Light Modern 侧栏 #F8F8F8（ADR-0113）。分界靠边线，不靠深底。 */
+  --chrome-context-bg: var(--gray-3);
 
   /* 语义映射 — 边框与分隔 */
-  --border-subtle: var(--gray-5);
-  --border-soft: var(--gray-6);
-  --border-strong: var(--gray-7);
+  --border-subtle: #eeeeee;
+  --border-soft: #e2e2e2;
+  --border-strong: #c8c8c8;
+  /* 控件边界 ≥ 3:1 对纸面 #ffffff（3.03:1，ADR-0108） */
+  --border-control: #949494;
 
   /* 语义映射 — 文本 */
-  --text-primary: var(--gray-12);
-  --text-secondary: var(--gray-11);
-  --text-tertiary: var(--gray-9);
+  --text-primary: #111111;
+  --text-secondary: #3a3a3a;
+  --text-tertiary: #5c5c5c;
   --text-muted: var(--text-tertiary);
-  --text-on-solid: #fcfcf8;
+  --text-on-solid: #ffffff;
   --color-white: #ffffff;
 
   /* 功能色基色 */
-  --blue-9: #0066ff;
-  --green-9: #22c55e;
+  --blue-9: #1d4ed8;
+  --green-9: #10b981;
   --amber-9: #f59e0b;
-  --red-9: #ef4444;
-  --purple-9: #8b5cf6;
+  --red-9: #e5484d;
+  --purple-9: var(--theme-accent-solid); /* legacy alias；勿再当品牌紫 */
 
-  /* 强调色 = 青绿主操作 */
-  --header-accent: #026370;
-  --theme-accent-solid: var(--header-accent);
+  /* 主 CTA = 墨色（ElevenLabs 对齐）；与 accent 分离 */
+  --action-solid: #111111;
+  --action-hover: #000000;
+  --action-active: #000000;
+  --text-on-action: #ffffff;
 
-  /* Info 状态 — 从青绿派生，浅底带一点柠绿洗 */
-  --state-info-solid: var(--header-accent);
-  --state-info-text: var(--gray-11);
-  --state-info-bg: color-mix(in srgb, #e5ff97 28%, var(--gray-2));
-  --state-info-bg-strong: color-mix(in srgb, #e5ff97 42%, var(--gray-2));
-  --state-info-border: color-mix(in srgb, var(--header-accent) 42%, transparent);
-  --state-info-border-strong: color-mix(in srgb, var(--header-accent) 62%, transparent);
+  /* 选中 = 浅灰底 + 墨色字。克制主题色按 Radix 拆为三档：实心填充、浅底承托、可读文字（ADR-0114）。 */
+  --theme-accent-solid: #111111;
+  --theme-accent-hover: #3a3a3a;
+  --theme-accent-active: #000000;
+  --theme-accent-tint: #f5f5f5;
+  --theme-accent-text: #111111;
+  --header-accent: var(--theme-accent-solid);
+  --brand-solid: #4338ca;
+  --brand-on: #ffffff;
+  --brand-tint: #eeedfb;
+  --mark-secondary: #3b359e;
+  /* 提示条外壳：亮色墨底；暗色不反转成米白，用高一档暖黑加发丝边（ADR-0116） */
+  --toast-bg: var(--gray-12);
+  --toast-fg: var(--gray-1);
+  --toast-border: var(--gray-12);
 
-  /* Success / Warning / Danger 保留最小色彩编码 */
+  /* 焦点 = 墨色环，不使用靛青 */
+  --focus-accent: #111111;
+  --focus-accent-hover: #000000;
+  --focus-accent-active: #000000;
+
+  /* Info — 独立蓝，不绑 accent（AA >= 4.5:1 vs white and light info tints） */
+  --state-info-solid: #1d4ed8;
+  --state-info-text: #1d4ed8;
+  --state-info-bg: color-mix(in srgb, var(--state-info-solid) 12%, var(--surface-header));
+  --state-info-bg-strong: color-mix(in srgb, var(--state-info-solid) 22%, var(--surface-header));
+  --state-info-border: color-mix(in srgb, var(--state-info-solid) 42%, transparent);
+  --state-info-border-strong: color-mix(in srgb, var(--state-info-solid) 62%, transparent);
+
+  /* Success / Warning / Danger — 手册 solid + 更深 text */
   --state-success-solid: #16a34a;
-  --state-success-text: #15803d;
+  --state-success-text: #166534;
   --state-success-bg: #f0fdf4;
   --state-success-border: #bbf7d0;
 
@@ -126,33 +142,36 @@
 
   /* 字体 */
   --font-sans:
-    -apple-system, BlinkMacSystemFont, 'Inter', 'Noto Sans SC', 'Noto Sans', 'Noto Sans Arabic',
-    'Noto Sans Devanagari', 'Noto Sans Thai', 'Noto Sans Tibetan', sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, 'Cascadia Code', monospace;
-  --font-ipa: 'Charis SIL', 'Doulos SIL', 'Gentium Plus', 'Andika', serif;
+    'Noto Sans', 'Noto Sans SC', 'PingFang SC', 'Noto Sans Arabic', 'Noto Sans Devanagari',
+    'Noto Sans Thai', 'Noto Sans Tibetan', system-ui, sans-serif;
+  --font-mono: 'Noto Sans Mono', ui-monospace, monospace;
+  --font-ipa: 'Noto Sans', sans-serif;
   --font-display:
     'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'Hiragino Mincho ProN', 'Noto Serif',
     Georgia, serif;
   --font-base: var(--font-sans);
   --font-chat: var(--font-sans);
 
-  /* 阴影 */
-  --shadow-color: #083d44;
-  --shadow-xs: 0 1px 2px color-mix(in srgb, var(--shadow-color) 6%, transparent);
-  --shadow-sm: 0 2px 8px color-mix(in srgb, var(--shadow-color) 8%, transparent);
-  --shadow-md: 0 8px 24px color-mix(in srgb, var(--shadow-color) 12%, transparent);
-  --shadow-lg: 0 16px 48px color-mix(in srgb, var(--shadow-color) 16%, transparent);
-  --shadow-card: var(--shadow-xs);
-  --shadow-popover: var(--shadow-sm);
-  --shadow-float: var(--shadow-md);
-  --shadow-modal: var(--shadow-lg);
+  /* 阴影 — 只有三档浮层：菜单/提示、浮动面板、模态。工作面和卡片不加投影（ADR-0104）。 */
+  --shadow-color: #111111;
+  --shadow-popover: 0 2px 8px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+  --shadow-float: 0 8px 24px color-mix(in srgb, var(--shadow-color) 12%, transparent);
+  --shadow-modal: 0 16px 48px color-mix(in srgb, var(--shadow-color) 16%, transparent);
+  --shadow-card: none;
+  /* 焦点环：2px 纸色间隔 + 2px 墨环 */
+  --shadow-focus: 0 0 0 2px var(--surface-panel), 0 0 0 4px var(--focus-accent);
+  /* 旧档位，存量引用指向新角色 */
+  --shadow-xs: none;
+  --shadow-sm: var(--shadow-popover);
+  --shadow-md: var(--shadow-float);
+  --shadow-lg: var(--shadow-modal);
 
-  /* 间距 */
+  /* 间距 — 组件内 4/8/12/16/24/32；40/48/64 只给页面级留白（ADR-0104） */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
-  --space-5: 20px;
+  --space-5: var(--space-6); /* 已退役的 20px */
   --space-6: 24px;
   --space-8: 32px;
   --space-10: 40px;
@@ -164,32 +183,30 @@
   --space-stack-section: var(--space-3);
   --space-title-content: var(--space-2);
   --space-row-gap: var(--space-2);
-  --space-row-padding-y: 10px;
+  --space-row-padding-y: var(--space-2);
   --space-section-padding: var(--space-3);
-  --space-tight-offset: 6px;
+  --space-tight-offset: var(--space-2);
   --space-micro-offset: var(--space-1);
 
   /* 地图/行政区子域间距 Token | Map/admin domain spacing tokens */
   --space-map-stack: var(--space-row-gap);
-  --space-map-section: 10px;
-  --space-admin-stack: 10px;
+  --space-map-section: var(--space-3);
+  --space-admin-stack: var(--space-3);
   --space-admin-inline: var(--space-row-gap);
 
-  /* 圆角 */
+  /* 圆角 — control 专供按钮/输入；勿把 chip/tag 全抬到 10 */
   --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
-  --radius-2xl: 14px;
-  --radius-3xl: 16px;
+  --radius-sm: 4px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
   --radius-pill: 999px;
+  --radius-control: 4px;
 
   /* 入口卡（首页 hero / 时间轴空态）| Editorial entry card */
-  --entry-card-radius: var(--radius-2xl);
+  --entry-card-radius: var(--radius-lg);
   --entry-card-padding: clamp(24px, 3.5vw, 36px);
   --entry-card-border: 1px solid color-mix(in srgb, var(--border-soft) 70%, transparent);
-  --entry-card-shadow: var(--shadow-sm);
+  --entry-card-shadow: var(--shadow-card);
   --entry-card-background: linear-gradient(
     118deg,
     color-mix(in srgb, var(--surface-panel) 96%, var(--surface-bg)) 0%,
@@ -197,18 +214,31 @@
     color-mix(in srgb, var(--state-info-bg) 48%, var(--surface-panel)) 100%
   );
 
-  /* 字号 */
-  --font-size-2xs: 0.6875rem;
-  --font-size-xs: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
-  --font-size-sm: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
-  --font-size-base: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
-  --font-size-md: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
-  --font-size-lg: 1.125rem;
+  /* 字号 — 6 档，随设置里的字号缩放（ADR-0104）。最小 12px，旧 --font-size-* 指向这里。 */
+  --type-main-h-size: calc(20px * var(--ui-font-scale, 1));
+  --type-main-h-line: calc(28px * var(--ui-font-scale, 1));
+  --type-sub-h-size: calc(16px * var(--ui-font-scale, 1));
+  --type-sub-h-line: calc(24px * var(--ui-font-scale, 1));
+  --type-body-reg-size: calc(14px * var(--ui-font-scale, 1));
+  --type-body-reg-line: calc(22px * var(--ui-font-scale, 1));
+  --type-meta-tool-size: calc(13px * var(--ui-font-scale, 1));
+  --type-meta-tool-line: calc(20px * var(--ui-font-scale, 1));
+  --type-ipa-display-size: calc(16px * var(--ui-font-scale, 1));
+  --type-ipa-display-line: calc(24px * var(--ui-font-scale, 1));
+  --type-code-time-size: calc(12px * var(--ui-font-scale, 1));
+  --type-code-time-line: calc(18px * var(--ui-font-scale, 1));
+
+  --font-size-2xs: var(--type-code-time-size);
+  --font-size-xs: var(--panel-typography-body-size, var(--type-code-time-size));
+  --font-size-sm: var(--panel-typography-emphasis-title-size, var(--type-meta-tool-size));
+  --font-size-base: var(--panel-typography-subheading-size, var(--type-body-reg-size));
+  --font-size-md: var(--panel-typography-dialog-title-size, var(--type-sub-h-size));
+  --font-size-lg: var(--type-main-h-size);
 
   /* 动效 */
   --duration-instant: 100ms;
-  --duration-fast: 200ms;
-  --duration-normal: 300ms;
+  --duration-fast: 160ms;
+  --duration-normal: 200ms;
   --ease-instant: ease-out;
   --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
@@ -220,9 +250,9 @@
 
   /* Shell */
   --header-brand-font: var(--font-mono);
-  --header-bg: rgba(252, 252, 248, 0.94);
-  --header-border: var(--gray-5);
-  --header-shadow: var(--shadow-xs);
+  --header-bg: color-mix(in srgb, var(--surface-header) 94%, transparent);
+  --header-border: var(--border-subtle);
+  --header-shadow: none;
   --header-height: 52px;
   --header-radius: 8px;
   --left-rail-width: 52px;
@@ -241,22 +271,10 @@
   --tab-active: var(--gray-4);
   --tab-underline-hover: color-mix(in srgb, var(--gray-12) 10%, transparent);
 
-  --focus-ring: color-mix(in srgb, var(--gray-12) 24%, transparent);
-  --focus-ring-soft: color-mix(
-    in srgb,
-    var(--state-info-solid) var(--theme-opacity-2),
-    transparent
-  );
-  --focus-ring-strong: color-mix(
-    in srgb,
-    var(--state-info-solid) var(--theme-opacity-4),
-    transparent
-  );
-  --focus-ring-glow: color-mix(
-    in srgb,
-    var(--state-info-solid) var(--theme-opacity-2),
-    transparent
-  );
+  --focus-ring: color-mix(in srgb, var(--focus-accent) 72%, transparent);
+  --focus-ring-soft: color-mix(in srgb, var(--focus-accent) 28%, transparent);
+  --focus-ring-strong: var(--focus-accent);
+  --focus-ring-glow: color-mix(in srgb, var(--focus-accent) 22%, transparent);
 
   --overlay-hover-soft: color-mix(in srgb, var(--border-soft) 24%, transparent);
   --overlay-hover-muted: color-mix(in srgb, var(--border-soft) 30%, transparent);
@@ -367,14 +385,14 @@
   --input-h-md: 32px;
   --input-h-lg: 36px;
   --input-h-xl: 40px;
-  --input-h-compact: var(--input-h-sm);
+  --input-h-compact: var(--btn-h-sm);
   --input-padding-compact: 6px 8px;
   --input-padding-compact-select: 6px 34px 6px 8px;
   --input-padding-micro: 3px 6px;
   --input-line-height-compact: 1.25;
   --btn-h-sm: 28px;
   --btn-h-md: 32px;
-  --btn-h-compact: 30px;
+  --btn-h-compact: var(--btn-h-sm);
 
   --lane-label-width: 64px;
   --timeline-lane-height: 54px;
@@ -385,26 +403,54 @@
   --timeline-neutral-hover-bg: color-mix(in srgb, var(--border-soft) 24%, transparent);
   --timeline-neutral-divider-hover: color-mix(in srgb, var(--text-secondary) 64%, transparent);
 
-  --timeline-link-color-0: color-mix(in srgb, var(--state-info-solid) 62%, transparent);
-  --timeline-link-color-active-0: color-mix(in srgb, var(--state-info-solid) 88%, transparent);
-  --timeline-link-color-1: color-mix(in srgb, var(--state-success-solid) 62%, transparent);
-  --timeline-link-color-active-1: color-mix(in srgb, var(--state-success-solid) 88%, transparent);
-  --timeline-link-color-2: color-mix(in srgb, var(--state-warning-text) 62%, transparent);
-  --timeline-link-color-active-2: color-mix(in srgb, var(--state-warning-text) 88%, transparent);
-  --timeline-link-color-3: color-mix(
-    in srgb,
-    var(--state-info-solid) 52%,
-    var(--state-danger-solid) 10%
-  );
-  --timeline-link-color-active-3: color-mix(
-    in srgb,
-    var(--state-info-solid) 74%,
-    var(--state-danger-solid) 14%
-  );
-  --timeline-link-color-4: color-mix(in srgb, var(--state-danger-solid) 62%, transparent);
-  --timeline-link-color-active-4: color-mix(in srgb, var(--state-danger-solid) 88%, transparent);
-  --timeline-link-color-5: color-mix(in srgb, var(--text-secondary) 62%, transparent);
-  --timeline-link-color-active-5: color-mix(in srgb, var(--text-primary) 88%, transparent);
+  /* 播放头墨色实线；选区墨色 8% 底，比悬停深一档（ADR-0107）；红色只留给保存失败（ADR-0104） */
+  --timeline-playhead-color: var(--text-primary);
+  --timeline-playhead-width: 2px;
+  --timeline-selection-bg: color-mix(in srgb, var(--text-primary) 8%, var(--surface-panel));
+
+  /* 置信度：中＝墨色虚线，低＝琥珀实线（待复核是警告，不是失败） */
+  --confidence-mid-mark: var(--text-primary);
+  --confidence-low-mark: var(--state-warning-solid);
+
+  /* 模态遮罩：亮暗同值。--shadow-color 暗色为黑，亮色近黑，44% 都压得住纸面 */
+  --scrim: color-mix(in srgb, var(--shadow-color) 44%, transparent);
+
+  /* 系列墨色：说话人轨、层联动线不用彩色，靠墨色深浅 + 线型 + 字母标记区分。
+     第 4 档不跟 --gray-7：暗色 gray-7 在纸页上只有 2.6:1，字母标记看不清（ADR-0105） */
+  --series-ink-0: var(--text-primary);
+  --series-ink-1: var(--text-secondary);
+  --series-ink-2: var(--text-tertiary);
+  --series-ink-3: var(--gray-7);
+  --series-dash-0: none;
+  --series-dash-1: 4 3;
+  --series-dash-2: 1 3;
+  --speaker-track-0: var(--series-ink-0);
+  --speaker-track-1: var(--series-ink-1);
+  --speaker-track-2: var(--series-ink-2);
+  --speaker-track-3: var(--series-ink-3);
+  --speaker-track-4: var(--series-ink-0);
+  --speaker-track-5: var(--series-ink-1);
+  --speaker-track-6: var(--series-ink-2);
+  --speaker-track-7: var(--series-ink-3);
+
+  --timeline-link-color-0: color-mix(in srgb, var(--series-ink-0) 62%, transparent);
+  --timeline-link-color-active-0: color-mix(in srgb, var(--series-ink-0) 88%, transparent);
+  --timeline-link-color-1: color-mix(in srgb, var(--series-ink-1) 62%, transparent);
+  --timeline-link-color-active-1: color-mix(in srgb, var(--series-ink-1) 88%, transparent);
+  --timeline-link-color-2: color-mix(in srgb, var(--series-ink-2) 62%, transparent);
+  --timeline-link-color-active-2: color-mix(in srgb, var(--series-ink-2) 88%, transparent);
+  --timeline-link-color-3: color-mix(in srgb, var(--series-ink-0) 62%, transparent);
+  --timeline-link-color-active-3: color-mix(in srgb, var(--series-ink-0) 88%, transparent);
+  --timeline-link-color-4: color-mix(in srgb, var(--series-ink-1) 62%, transparent);
+  --timeline-link-color-active-4: color-mix(in srgb, var(--series-ink-1) 88%, transparent);
+  --timeline-link-color-5: color-mix(in srgb, var(--series-ink-2) 62%, transparent);
+  --timeline-link-color-active-5: color-mix(in srgb, var(--series-ink-2) 88%, transparent);
+  --timeline-link-dash-0: var(--series-dash-0);
+  --timeline-link-dash-1: var(--series-dash-0);
+  --timeline-link-dash-2: var(--series-dash-0);
+  --timeline-link-dash-3: var(--series-dash-1);
+  --timeline-link-dash-4: var(--series-dash-1);
+  --timeline-link-dash-5: var(--series-dash-1);
 
   --timeline-item-divider-width: 0;
   --timeline-item-divider-color: color-mix(in srgb, var(--text-tertiary) 52%, transparent);
@@ -427,103 +473,149 @@
 
   --popover-bg: color-mix(in srgb, var(--surface-panel) 92%, transparent);
   --popover-border: var(--border-soft);
-  --popover-shadow: var(--shadow-md);
+  --popover-shadow: var(--shadow-float);
 
-  --accent-primary: var(--header-accent);
-  --accent-secondary: #e5ff97;
-  --border-accent: color-mix(in srgb, var(--header-accent) 44%, transparent);
+  --accent-primary: var(--theme-accent-solid);
+  --accent-secondary: var(--theme-accent-tint);
+  --border-accent: color-mix(in srgb, var(--theme-accent-solid) 44%, transparent);
 }
 
-/* ── 默认暗色 | Default dark — 青墨夜空 ── */
+/* ── 默认暗色 | Default dark — 手册基线（对比度实测仍为债） ── */
 :root[data-theme='dark'] {
-  --gray-1: #041a1d;
-  --gray-2: #06262b;
-  --gray-3: #083d44;
-  --gray-4: #0c4a52;
-  --gray-5: #1a5c64;
-  --gray-6: #2d737a;
-  --gray-7: #4a9198;
-  --gray-8: #6baeb4;
-  --gray-9: #9bccd0;
-  --gray-10: #c5e3e5;
-  --gray-11: #e8f3f3;
-  --gray-12: #fcfcf8;
+  --gray-1: #0c0c09;
+  --gray-2: #121210;
+  --gray-3: #161614;
+  --gray-4: #242320;
+  --gray-5: #2c2b28;
+  --gray-6: #3a3832;
+  --gray-7: #5c5952;
+  /* 系列墨色第 4 档：gray-7 在纸页 #161614 上 2.6:1，2px 线条和字母标记都不够（ADR-0105） */
+  --series-ink-3: #8a847a;
+  --gray-8: #8e8a82;
+  --gray-9: #c8c4ba;
+  --gray-10: #ddd9d0;
+  --gray-11: #eae6de;
+  --gray-12: #f4f2ec;
 
-  --surface-bg: var(--gray-2);
-  --surface-panel: var(--gray-3);
-  --surface-header: var(--gray-4);
-  --surface-elevated: color-mix(in srgb, var(--gray-4) 94%, var(--gray-3));
-  --surface-overlay: var(--gray-3);
-  --surface-dark-card: color-mix(in srgb, var(--gray-3) 66%, transparent);
+  --surface-bg: #0c0c09;
+  --surface-canvas: var(--surface-bg);
+  --surface-panel: #161614;
+  --surface-header: #161614;
+  --surface-elevated: #242320;
+  --surface-overlay: var(--surface-panel);
+  --surface-dark-card: color-mix(in srgb, var(--surface-panel) 66%, transparent);
+  --chrome-rail-bg: #0c0c09;
+  --chrome-rail-active: #242320;
+  /* 暗色只比纸页 #161614 深一档，不到书桌 #0C0C09。 */
+  --chrome-context-bg: var(--gray-2);
 
-  --border-subtle: var(--gray-5);
-  --border-soft: var(--gray-6);
-  --border-strong: var(--gray-7);
+  --border-subtle: #2c2b28;
+  --border-soft: #3a3832;
+  --border-strong: #5c5952;
+  /* 控件边界 ≥ 3:1 对纸页 #161614（3.21:1，ADR-0108） */
+  --border-control: #6a675f;
 
-  --text-primary: var(--gray-12);
-  --text-secondary: var(--gray-10);
-  --text-tertiary: var(--gray-9);
+  --text-primary: #f4f2ec;
+  --text-secondary: #c8c4ba;
+  --text-tertiary: #8e8a82;
   --text-muted: var(--text-tertiary);
 
   /* 与浅色根一致，供 color-mix / 语言资产面板等引用 | Same paper-white token as light root */
   --color-white: #ffffff;
 
-  --text-on-solid: #083d44;
+  --text-on-solid: #ffffff;
   --shadow-color: #000000;
 
-  --header-accent: #e5ff97;
-  --theme-accent-solid: var(--header-accent);
-  --accent-secondary: #7ed4dc;
-  --header-bg: rgba(6, 38, 43, 0.94);
-  --header-border: var(--gray-6);
-  --header-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  /* 暗色主 CTA 反相：浅底深字 */
+  --action-solid: #f4f2ec;
+  --action-hover: #ffffff;
+  --action-active: #e4e0d6;
+  --text-on-action: #0c0c09;
+
+  --theme-accent-solid: #f4f2ec;
+  --theme-accent-hover: #ffffff;
+  --theme-accent-active: #e4e0d6;
+  --theme-accent-tint: #242320;
+  --theme-accent-text: #f4f2ec;
+  --header-accent: var(--theme-accent-solid);
+  --brand-solid: #5b5bd6;
+  --brand-on: #ffffff;
+  --brand-tint: #222038;
+  --mark-secondary: #b6b2f2;
+  --toast-bg: var(--gray-5);
+  --toast-fg: var(--gray-12);
+  --toast-border: var(--gray-6);
+
+  --focus-accent: #f4f2ec;
+  --focus-accent-hover: #ffffff;
+  --focus-accent-active: #e4e0d6;
+  --accent-secondary: var(--theme-accent-tint);
+  --header-bg: color-mix(in srgb, var(--surface-header) 94%, transparent);
+  --header-border: var(--border-soft);
+  --header-shadow: none;
 
   --tab-hover: var(--gray-5);
-  --tab-underline-hover: color-mix(in srgb, var(--header-accent) 16%, transparent);
+  --tab-underline-hover: color-mix(in srgb, var(--theme-accent-solid) 16%, transparent);
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.6);
+  --shadow-popover: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.6);
 
-  --state-info-solid: var(--header-accent);
-  --state-info-text: var(--header-accent);
-  --state-info-bg: color-mix(in srgb, #e5ff97 var(--theme-opacity-1), transparent);
-  --state-info-bg-strong: color-mix(in srgb, #e5ff97 var(--theme-opacity-2), transparent);
-  --state-info-border: color-mix(in srgb, #e5ff97 var(--theme-opacity-3), transparent);
-  --state-info-border-strong: color-mix(in srgb, #e5ff97 var(--theme-opacity-4), transparent);
-
-  --state-success-solid: #22c55e;
-  --state-success-text: #4ade80;
-  --state-success-bg: color-mix(in srgb, #22c55e var(--theme-opacity-2), transparent);
-  --state-success-border: color-mix(in srgb, #22c55e var(--theme-opacity-3), transparent);
-
-  --state-warning-solid: #f59e0b;
-  --state-warning-text: #fbbf24;
-  --state-warning-bg: color-mix(in srgb, #f59e0b var(--theme-opacity-1), transparent);
-  --state-warning-border: color-mix(in srgb, #f59e0b var(--theme-opacity-3), transparent);
-
-  --state-danger-solid: #ef4444;
-  --state-danger-text: #f87171;
-  --state-danger-bg: color-mix(in srgb, #ef4444 var(--theme-opacity-1), transparent);
-  --state-danger-border: color-mix(in srgb, #ef4444 var(--theme-opacity-3), transparent);
-
-  --focus-ring: color-mix(in srgb, var(--header-accent) 32%, transparent);
-  --focus-ring-soft: color-mix(
+  --state-info-solid: #60a5fa;
+  --state-info-text: #93c5fd;
+  --state-info-bg: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-1), transparent);
+  --state-info-bg-strong: color-mix(
     in srgb,
     var(--state-info-solid) var(--theme-opacity-2),
     transparent
   );
-  --focus-ring-strong: color-mix(
+  --state-info-border: color-mix(
+    in srgb,
+    var(--state-info-solid) var(--theme-opacity-3),
+    transparent
+  );
+  --state-info-border-strong: color-mix(
     in srgb,
     var(--state-info-solid) var(--theme-opacity-4),
     transparent
   );
-  --focus-ring-glow: color-mix(
+
+  /* 色点与文字分开：色点要在暗底上 ≥ 3:1，沿用亮色值只有 5.5:1 / 5.7:1，是碰巧够（ADR-0105） */
+  --state-success-solid: #4ade80;
+  --state-success-text: #4ade80;
+  --state-success-bg: color-mix(
     in srgb,
-    var(--state-info-solid) var(--theme-opacity-2),
+    var(--state-success-solid) var(--theme-opacity-2),
     transparent
   );
+  --state-success-border: color-mix(
+    in srgb,
+    var(--state-success-solid) var(--theme-opacity-3),
+    transparent
+  );
+
+  --state-warning-solid: #fbbf24;
+  --state-warning-text: #fbbf24;
+  --state-warning-bg: color-mix(
+    in srgb,
+    var(--state-warning-solid) var(--theme-opacity-1),
+    transparent
+  );
+  --state-warning-border: color-mix(
+    in srgb,
+    var(--state-warning-solid) var(--theme-opacity-3),
+    transparent
+  );
+
+  --state-danger-solid: #f07171;
+  --state-danger-text: #f07171;
+  --state-danger-bg: color-mix(in srgb, #f07171 var(--theme-opacity-1), transparent);
+  --state-danger-border: color-mix(in srgb, #f07171 var(--theme-opacity-3), transparent);
+
+  --focus-ring: color-mix(in srgb, var(--focus-accent) 70%, transparent);
+  --focus-ring-soft: color-mix(in srgb, var(--focus-accent) 32%, transparent);
+  --focus-ring-strong: var(--focus-accent);
+  --focus-ring-glow: color-mix(in srgb, var(--focus-accent) 24%, transparent);
 
   --overlay-hover-soft: color-mix(in srgb, var(--surface-panel) 8%, transparent);
   --overlay-hover-muted: color-mix(in srgb, var(--surface-panel) 6%, transparent);
@@ -546,600 +638,4 @@
   --glass-border: color-mix(in srgb, var(--gray-12) 12%, transparent);
   --glass-shadow: 0 4px 30px color-mix(in srgb, #000000 30%, transparent);
   --glass-shadow-strong: 0 8px 32px color-mix(in srgb, #000000 40%, transparent);
-}
-
-/* ═══════════════════════════════════════════════════════
-   主题覆盖 | Theme overrides
-   data-appearance="xxx" 覆盖浅色
-   data-appearance="xxx"[data-theme='dark'] 覆盖暗色
-   ═══════════════════════════════════════════════════════ */
-
-/* ── 鸣沙石窟 / 敦煌风 (Mogao) ── */
-:root[data-appearance='mogao'] {
-  --gray-1: #f4e4d2;
-  --gray-2: #efd6bd;
-  --gray-3: #e7c6a7;
-  --gray-4: #d9b48f;
-  --gray-5: #c79a72;
-  --gray-6: #b8845f;
-  --gray-7: #a06f4f;
-  --gray-8: #7d5a3c;
-  --gray-9: #6a4a33;
-  --gray-10: #5a3e2b;
-  --gray-11: #4b644b;
-  --gray-12: #3e2723;
-  --header-accent: #b35b47;
-  --accent-secondary: #7d5a3c;
-  --border-accent: #cda77e;
-  --header-border: #cda77e;
-  --shadow-color: #7d5a3c;
-  --header-bg: rgba(217, 180, 143, 0.94);
-  --tab-text: #5a3e2b;
-  --tab-text-muted: #6a4a33;
-  --tab-hover: color-mix(in srgb, #b35b47 14%, #efd6bd);
-  --tab-active: color-mix(in srgb, #b35b47 20%, #e7c6a7);
-  --state-info-solid: #b35b47;
-  --state-info-text: #7d3f2f;
-  --state-info-bg: color-mix(in srgb, #b35b47 16%, #efd6bd);
-  --state-info-bg-strong: color-mix(in srgb, #b35b47 24%, #e7c6a7);
-  --state-info-border: color-mix(in srgb, #b35b47 46%, transparent);
-  --state-info-border-strong: color-mix(in srgb, #b35b47 62%, transparent);
-  --focus-ring: color-mix(in srgb, #b35b47 28%, transparent);
-  --focus-ring-soft: color-mix(in srgb, #b35b47 20%, transparent);
-  --focus-ring-strong: color-mix(in srgb, #b35b47 42%, transparent);
-  --focus-ring-glow: color-mix(in srgb, #b35b47 26%, transparent);
-}
-:root[data-appearance='mogao'][data-theme='dark'] {
-  --gray-1: #2a1e1a;
-  --gray-2: #332520;
-  --gray-3: #3e2c25;
-  --gray-4: #4a352c;
-  --gray-5: #5a4034;
-  --gray-6: #7d5a3c;
-  --gray-7: #9e7750;
-  --gray-8: #b35b47;
-  --gray-9: #c58a63;
-  --gray-10: #d7a980;
-  --gray-11: #e8c7a6;
-  --gray-12: #f2dec9;
-  --header-accent: #b35b47;
-  --accent-secondary: #d7a980;
-  --border-accent: #7d5a3c;
-  --header-border: #7d5a3c;
-  --shadow-color: #000000;
-  --header-bg: rgba(42, 30, 26, 0.96);
-  --tab-text: #e8c7a6;
-  --tab-text-muted: #c58a63;
-  --tab-hover: color-mix(in srgb, #b35b47 20%, #4a352c);
-  --tab-active: color-mix(in srgb, #b35b47 28%, #5a4034);
-  --state-info-solid: #d7a980;
-  --state-info-text: #e8c7a6;
-  --state-info-bg: color-mix(in srgb, #d7a980 16%, transparent);
-  --state-info-bg-strong: color-mix(in srgb, #d7a980 24%, transparent);
-  --state-info-border: color-mix(in srgb, #d7a980 36%, transparent);
-  --state-info-border-strong: color-mix(in srgb, #d7a980 48%, transparent);
-  --focus-ring: color-mix(in srgb, #d7a980 32%, transparent);
-  --focus-ring-soft: color-mix(in srgb, #d7a980 24%, transparent);
-  --focus-ring-strong: color-mix(in srgb, #d7a980 46%, transparent);
-  --focus-ring-glow: color-mix(in srgb, #d7a980 28%, transparent);
-}
-
-/* ── 远山叠翠 / 山水画意象 (Qinglv) ── */
-:root[data-appearance='qinglv'] {
-  --gray-1: #ffffff;
-  --gray-2: #f4f8f7;
-  --gray-3: #edf4f2;
-  --gray-4: #e8efee;
-  --gray-5: #d4e1de;
-  --gray-6: #b9ccc7;
-  --gray-7: #8fb8ae;
-  --gray-8: #5f867e;
-  --gray-9: #3d655e;
-  --gray-10: #2e5750;
-  --gray-11: #224c44;
-  --gray-12: #1c3d37;
-  --header-accent: #5f867e;
-  --shadow-color: #224c44;
-  --header-bg: rgba(232, 239, 238, 0.94);
-}
-:root[data-appearance='qinglv'][data-theme='dark'] {
-  --gray-1: #0f2320;
-  --gray-2: #16302c;
-  --gray-3: #1c3d37;
-  --gray-4: #224c44;
-  --gray-5: #2f6057;
-  --gray-6: #3d7a6f;
-  --gray-7: #5f867e;
-  --gray-8: #8fb8ae;
-  --gray-9: #a8c9c0;
-  --gray-10: #c2dcd6;
-  --gray-11: #d9e9e5;
-  --gray-12: #edf4f2;
-  --header-accent: #8fb8ae;
-  --shadow-color: #000000;
-  --header-bg: rgba(15, 35, 32, 0.96);
-}
-
-/* ── 数字青金 (Digital) ── */
-:root[data-appearance='digital'] {
-  --gray-1: #ffffff;
-  --gray-2: #f5f8fa;
-  --gray-3: #eef3f6;
-  --gray-4: #e0e0e0;
-  --gray-5: #c7d4dc;
-  --gray-6: #9fb3c1;
-  --gray-7: #4db6ac;
-  --gray-8: #2a7f78;
-  --gray-9: #4a2e08;
-  --gray-10: #ffb74d;
-  --gray-11: #1a237e;
-  --gray-12: #151b61;
-  --header-accent: #4db6ac;
-  --accent-secondary: #ffb74d;
-  --border-accent: #c7d4dc;
-  --shadow-color: #1a237e;
-  --header-bg: rgba(238, 243, 246, 0.94);
-}
-:root[data-appearance='digital'][data-theme='dark'] {
-  --gray-1: #0e1628;
-  --gray-2: #111c33;
-  --gray-3: #142447;
-  --gray-4: #1a237e;
-  --gray-5: #2e3e8f;
-  --gray-6: #4db6ac;
-  --gray-7: #7bc8c0;
-  --gray-8: #9aaec0;
-  --gray-9: #c7d4dc;
-  --gray-10: #e0e0e0;
-  --gray-11: #e2e7ff;
-  --gray-12: #f2f4ff;
-  --header-accent: #4db6ac;
-  --accent-secondary: #ffb74d;
-  --border-accent: #2e3e8f;
-  --shadow-color: #000000;
-  --header-bg: rgba(14, 22, 40, 0.96);
-}
-
-/* ── 壁画矿脉 (Mural) ── */
-:root[data-appearance='mural'] {
-  --gray-1: #ffffff;
-  --gray-2: #f8f4ee;
-  --gray-3: #f4f0ea;
-  --gray-4: #e6dcd0;
-  --gray-5: #d6cdbf;
-  --gray-6: #7986cb;
-  --gray-7: #d84315;
-  --gray-8: #fbc02d;
-  --gray-9: #4a3708;
-  --gray-10: #3b4aa4;
-  --gray-11: #283593;
-  --gray-12: #1f2a74;
-  --header-accent: #d84315;
-  --accent-secondary: #7986cb;
-  --border-accent: #d6cdbf;
-  --shadow-color: #283593;
-  --header-bg: rgba(244, 240, 234, 0.94);
-}
-:root[data-appearance='mural'][data-theme='dark'] {
-  --gray-1: #1b1f3d;
-  --gray-2: #232a52;
-  --gray-3: #283593;
-  --gray-4: #32429b;
-  --gray-5: #4b5cad;
-  --gray-6: #7986cb;
-  --gray-7: #d84315;
-  --gray-8: #fbc02d;
-  --gray-9: #c9a95a;
-  --gray-10: #d8ddf8;
-  --gray-11: #e3e8ff;
-  --gray-12: #f0f2fd;
-  --header-accent: #d84315;
-  --accent-secondary: #7986cb;
-  --border-accent: #4b5cad;
-  --shadow-color: #000000;
-  --header-bg: rgba(27, 31, 61, 0.96);
-}
-
-/* ── 纯粹禅意 / Obsidian Minimal (Antigravity) ── */
-:root[data-appearance='antigravity'] {
-  --gray-1: #ffffff;
-  --gray-2: #fafafa;
-  --gray-3: #f5f5f5;
-  --gray-4: #eeeeee;
-  --gray-5: #e5e5e5;
-  --gray-6: #d9d9d9;
-  --gray-7: #cccccc;
-  /* 略加深中灰，改善白底上的次要文字对比度 | Darker mid-grays for WCAG on white */
-  --gray-8: #9e9e9e;
-  --gray-9: #757575;
-  --gray-10: #5f6368;
-  --gray-11: #3c4043;
-  --gray-12: #202124;
-
-  --header-accent: #202124;
-  --accent-secondary: #cccccc;
-  --border-accent: #e5e5e5;
-
-  --shadow-color: #202124;
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
-
-  --header-bg: rgba(255, 255, 255, 0.9);
-
-  --state-info-solid: #202124;
-  --state-info-text: #202124;
-  --state-info-bg: #f5f5f5;
-  --state-info-bg-strong: #eeeeee;
-  --state-info-border: #d9d9d9;
-  --state-info-border-strong: #cccccc;
-}
-
-:root[data-appearance='antigravity'][data-theme='dark'] {
-  --gray-1: #111111;
-  --gray-2: #151515;
-  --gray-3: #1b1b1b;
-  --gray-4: #2f2f2f;
-  --gray-5: #3a3a3a;
-  --gray-6: #4a4a4a;
-  --gray-7: #6b6b6b;
-  --gray-8: #8a8a8a;
-  --gray-9: #a7a7a7;
-  --gray-10: #c8c8c8;
-  --gray-11: #e0e0e0;
-  --gray-12: #ededed;
-
-  --header-accent: #ededed;
-  --accent-secondary: #8a8a8a;
-  --border-accent: #2f2f2f;
-
-  --shadow-color: #000000;
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
-
-  --header-bg: rgba(17, 17, 17, 0.92);
-
-  --state-info-solid: #ededed;
-  --state-info-text: #e0e0e0;
-  --state-info-bg: rgba(237, 237, 237, 0.12);
-  --state-info-bg-strong: rgba(237, 237, 237, 0.2);
-  --state-info-border: rgba(237, 237, 237, 0.28);
-  --state-info-border-strong: rgba(237, 237, 237, 0.4);
-}
-
-/* ── 莫高窟叙事 (配色稿 card11) ── */
-:root[data-appearance='mogaoNarrative'] {
-  --gray-1: #ffffff;
-  --gray-2: #fbf8f2;
-  --gray-3: #f5f1e8;
-  --gray-4: #f2eee6;
-  --gray-5: #e6e9ed;
-  --gray-6: #a9b7d0;
-  --gray-7: #5c6977;
-  --gray-8: #6b5d51;
-  --gray-9: #5b4528;
-  --gray-10: #3e2d18;
-  --gray-11: #1c2b4b;
-  --gray-12: #152238;
-  --header-accent: #d9a05b;
-  --accent-secondary: #a6523d;
-  --border-accent: #d9c9b3;
-  --shadow-color: #1c2b4b;
-  --header-bg: rgba(251, 248, 242, 0.94);
-}
-:root[data-appearance='mogaoNarrative'][data-theme='dark'] {
-  --gray-1: #0e243f;
-  --gray-2: #0b1d33;
-  --gray-3: #102846;
-  --gray-4: #1c2b4b;
-  --gray-5: #2a3440;
-  --gray-6: #6b5d51;
-  --gray-7: #a9b7d0;
-  --gray-8: #b6c6db;
-  --gray-9: #c9d8ea;
-  --gray-10: #d7e3f3;
-  --gray-11: #e7eef8;
-  --gray-12: #e7eef8;
-  --header-accent: #e3b04b;
-  --accent-secondary: #d4826e;
-  --border-accent: #5b4e42;
-  --shadow-color: #000000;
-  --header-bg: rgba(14, 36, 63, 0.96);
-}
-
-/* ── 古建筑与朱墨 (配色稿 card12) ── */
-:root[data-appearance='palaceVermilion'] {
-  --gray-1: #fffcf7;
-  --gray-2: #f7f2ea;
-  --gray-3: #ede6da;
-  --gray-4: #e0d8cb;
-  --gray-5: #d4cfc4;
-  --gray-6: #beb7a8;
-  --gray-7: #8a8278;
-  --gray-8: #923131;
-  --gray-9: #6b3030;
-  --gray-10: #2c2c2c;
-  --gray-11: #2c2c2c;
-  --gray-12: #1c1c1c;
-  --header-accent: #923131;
-  --accent-secondary: #d4af37;
-  --border-accent: #c4b8a8;
-  --shadow-color: #2c2c2c;
-  --header-bg: rgba(237, 230, 218, 0.94);
-}
-:root[data-appearance='palaceVermilion'][data-theme='dark'] {
-  --gray-1: #1a1a1a;
-  --gray-2: #222222;
-  --gray-3: #2c2c2c;
-  --gray-4: #3a3a3a;
-  --gray-5: #4a4a4a;
-  --gray-6: #6b6560;
-  --gray-7: #923131;
-  --gray-8: #d4af37;
-  --gray-9: #beb7a8;
-  --gray-10: #d4cfc4;
-  --gray-11: #ede6da;
-  --gray-12: #f5f0e6;
-  --header-accent: #d4af37;
-  --accent-secondary: #e3bcbc;
-  --border-accent: #5a5248;
-  --shadow-color: #000000;
-  --header-bg: rgba(26, 26, 26, 0.94);
-}
-
-/* ── 烟雨江南 (配色稿 card13) ── */
-:root[data-appearance='jiangnanMist'] {
-  --gray-1: #ffffff;
-  --gray-2: #f4f7fa;
-  --gray-3: #e8eef3;
-  --gray-4: #d6e0e6;
-  --gray-5: #c5d0d8;
-  --gray-6: #a8b4c2;
-  --gray-7: #8b9bb0;
-  --gray-8: #6d7f96;
-  --gray-9: #5a6b82;
-  --gray-10: #425066;
-  --gray-11: #425066;
-  --gray-12: #2f3a4a;
-  --header-accent: #425066;
-  --accent-secondary: #a18594;
-  --border-accent: #b5c0ce;
-  --shadow-color: #425066;
-  --header-bg: rgba(232, 238, 243, 0.94);
-}
-:root[data-appearance='jiangnanMist'][data-theme='dark'] {
-  --gray-1: #1a2229;
-  --gray-2: #1e2833;
-  --gray-3: #242f3d;
-  --gray-4: #2e3b4c;
-  --gray-5: #425066;
-  --gray-6: #5a6b82;
-  --gray-7: #7a8ba0;
-  --gray-8: #a18594;
-  --gray-9: #b5c0ce;
-  --gray-10: #d6e0e6;
-  --gray-11: #e5ecf4;
-  --gray-12: #e8eef3;
-  --header-accent: #b5c0ce;
-  --accent-secondary: #a18594;
-  --border-accent: #5a6b82;
-  --shadow-color: #000000;
-  --header-bg: rgba(26, 34, 41, 0.96);
-}
-
-/* ── Google Light Modern — 中性阶梯参考 Google Material 产品灰 + Google Blue（浅色/深色各一套） ── */
-:root[data-appearance='googleLightModern'] {
-  --gray-1: #ffffff;
-  --gray-2: #f8f9fa;
-  --gray-3: #f1f3f4;
-  --gray-4: #e8eaed;
-  --gray-5: #dadce0;
-  --gray-6: #bdc1c6;
-  --gray-7: #9aa0a6;
-  --gray-8: #80868b;
-  --gray-9: #5f6368;
-  --gray-10: #3c4043;
-  --gray-11: #202124;
-  --gray-12: #202124;
-  --header-accent: #1a73e8;
-  --accent-secondary: #174ea6;
-  --border-accent: #dadce0;
-  --shadow-color: #3c4043;
-  --header-bg: rgba(255, 255, 255, 0.92);
-  --state-info-solid: #1a73e8;
-  --state-info-text: #174ea6;
-  --state-info-bg: color-mix(in srgb, #1a73e8 10%, #ffffff);
-  --state-info-bg-strong: color-mix(in srgb, #1a73e8 16%, #ffffff);
-  --state-info-border: color-mix(in srgb, #1a73e8 34%, transparent);
-  --state-info-border-strong: color-mix(in srgb, #1a73e8 48%, transparent);
-}
-/* 深色：对齐 Tailwind Slate 专业音频桌面稿（slate-950/900 底、slate-700/800 边线、blue-400/500 强调） */
-:root[data-appearance='googleLightModern'][data-theme='dark'] {
-  --gray-1: #020617; /* slate-950 工作区最深底 */
-  --gray-2: #0f172a; /* slate-900 顶栏 / 侧栏 / 主壳 */
-  --gray-3: #1e293b; /* slate-800 卡片 / 面板 */
-  --gray-4: #334155; /* slate-700 输入轨 / 分隔 */
-  --gray-5: #475569; /* slate-600 滚动条滑块 */
-  --gray-6: #64748b; /* slate-500 辅助文本 */
-  --gray-7: #94a3b8; /* slate-400 次要文本 */
-  --gray-8: #cbd5e1; /* slate-300 正文 */
-  --gray-9: #e2e8f0; /* slate-200 标题 */
-  --gray-10: #f1f5f9; /* slate-100 高亮文本 */
-  --gray-11: #f8fafc; /* slate-50 近白 */
-  --gray-12: #ffffff; /* white 仅用于徽标/高亮 */
-
-  --surface-bg: var(--gray-2);
-  --surface-panel: var(--gray-3);
-  --surface-header: var(--gray-2);
-  --surface-elevated: color-mix(in srgb, var(--gray-3) 88%, var(--gray-2));
-  --surface-overlay: var(--gray-3);
-
-  --border-subtle: var(--gray-3);
-  --border-soft: var(--gray-4);
-  --border-strong: var(--gray-4);
-
-  --text-primary: #cbd5e1; /* slate-300 正文默认 */
-  --text-secondary: #e2e8f0; /* slate-200 标题/强调 */
-  --text-tertiary: #94a3b8; /* slate-400 导航/标签 */
-  --text-muted: var(--gray-6); /* slate-500 辅助/占位 */
-
-  --header-accent: #3b82f6; /* blue-500 图标/品牌 */
-  --accent-secondary: #60a5fa; /* blue-400 激活态 */
-  --border-accent: #3b82f6; /* 选中边框 */
-  --shadow-color: #000000;
-  --header-bg: rgba(15, 23, 42, 0.94);
-  --state-info-solid: #3b82f6; /* blue-500 */
-  --state-info-text: #93c5fd; /* blue-300 时间标记 */
-  --state-info-bg: color-mix(in srgb, #3b82f6 10%, transparent); /* blue-500/10 */
-  --state-info-bg-strong: color-mix(in srgb, #1e3a8a 40%, transparent); /* blue-900/40 */
-  --state-info-border: color-mix(in srgb, #3b82f6 30%, transparent); /* blue-500/30 */
-  --state-info-border-strong: color-mix(in srgb, #3b82f6 50%, transparent);
-  --timeline-playhead-color: var(--state-danger-solid); /* 播放头统一红色 */
-
-  --focus-ring: color-mix(in srgb, #3b82f6 32%, transparent);
-  --focus-ring-soft: color-mix(in srgb, #3b82f6 20%, transparent);
-  --focus-ring-strong: color-mix(in srgb, #3b82f6 42%, transparent);
-  --focus-ring-glow: color-mix(in srgb, #3b82f6 24%, transparent);
-
-  --scrollbar-thumb: #475569;
-  --scrollbar-thumb-hover: #64748b;
-  --scrollbar-track: #1e293b;
-}
-
-/* ── Solarized Dark — 色值取自 Ethan Schoonover 官方表（base03…accent） ── */
-:root[data-appearance='solarizedDark'],
-:root[data-appearance='solarizedDark'][data-theme='dark'] {
-  --gray-1: #002b36;
-  --gray-2: #032b35;
-  --gray-3: #073642;
-  --gray-4: #0c3a47;
-  --gray-5: #586e75;
-  --gray-6: #657b83;
-  --gray-7: #6f8791;
-  --gray-8: #839496;
-  --gray-9: #8b999b;
-  --gray-10: #93a1a1;
-  --gray-11: #a4aeb0;
-  --gray-12: #eee8d5;
-  --header-accent: #268bd2;
-  --accent-secondary: #2aa198;
-  --border-accent: #073642;
-  --shadow-color: #002b36;
-  --header-bg: rgba(0, 43, 54, 0.96);
-  --state-info-solid: #268bd2;
-  --state-info-text: #93a1a1;
-  --state-info-bg: color-mix(in srgb, #268bd2 14%, transparent);
-  --state-info-bg-strong: color-mix(in srgb, #268bd2 22%, transparent);
-  --state-info-border: color-mix(in srgb, #268bd2 40%, transparent);
-  --state-info-border-strong: color-mix(in srgb, #268bd2 55%, transparent);
-  --state-success-solid: #859900;
-  --state-success-text: #859900;
-  --state-success-bg: color-mix(in srgb, #859900 12%, transparent);
-  --state-success-border: color-mix(in srgb, #859900 32%, transparent);
-  --state-warning-solid: #b58900;
-  --state-warning-text: #b58900;
-  --state-warning-bg: color-mix(in srgb, #b58900 12%, transparent);
-  --state-warning-border: color-mix(in srgb, #b58900 30%, transparent);
-  --state-danger-solid: #dc322f;
-  --state-danger-text: #dc322f;
-  --state-danger-bg: color-mix(in srgb, #dc322f 12%, transparent);
-  --state-danger-border: color-mix(in srgb, #dc322f 30%, transparent);
-}
-
-/* ── 主题色覆盖 | Accent color override（Outlook 风格预设） ── */
-:root[data-theme-accent='blue'] {
-  --theme-accent-solid-light: #0078d4;
-  --theme-accent-solid-dark: #74bcff;
-  --theme-accent-solid: var(--theme-accent-solid-light);
-}
-
-:root[data-theme-accent='orange'] {
-  --theme-accent-solid-light: #da3b01;
-  --theme-accent-solid-dark: #ffb074;
-  --theme-accent-solid: var(--theme-accent-solid-light);
-}
-
-:root[data-theme-accent='green'] {
-  --theme-accent-solid-light: #107c10;
-  --theme-accent-solid-dark: #7ad77a;
-  --theme-accent-solid: var(--theme-accent-solid-light);
-}
-
-:root[data-theme-accent='red'] {
-  --theme-accent-solid-light: #d13438;
-  --theme-accent-solid-dark: #ff9aa2;
-  --theme-accent-solid: var(--theme-accent-solid-light);
-}
-
-:root[data-theme-accent='purple'] {
-  --theme-accent-solid-light: #5c2d91;
-  --theme-accent-solid-dark: #cdb0f3;
-  --theme-accent-solid: var(--theme-accent-solid-light);
-}
-
-:root[data-theme-accent='pink'] {
-  --theme-accent-solid-light: #e3008c;
-  --theme-accent-solid-dark: #ff9ade;
-  --theme-accent-solid: var(--theme-accent-solid-light);
-}
-
-:root[data-theme-accent='teal'] {
-  --theme-accent-solid-light: #038387;
-  --theme-accent-solid-dark: #7bede6;
-  --theme-accent-solid: var(--theme-accent-solid-light);
-}
-
-:root[data-theme-accent='graphite'] {
-  --theme-accent-solid-light: #4c4a48;
-  --theme-accent-solid-dark: #d0cecc;
-  --theme-accent-solid: var(--theme-accent-solid-light);
-}
-
-:root[data-theme='dark'][data-theme-accent='blue'],
-:root[data-theme='dark'][data-theme-accent='orange'],
-:root[data-theme='dark'][data-theme-accent='green'],
-:root[data-theme='dark'][data-theme-accent='red'],
-:root[data-theme='dark'][data-theme-accent='purple'],
-:root[data-theme='dark'][data-theme-accent='pink'],
-:root[data-theme='dark'][data-theme-accent='teal'],
-:root[data-theme='dark'][data-theme-accent='graphite'] {
-  --theme-accent-solid: var(--theme-accent-solid-dark);
-}
-
-:root[data-theme='dark'][data-theme-accent] {
-  --accent-secondary: color-mix(in srgb, var(--theme-accent-solid) 82%, var(--surface-panel));
-  --border-accent: color-mix(in srgb, var(--theme-accent-solid) 54%, transparent);
-
-  --state-info-text: color-mix(in srgb, var(--theme-accent-solid) 88%, #ffffff);
-  --state-info-bg: color-mix(in srgb, var(--theme-accent-solid) 16%, transparent);
-  --state-info-bg-strong: color-mix(in srgb, var(--theme-accent-solid) 28%, transparent);
-  --state-info-border: color-mix(in srgb, var(--theme-accent-solid) 42%, transparent);
-  --state-info-border-strong: color-mix(in srgb, var(--theme-accent-solid) 64%, transparent);
-
-  --focus-ring: color-mix(in srgb, var(--theme-accent-solid) 40%, transparent);
-  --focus-ring-soft: color-mix(in srgb, var(--theme-accent-solid) 26%, transparent);
-  --focus-ring-strong: color-mix(in srgb, var(--theme-accent-solid) 58%, transparent);
-  --focus-ring-glow: color-mix(in srgb, var(--theme-accent-solid) 36%, transparent);
-}
-
-:root[data-theme-accent] {
-  --header-accent: var(--theme-accent-solid);
-  --accent-primary: var(--theme-accent-solid);
-  --accent-secondary: color-mix(in srgb, var(--theme-accent-solid) 72%, var(--surface-panel));
-  --border-accent: color-mix(in srgb, var(--theme-accent-solid) 44%, transparent);
-
-  --state-info-solid: var(--theme-accent-solid);
-  --state-info-text: color-mix(in srgb, var(--theme-accent-solid) 74%, var(--text-primary));
-  --state-info-bg: color-mix(in srgb, var(--theme-accent-solid) 12%, transparent);
-  --state-info-bg-strong: color-mix(in srgb, var(--theme-accent-solid) 20%, transparent);
-  --state-info-border: color-mix(in srgb, var(--theme-accent-solid) 34%, transparent);
-  --state-info-border-strong: color-mix(in srgb, var(--theme-accent-solid) 52%, transparent);
-
-  --focus-ring: color-mix(in srgb, var(--theme-accent-solid) 32%, transparent);
-  --focus-ring-soft: color-mix(in srgb, var(--theme-accent-solid) 20%, transparent);
-  --focus-ring-strong: color-mix(in srgb, var(--theme-accent-solid) 44%, transparent);
-  --focus-ring-glow: color-mix(in srgb, var(--theme-accent-solid) 28%, transparent);
 }

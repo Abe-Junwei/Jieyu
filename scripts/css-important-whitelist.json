@@ -61,21 +61,6 @@
       "reason": "Hide WebKit scrollbar"
     },
     {
-      "file": "src/styles/foundation/icon-effect-motion.css",
-      "snippet": "transition: none !important;",
-      "reason": "Icon motion: disable transitions under .jieyu-reduced-motion and prefers-reduced-motion"
-    },
-    {
-      "file": "src/styles/foundation/icon-effect-motion.css",
-      "snippet": "transform: none !important;",
-      "reason": "Icon motion: disable transforms under reduced motion"
-    },
-    {
-      "file": "src/styles/foundation/icon-effect-motion.css",
-      "snippet": "--jieyu-icon-fill: 0 !important;",
-      "reason": "Icon motion: reset stroke fill under reduced motion"
-    },
-    {
       "file": "src/styles/foundation/waveform-display.css",
       "snippet": ") !important;",
       "reason": "Skipped region stripe background must override nested fills on waveform canvas"

@@ -131,7 +131,7 @@
   gap: var(--space-title-content, 8px);
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface-panel) 88%, var(--state-info-bg));
 }
 
@@ -210,8 +210,12 @@
   min-height: 84px;
   padding: 8px;
   border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
-  border-radius: var(--radius-xl);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 92%, var(--state-info-bg)) 0%, color-mix(in srgb, var(--surface-header) 78%, transparent) 100%);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-panel) 92%, var(--state-info-bg)) 0%,
+    color-mix(in srgb, var(--surface-header) 78%, transparent) 100%
+  );
 }
 
 .transcription-analysis-acoustic-tone-chart svg {
@@ -271,7 +275,10 @@
   color: var(--text-primary);
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
 }
 
 .transcription-analysis-acoustic-hotspot:hover {
@@ -361,7 +368,9 @@
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .transcription-analysis-acoustic-nav-btn:hover:not(:disabled) {
@@ -411,10 +420,14 @@
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
 }
 
-.transcription-analysis-panel-footer .transcription-assistant-hub-tab:hover:not(.transcription-assistant-hub-tab-active) {
+.transcription-analysis-panel-footer
+  .transcription-assistant-hub-tab:hover:not(.transcription-assistant-hub-tab-active) {
   background: color-mix(in srgb, var(--surface-header) 60%, var(--surface-panel));
 }
 

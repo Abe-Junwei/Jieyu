@@ -48,7 +48,6 @@
 }
 
 .app-offline-status-icon {
-  font-size: 18px;
   line-height: 1;
 }
 
@@ -167,8 +166,6 @@
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
   flex-shrink: 0;
 }
 
@@ -722,9 +719,8 @@
   opacity: 0.9;
 }
 
-/* 图标默认线框态 | Default icon in outlined tone */
+/* 图标底片 | Icon backing */
 .app-left-rail-primary .left-rail-btn > .jieyu-icon {
-  --jieyu-icon-fill: 0;
   padding: 4px;
   border-radius: 8px;
   transition:
@@ -762,9 +758,8 @@
   background: color-mix(in srgb, var(--state-info-solid) 92%, transparent);
 }
 
-/* 选中图标加粗描边 | Active icon uses heavier stroke */
+/* 选中图标 | Active icon */
 .app-left-rail-primary .left-rail-btn-active > .jieyu-icon {
-  --jieyu-icon-fill: 1;
   color: var(--state-info-contrast, var(--text-on-solid));
   background: transparent;
 }

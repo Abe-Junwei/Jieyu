@@ -42,7 +42,7 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   padding: 12px;
   background: color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header) 6%);
 }

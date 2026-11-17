@@ -65,7 +65,7 @@
   z-index: 2;
   width: min(480px, calc(100vw - 28px));
   height: min(72vh, 760px);
-  border-radius: var(--radius-3xl);
+  border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--border-soft) 72%, transparent);
   background: var(--surface-panel);
   box-shadow: var(--shadow-lg);
@@ -87,7 +87,7 @@
 }
 
 .transcription-chat-window.is-maximized {
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
 }
 
 .transcription-chat-window-header {
@@ -176,12 +176,6 @@
 .transcription-chat-window-config-btn {
   padding: 0;
   min-width: 24px;
-}
-
-.transcription-chat-window-config-btn .jieyu-icon,
-.transcription-chat-window-maximize-btn .jieyu-icon {
-  font-size: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
-  line-height: 1;
 }
 
 .transcription-chat-window-body[hidden] {

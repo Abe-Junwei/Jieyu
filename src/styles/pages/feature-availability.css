@@ -100,7 +100,7 @@
   display: grid;
   gap: 8px;
   padding: 12px 14px;
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
   background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
   box-shadow: var(--shadow-md);

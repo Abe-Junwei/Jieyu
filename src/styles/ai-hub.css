@@ -1036,7 +1036,7 @@ select.ai-cfg-input {
   font-family: var(--font-chat);
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   padding: 0 8px;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border-control);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface-panel) 90%, transparent);
   color: var(--text-primary);

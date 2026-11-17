@@ -12,7 +12,6 @@ import { initOtelForReleaseStage } from './observability/otel';
 import { initSentryForReleaseStage } from './observability/sentry';
 import { initLcpMetricObserver } from './observability/webVitals';
 import { createLogger } from './observability/logger';
-import { initIconEffect } from './utils/iconEffect';
 import { initTheme } from './utils/theme';
 import { requestPersistAtStartup } from './utils/storageDurability';
 import { fireAndForget } from './utils/fireAndForget';
@@ -52,7 +51,6 @@ void initOtelForReleaseStage();
 void initSentryForReleaseStage();
 initLcpMetricObserver();
 initTheme(); // 初始化配色主题 | Initialize appearance theme
-initIconEffect(); // 图标效果 material / motion | Icon effect preference
 // 启动时的申请只记录结果；第一次导入 / 保存时再伴随手势申请（6.2）
 // Startup attempt is recorded; the first import / save gesture asks again (6.2)
 void requestPersistAtStartup();

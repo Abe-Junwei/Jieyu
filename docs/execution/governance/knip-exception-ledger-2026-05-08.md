@@ -25,7 +25,6 @@ source_of_truth: knip-exceptions
 | `src/ai/embeddings/embeddingSmokeTest.ts` | 烟雾测试脚本，由 CI 条件触发（`EMBEDDING_SMOKE=1`）运行，非常规入口 | CI 触发条件变更时复审 |
 | `src/ai/mcp/client/mcpClientTypes.ts` | MCP 客户端类型定义文件，当前为协议占位；类型被外部引用但文件本身无运行时入口 | MCP 功能上线后复审 |
 | `src/ai/perf/embeddingModelDecision.ts` | 性能决策记录文件，属文档/决策日志性质，无运行时调用方 | 嵌入模型策略变更时复审 |
-| `src/assets/lottie/left-rail/leftRailLottieMap.ts` | Lottie 动画资源映射表，由构建脚本动态消费（`build-left-rail-lottie-icons.mjs`），非标准 import 路径 | 构建脚本重构时复审 |
 | `src/pages/annotation/annotationLaneReadScope.ts` | 注释页面读作用域定义，当前注释功能为 beta 态，读作用域未完全接入主路径 | 注释功能 GA 时复审 |
 | `src/services/VoiceAgentService.singleton.ts` | 语音代理单例管理器，为语音功能预留的架构插槽，当前未完全激活 | 语音功能全面上线时复审 |
 
