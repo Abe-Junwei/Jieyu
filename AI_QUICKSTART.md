@@ -31,7 +31,7 @@ ReadyWorkspace 装配和主路线图不在每次必读里。碰到才读 §2 对
 | 改 ReadyWorkspace / 侧栏 / 媒体生命周期 | [ReadyWorkspace-数据域与壳层装配边界.md](docs/architecture/ReadyWorkspace-数据域与壳层装配边界.md) | [仓库现状与代码地图.md](docs/architecture/仓库现状与代码地图.md) |
 | 改页面 controller / orchestrator | [copilot-instructions.md](copilot-instructions.md) §一 / §三 / §五 | [code-governance-plan-2026-05-06.md](docs/architecture/code-governance-plan-2026-05-06.md) |
 | 改 AI chat / tool / message formatter | `src/ai/messages/` 与 `src/ai/chat/`；UI 文案 vs formatter 分层见 [copilot-instructions.md](copilot-instructions.md) 权威范围段 | 聊天窗口是 `src/pages/TranscriptionPage.ChatWindow.tsx`。触及 `src/ai/**` 跑 `check:agent-evals:full` |
-| 看当前阶段或排期 | [试用地图](docs/wayfinder/trial-handoff/map.md) | [主路线图](docs/execution/plans/解语-主路线图-master-roadmap-2026-06-01.md) |
+| 看当前阶段或排期 | [主路线图](docs/execution/plans/解语-主路线图-master-roadmap-2026-06-01.md) 文首唯一执行队列 | [试用地图](docs/wayfinder/trial-handoff/map.md)（只管交给试用者这一程） |
 | 发布前检查 | 本文 §4 | 桌面试用发布以 [GitHub #282](https://github.com/Abe-Junwei/Jieyu/issues/282) 为准 |
 | Agent 运行时架构 / 写 gate / Runner / workflow | [主路线图 §2.2.0 统一路线](docs/execution/plans/解语-主路线图-master-roadmap-2026-06-01.md) · [ADR-0056](docs/adr/0056-single-agent-runtime-toolloopagent.md) | 动手前先对 §2.2.0 的三问。运行时只有 Vercel AI SDK 的 ToolLoopAgent（`src/ai/runtime/`，A15 [#314](https://github.com/Abe-Junwei/Jieyu/issues/314)，flag 关）；`agentLoopRunner` / `agentLoop` 冻结，architecture guard 锁行数。B16a [#315](https://github.com/Abe-Junwei/Jieyu/issues/315)、B16b [#317](https://github.com/Abe-Junwei/Jieyu/issues/317)、B17 [#316](https://github.com/Abe-Junwei/Jieyu/issues/316) 的工具要排进 R3 批次才算端到端。[ai-agent-runtime-security-local-first.md](docs/architecture/ai-agent-runtime-security-local-first.md) · `src/ai/runtime/commitToolEffects.ts` |
 | 改 db schema / persistence | [ADR 当前有效条款](docs/adr/README.md#桌面存储当前有效条款)；写→reload→readback 见 [AGENTS.md](AGENTS.md) §4 | [ADR-0048](docs/adr/0048-storage-port.md) · 定向 `vitest` |
@@ -70,7 +70,7 @@ ReadyWorkspace 装配和主路线图不在每次必读里。碰到才读 §2 对
 
 1. `npm run typecheck`
 2. 触及域的 `vitest`（例如 `npx vitest run src/hooks/transcription`）
-3. 触及交互 / ReadyWorkspace / 侧栏 / 时间轴时还要：`npm run test:e2e:chromium`
+3. 触及交互 / ReadyWorkspace / 侧栏 / 时间轴时还要：`npm run test:e2e:chromium`；触及桌面页面、`src/desktop`、`src/db/desktop` 时还要 `npm run test:e2e:desktop-project`（CI 的 `desktop-flow`）
 4. 触及编排 / 复杂度时还要：`npm run check:architecture-guard`
 
 **机器守卫（工具无关，未跑 = 不算完成）**：
