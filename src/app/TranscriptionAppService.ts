@@ -170,6 +170,10 @@ export interface ITranscriptionAppServiceGateway {
   deleteSegments(segmentIds: readonly string[]): Promise<void>;
   splitSegment(segmentId: string, splitTime: number): Promise<TranscriptionSplitResult>;
   mergeAdjacentSegments(keepId: string, removeId: string): Promise<TranscriptionMergeResult>;
+  mergeAdjacentSegmentChain(
+    keepId: string,
+    removeIds: readonly string[],
+  ): Promise<TranscriptionMergeResult>;
   deleteSegment(segmentId: string): Promise<void>;
 }
 
@@ -186,6 +190,10 @@ export interface TranscriptionAppServiceDeps {
   deleteSegments: typeof LayerSegmentationV2Service.deleteSegmentsBatch;
   splitSegment: (segmentId: string, splitTime: number) => Promise<TranscriptionSplitResult>;
   mergeAdjacentSegments: (keepId: string, removeId: string) => Promise<TranscriptionMergeResult>;
+  mergeAdjacentSegmentChain: (
+    keepId: string,
+    removeIds: readonly string[],
+  ) => Promise<TranscriptionMergeResult>;
   deleteSegment: typeof LayerSegmentationV2Service.deleteSegment;
   ensureVadCacheForMedia: typeof ensureVadCacheForMedia;
   loadAudioBuffer: typeof loadAudioBuffer;
@@ -208,6 +216,9 @@ const defaultDeps: TranscriptionAppServiceDeps = {
   deleteSegments: LayerSegmentationV2Service.deleteSegmentsBatch.bind(LayerSegmentationV2Service),
   splitSegment: LayerSegmentationV2Service.splitSegment.bind(LayerSegmentationV2Service),
   mergeAdjacentSegments: LayerSegmentationV2Service.mergeAdjacentSegments.bind(
+    LayerSegmentationV2Service,
+  ),
+  mergeAdjacentSegmentChain: LayerSegmentationV2Service.mergeAdjacentSegmentChain.bind(
     LayerSegmentationV2Service,
   ),
   deleteSegment: LayerSegmentationV2Service.deleteSegment.bind(LayerSegmentationV2Service),
@@ -339,6 +350,10 @@ export function createTranscriptionAppService(
 
     async mergeAdjacentSegments(keepId: string, removeId: string) {
       return deps.mergeAdjacentSegments(keepId, removeId);
+    },
+
+    async mergeAdjacentSegmentChain(keepId: string, removeIds: readonly string[]) {
+      return deps.mergeAdjacentSegmentChain(keepId, removeIds);
     },
 
     async deleteSegment(segmentId: string): Promise<void> {
