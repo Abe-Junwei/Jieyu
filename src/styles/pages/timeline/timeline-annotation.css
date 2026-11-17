@@ -15,9 +15,10 @@
   padding-inline: 6px;
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-primary);
-  transition: background-color var(--duration-fast, 120ms) ease,
-              border-color var(--duration-fast, 120ms) ease,
-              box-shadow var(--duration-fast, 120ms) ease;
+  transition:
+    background-color var(--duration-fast, 120ms) ease,
+    border-color var(--duration-fast, 120ms) ease,
+    box-shadow var(--duration-fast, 120ms) ease;
   justify-content: center;
   pointer-events: auto;
   margin-inline: 1px;
@@ -32,12 +33,11 @@
 }
 
 .timeline-annotation.timeline-annotation-skipped {
-  background:
-    repeating-linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--state-warning-solid) 10%, transparent) 0 8px,
-      color-mix(in srgb, var(--surface-panel) 96%, transparent) 8px 16px
-    ) !important;
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--state-warning-solid) 10%, transparent) 0 8px,
+    color-mix(in srgb, var(--surface-panel) 96%, transparent) 8px 16px
+  ) !important;
   border: 1px dashed color-mix(in srgb, var(--state-warning-solid) 36%, transparent) !important;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-warning-solid) 10%, transparent) !important;
 }
@@ -64,8 +64,9 @@
   width: var(--timeline-item-divider-width);
   background: var(--timeline-item-divider-color);
   pointer-events: none;
-  transition: width var(--duration-fast, 120ms) ease,
-              background-color var(--duration-fast, 120ms) ease;
+  transition:
+    width var(--duration-fast, 120ms) ease,
+    background-color var(--duration-fast, 120ms) ease;
 }
 
 .timeline-annotation-has-speaker {
@@ -113,7 +114,9 @@
   background: color-mix(in srgb, var(--state-info-solid) 0%, transparent);
   opacity: 0;
   pointer-events: auto;
-  transition: opacity 0.1s ease, background-color 0.1s ease;
+  transition:
+    opacity 0.1s ease,
+    background-color 0.1s ease;
 }
 
 .timeline-annotation:hover .timeline-annotation-body-move,
@@ -136,7 +139,8 @@
   --timeline-item-divider-color: var(--timeline-neutral-divider-hover);
 }
 
-.timeline-annotation > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-self-certainty) {
+.timeline-annotation
+  > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-self-certainty) {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -147,15 +151,22 @@
   min-width: 0;
 }
 
-.timeline-annotation-compact > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-self-certainty) {
+.timeline-annotation-compact
+  > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-self-certainty) {
   text-overflow: clip;
 }
 
-.timeline-annotation-has-tools > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge):not(.timeline-annotation-self-certainty) {
+.timeline-annotation-has-tools
+  > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge):not(
+    .timeline-annotation-self-certainty
+  ) {
   padding-inline-end: var(--timeline-segment-tools-annotation-span-pad-end);
 }
 
-.timeline-annotation-has-self-certainty > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge):not(.timeline-annotation-self-certainty) {
+.timeline-annotation-has-self-certainty
+  > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge):not(
+    .timeline-annotation-self-certainty
+  ) {
   padding-inline-end: var(--timeline-segment-annotation-span-pad-end-icon-only);
 }
 
@@ -163,7 +174,10 @@
   padding-inline-end: var(--timeline-segment-annotation-input-pad-end-icon-only);
 }
 
-.timeline-annotation:has(.timeline-annotation-note-icon) > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge):not(.timeline-annotation-self-certainty) {
+.timeline-annotation:has(.timeline-annotation-note-icon)
+  > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge):not(
+    .timeline-annotation-self-certainty
+  ) {
   padding-inline-end: var(--timeline-segment-annotation-span-pad-end-icon-only);
 }
 
@@ -196,19 +210,23 @@
 
 .timeline-annotation-has-self-certainty .timeline-annotation-tools {
   right: calc(
-    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-self-certainty-input-end-gutter)
+    var(--timeline-annotation-side-stack-right) +
+      var(--timeline-segment-self-certainty-input-end-gutter)
   );
   inset-inline-end: calc(
-    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-self-certainty-input-end-gutter)
+    var(--timeline-annotation-side-stack-right) +
+      var(--timeline-segment-self-certainty-input-end-gutter)
   );
 }
 
 .timeline-annotation-has-self-certainty .timeline-annotation-overlap-cycle-badge {
   right: calc(
-    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-self-certainty-input-end-gutter)
+    var(--timeline-annotation-side-stack-right) +
+      var(--timeline-segment-self-certainty-input-end-gutter)
   );
   inset-inline-end: calc(
-    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-self-certainty-input-end-gutter)
+    var(--timeline-annotation-side-stack-right) +
+      var(--timeline-segment-self-certainty-input-end-gutter)
   );
 }
 
@@ -257,16 +275,20 @@
 }
 
 /* 编辑行内 hover 使用另一档高亮，便于区分光标所在语段 | In focused lane, hover uses a second highlight level for clearer targeting. */
-.timeline-lane-focused .timeline-annotation:hover:not(.timeline-annotation-active):not(:focus-within),
-.timeline-lane:has(.timeline-annotation.timeline-annotation-active) .timeline-annotation:hover:not(.timeline-annotation-active):not(:focus-within),
-.timeline-lane:has(.timeline-annotation:focus-within) .timeline-annotation:hover:not(.timeline-annotation-active):not(:focus-within) {
+.timeline-lane-focused
+  .timeline-annotation:hover:not(.timeline-annotation-active):not(:focus-within),
+.timeline-lane:has(.timeline-annotation.timeline-annotation-active)
+  .timeline-annotation:hover:not(.timeline-annotation-active):not(:focus-within),
+.timeline-lane:has(.timeline-annotation:focus-within)
+  .timeline-annotation:hover:not(.timeline-annotation-active):not(:focus-within) {
   background: var(--timeline-accent-hover-bg);
   --timeline-item-divider-color: var(--timeline-accent-divider-hover);
 }
 
 /* 高亮栏内进入编辑态时回到轻灰编辑底，和非高亮行一致 | In highlighted lanes, editing state returns to a subtle neutral editing background like non-highlighted rows. */
 .timeline-lane-focused .timeline-annotation:focus-within,
-.timeline-lane:has(.timeline-annotation.timeline-annotation-active) .timeline-annotation:focus-within,
+.timeline-lane:has(.timeline-annotation.timeline-annotation-active)
+  .timeline-annotation:focus-within,
 .timeline-lane:has(.timeline-annotation:focus-within) .timeline-annotation:focus-within {
   background: var(--timeline-neutral-empty-bg);
   border: 0;
@@ -313,11 +335,11 @@
 }
 
 .timeline-annotation-confidence-mid::after {
-  border-bottom: 1.5px dashed var(--text-tertiary);
+  border-bottom: 1.5px dashed var(--confidence-mid-mark);
 }
 
 .timeline-annotation-confidence-low::after {
-  border-bottom: 2px solid var(--state-danger-solid);
+  border-bottom: 2px solid var(--confidence-low-mark);
 }
 
 .timeline-annotation-input {
@@ -442,7 +464,10 @@
   background: color-mix(in srgb, var(--surface-panel) 90%, transparent);
 }
 
-.timeline-annotation-has-tools.timeline-annotation-has-self-certainty > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge):not(.timeline-annotation-self-certainty) {
+.timeline-annotation-has-tools.timeline-annotation-has-self-certainty
+  > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge):not(
+    .timeline-annotation-self-certainty
+  ) {
   padding-inline-end: var(--timeline-segment-tools-annotation-span-pad-end-with-self-certainty);
 }
 
@@ -450,6 +475,7 @@
   padding-inline-end: var(--timeline-segment-tools-annotation-input-pad-end-with-self-certainty);
 }
 
-.timeline-annotation:focus-within.timeline-annotation-has-tools.timeline-annotation-has-self-certainty .timeline-annotation-input {
+.timeline-annotation:focus-within.timeline-annotation-has-tools.timeline-annotation-has-self-certainty
+  .timeline-annotation-input {
   padding-inline-end: var(--timeline-segment-tools-annotation-input-pad-end-with-self-certainty);
 }

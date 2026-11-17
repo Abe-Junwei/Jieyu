@@ -35,4 +35,4 @@ source_of_truth: desktop-professional-query-spec
 | --- | --- |
 | 现有基础检索 | `DesktopCorpusQueryPanel`／desktop corpus query |
 | 浏览器语料页 | `/corpus` 工作集（非专业语法） |
-| 设计样例 | Penpot 28／46／50 |
+| 设计样例 | Open Design 查询页精稿（待画） |

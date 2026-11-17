@@ -21,9 +21,10 @@
   border: 0;
   cursor: pointer;
   overflow: hidden;
-  transition: background-color var(--duration-fast, 120ms) ease,
-              border-color var(--duration-fast, 120ms) ease,
-              box-shadow var(--duration-fast, 120ms) ease;
+  transition:
+    background-color var(--duration-fast, 120ms) ease,
+    border-color var(--duration-fast, 120ms) ease,
+    box-shadow var(--duration-fast, 120ms) ease;
   padding-inline: 2px;
   margin-inline: 1px;
   --timeline-item-divider-width: 0;
@@ -40,12 +41,11 @@
 }
 
 .timeline-text-item.timeline-text-item-skipped {
-  background:
-    repeating-linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--state-warning-solid) 10%, transparent) 0 8px,
-      color-mix(in srgb, var(--surface-panel) 96%, transparent) 8px 16px
-    ) !important;
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--state-warning-solid) 10%, transparent) 0 8px,
+    color-mix(in srgb, var(--surface-panel) 96%, transparent) 8px 16px
+  ) !important;
   border: 1px dashed color-mix(in srgb, var(--state-warning-solid) 36%, transparent) !important;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-warning-solid) 10%, transparent) !important;
 }
@@ -68,14 +68,15 @@
   position: absolute;
   left: 0;
   inset-inline-start: 0;
-  top: 15%;   /* 不贯穿上下，减少僵硬感 */
+  top: 15%; /* 不贯穿上下，减少僵硬感 */
   bottom: 15%;
   width: var(--timeline-item-divider-width);
   background: var(--timeline-item-divider-color);
   border-radius: 1px;
   pointer-events: none;
-  transition: width var(--duration-fast, 120ms) ease,
-              background-color var(--duration-fast, 120ms) ease;
+  transition:
+    width var(--duration-fast, 120ms) ease,
+    background-color var(--duration-fast, 120ms) ease;
 }
 
 /* Hover 时仅给无说话人项轻提示，避免与说话人语义冲突 | Gentle non-speaker hover indicator to avoid speaker-semantic clash */
@@ -91,7 +92,7 @@
 }
 
 .timeline-text-item-has-speaker::before {
-  top: 10%;   /* 说话人指示器更长一些 */
+  top: 10%; /* 说话人指示器更长一些 */
   bottom: 10%;
 }
 
@@ -131,9 +132,12 @@
 }
 
 /* 高亮行内 hover 保持主题高亮，不回落中性灰 | Keep themed highlight on hover inside highlighted lanes. */
-.timeline-lane-focused .timeline-text-item:hover:not(.timeline-text-item-editing):not(:focus-within),
-.timeline-lane:has(.timeline-text-item.timeline-text-item-active) .timeline-text-item:hover:not(.timeline-text-item-editing):not(:focus-within),
-.timeline-lane:has(.timeline-text-item:focus-within) .timeline-text-item:hover:not(.timeline-text-item-editing):not(:focus-within) {
+.timeline-lane-focused
+  .timeline-text-item:hover:not(.timeline-text-item-editing):not(:focus-within),
+.timeline-lane:has(.timeline-text-item.timeline-text-item-active)
+  .timeline-text-item:hover:not(.timeline-text-item-editing):not(:focus-within),
+.timeline-lane:has(.timeline-text-item:focus-within)
+  .timeline-text-item:hover:not(.timeline-text-item-editing):not(:focus-within) {
   background: var(--timeline-accent-hover-bg);
   --timeline-item-divider-color: var(--timeline-accent-divider-hover);
 }
@@ -147,8 +151,10 @@
 }
 
 .timeline-lane-focused .timeline-text-item.timeline-text-item-editing,
-.timeline-lane:has(.timeline-text-item.timeline-text-item-active) .timeline-text-item.timeline-text-item-editing,
-.timeline-lane:has(.timeline-text-item:focus-within) .timeline-text-item.timeline-text-item-editing {
+.timeline-lane:has(.timeline-text-item.timeline-text-item-active)
+  .timeline-text-item.timeline-text-item-editing,
+.timeline-lane:has(.timeline-text-item:focus-within)
+  .timeline-text-item.timeline-text-item-editing {
   background: var(--timeline-neutral-empty-bg);
   --timeline-item-divider-color: var(--header-accent);
 }
@@ -184,16 +190,18 @@
   background: var(--timeline-neutral-empty-bg);
   border: 1px solid color-mix(in srgb, var(--state-info-solid) 48%, transparent);
   --timeline-item-divider-color: var(--header-accent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-elevated) 72%, transparent),
-              0 1px 2px color-mix(in srgb, var(--shadow-color) 10%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--surface-elevated) 72%, transparent),
+    0 1px 2px color-mix(in srgb, var(--shadow-color) 10%, transparent);
   z-index: var(--z-raised, 2); /* 浮起于其他内容 */
 }
 
 .timeline-text-item.timeline-text-item-editing:focus-within {
   border-color: color-mix(in srgb, var(--state-info-solid) 56%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-elevated) 72%, transparent),
-              0 1px 2px color-mix(in srgb, var(--shadow-color) 10%, transparent),
-              0 0 0 2px color-mix(in srgb, var(--state-info-solid) 20%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--surface-elevated) 72%, transparent),
+    0 1px 2px color-mix(in srgb, var(--shadow-color) 10%, transparent),
+    0 0 0 2px color-mix(in srgb, var(--state-info-solid) 20%, transparent);
 }
 
 /* 编辑态隐藏 ::before 分隔线，避免与左边框冲突 */
@@ -228,7 +236,8 @@
   padding-inline-end: var(--timeline-segment-tools-text-input-pad-end);
 }
 
-.timeline-text-item-editing.timeline-text-item-has-tools.timeline-text-item-has-self-certainty .timeline-text-input {
+.timeline-text-item-editing.timeline-text-item-has-tools.timeline-text-item-has-self-certainty
+  .timeline-text-input {
   padding-inline-end: var(--timeline-segment-tools-text-input-pad-end-with-self-certainty);
 }
 
@@ -351,8 +360,15 @@
 
 /* Saving 状态脉冲动画（优化：更平滑的节奏） */
 @keyframes timeline-status-pulse {
-  0%, 100% { opacity: 0.5; transform: scale(0.9); }
-  50% { opacity: 1; transform: scale(1.05); }
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
 }
 
 .timeline-text-item-saving .timeline-text-item-status-dot {
@@ -388,13 +404,13 @@
   inset-inline-start: var(--timeline-confidence-underline-inset);
   inset-inline-end: var(--timeline-confidence-underline-inset);
   height: 1px;
-  border-top: 1px dashed var(--text-secondary);
+  border-top: 1px dashed var(--confidence-mid-mark);
   background: transparent;
   pointer-events: none;
   opacity: 0.6;
 }
 
-/* Low 置信度：红色实线下划线 */
+/* Low 置信度：琥珀实线下划线 */
 .timeline-text-item-confidence-low {
   position: relative;
 }
@@ -408,7 +424,7 @@
   inset-inline-start: var(--timeline-confidence-underline-inset);
   inset-inline-end: var(--timeline-confidence-underline-inset);
   height: 2px;
-  background: var(--state-danger-solid);
+  background: var(--confidence-low-mark);
   opacity: 0.5;
   pointer-events: none;
 }
@@ -477,10 +493,12 @@
 
 .timeline-text-item-has-self-certainty .timeline-text-item-tools {
   right: calc(
-    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-self-certainty-input-end-gutter)
+    var(--timeline-annotation-side-stack-right) +
+      var(--timeline-segment-self-certainty-input-end-gutter)
   );
   inset-inline-end: calc(
-    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-self-certainty-input-end-gutter)
+    var(--timeline-annotation-side-stack-right) +
+      var(--timeline-segment-self-certainty-input-end-gutter)
   );
 }
 

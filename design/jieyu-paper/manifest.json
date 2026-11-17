@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "od-design-system-project/v1",
+  "id": "jieyu-paper",
+  "name": "纸本田野笔记",
+  "category": "Productivity & SaaS",
+  "description": "解语桌面唯一默认外观。书桌 #fafafa，纸面 #ffffff，墨色 #111111。主按钮用 --accent（墨色，可重复）。靛青 #312c85 只作次要标记。",
+  "source": {
+    "type": "local",
+    "path": "design/jieyu-paper",
+    "importedAt": "2026-11-16T03:00:07.173Z"
+  },
+  "files": {
+    "design": "DESIGN.md",
+    "tokens": "tokens.css",
+    "tailwind": "tailwind-v4.css"
+  },
+  "usage": "USAGE.md",
+  "componentsManifest": "components.manifest.json",
+  "importMode": "verbatim",
+  "craft": {
+    "applies": [],
+    "suggested": [
+      "color"
+    ],
+    "exemptions": []
+  }
+}

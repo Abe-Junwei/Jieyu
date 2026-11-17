@@ -22,7 +22,6 @@
 
 .timeline-axis-status-strip__icon {
   flex-shrink: 0;
-  font-size: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
   opacity: 0.85;
 }
 
@@ -59,5 +58,3 @@
   gap: 5px;
   min-width: 0;
 }
-
-

@@ -72,7 +72,7 @@ last_reviewed: 2026-11-15
 
 用户已确认 [ADR-0099](../../adr/0099-desktop-product-design-and-release-contract.md)。完整专业词典编辑器与专业查询语言（含同稿件内有界跨片段、可视化／文本对应、查询写入互斥）新增为首发阻断项；本文旧表中冲突的第二程／冻结描述仅对这两项让位，不全面解冻。统一壳、自动保存、IGT 复核、AI 建议保留和数据交换流程按同篇执行；ADR-0098 模型下载／管理／转码／分发仍后移。
 
-- [ ] 对照 [首发设计验收清单](../release-gates/desktop-product-design-acceptance.md) 补齐 Penpot 业务样例与 Electron 能力证据。
+- [ ] 对照 [首发设计验收清单](../release-gates/desktop-product-design-acceptance.md) 补齐 Open Design 精稿与 Electron 能力证据。
 - [ ] 为完整词典、专业查询和持久建议分片做 Research / SDD；不得直接更改冻结格式，也不把决定已接受记作实现通过。
 - [ ] 逐项接替并验证成果导出格式，保留项目交换与备份范围区别；未验证格式不列支持承诺。
 

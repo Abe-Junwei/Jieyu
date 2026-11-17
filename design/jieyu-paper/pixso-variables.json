@@ -1,0 +1,737 @@
+{
+  "$comment": "生成文件，不要手改。改 src/styles/tokens.css 后运行 `npm run build:od-tokens`，再由代理同步到 Pixso（ADR-0118）。",
+  "sourceSha256": "6cd8339988e2a2b69cd1cd1bf64da966be0386775d60d0995dc9442f5ef5f441",
+  "bodySha256": "2a6f7dc9d793e043135caf3fd25bbd540f40e66b979174195701ad763501c5cf",
+  "variableSets": {
+    "颜色": {
+      "modes": [
+        "亮色",
+        "暗色"
+      ]
+    },
+    "尺寸": {
+      "modes": [
+        "默认"
+      ]
+    },
+    "字体": {
+      "modes": [
+        "默认"
+      ]
+    }
+  },
+  "variables": {
+    "--bg": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#FAFAFA",
+        "暗色": "#0C0C09"
+      }
+    },
+    "--surface": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#FFFFFF",
+        "暗色": "#161614"
+      }
+    },
+    "--context": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#F5F5F5",
+        "暗色": "#121210"
+      }
+    },
+    "--surface-warm": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#F5F5F5",
+        "暗色": "#242320"
+      }
+    },
+    "--fg": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#111111",
+        "暗色": "#F4F2EC"
+      }
+    },
+    "--fg-2": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#3A3A3A",
+        "暗色": "#C8C4BA"
+      }
+    },
+    "--muted": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#5C5C5C",
+        "暗色": "#8E8A82"
+      }
+    },
+    "--meta": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#5C5C5C",
+        "暗色": "#8E8A82"
+      }
+    },
+    "--border": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#E2E2E2",
+        "暗色": "#3A3832"
+      }
+    },
+    "--border-soft": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#EEEEEE",
+        "暗色": "#2C2B28"
+      }
+    },
+    "--border-strong": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#C8C8C8",
+        "暗色": "#5C5952"
+      }
+    },
+    "--border-control": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#949494",
+        "暗色": "#6A675F"
+      }
+    },
+    "--focus-color": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#5C5C5C",
+        "暗色": "#9E998F"
+      }
+    },
+    "--text-selection": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#E2E2E2",
+        "暗色": "#3A3832"
+      }
+    },
+    "--accent": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#111111",
+        "暗色": "#F4F2EC"
+      }
+    },
+    "--accent-on": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#FFFFFF",
+        "暗色": "#0C0C09"
+      }
+    },
+    "--accent-hover": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#000000",
+        "暗色": "#FFFFFF"
+      }
+    },
+    "--accent-active": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#000000",
+        "暗色": "#E4E0D6"
+      }
+    },
+    "--success": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#16A34A",
+        "暗色": "#4ADE80"
+      }
+    },
+    "--success-text": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#166534",
+        "暗色": "#4ADE80"
+      }
+    },
+    "--success-bg": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#F0FDF4",
+        "暗色": "#4ADE8033"
+      }
+    },
+    "--warn": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#D97706",
+        "暗色": "#FBBF24"
+      }
+    },
+    "--warn-text": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#92400E",
+        "暗色": "#FBBF24"
+      }
+    },
+    "--warn-bg": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#FFFBEB",
+        "暗色": "#FBBF241F"
+      }
+    },
+    "--danger": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#DC2626",
+        "暗色": "#F07171"
+      }
+    },
+    "--danger-text": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#B91C1C",
+        "暗色": "#F07171"
+      }
+    },
+    "--danger-bg": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#FEF2F2",
+        "暗色": "#F071711F"
+      }
+    },
+    "--brand": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#4338CA",
+        "暗色": "#5B5BD6"
+      }
+    },
+    "--brand-on": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#FFFFFF",
+        "暗色": "#FFFFFF"
+      }
+    },
+    "--brand-tint": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#EEEDFB",
+        "暗色": "#222038"
+      }
+    },
+    "--secondary": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#3B359E",
+        "暗色": "#B6B2F2"
+      }
+    },
+    "--toast-bg": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#111111",
+        "暗色": "#2C2B28"
+      }
+    },
+    "--toast-fg": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#FFFFFF",
+        "暗色": "#F4F2EC"
+      }
+    },
+    "--toast-border": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#111111",
+        "暗色": "#3A3832"
+      }
+    },
+    "--font-display": {
+      "type": "string",
+      "variableSet": "字体",
+      "values": {
+        "默认": "Source Han Serif CN"
+      }
+    },
+    "--font-body": {
+      "type": "string",
+      "variableSet": "字体",
+      "values": {
+        "默认": "Noto Sans SC"
+      }
+    },
+    "--font-mono": {
+      "type": "string",
+      "variableSet": "字体",
+      "values": {
+        "默认": "JetBrains Mono"
+      }
+    },
+    "--font-ipa": {
+      "type": "string",
+      "variableSet": "字体",
+      "values": {
+        "默认": "Noto Sans SemiCondensed"
+      }
+    },
+    "--text-xs": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 12
+      }
+    },
+    "--text-sm": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 13
+      }
+    },
+    "--text-base": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 14
+      }
+    },
+    "--text-lg": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 16
+      }
+    },
+    "--text-xl": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 20
+      }
+    },
+    "--leading-xs": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 18
+      }
+    },
+    "--leading-sm": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 20
+      }
+    },
+    "--leading-base": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 22
+      }
+    },
+    "--leading-lg": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 24
+      }
+    },
+    "--leading-xl": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 28
+      }
+    },
+    "--space-1": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 4
+      }
+    },
+    "--space-2": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 8
+      }
+    },
+    "--space-3": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 12
+      }
+    },
+    "--space-4": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 16
+      }
+    },
+    "--space-5": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 24
+      }
+    },
+    "--space-6": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 24
+      }
+    },
+    "--space-8": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 32
+      }
+    },
+    "--space-10": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 40
+      }
+    },
+    "--space-12": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 48
+      }
+    },
+    "--space-16": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 64
+      }
+    },
+    "--radius-sm": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 4
+      }
+    },
+    "--radius-md": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 4
+      }
+    },
+    "--radius-lg": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 8
+      }
+    },
+    "--radius-pill": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 999
+      }
+    },
+    "--control-height": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 32
+      }
+    },
+    "--control-height-compact": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 28
+      }
+    },
+    "--rail-width": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 52
+      }
+    },
+    "--lane-height": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 54
+      }
+    },
+    "--scrim": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#11111170",
+        "暗色": "#00000070"
+      }
+    },
+    "--playhead": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#111111",
+        "暗色": "#F4F2EC"
+      }
+    },
+    "--selection": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#ECECEC",
+        "暗色": "#282825"
+      }
+    },
+    "--confidence-mid": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#111111",
+        "暗色": "#F4F2EC"
+      }
+    },
+    "--confidence-low": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#D97706",
+        "暗色": "#FBBF24"
+      }
+    },
+    "--series-ink-0": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#111111",
+        "暗色": "#F4F2EC"
+      }
+    },
+    "--series-ink-1": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#3A3A3A",
+        "暗色": "#C8C4BA"
+      }
+    },
+    "--series-ink-2": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#5C5C5C",
+        "暗色": "#8E8A82"
+      }
+    },
+    "--series-ink-3": {
+      "type": "color",
+      "variableSet": "颜色",
+      "values": {
+        "亮色": "#8A8A8A",
+        "暗色": "#8A847A"
+      }
+    },
+    "--motion-fast": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 160
+      }
+    },
+    "--motion-base": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 200
+      }
+    },
+    "--ease-standard": {
+      "type": "string",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": "ease-out"
+      }
+    },
+    "--z-base": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 1
+      }
+    },
+    "--z-sticky": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 20
+      }
+    },
+    "--z-shell": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 40
+      }
+    },
+    "--z-drawer": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 80
+      }
+    },
+    "--z-popover": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 160
+      }
+    },
+    "--z-toast": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 240
+      }
+    },
+    "--z-modal": {
+      "type": "number",
+      "variableSet": "尺寸",
+      "values": {
+        "默认": 320
+      }
+    }
+  },
+  "effectStyles": {
+    "阴影/菜单与提示 --shadow-popover": [
+      {
+        "type": "DROP_SHADOW",
+        "offset": {
+          "x": 0,
+          "y": 2
+        },
+        "radius": 8,
+        "spread": 0,
+        "color": "#11111114"
+      }
+    ],
+    "阴影-暗色/菜单与提示 --shadow-popover": [
+      {
+        "type": "DROP_SHADOW",
+        "offset": {
+          "x": 0,
+          "y": 2
+        },
+        "radius": 8,
+        "spread": 0,
+        "color": "#00000080"
+      }
+    ],
+    "阴影/浮动面板 --shadow-float": [
+      {
+        "type": "DROP_SHADOW",
+        "offset": {
+          "x": 0,
+          "y": 8
+        },
+        "radius": 24,
+        "spread": 0,
+        "color": "#1111111F"
+      }
+    ],
+    "阴影-暗色/浮动面板 --shadow-float": [
+      {
+        "type": "DROP_SHADOW",
+        "offset": {
+          "x": 0,
+          "y": 8
+        },
+        "radius": 24,
+        "spread": 0,
+        "color": "#0000008C"
+      }
+    ],
+    "阴影/模态对话框 --shadow-modal": [
+      {
+        "type": "DROP_SHADOW",
+        "offset": {
+          "x": 0,
+          "y": 16
+        },
+        "radius": 48,
+        "spread": 0,
+        "color": "#11111129"
+      }
+    ],
+    "阴影-暗色/模态对话框 --shadow-modal": [
+      {
+        "type": "DROP_SHADOW",
+        "offset": {
+          "x": 0,
+          "y": 16
+        },
+        "radius": 48,
+        "spread": 0,
+        "color": "#00000099"
+      }
+    ]
+  }
+}

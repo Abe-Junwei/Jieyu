@@ -4,8 +4,8 @@
  * data-theme="dark" — 暗色（不设 = 浅色）
  * --action-* — 主按钮墨色（暗色反相）
  * --theme-accent-* — 选中/媒体锚点（中性墨灰）；--header-accent 为其 alias
- * --focus-accent / --focus-ring* — 克制焦点色（#026370 一支，非用户主题色、非 CTA）
- * 无 data-appearance / data-theme-accent。视觉真源见仓库根 DESIGN.md（Stitch/Penpot 手册）。
+ * --focus-accent / --focus-ring* — 焦点用墨色，不另设青色
+ * 只有这一套外观（纸本田野笔记）。视觉真源见仓库根 DESIGN.md。
  * ─────────────────────────────────────────────────────────── */
 
 /* ═══════════════════════════════════════════════════════════
@@ -17,43 +17,45 @@
 /* ── 默认浅色 | Default light ── */
 :root {
   /* ═══════════════════════════════════════════════════════
-     手册亮色 — 微暖纸感工作面 × 墨色 CTA × 中性选中（ElevenLabs 式无主题色）
-     canvas #F0EFED · panel #FFFFFF · action #0F0F10 · accent #3A3F49
+     纸本田野笔记 — 白纸 #FFFFFF · 书桌 #FAFAFA · 墨色 #111111 · 靛青只作次要标记
      ═══════════════════════════════════════════════════════ */
   --gray-1: #ffffff;
-  --gray-2: #f7f6f4;
-  --gray-3: #f0efed;
-  --gray-4: #e1e6ed;
-  --gray-5: #cbd2dc;
-  --gray-6: #aeb7c4;
-  --gray-7: #7f8a9b;
-  --gray-8: #556070; /* AA on warm canvas #f0efed and info-tinted surfaces */
-  --gray-9: #525d6d;
-  --gray-10: #3a3f49;
-  --gray-11: #2a2e35;
-  --gray-12: #20242c;
+  --gray-2: #fafafa;
+  --gray-3: #f5f5f5;
+  --gray-4: #eeeeee;
+  --gray-5: #e2e2e2;
+  --gray-6: #c8c8c8;
+  --gray-7: #8a8a8a;
+  --gray-8: #5c5c5c;
+  --gray-9: #3a3a3a;
+  --gray-10: #2a2a2a;
+  --gray-11: #1a1a1a;
+  --gray-12: #111111;
 
   /* 语义映射 — 表面与底色 */
-  --surface-bg: #f0efed;
+  --surface-bg: #fafafa;
   --surface-canvas: var(--surface-bg);
   --surface-panel: #ffffff;
-  --surface-header: #f7f6f4;
+  --surface-header: #ffffff;
   --surface-elevated: #ffffff;
   --surface-overlay: var(--surface-panel);
   --surface-dark-card: color-mix(in srgb, var(--surface-panel) 60%, transparent);
-  --chrome-rail-bg: #2a2e35;
-  --chrome-rail-active: #3a3f49;
+  --chrome-rail-bg: #ffffff;
+  --chrome-rail-active: #f5f5f5;
+  /* 上下文栏只比纸面浅一档，对齐 VS Code Light Modern 侧栏 #F8F8F8（ADR-0113）。分界靠边线，不靠深底。 */
+  --chrome-context-bg: var(--gray-3);
 
   /* 语义映射 — 边框与分隔 */
-  --border-subtle: #e7e5e4;
-  --border-soft: #cbd2dc;
-  --border-strong: #aeb7c4;
-  --border-control: #7f8a9b;
+  --border-subtle: #eeeeee;
+  --border-soft: #e2e2e2;
+  --border-strong: #c8c8c8;
+  /* 控件边界 ≥ 3:1 对纸面 #ffffff（3.03:1，ADR-0108） */
+  --border-control: #949494;
 
   /* 语义映射 — 文本 */
-  --text-primary: #20242c;
-  --text-secondary: #525d6d;
-  --text-tertiary: #556070;
+  --text-primary: #111111;
+  --text-secondary: #3a3a3a;
+  --text-tertiary: #5c5c5c;
   --text-muted: var(--text-tertiary);
   --text-on-solid: #ffffff;
   --color-white: #ffffff;
@@ -66,23 +68,31 @@
   --purple-9: var(--theme-accent-solid); /* legacy alias；勿再当品牌紫 */
 
   /* 主 CTA = 墨色（ElevenLabs 对齐）；与 accent 分离 */
-  --action-solid: #0f0f10;
-  --action-hover: #292524;
+  --action-solid: #111111;
+  --action-hover: #000000;
   --action-active: #000000;
   --text-on-action: #ffffff;
 
-  /* 选中 = 中性墨灰（换阶只改本支；勿当焦点色） */
-  --theme-accent-solid: #3a3f49;
-  --theme-accent-hover: #2a2e35;
-  --theme-accent-active: #20242c;
-  --theme-accent-tint: #e0e0e0; /* DESIGN / 板 27：中性选中底 */
-  --theme-accent-text: #20242c;
+  /* 选中 = 浅灰底 + 墨色字。克制主题色按 Radix 拆为三档：实心填充、浅底承托、可读文字（ADR-0114）。 */
+  --theme-accent-solid: #111111;
+  --theme-accent-hover: #3a3a3a;
+  --theme-accent-active: #000000;
+  --theme-accent-tint: #f5f5f5;
+  --theme-accent-text: #111111;
   --header-accent: var(--theme-accent-solid);
+  --brand-solid: #4338ca;
+  --brand-on: #ffffff;
+  --brand-tint: #eeedfb;
+  --mark-secondary: #3b359e;
+  /* 提示条外壳：亮色墨底；暗色不反转成米白，用高一档暖黑加发丝边（ADR-0116） */
+  --toast-bg: var(--gray-12);
+  --toast-fg: var(--gray-1);
+  --toast-border: var(--gray-12);
 
-  /* 焦点 = 克制青（只服务 focus ring；非 CTA、非选中底、非用户主题盘） */
-  --focus-accent: #026370;
-  --focus-accent-hover: #025763;
-  --focus-accent-active: #024d57;
+  /* 焦点 = 墨色环，不使用靛青 */
+  --focus-accent: #111111;
+  --focus-accent-hover: #000000;
+  --focus-accent-active: #000000;
 
   /* Info — 独立蓝，不绑 accent（AA >= 4.5:1 vs white and light info tints） */
   --state-info-solid: #1d4ed8;
@@ -93,17 +103,17 @@
   --state-info-border-strong: color-mix(in srgb, var(--state-info-solid) 62%, transparent);
 
   /* Success / Warning / Danger — 手册 solid + 更深 text */
-  --state-success-solid: #10b981;
-  --state-success-text: #047857;
+  --state-success-solid: #16a34a;
+  --state-success-text: #166534;
   --state-success-bg: #f0fdf4;
   --state-success-border: #bbf7d0;
 
-  --state-warning-solid: #f59e0b;
+  --state-warning-solid: #d97706;
   --state-warning-text: #92400e;
   --state-warning-bg: #fffbeb;
   --state-warning-border: #fcd34d;
 
-  --state-danger-solid: #e5484d;
+  --state-danger-solid: #dc2626;
   --state-danger-text: #b91c1c;
   --state-danger-bg: #fef2f2;
   --state-danger-border: #fecaca;
@@ -132,33 +142,36 @@
 
   /* 字体 */
   --font-sans:
-    -apple-system, BlinkMacSystemFont, 'Inter', 'Noto Sans SC', 'Noto Sans', 'Noto Sans Arabic',
-    'Noto Sans Devanagari', 'Noto Sans Thai', 'Noto Sans Tibetan', sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, 'Cascadia Code', monospace;
-  --font-ipa: 'Charis SIL', 'Doulos SIL', 'Gentium Plus', 'Andika', serif;
+    'Noto Sans', 'Noto Sans SC', 'PingFang SC', 'Noto Sans Arabic', 'Noto Sans Devanagari',
+    'Noto Sans Thai', 'Noto Sans Tibetan', system-ui, sans-serif;
+  --font-mono: 'Noto Sans Mono', ui-monospace, monospace;
+  --font-ipa: 'Noto Sans', sans-serif;
   --font-display:
     'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'Hiragino Mincho ProN', 'Noto Serif',
     Georgia, serif;
   --font-base: var(--font-sans);
   --font-chat: var(--font-sans);
 
-  /* 阴影 */
-  --shadow-color: #20242c;
-  --shadow-xs: 0 1px 2px color-mix(in srgb, var(--shadow-color) 6%, transparent);
-  --shadow-sm: 0 2px 8px color-mix(in srgb, var(--shadow-color) 8%, transparent);
-  --shadow-md: 0 8px 24px color-mix(in srgb, var(--shadow-color) 12%, transparent);
-  --shadow-lg: 0 16px 48px color-mix(in srgb, var(--shadow-color) 16%, transparent);
-  --shadow-card: var(--shadow-xs);
-  --shadow-popover: var(--shadow-sm);
-  --shadow-float: var(--shadow-md);
-  --shadow-modal: var(--shadow-lg);
+  /* 阴影 — 只有三档浮层：菜单/提示、浮动面板、模态。工作面和卡片不加投影（ADR-0104）。 */
+  --shadow-color: #111111;
+  --shadow-popover: 0 2px 8px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+  --shadow-float: 0 8px 24px color-mix(in srgb, var(--shadow-color) 12%, transparent);
+  --shadow-modal: 0 16px 48px color-mix(in srgb, var(--shadow-color) 16%, transparent);
+  --shadow-card: none;
+  /* 焦点环：2px 纸色间隔 + 2px 墨环 */
+  --shadow-focus: 0 0 0 2px var(--surface-panel), 0 0 0 4px var(--focus-accent);
+  /* 旧档位，存量引用指向新角色 */
+  --shadow-xs: none;
+  --shadow-sm: var(--shadow-popover);
+  --shadow-md: var(--shadow-float);
+  --shadow-lg: var(--shadow-modal);
 
-  /* 间距 */
+  /* 间距 — 组件内 4/8/12/16/24/32；40/48/64 只给页面级留白（ADR-0104） */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
-  --space-5: 20px;
+  --space-5: var(--space-6); /* 已退役的 20px */
   --space-6: 24px;
   --space-8: 32px;
   --space-10: 40px;
@@ -170,33 +183,30 @@
   --space-stack-section: var(--space-3);
   --space-title-content: var(--space-2);
   --space-row-gap: var(--space-2);
-  --space-row-padding-y: 10px;
+  --space-row-padding-y: var(--space-2);
   --space-section-padding: var(--space-3);
-  --space-tight-offset: 6px;
+  --space-tight-offset: var(--space-2);
   --space-micro-offset: var(--space-1);
 
   /* 地图/行政区子域间距 Token | Map/admin domain spacing tokens */
   --space-map-stack: var(--space-row-gap);
-  --space-map-section: 10px;
-  --space-admin-stack: 10px;
+  --space-map-section: var(--space-3);
+  --space-admin-stack: var(--space-3);
   --space-admin-inline: var(--space-row-gap);
 
   /* 圆角 — control 专供按钮/输入；勿把 chip/tag 全抬到 10 */
   --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
-  --radius-2xl: 14px;
-  --radius-3xl: 16px;
+  --radius-sm: 4px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
   --radius-pill: 999px;
-  --radius-control: 10px;
+  --radius-control: 4px;
 
   /* 入口卡（首页 hero / 时间轴空态）| Editorial entry card */
-  --entry-card-radius: var(--radius-2xl);
+  --entry-card-radius: var(--radius-lg);
   --entry-card-padding: clamp(24px, 3.5vw, 36px);
   --entry-card-border: 1px solid color-mix(in srgb, var(--border-soft) 70%, transparent);
-  --entry-card-shadow: var(--shadow-sm);
+  --entry-card-shadow: var(--shadow-card);
   --entry-card-background: linear-gradient(
     118deg,
     color-mix(in srgb, var(--surface-panel) 96%, var(--surface-bg)) 0%,
@@ -204,31 +214,31 @@
     color-mix(in srgb, var(--state-info-bg) 48%, var(--surface-panel)) 100%
   );
 
-  /* 字号 — 手册 ch01 工程字阶（尺寸为真源；旧 --font-size-* 仍供存量引用） */
-  --type-main-h-size: 20px;
-  --type-main-h-line: 28px;
-  --type-sub-h-size: 16px;
-  --type-sub-h-line: 24px;
-  --type-body-reg-size: 14px;
-  --type-body-reg-line: 22px;
-  --type-meta-tool-size: 13px;
-  --type-meta-tool-line: 20px;
-  --type-ipa-display-size: 16px;
-  --type-ipa-display-line: 24px;
-  --type-code-time-size: 12px;
-  --type-code-time-line: 18px;
+  /* 字号 — 6 档，随设置里的字号缩放（ADR-0104）。最小 12px，旧 --font-size-* 指向这里。 */
+  --type-main-h-size: calc(20px * var(--ui-font-scale, 1));
+  --type-main-h-line: calc(28px * var(--ui-font-scale, 1));
+  --type-sub-h-size: calc(16px * var(--ui-font-scale, 1));
+  --type-sub-h-line: calc(24px * var(--ui-font-scale, 1));
+  --type-body-reg-size: calc(14px * var(--ui-font-scale, 1));
+  --type-body-reg-line: calc(22px * var(--ui-font-scale, 1));
+  --type-meta-tool-size: calc(13px * var(--ui-font-scale, 1));
+  --type-meta-tool-line: calc(20px * var(--ui-font-scale, 1));
+  --type-ipa-display-size: calc(16px * var(--ui-font-scale, 1));
+  --type-ipa-display-line: calc(24px * var(--ui-font-scale, 1));
+  --type-code-time-size: calc(12px * var(--ui-font-scale, 1));
+  --type-code-time-line: calc(18px * var(--ui-font-scale, 1));
 
-  --font-size-2xs: 0.6875rem;
-  --font-size-xs: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
-  --font-size-sm: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
-  --font-size-base: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
-  --font-size-md: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
-  --font-size-lg: 1.125rem;
+  --font-size-2xs: var(--type-code-time-size);
+  --font-size-xs: var(--panel-typography-body-size, var(--type-code-time-size));
+  --font-size-sm: var(--panel-typography-emphasis-title-size, var(--type-meta-tool-size));
+  --font-size-base: var(--panel-typography-subheading-size, var(--type-body-reg-size));
+  --font-size-md: var(--panel-typography-dialog-title-size, var(--type-sub-h-size));
+  --font-size-lg: var(--type-main-h-size);
 
   /* 动效 */
   --duration-instant: 100ms;
-  --duration-fast: 200ms;
-  --duration-normal: 300ms;
+  --duration-fast: 160ms;
+  --duration-normal: 200ms;
   --ease-instant: ease-out;
   --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
@@ -242,7 +252,7 @@
   --header-brand-font: var(--font-mono);
   --header-bg: color-mix(in srgb, var(--surface-header) 94%, transparent);
   --header-border: var(--border-subtle);
-  --header-shadow: var(--shadow-xs);
+  --header-shadow: none;
   --header-height: 52px;
   --header-radius: 8px;
   --left-rail-width: 52px;
@@ -375,14 +385,14 @@
   --input-h-md: 32px;
   --input-h-lg: 36px;
   --input-h-xl: 40px;
-  --input-h-compact: var(--input-h-sm);
+  --input-h-compact: var(--btn-h-sm);
   --input-padding-compact: 6px 8px;
   --input-padding-compact-select: 6px 34px 6px 8px;
   --input-padding-micro: 3px 6px;
   --input-line-height-compact: 1.25;
   --btn-h-sm: 28px;
   --btn-h-md: 32px;
-  --btn-h-compact: 30px;
+  --btn-h-compact: var(--btn-h-sm);
 
   --lane-label-width: 64px;
   --timeline-lane-height: 54px;
@@ -393,26 +403,54 @@
   --timeline-neutral-hover-bg: color-mix(in srgb, var(--border-soft) 24%, transparent);
   --timeline-neutral-divider-hover: color-mix(in srgb, var(--text-secondary) 64%, transparent);
 
-  --timeline-link-color-0: color-mix(in srgb, var(--state-info-solid) 62%, transparent);
-  --timeline-link-color-active-0: color-mix(in srgb, var(--state-info-solid) 88%, transparent);
-  --timeline-link-color-1: color-mix(in srgb, var(--state-success-solid) 62%, transparent);
-  --timeline-link-color-active-1: color-mix(in srgb, var(--state-success-solid) 88%, transparent);
-  --timeline-link-color-2: color-mix(in srgb, var(--state-warning-text) 62%, transparent);
-  --timeline-link-color-active-2: color-mix(in srgb, var(--state-warning-text) 88%, transparent);
-  --timeline-link-color-3: color-mix(
-    in srgb,
-    var(--state-info-solid) 52%,
-    var(--state-danger-solid) 10%
-  );
-  --timeline-link-color-active-3: color-mix(
-    in srgb,
-    var(--state-info-solid) 74%,
-    var(--state-danger-solid) 14%
-  );
-  --timeline-link-color-4: color-mix(in srgb, var(--state-danger-solid) 62%, transparent);
-  --timeline-link-color-active-4: color-mix(in srgb, var(--state-danger-solid) 88%, transparent);
-  --timeline-link-color-5: color-mix(in srgb, var(--text-secondary) 62%, transparent);
-  --timeline-link-color-active-5: color-mix(in srgb, var(--text-primary) 88%, transparent);
+  /* 播放头墨色实线；选区墨色 8% 底，比悬停深一档（ADR-0107）；红色只留给保存失败（ADR-0104） */
+  --timeline-playhead-color: var(--text-primary);
+  --timeline-playhead-width: 2px;
+  --timeline-selection-bg: color-mix(in srgb, var(--text-primary) 8%, var(--surface-panel));
+
+  /* 置信度：中＝墨色虚线，低＝琥珀实线（待复核是警告，不是失败） */
+  --confidence-mid-mark: var(--text-primary);
+  --confidence-low-mark: var(--state-warning-solid);
+
+  /* 模态遮罩：亮暗同值。--shadow-color 暗色为黑，亮色近黑，44% 都压得住纸面 */
+  --scrim: color-mix(in srgb, var(--shadow-color) 44%, transparent);
+
+  /* 系列墨色：说话人轨、层联动线不用彩色，靠墨色深浅 + 线型 + 字母标记区分。
+     第 4 档不跟 --gray-7：暗色 gray-7 在纸页上只有 2.6:1，字母标记看不清（ADR-0105） */
+  --series-ink-0: var(--text-primary);
+  --series-ink-1: var(--text-secondary);
+  --series-ink-2: var(--text-tertiary);
+  --series-ink-3: var(--gray-7);
+  --series-dash-0: none;
+  --series-dash-1: 4 3;
+  --series-dash-2: 1 3;
+  --speaker-track-0: var(--series-ink-0);
+  --speaker-track-1: var(--series-ink-1);
+  --speaker-track-2: var(--series-ink-2);
+  --speaker-track-3: var(--series-ink-3);
+  --speaker-track-4: var(--series-ink-0);
+  --speaker-track-5: var(--series-ink-1);
+  --speaker-track-6: var(--series-ink-2);
+  --speaker-track-7: var(--series-ink-3);
+
+  --timeline-link-color-0: color-mix(in srgb, var(--series-ink-0) 62%, transparent);
+  --timeline-link-color-active-0: color-mix(in srgb, var(--series-ink-0) 88%, transparent);
+  --timeline-link-color-1: color-mix(in srgb, var(--series-ink-1) 62%, transparent);
+  --timeline-link-color-active-1: color-mix(in srgb, var(--series-ink-1) 88%, transparent);
+  --timeline-link-color-2: color-mix(in srgb, var(--series-ink-2) 62%, transparent);
+  --timeline-link-color-active-2: color-mix(in srgb, var(--series-ink-2) 88%, transparent);
+  --timeline-link-color-3: color-mix(in srgb, var(--series-ink-0) 62%, transparent);
+  --timeline-link-color-active-3: color-mix(in srgb, var(--series-ink-0) 88%, transparent);
+  --timeline-link-color-4: color-mix(in srgb, var(--series-ink-1) 62%, transparent);
+  --timeline-link-color-active-4: color-mix(in srgb, var(--series-ink-1) 88%, transparent);
+  --timeline-link-color-5: color-mix(in srgb, var(--series-ink-2) 62%, transparent);
+  --timeline-link-color-active-5: color-mix(in srgb, var(--series-ink-2) 88%, transparent);
+  --timeline-link-dash-0: var(--series-dash-0);
+  --timeline-link-dash-1: var(--series-dash-0);
+  --timeline-link-dash-2: var(--series-dash-0);
+  --timeline-link-dash-3: var(--series-dash-1);
+  --timeline-link-dash-4: var(--series-dash-1);
+  --timeline-link-dash-5: var(--series-dash-1);
 
   --timeline-item-divider-width: 0;
   --timeline-item-divider-color: color-mix(in srgb, var(--text-tertiary) 52%, transparent);
@@ -435,7 +473,7 @@
 
   --popover-bg: color-mix(in srgb, var(--surface-panel) 92%, transparent);
   --popover-border: var(--border-soft);
-  --popover-shadow: var(--shadow-md);
+  --popover-shadow: var(--shadow-float);
 
   --accent-primary: var(--theme-accent-solid);
   --accent-secondary: var(--theme-accent-tint);
@@ -444,37 +482,42 @@
 
 /* ── 默认暗色 | Default dark — 手册基线（对比度实测仍为债） ── */
 :root[data-theme='dark'] {
-  --gray-1: #12141a;
-  --gray-2: #181b21;
-  --gray-3: #20242c;
-  --gray-4: #262b35;
-  --gray-5: #282d37;
-  --gray-6: #343a46;
-  --gray-7: #4a5160;
-  --gray-8: #687487;
-  --gray-9: #8b95a5;
-  --gray-10: #b4bdcc;
-  --gray-11: #d8dde6;
-  --gray-12: #f6f7f9;
+  --gray-1: #0c0c09;
+  --gray-2: #121210;
+  --gray-3: #161614;
+  --gray-4: #242320;
+  --gray-5: #2c2b28;
+  --gray-6: #3a3832;
+  --gray-7: #5c5952;
+  /* 系列墨色第 4 档：gray-7 在纸页 #161614 上 2.6:1，2px 线条和字母标记都不够（ADR-0105） */
+  --series-ink-3: #8a847a;
+  --gray-8: #8e8a82;
+  --gray-9: #c8c4ba;
+  --gray-10: #ddd9d0;
+  --gray-11: #eae6de;
+  --gray-12: #f4f2ec;
 
-  --surface-bg: #181b21;
+  --surface-bg: #0c0c09;
   --surface-canvas: var(--surface-bg);
-  --surface-panel: #20242c;
-  --surface-header: #262b35;
-  --surface-elevated: #282d37;
+  --surface-panel: #161614;
+  --surface-header: #161614;
+  --surface-elevated: #242320;
   --surface-overlay: var(--surface-panel);
   --surface-dark-card: color-mix(in srgb, var(--surface-panel) 66%, transparent);
-  --chrome-rail-bg: #12141a;
-  --chrome-rail-active: #1c2028;
+  --chrome-rail-bg: #0c0c09;
+  --chrome-rail-active: #242320;
+  /* 暗色只比纸页 #161614 深一档，不到书桌 #0C0C09。 */
+  --chrome-context-bg: var(--gray-2);
 
-  --border-subtle: #343a46;
-  --border-soft: #4a5160;
-  --border-strong: #687487;
-  --border-control: #8b95a5;
+  --border-subtle: #2c2b28;
+  --border-soft: #3a3832;
+  --border-strong: #5c5952;
+  /* 控件边界 ≥ 3:1 对纸页 #161614（3.21:1，ADR-0108） */
+  --border-control: #6a675f;
 
-  --text-primary: #f6f7f9;
-  --text-secondary: #b4bdcc;
-  --text-tertiary: #8b95a5;
+  --text-primary: #f4f2ec;
+  --text-secondary: #c8c4ba;
+  --text-tertiary: #8e8a82;
   --text-muted: var(--text-tertiary);
 
   /* 与浅色根一致，供 color-mix / 语言资产面板等引用 | Same paper-white token as light root */
@@ -484,33 +527,39 @@
   --shadow-color: #000000;
 
   /* 暗色主 CTA 反相：浅底深字 */
-  --action-solid: #f6f7f9;
+  --action-solid: #f4f2ec;
   --action-hover: #ffffff;
-  --action-active: #e7e5e4;
-  --text-on-action: #0f0f10;
+  --action-active: #e4e0d6;
+  --text-on-action: #0c0c09;
 
-  --theme-accent-solid: #b4bdcc;
-  --theme-accent-hover: #c8d0dc;
-  --theme-accent-active: #a8b0bd;
-  --theme-accent-tint: #393939; /* DESIGN / 板 45：暗色中性选中底 */
-  --theme-accent-text: #f6f7f9;
+  --theme-accent-solid: #f4f2ec;
+  --theme-accent-hover: #ffffff;
+  --theme-accent-active: #e4e0d6;
+  --theme-accent-tint: #242320;
+  --theme-accent-text: #f4f2ec;
   --header-accent: var(--theme-accent-solid);
+  --brand-solid: #5b5bd6;
+  --brand-on: #ffffff;
+  --brand-tint: #222038;
+  --mark-secondary: #b6b2f2;
+  --toast-bg: var(--gray-5);
+  --toast-fg: var(--gray-12);
+  --toast-border: var(--gray-6);
 
-  --focus-accent: #74a9b0;
-  --focus-accent-hover: #8bb8be;
-  --focus-accent-active: #5f969e;
+  --focus-accent: #f4f2ec;
+  --focus-accent-hover: #ffffff;
+  --focus-accent-active: #e4e0d6;
   --accent-secondary: var(--theme-accent-tint);
   --header-bg: color-mix(in srgb, var(--surface-header) 94%, transparent);
   --header-border: var(--border-soft);
-  --header-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --header-shadow: none;
 
   --tab-hover: var(--gray-5);
   --tab-underline-hover: color-mix(in srgb, var(--theme-accent-solid) 16%, transparent);
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.6);
+  --shadow-popover: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.6);
 
   --state-info-solid: #60a5fa;
   --state-info-text: #93c5fd;
@@ -531,20 +580,37 @@
     transparent
   );
 
-  --state-success-solid: #34d399;
-  --state-success-text: #6ee7b7;
-  --state-success-bg: color-mix(in srgb, #10b981 var(--theme-opacity-2), transparent);
-  --state-success-border: color-mix(in srgb, #10b981 var(--theme-opacity-3), transparent);
+  /* 色点与文字分开：色点要在暗底上 ≥ 3:1，沿用亮色值只有 5.5:1 / 5.7:1，是碰巧够（ADR-0105） */
+  --state-success-solid: #4ade80;
+  --state-success-text: #4ade80;
+  --state-success-bg: color-mix(
+    in srgb,
+    var(--state-success-solid) var(--theme-opacity-2),
+    transparent
+  );
+  --state-success-border: color-mix(
+    in srgb,
+    var(--state-success-solid) var(--theme-opacity-3),
+    transparent
+  );
 
-  --state-warning-solid: #f59e0b;
+  --state-warning-solid: #fbbf24;
   --state-warning-text: #fbbf24;
-  --state-warning-bg: color-mix(in srgb, #f59e0b var(--theme-opacity-1), transparent);
-  --state-warning-border: color-mix(in srgb, #f59e0b var(--theme-opacity-3), transparent);
+  --state-warning-bg: color-mix(
+    in srgb,
+    var(--state-warning-solid) var(--theme-opacity-1),
+    transparent
+  );
+  --state-warning-border: color-mix(
+    in srgb,
+    var(--state-warning-solid) var(--theme-opacity-3),
+    transparent
+  );
 
-  --state-danger-solid: #f87171;
-  --state-danger-text: #fca5a5;
-  --state-danger-bg: color-mix(in srgb, #e5484d var(--theme-opacity-1), transparent);
-  --state-danger-border: color-mix(in srgb, #e5484d var(--theme-opacity-3), transparent);
+  --state-danger-solid: #f07171;
+  --state-danger-text: #f07171;
+  --state-danger-bg: color-mix(in srgb, #f07171 var(--theme-opacity-1), transparent);
+  --state-danger-border: color-mix(in srgb, #f07171 var(--theme-opacity-3), transparent);
 
   --focus-ring: color-mix(in srgb, var(--focus-accent) 70%, transparent);
   --focus-ring-soft: color-mix(in srgb, var(--focus-accent) 32%, transparent);

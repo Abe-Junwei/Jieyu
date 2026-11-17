@@ -7,7 +7,6 @@ import type { EmbeddingProviderKind } from '../../ai/embeddings/EmbeddingProvide
 import type { CommercialProviderKind } from '../../hooks/voice/useVoiceDock';
 import type { Locale } from '../../i18n';
 import type { UiFontScaleMode } from '../../utils/panelAdaptiveLayout';
-import type { IconEffect } from '../../utils/iconEffect';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -112,9 +111,6 @@ export interface SettingsModalProps {
   onFontScaleChange: (scale: number) => void;
   /** 字体缩放模式切换回调 | Font scale mode change handler */
   onFontScaleModeChange: (mode: UiFontScaleMode) => void;
-  /** 图标效果 material / motion | Icon effect preference */
-  iconEffect: IconEffect;
-  onIconEffectChange: (effect: IconEffect) => void;
   /** 应用版本 | App version string */
   version?: string;
 }

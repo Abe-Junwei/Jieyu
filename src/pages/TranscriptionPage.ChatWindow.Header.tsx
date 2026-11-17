@@ -205,17 +205,14 @@ export function TranscriptionPageChatWindowHeader({
           {!minimized ? (
             <button
               type="button"
-              className="transcription-chat-window-head-btn transcription-chat-window-maximize-btn"
+              className="transcription-chat-window-head-btn"
               data-testid="transcription-chat-window-maximize"
               onClick={onToggleMaximized}
               aria-label={maximizeLabel}
               title={maximizeLabel}
               aria-pressed={maximized}
             >
-              <JieyuIcon
-                name={maximized ? 'Minimize2' : 'Expand'}
-                className={JIEYU_ICON_INLINE}
-              />
+              <JieyuIcon name={maximized ? 'Minimize2' : 'Expand'} className={JIEYU_ICON_INLINE} />
             </button>
           ) : null}
           <button

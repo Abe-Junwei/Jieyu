@@ -13,7 +13,7 @@ source_of_truth: desktop-engineering-contract-spec
 
 - 将用户确认的 [ADR-0100](../../../adr/0100-desktop-engineering-contract.md) 变为可实现、可验证的接口与验收依据，解除“仅有静态设计板”的缺口。
 - 本轮只整理规格；`draft` 表示技术设计尚未定稿，不撤回 ADR 已接受的产品决定。
-- 不实施应用代码、DDL、依赖安装、用户文件迁移或 Penpot 修改；不把规格已写等同产品已实现。
+- 不实施应用代码、DDL、依赖安装、用户文件迁移或设计稿修改；不把规格已写等同产品已实现。
 
 ## 2. 用户场景
 

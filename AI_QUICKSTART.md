@@ -3,7 +3,7 @@ title: AI_QUICKSTART — 解语跨工具 AI 上手指引
 doc_type: agent-quickstart
 status: active
 owner: repo
-last_reviewed: 2026-11-01
+last_reviewed: 2026-11-16
 applies_to: ["cursor", "github-copilot", "kimi-cli"]
 ---
 
@@ -37,6 +37,7 @@ ReadyWorkspace 装配和主路线图不在每次必读里。碰到才读 §2 对
 | 改 db schema / persistence | [ADR 当前有效条款](docs/adr/README.md#桌面存储当前有效条款)；写→reload→readback 见 [AGENTS.md](AGENTS.md) §4 | [ADR-0048](docs/adr/0048-storage-port.md) · 定向 `vitest` |
 | 改本地上下文工具 | `src/ai/chat/localContextTools.ts` | 定向 `vitest` |
 | 改 CSS / 面板视觉层级 | [copilot-instructions.md](copilot-instructions.md) §九 双层边框规则 | [CSS架构与模板复用规范.md](docs/architecture/CSS架构与模板复用规范.md) · [CSS浏览器兼容矩阵.md](docs/architecture/CSS浏览器兼容矩阵.md) |
+| 画桌面工作区精稿 | [DESIGN.md](DESIGN.md) · Pixso 文件 `va44BZLBUSYRQ7KoiO3PJw` | [ADR-0118](docs/adr/0118-pixso-is-the-design-draft-workspace.md) · [design/jieyu-paper/SKILL.md](design/jieyu-paper/SKILL.md) |
 | 新用或敏感的 Web API | [ADR-0063](docs/adr/0063-desktop-only-after-electron-skeleton.md)（只交付桌面版；`browserslist` 为 Electron 44 的 Chromium 152） | #329 完成前 `npm run test:e2e:chromium` |
 | 改转写深链 / 语音 ActionId | `src/utils/transcriptionUrlDeepLink.ts` | [transcription-voice-action-id-registry-contract.md](docs/architecture/transcription-voice-action-id-registry-contract.md) |
 | 改层名 / tier / track / unitId | [术语表.md](docs/architecture/术语表.md) | [ADR-006](docs/adr/adr-006-linguistic-subgraph-unitid-utterances-retirement.md) |

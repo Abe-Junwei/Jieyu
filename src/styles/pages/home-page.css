@@ -206,12 +206,12 @@
 
 .home-file-actions .is-primary {
   border: 0;
-  background: var(--theme-accent-solid);
-  color: var(--text-on-accent, var(--text-on-solid));
+  background: var(--action-solid);
+  color: var(--text-on-action);
 }
 
 .home-file-actions .is-ghost {
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border-control);
   background: transparent;
   color: var(--text-primary);
 }

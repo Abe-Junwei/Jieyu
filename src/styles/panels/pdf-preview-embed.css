@@ -10,7 +10,7 @@
   max-height: 86vh;
   background: var(--surface-panel);
   border: 1px solid var(--state-info-border);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
   resize: both;

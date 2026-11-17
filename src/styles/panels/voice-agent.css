@@ -263,7 +263,7 @@
   gap: 5px;
   padding: 3px 8px;
   background: color-mix(in srgb, var(--state-danger-solid) 10%, transparent);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--state-danger-solid) 30%, transparent);
 }
 
@@ -311,7 +311,7 @@
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-lg);
   border: 1.5px solid var(--border-soft);
   background: linear-gradient(
     180deg,
@@ -624,7 +624,7 @@
   font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   color: var(--state-danger-text);
   padding: 10px 12px;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--state-danger-bg) 88%, transparent);
   border: 1px solid color-mix(in srgb, var(--state-danger-solid) 24%, transparent);
 }
@@ -642,7 +642,7 @@
 
 .voice-agent-disclosure {
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface-panel) 96%, var(--state-info-bg) 4%);
   overflow: hidden;
 }

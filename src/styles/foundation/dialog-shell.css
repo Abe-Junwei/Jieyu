@@ -32,7 +32,7 @@
 
 .dialog-card {
   background: var(--bg-primary, var(--surface-panel));
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
   box-shadow: var(--shadow-md);
   width: min(var(--dialog-auto-width, 480px), 92vw);
@@ -50,7 +50,7 @@
 
 .dialog-card-compact {
   width: min(var(--dialog-compact-auto-width, 320px), calc(100vw - 24px));
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-lg);
 }
 
 .dialog-header {
@@ -237,15 +237,26 @@
   color: var(--text-secondary);
 }
 
-.dialog-field :is(input, select, textarea) {
+.dialog-field :is(input:not([type='checkbox']):not([type='radio']), select, textarea) {
   min-height: var(--input-h-md);
   padding: 8px 10px;
-  border: 1px solid var(--border-color, var(--border-soft));
+  border: 1px solid var(--border-color, var(--border-control));
   border-radius: var(--radius-sm);
   background: var(--surface-panel);
   color: var(--text-primary);
   line-height: 1.4;
   box-sizing: border-box;
+}
+
+.dialog-field
+  :is(input:not([type='checkbox']):not([type='radio']), select, textarea):hover:not(:disabled):not(
+    :focus
+  ) {
+  border-color: var(--text-secondary);
+}
+
+.dialog-field :is(input:not([type='checkbox']):not([type='radio']), select, textarea):disabled {
+  border-color: var(--border-soft);
 }
 
 .dialog-field select:not(.select-caret) {

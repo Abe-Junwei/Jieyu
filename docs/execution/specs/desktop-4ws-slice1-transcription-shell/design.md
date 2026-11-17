@@ -3,7 +3,7 @@ title: desktop-4ws-slice1-transcription-shell design
 doc_type: execution-spec-design
 status: active
 owner: repo
-last_reviewed: 2026-11-02
+last_reviewed: 2026-11-16
 source_of_truth: desktop-4ws-slice1-transcription-shell-spec
 depends_on:
   - ./requirements.md
@@ -46,7 +46,7 @@ depends_on:
 
 ## 6. 2026-11-02 准入核对与组件映射
 
-**UI 精稿准入未确认：** 用户已撤回转写片段检查器；当前插件未连接，无法核验板 51–61 的最新状态。下表为代码接线差额；不得把精稿静态板当 Electron 运行证据。
+**UI 精稿准入未确认：** 用户已撤回转写片段检查器；转写精稿改在 Open Design 按设计系统 `design/jieyu-paper/` 重画（ADR-0102、ADR-0106），尚未定稿。下表为代码接线差额；不得把精稿静态板当 Electron 运行证据。
 
 | 区域/路径 | 实际入口与复用 | 目标接口/状态与差额 |
 | --- | --- | --- |
@@ -72,10 +72,10 @@ depends_on:
 
 - [x] 独立壳/正文保存/离开守卫现有调用链已核对，代码差额已列明。
 - [x] 区域复用候选和单库/刷新/焦点责任已列明，未将候选冒充直接可用。
-- [ ] Penpot 主稿及状态重新核验，用户撤回片段检查器；实际键盘行为仍待实现验证。
+- [ ] Open Design 转写精稿及状态定稿，用户撤回片段检查器；实际键盘行为仍待实现验证。
 - [ ] 波形/时间轴候选props与媒体生命周期逐项核对，形成可直接接线的适配签名。
 - [ ] 1a回执/草稿载荷的冻结格式方案及宿主关闭链故障测试方案通过检查。
-- [ ] 壳页布局从过渡三栏收到板 51（去右栏检查器）。
+- [ ] 壳页布局从过渡三栏收到 Open Design 精稿（上下文+主区，去右栏检查器）。
 - [ ] 合成Electron实际页面及重开证据；用户抽验仍由用户执行。
 
 ## 7. 2026-11-02 连接恢复后的视觉复查

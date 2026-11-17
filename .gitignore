@@ -41,6 +41,8 @@ docs/execution/release-gates/release-evidence/logs/*
 
 # Design sources (large binaries; keep local only)
 *.pen
+# OpenDesign trial package. Not the chosen visual direction.
+.opendesign/
 # Small authored Pencil boards checked into docs/design/
 !docs/design/*.pen
 
@@ -60,3 +62,7 @@ tests/fixtures/open-corpora/**/*.flextext
 tests/fixtures/open-corpora/**/*.lift
 tests/fixtures/open-corpora/**/*.xml
 tests/fixtures/open-corpora/**/*.pfsx
+
+# Open Design 私有目录（ADR-0106）
+design/jieyu-paper/.od-frames/
+design/jieyu-paper/.od-skills/

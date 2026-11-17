@@ -36,7 +36,7 @@
   height: 22px;
   border-radius: 999px;
   background: var(--accent-primary);
-  color: var(--text-on-accent, var(--text-on-solid));
+  color: var(--text-on-action);
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 22px;
   text-align: center;

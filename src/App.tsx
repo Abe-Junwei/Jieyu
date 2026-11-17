@@ -59,7 +59,6 @@ import {
   type LanguageAssetPanel,
 } from './contexts/AssetPanelContext';
 import { syncDocumentDataTheme, THEME_MODE_STORAGE_KEY } from './utils/theme';
-import { type IconEffect, getIconEffect, setIconEffect } from './utils/iconEffect';
 import { isTranscriptionWorkspacePathname } from './utils/transcriptionWorkspaceRoute';
 import { JIEYU_ICON_NAV, type LeftRailNavIconName } from './utils/jieyuIcon';
 import { CatalogProjectGate } from './components/CatalogProjectGate';
@@ -377,14 +376,8 @@ export function App() {
   const shellBodyRef = useRef<HTMLDivElement | null>(null);
   const shellDragCleanupRef = useRef<(() => void) | null>(null);
   const [themeMode, setThemeMode] = useState<ThemeMode>(readInitialThemeMode);
-  const [iconEffect, setIconEffectState] = useState<IconEffect>(() => getIconEffect());
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { uiFontScale, uiFontScaleMode } = useUiFontScaleRuntime(locale);
-
-  const handleIconEffectChange = useCallback((next: IconEffect) => {
-    setIconEffect(next);
-    setIconEffectState(next);
-  }, []);
 
   useEffect(() => {
     try {
@@ -865,11 +858,7 @@ export function App() {
                       title={collaborationMessages.title}
                       onClick={handleCollaborationEntryOpen}
                     >
-                      <JieyuIcon
-                        name="CloudSync"
-                        aria-hidden
-                        className={JIEYU_ICON_NAV}
-                      />
+                      <JieyuIcon name="CloudSync" aria-hidden className={JIEYU_ICON_NAV} />
                       <span>{collaborationMessages.entryLabel}</span>
                     </button>
                   ) : null}
@@ -1087,8 +1076,6 @@ export function App() {
               fontScaleMode={uiFontScaleMode}
               onFontScaleChange={handleFontScaleChange}
               onFontScaleModeChange={handleFontScaleModeChange}
-              iconEffect={iconEffect}
-              onIconEffectChange={handleIconEffectChange}
               version={resolveHostVersion()}
             />
           </div>
