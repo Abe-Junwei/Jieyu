@@ -25,6 +25,7 @@ const GROUPS = [
   ['纸面与文字', [
     ['bg', 'color', 'surface-canvas'],
     ['surface', 'color', 'surface-panel'],
+    ['context', 'color', 'chrome-context-bg'],
     ['surface-warm', 'color', 'theme-accent-tint'],
     ['fg', 'color', 'text-primary'],
     ['fg-2', 'color', 'text-secondary'],
@@ -49,7 +50,13 @@ const GROUPS = [
     ['danger', 'color', 'state-danger-solid'],
     ['danger-text', 'color', 'state-danger-text'],
     ['danger-bg', 'color', 'state-danger-bg'],
+    ['brand', 'color', 'brand-solid'],
+    ['brand-on', 'color', 'brand-on'],
+    ['brand-tint', 'color', 'brand-tint'],
     ['secondary', 'color', 'mark-secondary'],
+    ['toast-bg', 'color', 'toast-bg'],
+    ['toast-fg', 'color', 'toast-fg'],
+    ['toast-border', 'color', 'toast-border'],
   ]],
   ['字体与字号（最小 12px）', [
     ['font-display', 'raw', 'font-display'],

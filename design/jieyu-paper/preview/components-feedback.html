@@ -7,10 +7,17 @@
   <link rel="stylesheet" href="preview.css" />
   <script src="icons.js"></script>
   <style>
-    .banner { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); font-size: var(--text-sm); line-height: var(--leading-sm); }
-    .banner .btn { margin-left: auto; }
-    .toast { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--fg); color: var(--accent-on); border-radius: 8px; box-shadow: var(--shadow-popover); font-size: var(--text-sm); line-height: var(--leading-sm); }
-    .toast .btn { height: 24px; padding: 0 8px; background: transparent; color: var(--accent-on); border-color: color-mix(in srgb, var(--accent-on) 40%, transparent); }
+    .kinds { display: grid; grid-template-columns: 120px minmax(0, 1fr) 220px; gap: 12px 24px; align-items: center; }
+    .kinds .toast { animation: none; }
+    .stage { position: relative; height: 280px; background: var(--bg); border: 1px solid var(--border); overflow: hidden; }
+    .stage .lane { position: absolute; left: 16px; right: 16px; top: 24px; display: flex; gap: 4px; }
+    .stage .seg { flex: 1; min-height: 54px; padding: 4px 8px; background: var(--surface-warm); font: var(--text-sm)/var(--leading-sm) var(--font-ipa); color: var(--fg); }
+    .stage .seg.fail { box-shadow: inset 0 -2px 0 var(--danger); }
+    .stage .seg.fail small { display: flex; align-items: center; gap: 4px; font: var(--text-xs)/var(--leading-xs) var(--font-body); color: var(--danger-text); }
+    .stage .strip { position: absolute; left: 0; right: 0; bottom: 0; height: 36px; padding: 4px 12px; display: flex; align-items: center; justify-content: flex-end; gap: 12px; background: var(--surface); border-top: 1px solid var(--border); }
+    .stage .toast-region { bottom: 68px; }
+    .duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+    .rules { margin: 0; padding-left: 16px; display: grid; gap: 4px; font-size: var(--text-sm); line-height: var(--leading-sm); color: var(--fg-2); }
     .empty { background: var(--surface); border: 1px solid var(--border); height: 220px; display: grid; place-content: center; justify-items: center; gap: 8px; text-align: center; }
     .empty h3 { margin: 0; font: 600 var(--text-lg)/var(--leading-lg) var(--font-body); }
     .bar { height: 4px; background: var(--surface-warm); border-radius: 999px; overflow: hidden; width: 320px; }
@@ -30,26 +37,75 @@
 <main>
   <div>
     <h1>反馈</h1>
-    <p class="note">状态同时给色点和文字。阻塞错误不只靠短暂提示条。</p>
+    <p class="note">状态同时给色点和文字。页面级通知只用提示条，不用页顶横幅；提示条只负责告知，它带的动作在页面上总有常驻入口。</p>
   </div>
 
   <section>
-    <h2>横幅</h2>
-    <div class="paper">
-      <div class="banner"><span class="dot warn"></span>上次没有正常关闭，有 3 处未保存的编辑。<button class="btn sm">从快照恢复…</button></div>
-      <div class="banner"><span class="dot idle"></span>工作集：桌面暂不可用</div>
-      <div class="banner"><span class="dot warn"></span>离线。本地编辑照常保存；云端 AI 和语言目录更新暂停。</div>
-      <div class="banner"><span class="dot idle"></span>这个窗口是只读的。要编辑，回到主窗口。<button class="btn sm">切到主窗口</button></div>
+    <h2>提示条 · 四类</h2>
+    <div class="kinds">
+      <span class="label">结果</span>
+      <div><div class="toast" role="status"><span class="dot ok"></span><span class="msg">已删除 2 个句段</span><button class="act">撤销</button><button class="x" aria-label="关闭"><svg class="i"><use href="#x"/></svg></button></div></div>
+      <span class="meta">4 秒；带动作 8 秒。悬停、键盘焦点、窗口失焦时暂停计时。</span>
+
+      <span class="label">进行中</span>
+      <div><div class="toast" role="status"><span class="ring"></span><span class="msg">正在保存 3 处编辑…</span></div></div>
+      <span class="meta">超过 300ms 才出现。不自动关闭，完成后原位变成结果、失败或核实中。</span>
+
+      <span class="label">需要处理 · 失败</span>
+      <div><div class="toast" role="alert"><span class="dot err"></span><span class="msg">保存失败：磁盘空间不足<small>草稿仍在，句段上同样可以重试</small></span><button class="act">重试</button><button class="x" aria-label="关闭"><svg class="i"><use href="#x"/></svg></button></div></div>
+      <span class="meta">不自动关闭。关掉提示条不清状态：句段标记与底栏状态片仍在。</span>
+
+      <span class="label">需要处理 · 核实中</span>
+      <div><div class="toast" role="status"><span class="dot warn"></span><span class="msg">保存结果还不能确认，正在核实<small>核实完成前不重试、不放弃</small></span><button class="x" aria-label="关闭"><svg class="i"><use href="#x"/></svg></button></div></div>
+      <span class="meta">没有动作按钮。核实出结果后原位替换。</span>
+
+      <span class="label">常驻情况</span>
+      <div class="stack">
+        <div class="toast" role="status"><span class="dot warn"></span><span class="msg">上次没有正常关闭，有 3 处未保存的编辑</span><button class="act">从快照恢复…</button><button class="x" aria-label="关闭"><svg class="i"><use href="#x"/></svg></button></div>
+        <div class="toast" role="status"><span class="dot idle"></span><span class="msg">这个窗口是只读的<small>要编辑，回到主窗口</small></span><button class="act">切到主窗口</button><button class="x" aria-label="关闭"><svg class="i"><use href="#x"/></svg></button></div>
+        <div class="toast" role="status"><span class="dot warn"></span><span class="msg">离线<small>本地编辑照常保存；云端 AI 和语言目录更新暂停</small></span><button class="x" aria-label="关闭"><svg class="i"><use href="#x"/></svg></button></div>
+      </div>
+      <span class="meta">原先的横幅。情况开始时出现一次，关掉后由底栏状态片或工具栏状态承接，情况结束时自动收起。</span>
     </div>
+    <p class="meta">外壳：亮色墨底白字；暗色用高一档暖黑加发丝边，不反转成米白（米白上的警告点对比度不足）。色点、12px 细环、最多一个动词动作、关闭钮。正文一句话，最多两行，次句用小字。</p>
   </section>
 
   <section>
-    <h2>提示条</h2>
-    <div class="row" style="gap:16px">
-      <span class="toast"><span class="dot ok"></span>已删除 2 个句段<button class="btn">撤销</button></span>
-      <span class="toast"><span class="dot err"></span>删除句段失败：数据已被其他操作更新</span>
+    <h2>提示条 · 位置与堆叠</h2>
+    <div class="duo">
+      <div class="stage">
+        <div class="lane">
+          <div class="seg">ka'lu ŋa-tsʰo</div>
+          <div class="seg fail">mi-ʔan təp<small><span class="dot err"></span>没保存 · 重试</small></div>
+          <div class="seg">ʔo lan-se</div>
+        </div>
+        <div class="toast-region" aria-label="通知（F8）">
+          <div class="toast" role="status"><span class="dot ok"></span><span class="msg">已合并 2 个句段</span><button class="act">撤销</button><button class="x" aria-label="关闭"><svg class="i"><use href="#x"/></svg></button></div>
+          <div class="toast" role="alert"><span class="dot err"></span><span class="msg">保存失败：磁盘空间不足<small>草稿仍在</small></span><button class="act">重试</button><button class="x" aria-label="关闭"><svg class="i"><use href="#x"/></svg></button></div>
+        </div>
+        <div class="strip"><span class="chip"><span class="dot err"></span>1 处没保存</span></div>
+      </div>
+      <div class="stage" data-theme="dark">
+        <div class="lane">
+          <div class="seg">ka'lu ŋa-tsʰo</div>
+          <div class="seg">mi-ʔan təp</div>
+          <div class="seg">ʔo lan-se</div>
+        </div>
+        <div class="toast-region" aria-label="通知（F8）">
+          <div class="toast" role="status"><span class="ring"></span><span class="msg">正在保存 3 处编辑…</span></div>
+          <div class="toast" role="status"><span class="dot warn"></span><span class="msg">保存结果还不能确认，正在核实<small>核实完成前不重试、不放弃</small></span><button class="x" aria-label="关闭"><svg class="i"><use href="#x"/></svg></button></div>
+        </div>
+        <div class="strip"><span class="chip"><span class="dot warn"></span>核实中</span></div>
+      </div>
     </div>
-    <p class="meta">墨色壳加色点，不用彩色描边。</p>
+    <ul class="rules">
+      <li>当前工作区底部居中，底栏上方 32px；按工作区而不是整窗居中，不压导航轨和上下文栏。层级 <code class="mono">--z-toast</code>。</li>
+      <li>新的在下，间距 8px，最多同时 3 条；超出时先收掉最早的「结果」，「需要处理」不被挤掉。同一件事（同一次保存）原位更新，不叠新条。</li>
+      <li>常驻入口：失败在句段上和底栏状态片里都有重试；撤销在编辑菜单和 <kbd class="kbd">⌘Z</kbd>；恢复和切窗口在菜单栏。提示条从不是唯一入口。</li>
+      <li>读屏：结果、进行中、核实中用 <code class="mono">role="status"</code>，失败用 <code class="mono">role="alert"</code>。提示条不抢焦点；<kbd class="kbd">F8</kbd> 跳到通知区，<kbd class="kbd">Esc</kbd> 关掉当前条并回到原处。</li>
+      <li>进入：200ms 淡入加上移 8px；离开：160ms 淡出。减少动态时只保留透明度，细环停转、文字照常。</li>
+      <li>不做：页顶横幅、通知中心与历史列表、字段校验提示（就地显示）、两类桌面阻断（见下方）。</li>
+    </ul>
   </section>
 
   <section>
@@ -59,6 +115,7 @@
       <div class="inline note"><span class="dot warn"></span>保存结果还不能确认，正在核实。核实完成前不重试、不放弃。</div>
       <div class="inline note">可通过撤销（Undo）恢复</div>
     </div>
+    <p class="meta">对话框、侧栏表单里的就地反馈。页面级的同一件事用提示条，两者不重复弹。</p>
   </section>
 
   <section>

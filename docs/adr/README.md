@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0112**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0118**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -71,6 +71,12 @@ source_of_truth: decision-index
 
 ## 本轮范围与生命周期
 
+- [0115：波形选区、概览视窗与当前激活语段接入主题色高亮](./0115-timeline-waveform-and-segment-highlights.md)
+- [0116：页面级通知只用提示条，动作必须有常驻入口](./0116-page-notices-as-toasts-with-durable-carriers.md)
+- [0117：当前激活语段用输入焦点的圆角灰边，保留主题浅底](./0117-active-segment-uses-input-focus-chrome.md)
+- [0114：克制主题色按 Radix 三档拆分为实心填充、浅底承托与可读文字](./0114-restrained-theme-accent-three-tier-scale.md)
+- [0113：上下文栏灰阶改浅，分界靠边线](./0113-context-sidebar-shallower-step.md)
+- [0112：上下文栏深于主工作区纸面](./0112-context-sidebar-deeper-than-paper.md)
 - [0111：设计系统图标用法与标签家族](./0111-icon-usage-and-tag-family.md)
 - [0110：设计系统焦点态改为铅笔石墨细外环与输入淡墨晕](./0110-focus-graphite-ring-and-soft-ink-halo.md)
 - [0109：设计系统收口：去除信息蓝、IPA 统一 Noto、完整菜单终态与嵌入媒体规则](./0109-design-system-no-info-blue-noto-ipa-and-menu-target.md)

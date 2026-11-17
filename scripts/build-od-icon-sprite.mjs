@@ -18,12 +18,16 @@ const { version } = createRequire(import.meta.url)('lucide-react/package.json');
 
 // Only names the preview pages actually use; DESIGN.md §4 lists where each one belongs.
 const NAMES = [
+  'library',
   'audio-lines',
+  'pencil',
   'book-open',
+  'notebook-pen',
   'languages',
   'brain',
   'settings',
   'panel-left-open',
+  'panel-left-close',
   'play',
   'pause',
   'skip-back',
@@ -32,6 +36,8 @@ const NAMES = [
   'volume-2',
   'zoom-in',
   'zoom-out',
+  'expand',
+  'focus',
   'magnet',
   'undo-2',
   'redo-2',

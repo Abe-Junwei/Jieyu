@@ -24,13 +24,13 @@
     .opt.active { background: var(--surface-warm); }
     .opt .mono { margin-left: auto; color: var(--muted); }
     .box { width: 16px; height: 16px; border: 1.5px solid var(--border-control); border-radius: 2px; display: inline-grid; place-items: center; font-size: var(--text-xs); line-height: 1; }
-    .box.on { background: var(--fg); border-color: var(--fg); color: var(--accent-on); }
+    .box.on { background: var(--brand); border-color: var(--brand); color: var(--brand-on); }
     .radio { width: 16px; height: 16px; border: 1.5px solid var(--border-control); border-radius: 50%; display: inline-grid; place-items: center; }
-    .radio.on { border-color: var(--fg); }
-    .radio.on::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--fg); }
+    .radio.on { border-color: var(--brand); }
+    .radio.on::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--brand); }
     .switch { width: 32px; height: 18px; border-radius: 999px; background: var(--border-strong); position: relative; display: inline-block; }
-    .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); }
-    .switch.on { background: var(--fg); }
+    .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--brand-on); }
+    .switch.on { background: var(--brand); }
     .switch.on::after { left: 16px; }
   </style>
 </head>
@@ -55,7 +55,7 @@
   <section>
     <h2>下拉与组合框</h2>
     <div class="form">
-      <div class="field"><label>层类型</label><div class="control">释义<span class="caret"><svg class="i"><use href="#chevron-down"/></svg></span></div></div>
+      <div class="field"><label>层类型</label><div class="control">翻译<span class="caret"><svg class="i"><use href="#chevron-down"/></svg></span></div></div>
       <div class="field">
         <label>语言（ISO 组合框）</label>
         <div class="control focus">kr|<span class="caret"><svg class="i"><use href="#chevron-down"/></svg></span></div>

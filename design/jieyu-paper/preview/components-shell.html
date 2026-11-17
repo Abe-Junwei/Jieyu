@@ -11,9 +11,9 @@
     .rail { background: var(--surface); border-right: 1px solid var(--border-soft); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; }
     .rail b { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 4px; color: var(--fg-2); }
     .rail b.end { margin-top: auto; }
-    .rail b.on { background: var(--surface-warm); color: var(--fg); box-shadow: inset 2px 0 0 var(--fg); }
-    .ctx { background: var(--surface); border-right: 1px solid var(--border-soft); display: grid; align-content: start; }
-    .ctx h3 { margin: 0; padding: 12px 16px 8px; font: 600 var(--text-xs)/var(--leading-xs) var(--font-body); color: var(--muted); }
+    .rail b.on { background: var(--brand-tint); color: var(--secondary); box-shadow: inset 2px 0 0 var(--brand); }
+    .ctx { background: var(--context); border-right: 1px solid var(--border); display: grid; align-content: start; }
+    .ctx h2 { margin: 0; padding: 12px 16px 8px; font: 600 var(--text-xs)/var(--leading-xs) var(--font-body); color: var(--muted); }
     .item { height: 40px; padding: 0 16px; display: flex; align-items: center; gap: 8px; font-size: var(--text-base); }
     .item.sel { background: var(--selection); box-shadow: inset 2px 0 0 var(--fg); }
     .item .mono { margin-left: auto; color: var(--muted); }
@@ -35,15 +35,15 @@
 
   <div class="shell">
     <nav class="rail" aria-label="左轨">
-      <b class="on" aria-current="page" aria-label="转写" title="转写"><svg class="i lg"><use href="#audio-lines"/></svg></b><b aria-label="词典" title="词典"><svg class="i lg"><use href="#book-open"/></svg></b><b aria-label="语言" title="语言"><svg class="i lg"><use href="#languages"/></svg></b><b aria-label="AI 分析" title="AI 分析"><svg class="i lg"><use href="#brain"/></svg></b><b class="end" aria-label="设置" title="设置"><svg class="i lg"><use href="#settings"/></svg></b>
+      <b aria-label="工程夹" title="工程夹"><svg class="i lg"><use href="#library"/></svg></b><b class="on" aria-current="page" aria-label="转写" title="转写"><svg class="i lg"><use href="#audio-lines"/></svg></b><b aria-label="标注" title="标注"><svg class="i lg"><use href="#pencil"/></svg></b><b aria-label="词典" title="词典"><svg class="i lg"><use href="#book-open"/></svg></b><b aria-label="语料库" title="语料库"><svg class="i lg"><use href="#notebook-pen"/></svg></b><b aria-label="分析复核" title="分析复核"><svg class="i lg"><use href="#brain"/></svg></b><b aria-label="语言资产" title="语言资产"><svg class="i lg"><use href="#languages"/></svg></b><b class="end" aria-label="设置" title="设置"><svg class="i lg"><use href="#settings"/></svg></b>
     </nav>
     <aside class="ctx">
-      <h3>稿件</h3>
+      <h2>稿件</h2>
       <div class="item sel">卡朗语 · 田野录音 03<span class="mono">12:48</span></div>
       <div class="item">卡朗语 · 田野录音 04<span class="mono">08:02</span></div>
-      <h3>层</h3>
-      <div class="item">转写<span class="mono">48</span></div>
-      <div class="item">释义<span class="mono">31</span></div>
+      <h2>层</h2>
+      <div class="item">转写 · 卡朗语<span class="mono">48</span></div>
+      <div class="item">翻译 · 汉语<span class="mono">31</span></div>
     </aside>
     <section class="main">
       <div class="toolbar">

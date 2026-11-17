@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-16T10:08:32.414Z",
-  "aggregate": "cb3e3e13903c5881436452a0eec812b04ca97e34657c39f406eb040a6d08b2cc",
+  "generatedAt": "2026-11-17T02:11:34.407Z",
+  "aggregate": "3dcb00fa8ed200a18c60cc1dfca60ca0ee0da52a3b72e8dcb3f1233997b37c05",
   "fileHashes": {
     "src/styles/ai-hub.css": "537be68d401399d5c7be152205f71c4c4f6949f861c9e34d22499005846034c7",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -74,7 +74,7 @@
     "src/styles/panels/shortcuts-panel.css": "13cd4a3d624e76c22c91596cef3f4e9fe5f8cc986a0f30831a39a9fe92545671",
     "src/styles/panels/undo-history.css": "6649f307ffd35d5bbbda45272e15b73a0b6168fbf2fab8ca59045574a32a5a8d",
     "src/styles/panels/voice-agent.css": "f4533990de2f279a63a74cfcb071d29e3453fe232d05ddf55ef30f33e0e5e765",
-    "src/styles/tokens.css": "90216a377c0ac0245bd4a2dad0b6bd4afe9590335d041a97b78f9b882c69430e",
+    "src/styles/tokens.css": "2417f554490d2f11516555e45ab15fa9cbaa5c22f29b64b829fd71e7259b81bd",
     "src/styles/transcription-entry.css": "58cb5cf806e8359ee550ed1bb4e6da9a334391e19c43dcd81184924d75c5003b",
     "src/styles/transcription-timeline.css": "15b57584ca039026d664457c51b69a6e5449bd6e75a6b6c9a7fcdffa0c9eae9e"
   }

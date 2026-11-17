@@ -13,7 +13,7 @@
     .play { width: 32px; height: 32px; border-radius: var(--radius-md); background: var(--accent); color: var(--accent-on); border: 0; display: grid; place-items: center; }
     .play svg { fill: currentColor; stroke: none; width: 16px; height: 16px; }
     .tb { width: 28px; height: 28px; border-radius: var(--radius-md); border: 0; background: transparent; color: var(--fg-2); display: grid; place-items: center; }
-    .tb.on { background: var(--selection); color: var(--fg); }
+    .tb.on { background: var(--brand-tint); color: var(--secondary); }
     .tb.focus { outline: 1.5px solid var(--focus-color); outline-offset: 2px; }
     .tb.off { color: var(--muted); opacity: .5; }
     .tc { height: 28px; display: inline-flex; align-items: center; padding: 0 8px; border: 1px solid var(--border-control); border-radius: var(--radius-md); background: var(--surface); font-family: var(--font-mono); font-size: var(--text-xs); }
@@ -22,32 +22,31 @@
     .pick { height: 28px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border: 1px solid var(--border-control); border-radius: var(--radius-md); background: var(--surface); font-size: var(--text-sm); }
     .slider { width: 96px; height: 16px; position: relative; flex: none; }
     .slider::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; height: 2px; background: var(--border-strong); }
-    .slider i { position: absolute; left: 0; top: 7px; height: 2px; background: var(--fg); }
-    .slider b { position: absolute; top: 2px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--surface); border: 2px solid var(--fg); }
+    .slider i { position: absolute; left: 0; top: 7px; height: 2px; background: var(--brand); }
+    .slider b { position: absolute; top: 2px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--surface); border: 2px solid var(--brand); }
     .slider.focus b { outline: 1.5px solid var(--focus-color); outline-offset: 2px; }
 
     .board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
     .tlbox { position: relative; background: var(--surface); border: 1px solid var(--border); height: 132px; overflow: hidden; }
     .lane { position: absolute; left: 0; right: 0; height: 54px; border-bottom: 1px solid var(--border-soft); }
     .seg { position: absolute; top: 8px; bottom: 8px; padding: 4px 8px; background: var(--surface-warm); white-space: nowrap; overflow: hidden; font: var(--text-lg)/var(--leading-lg) var(--font-ipa); }
-    .seg.sel { background: var(--selection); box-shadow: inset 2px 0 0 var(--fg); }
-    .seg.focus { box-shadow: inset 2px 0 0 var(--fg); outline: 1.5px solid var(--focus-color); outline-offset: -1.5px; }
+    .seg.focus { box-shadow: inset 2px 0 0 var(--brand); outline: 1.5px solid var(--focus-color); outline-offset: -1.5px; }
     .shadow-seg { position: absolute; border: 1.5px dashed var(--fg-2); }
-    .handle { position: absolute; top: 4px; bottom: 4px; width: 2px; background: var(--fg); }
-    .handle::after { content: ""; position: absolute; top: 50%; left: -3px; width: 8px; height: 16px; margin-top: -8px; border-radius: var(--radius-sm); background: var(--fg); }
-    .hit { position: absolute; top: 0; bottom: 0; width: 8px; margin-left: -3px; background: var(--fg); opacity: .08; }
-    .guide { position: absolute; top: 0; bottom: 0; border-left: 1.5px dashed var(--fg); }
+    .handle { position: absolute; top: 4px; bottom: 4px; width: 2px; background: var(--secondary); }
+    .handle::after { content: ""; position: absolute; top: 50%; left: -3px; width: 8px; height: 16px; margin-top: -8px; border-radius: var(--radius-sm); background: var(--brand); }
+    .hit { position: absolute; top: 0; bottom: 0; width: 8px; margin-left: -3px; background: var(--brand); opacity: .12; }
+    .guide { position: absolute; top: 0; bottom: 0; border-left: 1.5px dashed var(--secondary); }
     .tip { position: absolute; padding: 4px 8px; background: var(--fg); color: var(--accent-on); border-radius: var(--radius-md); font-size: var(--text-xs); line-height: var(--leading-xs); white-space: nowrap; box-shadow: var(--shadow-popover); }
     .tip.bad { background: var(--surface); color: var(--danger-text); border: 1px solid var(--border); }
     .count { position: absolute; top: 4px; right: 4px; height: 20px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--fg); color: var(--accent-on); font-size: var(--text-xs); line-height: 20px; }
     .pin { position: absolute; width: 12px; height: 12px; margin-left: -6px; transform: rotate(45deg); border: 1.5px solid var(--fg-2); background: var(--surface); }
-    .pin.sel { background: var(--fg); border-color: var(--fg); }
+    .pin.sel { background: var(--brand); border-color: var(--secondary); }
     .narrow { position: absolute; top: 8px; bottom: 8px; width: 4px; background: var(--border-strong); }
     .overlap { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--fg) 14%, transparent) 4px 5px); }
 
     .mini { position: relative; height: 32px; background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; gap: 1px; padding: 0 4px; }
     .mini i { flex: 1; background: var(--muted); opacity: .35; }
-    .mini .vp { position: absolute; top: 2px; bottom: 2px; border: 1.5px solid var(--fg); border-radius: var(--radius-sm); }
+    .mini .vp { position: absolute; top: 2px; bottom: 2px; border: 1.5px solid var(--secondary); background: color-mix(in srgb, var(--brand-tint) 65%, transparent); border-radius: var(--radius-sm); }
     .mini .ph { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--playhead); }
     .strip { height: 28px; display: flex; align-items: center; gap: 16px; padding: 0 12px; background: var(--surface); border: 1px solid var(--border); font-size: var(--text-xs); line-height: var(--leading-xs); color: var(--muted); white-space: nowrap; }
     .strip .push { margin-left: auto; }
@@ -86,7 +85,7 @@
     <div class="row" style="gap:24px">
       <div class="row"><button class="play" aria-label="暂停"><svg class="i"><use href="#pause"/></svg></button><span class="meta">播放中显示暂停</span></div>
       <div class="row"><button class="tb focus"><svg class="i"><use href="#skip-back"/></svg></button><span class="meta">键盘焦点</span></div>
-      <div class="row"><button class="tb on"><svg class="i"><use href="#repeat"/></svg></button><span class="meta">切换开：选中底，不用墨色实心</span></div>
+      <div class="row"><button class="tb on"><svg class="i"><use href="#repeat"/></svg></button><span class="meta">切换开：主题浅底 + 主题图标，不用墨色实心</span></div>
       <div class="row"><button class="tb off" disabled><svg class="i"><use href="#skip-forward"/></svg></button><span class="meta">没有录音时禁用</span></div>
     </div>
     <p class="meta">播放按钮是全页唯一的墨色实心按钮。切换按钮用 <code>aria-pressed</code>，开着是选中底。每个按钮都有完整名称和快捷键提示。速度只给离散档位（0.5× 0.75× 1.0× 1.25× 1.5× 2.0×）。</p>

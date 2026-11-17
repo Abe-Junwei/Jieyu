@@ -9,23 +9,24 @@
     .tl { position: relative; background: var(--surface); border: 1px solid var(--border); overflow: hidden; }
     .ruler { height: 24px; border-bottom: 1px solid var(--border-soft); display: flex; padding-left: 64px; }
     .ruler span { flex: 1; font: var(--text-xs)/var(--leading-lg) var(--font-mono); color: var(--muted); border-left: 1px solid var(--border-soft); padding-left: 4px; }
-    .wave { height: 56px; margin-left: 64px; display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--border-soft); }
-    .wave i { width: 3px; background: var(--fg-2); opacity: .55; }
+    .wave { position: relative; height: 56px; margin-left: 64px; display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--border-soft); background: var(--surface-warm); padding: 0 4px; }
+    .wave i { flex: 1; background: var(--fg-2); opacity: .42; position: relative; z-index: 1; }
+    .wave i.in-sel { background: var(--secondary); opacity: 1; }
     .lane { height: var(--lane-height); display: flex; border-bottom: 1px solid var(--border-soft); }
-    .lane-label { width: 64px; flex: none; padding: 8px; font-size: var(--text-xs); line-height: var(--leading-xs); color: var(--fg-2); display: grid; gap: 2px; }
+    .lane-label { width: 64px; flex: none; padding: 8px; font-size: var(--text-xs); line-height: var(--leading-xs); color: var(--fg-2); display: grid; gap: 4px; }
     .lane-body { position: relative; flex: 1; }
     .seg { position: absolute; top: 8px; bottom: 8px; padding: 4px 8px; background: var(--surface-warm); border-radius: 0; font-size: var(--text-base); line-height: var(--leading-base); white-space: nowrap; overflow: hidden; }
-    .seg.sel { background: var(--selection); box-shadow: inset 2px 0 0 var(--fg); }
+    .seg.linked { background: var(--selection); }
     .seg.focus { outline: 1.5px solid var(--focus-color); outline-offset: -1.5px; }
     .seg.fail { background: var(--danger-bg); color: var(--fg); }
     .seg .tag { position: absolute; top: 4px; right: 8px; display: flex; gap: 4px; align-items: center; font-size: var(--text-xs); }
     .seg.mid span.t { text-decoration: underline dashed var(--confidence-mid) 1.5px; text-underline-offset: 4px; }
     .seg.low span.t { text-decoration: underline solid var(--confidence-low) 2px; text-underline-offset: 4px; }
-    .handle { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--fg); }
-    .region { position: absolute; top: 24px; bottom: 0; background: var(--selection); opacity: .9; mix-blend-mode: multiply; }
-    .playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--playhead); }
+    .handle { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--secondary); }
+    .region { position: absolute; top: 0; bottom: 0; background: var(--brand-tint); border-left: 1px solid var(--secondary); border-right: 1px solid var(--secondary); pointer-events: none; }
+    .playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--playhead); z-index: 2; }
     .speaker { width: 18px; height: 18px; border: 1.5px solid; border-radius: 50%; display: inline-grid; place-items: center; font: 600 var(--text-xs)/1 var(--font-body); }
-    .legend { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 24px; }
+    .legend { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 24px; }
     .legend div { display: flex; gap: 8px; align-items: center; font-size: var(--text-sm); white-space: nowrap; }
     .legend svg { flex: none; }
     .layers { width: 272px; background: var(--surface); border: 1px solid var(--border); }
@@ -45,9 +46,9 @@
     <h2>标尺、波形、轨道</h2>
     <div class="tl">
       <div class="ruler"><span>00:01:10</span><span>00:01:12</span><span>00:01:14</span><span>00:01:16</span><span>00:01:18</span></div>
-      <div class="wave" id="wave"></div>
+      <div class="wave" id="wave"><div class="region" style="left:24%;width:22%"></div><div class="playhead" style="left:36%"></div></div>
       <div class="lane">
-        <div class="lane-label"><b>转写</b><span class="meta">A · 主</span></div>
+        <div class="lane-label"><b>卡朗语</b></div>
         <div class="lane-body">
           <div class="seg" style="left:2%;width:20%"><span class="t">naŋ kʰa tə ruŋ</span></div>
           <div class="seg sel" style="left:24%;width:22%"><span class="t">mi so la ŋe</span><span class="tag">✓</span></div>
@@ -57,15 +58,13 @@
         </div>
       </div>
       <div class="lane">
-        <div class="lane-label"><b>释义</b><span class="meta">B · 从属</span></div>
+        <div class="lane-label"><b>汉语</b></div>
         <div class="lane-body">
           <div class="seg" style="left:2%;width:20%">我 去 处所 山</div>
-          <div class="seg focus" style="left:24%;width:22%">他 说 了 吗<span class="tag">?</span></div>
+          <div class="seg linked focus" style="left:24%;width:22%">他 说 了 吗<span class="tag">?</span></div>
           <div class="seg" style="left:48%;width:18%">水 冷</div>
         </div>
       </div>
-      <div class="region" style="left:calc(64px + 24% * 0.94);width:calc(22% * 0.94)"></div>
-      <div class="playhead" style="left:calc(64px + 36% * 0.94)"></div>
     </div>
   </section>
 
@@ -73,8 +72,9 @@
     <h2>句段状态</h2>
     <div class="legend">
       <div><span class="seg" style="position:static;padding:2px 8px">默认</span></div>
-      <div><span class="seg sel" style="position:static;padding:2px 8px">选中：浅灰 + 左墨条</span></div>
-      <div><span class="seg focus" style="position:static;padding:2px 8px">键盘焦点：墨环</span></div>
+      <div><span class="seg sel" style="position:static;padding:2px 8px">当前激活：主题浅底 + 圆角灰边</span></div>
+      <div><span class="seg linked" style="position:static;padding:2px 8px">跨层对齐：中性浅灰</span></div>
+      <div><span class="seg focus" style="position:static;padding:2px 8px">键盘焦点：石墨细环</span></div>
       <div><span class="seg fail" style="position:static;padding:2px 8px">保存失败</span> <button class="btn sm">重试</button></div>
       <div><span class="seg mid" style="position:static;padding:2px 8px"><span class="t">置信度中</span></span><span class="meta">墨色虚下划线</span></div>
       <div><span class="seg low" style="position:static;padding:2px 8px"><span class="t">置信度低</span></span><span class="meta">琥珀实线 · 待复核</span></div>
@@ -101,15 +101,22 @@
   <section>
     <h2>层列表</h2>
     <div class="layers">
-      <div class="layer"><span class="speaker" style="color:var(--series-ink-0)">A</span>转写<span class="meta">48 句段</span></div>
-      <div class="layer sel"><span class="speaker" style="color:var(--series-ink-1)">B</span>释义<span class="meta">31 句段</span></div>
-      <div class="layer"><span class="speaker" style="color:var(--series-ink-2)">C</span>翻译<span class="meta">12 句段</span></div>
+      <div class="layer"><span class="speaker" style="color:var(--series-ink-0)">A</span>转写 · 卡朗语<span class="meta">48 句段</span></div>
+      <div class="layer sel"><span class="speaker" style="color:var(--series-ink-1)">B</span>翻译 · 汉语<span class="meta">31 句段</span></div>
+      <div class="layer"><span class="speaker" style="color:var(--series-ink-2)">C</span>翻译 · 英语<span class="meta">12 句段</span></div>
     </div>
   </section>
 </main>
 <script>
   const w = document.getElementById('wave');
-  for (let i = 0; i < 220; i++) { const b = document.createElement('i'); b.style.height = (6 + Math.abs(Math.sin(i * 0.37) * Math.cos(i * 0.11)) * 44) + 'px'; w.appendChild(b); }
+  const reg = w.querySelector('.region');
+  for (let i = 0; i < 160; i++) {
+    const b = document.createElement('i');
+    const p = (i + 0.5) / 160;
+    if (p >= 0.24 && p <= 0.46) b.className = 'in-sel';
+    b.style.height = (6 + Math.abs(Math.sin(i * 0.37) * Math.cos(i * 0.11)) * 44) + 'px';
+    w.insertBefore(b, reg);
+  }
 </script>
 </body>
 </html>
