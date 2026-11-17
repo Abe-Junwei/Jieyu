@@ -69,7 +69,7 @@
   justify-content: stretch;
   gap: 8px;
   padding: 8px;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--header-border) 92%, transparent);
   background: var(--wave-toolbar-flyout-surface);
   box-shadow: var(--shadow-md);

@@ -63,7 +63,7 @@
 .panel-design-match-dialog {
   border-color: var(--panel-design-border-color);
   background: var(--panel-design-surface-color);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
 }
 
@@ -71,7 +71,7 @@
   width: 100%;
   min-height: 0;
   border: 1px solid var(--panel-design-border-color);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   background: var(--panel-design-surface-color);
   box-shadow: var(--shadow-md);
   display: flex;

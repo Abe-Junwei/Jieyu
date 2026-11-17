@@ -141,7 +141,7 @@ components:
 
 > 2026-11-16 起，默认外观是 Open Design 里定下的「纸本田野笔记」（[ADR-0103](../../docs/adr/0103-paper-field-notes-is-the-only-appearance.md)）。旧的多套配色不再可用。与风格无关的工程规则（ADR-0101 第 4 条）保留。
 
-设计系统只有一套，在 `design/jieyu-paper/`：本文件是正文（根目录 `DESIGN.md` 是指向它的软链接），`preview/` 是组件预览页，`tokens.css` 由 `npm run build:od-tokens` 从 `src/styles/tokens.css` 生成、不手改。Open Design 通过软链接直接读这个目录（[ADR-0106](../../docs/adr/0106-design-system-package-lives-in-repo.md)）。
+设计系统只有一套，在 `design/jieyu-paper/`：本文件是正文（根目录 `DESIGN.md` 是指向它的软链接），`tokens.css` 由 `npm run build:od-tokens` 从 `src/styles/tokens.css` 生成、不手改。页面精稿在 Pixso（[ADR-0118](../../docs/adr/0118-pixso-is-the-design-draft-workspace.md)）。
 
 颜色与尺寸以 `src/styles/tokens.css` 为准。UI 规范描述目标表达，不声明现有组件或运行行为已全部实现。
 
@@ -168,7 +168,7 @@ components:
 - 工作面 / 面板：亮 `#FAFAFA` / `#FFFFFF`，暗 `#0C0C09` / `#161614`。
 - 正文 / 次级 / 辅助：亮 `#111111` / `#3A3A3A` / `#5C5C5C`，暗 `#F4F2EC` / `#C8C4BA` / `#8E8A82`。
 - 分隔线用 border-subtle / soft；控件可操作边界（输入类控件、复选框、单选框、带边按钮）用 border-control（亮 `#949494`，暗 `#6A675F`；悬停加深到次级文字色，禁用退回 border-soft；转写工具栏与对话框关闭按钮保持无边框，[ADR-0108](../../docs/adr/0108-control-border-contrast-3-to-1.md)）。不拿浅分隔线充当控件边界。
-- 导航轨底色使用 chrome-rail-*，与纸面同色。当前工作区用 `--brand-tint` 浅底 + `--brand` 左侧 2px 条 + `--secondary` 图标，其余项仍是正文墨色。复选框、单选、开关开态，连续滑块（音量／缩放）填充轨，以及导入、导出、加载进度条统一用 `--brand` 实心（配 `--brand-on` 白字）；工具栏切换按钮 `aria-pressed="true"` 与筛选标签 `aria-checked="true"` 用 `--brand-tint` 底 + `--secondary` 前景，与时间轴／列表对象的中性选中底严格区分。
+- 导航轨底色使用 chrome-rail-*，与纸面同色。当前工作区用 `--brand-tint` 浅底 + `--brand` 左侧 2px 条 + `--secondary` 图标，其余项仍是正文墨色。复选框、单选、开关开态，连续滑块（音量／缩放）填充轨，以及导入、导出、加载进度条统一用 `--brand` 实心（配 `--brand-on` 白字）；工具栏切换按钮 `aria-pressed="true"` 与筛选标签 `aria-checked="true"` 用 `--brand-tint` 底 + `--secondary` 前景，与时间轴／列表对象的中性选中底严格区分。标签页当前项用 2px `--brand` 下划线（文字仍是加粗墨色），路径的可点上级项用 `--secondary` 文字（[ADR-0119](../../docs/adr/0119-theme-accent-for-steps-tabs-paths-and-quiet-indicators.md)）。
 - 上下文栏使用 `--context`（`--chrome-context-bg`）。亮色 `#F5F5F5`，暗色 `#121210`，只比纸面深一档。和主工作区的分界用 `--border`，不靠把整栏涂深。栏内选中行用 `--selection` 并保留左侧墨条，输入框保持纸色。
 - 语义 solid / text 分开：成功 solid `#16A34A`、文字亮色 `#166534`、暗色 `#4ADE80`；警告 solid `#D97706`、文字亮色 `#92400E`、暗色 `#FBBF24`；错误 solid 亮色 `#DC2626`、暗色 `#F07171`。正文不直接使用未达对比度的 solid 色。没有第四种语义蓝色；一般信息提示用中性浅灰底或墨色壳加墨点（[ADR-0109](../../docs/adr/0109-design-system-no-info-blue-noto-ipa-and-menu-target.md)）。
 
@@ -178,7 +178,7 @@ components:
 
 - UI：Noto Sans / Noto Sans SC；主标题 20/28、分组标题 16/24、正文 14/22、工具与说明 13/20。需要衬线时用 Noto Serif / Noto Serif SC。
 - IPA / IGT / 例句：统一使用 Noto Sans（`--font-ipa: 'Noto Sans', sans-serif`，不用 Charis SIL）；默认 16/24，内容展示可在 14–18px 范围调整并保持足够行高。不得用于按钮、菜单、导航和 UI 标题。界面、衬线、等宽与 IPA 所用的 Noto 字体全部随应用打包，不从网络加载（[ADR-0109](../../docs/adr/0109-design-system-no-info-blue-noto-ipa-and-menu-target.md)）。
-- 时间码与参数：Noto Sans Mono / ui-monospace；12/18，固定 LTR。
+- 时间码与参数：Noto Sans Mono / ui-monospace；12/18，固定 LTR。Pixso 云端没有 Noto Sans Mono 和 Noto Serif SC，稿里用替身：正文 Noto Sans SC，衬线 Source Han Serif CN，等宽 JetBrains Mono，音标 Noto Sans SemiCondensed。产品仍打包 Noto，不从网络加载。
 - 只有这 6 档（20、16、14、13、12，加 IPA 16），全部随设置里的字号缩放。最小 12px；面板里旧的 9–11、15、18、22px 已并入相邻档（[ADR-0104](../../docs/adr/0104-type-space-shadow-and-ink-only-series.md)）。
 - 附标、声调、送气和长音符号不得截顶压底。字族回退仍需保证可读，不用额外空格弥补字体或对齐问题。字号缩放到 140% 时允许标签与说明换行、行容器增高，不裁切主动作；RTL 语料与注释行内嵌时间码、ID、键位、代码片段一律固定 `direction: ltr`。
 - 文案语气：平实陈述事实，禁止感叹号与营销修辞；操作按钮一律用动词（「保存」「导出为 EAF」，不用「好」「确定」）；报错与阻断必须写清「什么没成、已有数据是否安全、下一步能做什么」。
@@ -188,10 +188,53 @@ components:
 
 4px 步进，优先 8px 节奏。组件内部只用 4 / 8 / 12 / 16 / 24 / 32px；40 / 48 / 64px 只给页面级留白。不用 20、10、6px 这类非步进值，行内边距取 8 或 12。正文和控件间距 12–16px，独立分组间距 24px。
 
-- 工作面圆角 0；菜单、提示和对话框 8px；控件 4px。
+- 工作面圆角 0；菜单、提示和对话框 8px；控件 4px。不设 2px 档，`--radius-xs` 与 `--radius-sm` 同 `--radius-md`。
 - 按钮默认 32px、紧凑 28px；单行输入默认 32px、紧凑不低于 28px。领域编辑单元可随字号与内容增高。
 - 图标统一使用 Lucide（`lucide-react`）轮廓风格，经由 `JieyuIcon` 入口；只有两档：20px 给左轨、空状态和拖放区，16px 给按钮、伴随文字和控件内记号。线宽 1.75，颜色跟随文字，不单独上语义色。图标与文字间距 8px，不混用彩色 emoji。命中优先 28×28，最低 24×24；时间轴细手柄例外见领域模式。
-- 图标只给没有文字也能认出的通用操作：工具栏常驻动作、下拉／树展开／关闭／清除／移除／更多／拖动把手、左轨导航、列表末尾的「添加」和空状态主图形。不用图标：状态（用色点＋文字）、确定度 ✓ ≈ ? 与 IGT／IPA／说话人字母（语料字形）、带动词的文字按钮、菜单项、标签页和列表行；也不拿 Unicode 箭头和三角（▾ ▸ ⋯ × ＋）充当控件。图标名与用途清单见 `preview/icons.html`，一个意思只对应一个图标（[ADR-0111](../../docs/adr/0111-icon-usage-and-tag-family.md)）。
+- 图标只给没有文字也能认出的通用操作：工具栏常驻动作、下拉／树展开／关闭／清除／移除／更多／拖动把手、左轨导航、列表末尾的「添加」和空状态主图形。不用图标：状态（用色点＋文字）、IGT／IPA／说话人字母（语料字形）、带动词的文字按钮、菜单项、标签页和列表行；也不拿 Unicode 箭头和三角（▾ ▸ ⋯ × ＋）充当控件。Pixso「组件」页的「图标 / 名称」与产品 `JieyuIcon` 同名，一个意思只对应一个图标（[ADR-0111](../../docs/adr/0111-icon-usage-and-tag-family.md)）。
+
+| 名称 | 用途 |
+| --- | --- |
+| library | 工程夹 |
+| audio-lines | 转写 |
+| pencil | 标注 |
+| book-open | 词典 |
+| notebook-pen | 语料库 |
+| brain | 分析复核 |
+| languages | 语言资产 |
+| settings | 设置 |
+| panel-left-open | 重开上下文栏 |
+| panel-left-close | 收起上下文栏 |
+| play | 播放 |
+| pause | 暂停 |
+| skip-back | 后退 |
+| skip-forward | 前进 |
+| repeat | 循环选区 |
+| volume-2 | 音量 |
+| zoom-in | 放大 |
+| zoom-out | 缩小 |
+| expand | 适应全部 |
+| focus | 适应选区 |
+| magnet | 吸附到边界 |
+| undo-2 | 撤销 |
+| redo-2 | 重做 |
+| upload | 导入、拖放区 |
+| file-exclamation-point | 文件损坏或版本拒绝打开 |
+| copy | 复制代码块或诊断摘要 |
+| search | 查找框前缀 |
+| arrow-up | 发送、上移、升序 |
+| arrow-down | 下移、降序 |
+| list-indent-decrease | 升一级 |
+| list-indent-increase | 降一级 |
+| chevron-down | 下拉、展开的树节点 |
+| chevron-right | 收起的树节点 |
+| chevron-up | 数字加 |
+| ellipsis | 行内「更多」 |
+| x | 关闭、清除、移除标签 |
+| plus | 列表末尾「添加」、分组新建 |
+| check | 筛选标签已选 |
+| grip-vertical | 拖动把手 |
+
 - 列表／表格默认行高 36–44px，密度一致；不要单凭缩小字形制造紧凑感。
 - 工作平面、面板和卡片不加投影。浮层用发丝边加三档阴影之一：`--shadow-popover`（菜单、Tooltip）、`--shadow-float`（层操作、备注等浮动面板）、`--shadow-modal`（模态）。按钮等独立控件焦点用 1.5px `--focus-color` 外环，输入类焦点用 `--focus-ring` 3px 淡墨晕，不手写粗黑双环。最多两层可见容器边框，内层用间距和底色分组。
 - 层级顺序（7 档语义 `z-index`）：内容 `--z-base`（1）< 粘顶表头与标尺 `--z-sticky`（20）< 导航轨与分栏壳 `--z-shell`（40）< 贴边非模态抽屉 `--z-drawer`（80）< 菜单、下拉与浮动面板 `--z-popover`（160）< 提示条与 Tooltip `--z-toast`（240）< 模态与阻断层 `--z-modal`（320）。不手写随意整数。
@@ -223,11 +266,13 @@ components:
 
 - 计数徽标：20px 高，只放数字；默认浅灰底，错误浅红底，需要处理的新项墨底。超过 99 写「99+」，读屏读完整数字；为 0 时不显示。
 - 状态片：24px 高，浅灰底＋色点＋次墨文字；颜色只在色点上。
+- 确定度徽标：16px 圆形，只放字形，11px 粗体居中；确定＝`--success-bg` 底＋`--success-text` ✓，不确定＝`--warn-bg` 底＋`--warn-text` ≈，没听懂＝`--danger-bg` 底＋`--danger-text` ?。挂 `aria-label` 并悬停显示同一文字；图例写成「徽标＋文字」（[ADR-0120](../../docs/adr/0120-transcriber-certainty-as-status-badge.md)）。
+- 备注徽标：句段有备注时显示 16px 文档形（Lucide `file-text` 轮廓），`--brand-tint` 纸面＋`--secondary` 描边——备注是次要标记，不是状态，不用状态色也不用信息蓝。与确定度徽标在语段右侧竖排（确定度在上、备注在下）；可点击打开备注浮动面板，`aria-label` 带条数。
 - 只读标签：词性、语义域、层类型、讲述人；浅灰底，无边框、无悬停。一行最多 3 个，其余收成「+N」；最长 200px，超出省略并可悬停看全名。
 - 筛选标签：白底＋控件边（`--border-control`）；选中为 `--brand-tint` 底＋`--brand` 边＋`--secondary` 字与勾，悬停、焦点、禁用齐全；空格切换。
 - 输入标签：标签输入框里的值，浅灰底＋末尾移除按钮；移除图标 16px，命中向外扩到 24×24，不与标签本体点击混用。第一次退格选中最后一个，第二次删除。
 
-靛青只给次要标记（未确认的 AI 候选、引用来源），不表示状态，也不当分类色。讲述人等系列区分用字母和墨色深浅，不用彩色标签。
+在标签家族里，靛青只给次要标记（未确认的 AI 候选、引用来源；`--brand-tint` 底加 `--secondary` 字），不表示状态，也不当分类色。讲述人等系列区分用字母和墨色深浅，不用彩色标签。
 
 ### 导航、标签页、折叠头与列表
 
@@ -245,11 +290,11 @@ components:
 
 ### 树、路径与分隔线
 
-树每级缩进 16px，→ 展开或进子级，← 收起或回父级，行内「⋯」悬停或焦点时出现、内容与右键菜单一致。路径只用在跨层级跳转（引用、查询结果、词条出处），末项是当前位置、不可点，过长从中间折叠。面板分隔线可视 1px、命中 9px，拖动时墨色 2px；上下文栏收起后留 32px 重开条，写当前位置。
+树每级缩进 16px，→ 展开或进子级，← 收起或回父级，行内「⋯」悬停或焦点时出现、内容与右键菜单一致。路径只用在跨层级跳转（引用、查询结果、词条出处），可点的上级项用 `--secondary`、悬停加下划线，末项是当前位置、加粗墨色、不可点，分隔符「/」用淡墨，过长从中间折叠。面板分隔线可视 1px、命中 9px，拖动时墨色 2px；上下文栏收起后留 32px 重开条，写当前位置。
 
 ### 向导与长任务
 
-向导步骤：已完成实心墨圈，当前墨边加粗，未到灰边；有阻断项时当前步骤用错误边加「!」和数量。可回到已完成步骤，不能跳过未完成步骤。导出先列会丢失的内容和数量，再列完整保留的。长任务给计数和取消；失败写清项目有没有被改动；写入结果不能确认时说明正在核实，不显示完成。回收站写剩余天数和引用影响，永久删除另行确认。
+向导步骤：已完成 `--brand` 实心圈配白勾，当前 2px `--brand` 边配 `--secondary` 序号，未到灰边；有阻断项时当前步骤用错误边加「!」和数量。可回到已完成步骤，不能跳过未完成步骤。导出先列会丢失的内容和数量，再列完整保留的。长任务给计数和取消；失败写清项目有没有被改动；写入结果不能确认时说明正在核实，不显示完成。回收站写剩余天数和引用影响，永久删除另行确认。
 
 ### 桌面外壳
 
@@ -257,7 +302,7 @@ components:
 
 ### 反馈与阻断
 
-空状态说明原因并给至多一个主要下一步；Skeleton 保留结构，加载文字说明当前状态；确定进度显示百分比，不确定进度不伪造数值。旋转加载环只允许 12px（按钮内）或 16px（行内伴随状态文字）单色细环，且耗时超过 300ms 才显现；禁止在画布中央单放无文字大转圈。
+空状态说明原因并给至多一个主要下一步，主图标用 `--secondary`；Skeleton 保留结构，加载文字说明当前状态；确定进度显示百分比，不确定进度不伪造数值。旋转加载环只允许 12px（按钮内）或 16px（行内伴随状态文字）单色细环（按钮内跟随按钮前景，行内用 `--secondary`），且耗时超过 300ms 才显现；禁止在画布中央单放无文字大转圈。
 
 未保存／保存中／失败／已保存有不同文案。未知或未提供状态不显示“已保存”。失败就近显示原因与重试（句段标记 + 不自动关闭的失败提示条 + 底栏状态片）；阻塞错误不能仅依赖短暂 Toast。内联保存失败：浅底 `#FEF2F2`、错误字 `#B91C1C`、墨色重试；与当前焦点和未写入草稿并存，重试不得清空编辑内容（转写对照板 29）。桌面阻断态只设两类：① 项目文件损坏或数据库版本不兼容拒绝打开（写明未改动原文件并给快照恢复／返回列表）；② 局部面板异常边界（隔离故障区、保住其他分栏数据安全、给重新加载与不含语料的诊断摘要复制）。
 
@@ -273,7 +318,7 @@ components:
 
 ### 键帽与多行等宽块
 
-正文说明与快捷键速查表用 `<kbd>` 键帽（20px 高、12px 等宽字、浅灰底 1px 细边，不画拟物厚底边；macOS 用 `⌘⇧⌥⌃`，Windows／Linux 用 `Ctrl+Shift+Alt`）；菜单右列直接排等宽文字不加键帽框。多行查询语法、导出头预览、诊断摘要共用等宽块容器（12/18 等宽、固定 LTR、超宽横向滚动不软折行、右上角附复制按钮）。
+正文说明与快捷键速查表用 `<kbd>` 键帽（20px 高、12px 等宽字、浅灰底 1px 细边，不画拟物厚底边；一个键一颗帽，字在帽里居中；macOS 用 `⌘⇧⌥⌃`，Windows／Linux 用 `Ctrl+Shift+Alt`）。菜单右列直接排符号、不加键帽框，顺序是 Control、Option、Shift、Command，再加主键；Home／End 用 ↖／↘。Pixso 云端字体里 Noto Sans SC、思源黑体和 JetBrains Mono 没有 U+232B，Fira Sans 的 ⌫ 是实心键形。快捷键符号用 Inter，⌫ 保持线框。多行查询语法、导出头预览、诊断摘要共用等宽块容器（12/18 等宽、固定 LTR、超宽横向滚动不软折行、右上角附复制按钮）。
 
 ### 复合状态
 
@@ -291,7 +336,7 @@ components:
 
 播放头是 2px 墨色实线（暗色用纸色，且仅画在波形画布内）；波形选区用 `--brand-tint` 底加左右 1px `--secondary` 边界线，选区内的波峰用 `--secondary` 高亮，非选区波峰降为半透明次墨；当前激活语段用 `--brand-tint` 底加输入焦点那套圆角灰边，跨层伴随对齐段用中性 `--selection`；未激活片段的键盘焦点仍是石墨细外环（[ADR-0115](../../docs/adr/0115-timeline-waveform-and-segment-highlights.md)、[ADR-0117](../../docs/adr/0117-active-segment-uses-input-focus-chrome.md)）。红色在时间轴上只表示保存失败。手柄可视 2px、命中至少 8px；拖动显示虚影与新起止，吸附显示 `--secondary` 引导线与提示，操作拒绝说明原因。
 
-说话人轨和层联动线不用彩色，靠墨色深浅（`--series-ink-0..3`）、线型（实线、虚线、点线）和字母标记区分。暗色第四档是 `#8A847A`，不跟 `--gray-7`。只有颜色不同的两个系列不算可区分。暗色成功色点和警告色点跟各自的文字色（`#4ADE80` / `#FBBF24`），不沿用亮色色点。机器转写置信度：中＝墨色虚下划线，低＝琥珀实下划线（待复核）。转写人自标的确定度 ✓ ≈ ? 全用墨色，靠字形区分。
+说话人轨和层联动线不用彩色，靠墨色深浅（`--series-ink-0..3`）、线型（实线、虚线、点线）和字母标记区分。暗色第四档是 `#8A847A`，不跟 `--gray-7`。只有颜色不同的两个系列不算可区分。暗色成功色点和警告色点跟各自的文字色（`#4ADE80` / `#FBBF24`），不沿用亮色色点。机器转写置信度：中＝墨色虚下划线，低＝琥珀实下划线（待复核）。转写人自标的确定度用 16px 圆形徽标，见「标签与徽标」（[ADR-0120](../../docs/adr/0120-transcriber-certainty-as-status-badge.md)）。
 
 说话人／层分轨，合法跨轨重叠可辨认。极窄片段保留边界与提示入口，隐藏放不下的长文字。时间码 LTR；本模式不决定切分或磁吸算法。
 
@@ -305,7 +350,7 @@ components:
 
 ### 转写主工作区（应用主稿）
 
-转写壳主稿在 Open Design 里按本规范重画（[ADR-0101](../../docs/adr/0101-desktop-visual-direction-reexplore-superdesign.md)、[ADR-0102](../../docs/adr/0102-desktop-design-drafts-move-to-open-design.md)），定稿前以下布局与状态清单就是要求。切片 1 差额见 [jieyu-4ws-slice1-transcription-gap-2026-11-01.md](../../docs/execution/plans/jieyu-4ws-slice1-transcription-gap-2026-11-01.md)。
+转写壳主稿在 Pixso「精稿」页（[ADR-0118](../../docs/adr/0118-pixso-is-the-design-draft-workspace.md)）。定稿前以下布局与状态清单就是要求。切片 1 差额见 [jieyu-4ws-slice1-transcription-gap-2026-11-01.md](../../docs/execution/plans/jieyu-4ws-slice1-transcription-gap-2026-11-01.md)。
 
 布局：52px 左轨 + 上下文（稿件／层／片段列表）+ 主区（播放／波形／多轨时间轴）。**无右栏检查器、无底部「当前片段」页**。正文在时间轴选中块内就地编辑；拆分／合并／删除／备注／进标注等对象操作进右键菜单（按选中对象与数量启用），不把每个动作做成常驻工具栏按钮。常驻仅保留播放／视图／缩放／撤销与保存状态。
 
@@ -359,6 +404,6 @@ components:
 
 ## 10. 设计包与稿件位置
 
-设计系统包在 `design/jieyu-paper/`（[ADR-0106](../../docs/adr/0106-design-system-package-lives-in-repo.md)）：本文件是规则正文，`preview/` 是组件预览页，`tokens.css` 由代码 token 生成。页面精稿在 Open Design 里画，只用这里的组件与 token；导出 HTML 只作参考，不进代码。
+设计系统包在 `design/jieyu-paper/`（[ADR-0106](../../docs/adr/0106-design-system-package-lives-in-repo.md)）：本文件是规则正文，`tokens.css` 由代码 token 生成。页面精稿在 Pixso 文件 `va44BZLBUSYRQ7KoiO3PJw`（[ADR-0118](../../docs/adr/0118-pixso-is-the-design-draft-workspace.md)）：组件在「组件」页，规范在「规范」页，转写精稿在「精稿」页。
 
 现有组件映射和后台工程规格后续单独制定。代码实现仍须遵守仓库既有约束；本文件不修改产品数据语义、冻结格式或发布范围。用户可见文案接入产品时统一经过字典。

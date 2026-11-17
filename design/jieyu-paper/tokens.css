@@ -1,7 +1,7 @@
 /*
  * 生成文件，不要手改。改 src/styles/tokens.css 后运行 `npm run build:od-tokens`（ADR-0106）。
- * source-sha256: 2417f554490d2f11516555e45ab15fa9cbaa5c22f29b64b829fd71e7259b81bd
- * body-sha256: 09f7586d294124914a48e15a537592fa6f5a56780fb8ea78fe6bbd245adce661
+ * source-sha256: 6cd8339988e2a2b69cd1cd1bf64da966be0386775d60d0995dc9442f5ef5f441
+ * body-sha256: e98a28ab1e270b2e76174571336381ba48bc048f9aad1861cc5fffa23cbfc193
  */
 :root {
   /* 纸面与文字 */
@@ -49,9 +49,6 @@
   --text-base: 14px;
   --text-lg: 16px;
   --text-xl: 20px;
-  --text-2xl: 20px;
-  --text-3xl: 20px;
-  --text-4xl: 20px;
   --leading-xs: 18px;
   --leading-sm: 20px;
   --leading-base: 22px;
@@ -72,9 +69,7 @@
   --space-12: 48px;
   --space-16: 64px;
   --section-y-desktop: 24px;
-  --section-y-tablet: 16px;
-  --section-y-phone: 12px;
-  --radius-sm: 2px;
+  --radius-sm: 4px;
   --radius-md: 4px;
   --radius-lg: 8px;
   --radius-pill: 999px;
@@ -84,8 +79,6 @@
   --lane-height: 54px;
   --container-max: 1440px;
   --container-gutter-desktop: 32px;
-  --container-gutter-tablet: 16px;
-  --container-gutter-phone: 12px;
   /* 遮罩与浮层阴影（工作面、面板、卡片无投影） */
   --scrim: rgb(17 17 17 / 44%);
   --shadow-popover: 0 2px 8px rgb(17 17 17 / 8%);

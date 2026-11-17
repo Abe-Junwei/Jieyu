@@ -39,7 +39,7 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header) 6%);
 }
 

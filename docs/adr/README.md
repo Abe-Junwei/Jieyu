@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0118**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0120**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -71,6 +71,9 @@ source_of_truth: decision-index
 
 ## 本轮范围与生命周期
 
+- [0120：转写人确定度改用状态色圆形徽标](./0120-transcriber-certainty-as-status-badge.md)
+- [0119：向导步骤、标签页、路径与轻提示接入主题色](./0119-theme-accent-for-steps-tabs-paths-and-quiet-indicators.md)
+- [0118：页面精稿改在 Pixso，变量从代码单向同步](./0118-pixso-is-the-design-draft-workspace.md)
 - [0115：波形选区、概览视窗与当前激活语段接入主题色高亮](./0115-timeline-waveform-and-segment-highlights.md)
 - [0116：页面级通知只用提示条，动作必须有常驻入口](./0116-page-notices-as-toasts-with-durable-carriers.md)
 - [0117：当前激活语段用输入焦点的圆角灰边，保留主题浅底](./0117-active-segment-uses-input-focus-chrome.md)

@@ -12,8 +12,7 @@
   "files": {
     "design": "DESIGN.md",
     "tokens": "tokens.css",
-    "tailwind": "tailwind-v4.css",
-    "components": "components.html"
+    "tailwind": "tailwind-v4.css"
   },
   "usage": "USAGE.md",
   "componentsManifest": "components.manifest.json",
@@ -24,120 +23,5 @@
       "color"
     ],
     "exemptions": []
-  },
-  "preview": {
-    "dir": "preview",
-    "pages": [
-      {
-        "path": "preview/colors.html",
-        "role": "colors",
-        "title": "颜色"
-      },
-      {
-        "path": "preview/typography.html",
-        "role": "typography",
-        "title": "字号层级"
-      },
-      {
-        "path": "preview/spacing.html",
-        "role": "spacing",
-        "title": "间距与形状"
-      },
-      {
-        "path": "preview/elevation.html",
-        "role": "elevation",
-        "title": "阴影"
-      },
-      {
-        "path": "preview/icons.html",
-        "role": "icons",
-        "title": "图标"
-      },
-      {
-        "path": "preview/components-buttons.html",
-        "role": "buttons",
-        "title": "按钮"
-      },
-      {
-        "path": "preview/components-inputs.html",
-        "role": "inputs",
-        "title": "专用输入"
-      },
-      {
-        "path": "preview/components-forms.html",
-        "role": "forms",
-        "title": "表单"
-      },
-      {
-        "path": "preview/components-tags.html",
-        "role": "tags",
-        "title": "标签与徽标"
-      },
-      {
-        "path": "preview/components-timeline.html",
-        "role": "timeline",
-        "title": "时间轴"
-      },
-      {
-        "path": "preview/components-media.html",
-        "role": "media",
-        "title": "播放与时间轴编辑"
-      },
-      {
-        "path": "preview/components-igt.html",
-        "role": "igt",
-        "title": "IGT 行间注释"
-      },
-      {
-        "path": "preview/components-navigation.html",
-        "role": "navigation",
-        "title": "导航与结构"
-      },
-      {
-        "path": "preview/components-data.html",
-        "role": "data",
-        "title": "数据展示与编辑"
-      },
-      {
-        "path": "preview/components-query.html",
-        "role": "query",
-        "title": "专业查询"
-      },
-      {
-        "path": "preview/components-tasks.html",
-        "role": "tasks",
-        "title": "导入、导出与长任务"
-      },
-      {
-        "path": "preview/components-desktop.html",
-        "role": "desktop",
-        "title": "桌面外壳"
-      },
-      {
-        "path": "preview/components-shell.html",
-        "role": "shell",
-        "title": "壳层"
-      },
-      {
-        "path": "preview/components-overlays.html",
-        "role": "overlays",
-        "title": "浮层"
-      },
-      {
-        "path": "preview/components-feedback.html",
-        "role": "feedback",
-        "title": "反馈"
-      },
-      {
-        "path": "preview/components-ai.html",
-        "role": "ai",
-        "title": "AI 侧栏"
-      },
-      {
-        "path": "preview/app.html",
-        "role": "app",
-        "title": "转写行"
-      }
-    ]
   }
 }

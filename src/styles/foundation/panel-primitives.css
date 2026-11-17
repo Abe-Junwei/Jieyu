@@ -4,7 +4,7 @@
   min-width: 0;
   padding: var(--space-section-padding, var(--space-3, 12px));
   border: 0;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface-panel) 96%, var(--surface-bg));
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--surface-panel) 60%, transparent),
@@ -458,7 +458,7 @@
     --entry-card-border,
     1px solid color-mix(in srgb, var(--border-soft) 70%, transparent)
   );
-  border-radius: var(--entry-card-radius, var(--radius-2xl));
+  border-radius: var(--entry-card-radius, var(--radius-lg));
   background: var(
     --entry-card-background,
     color-mix(in srgb, var(--surface-panel) 96%, var(--surface-bg))

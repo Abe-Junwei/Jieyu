@@ -28,9 +28,6 @@
   --text-base: var(--text-base);
   --text-lg: var(--text-lg);
   --text-xl: var(--text-xl);
-  --text-2xl: var(--text-2xl);
-  --text-3xl: var(--text-3xl);
-  --text-4xl: var(--text-4xl);
   --leading-body: var(--leading-body);
   --leading-tight: var(--leading-tight);
   --tracking-display: var(--tracking-display);
@@ -43,8 +40,6 @@
   --spacing-8: var(--space-8);
   --spacing-12: var(--space-12);
   --spacing-section-desktop: var(--section-y-desktop);
-  --spacing-section-tablet: var(--section-y-tablet);
-  --spacing-section-phone: var(--section-y-phone);
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
@@ -58,8 +53,6 @@
   --ease-standard: var(--ease-standard);
   --container-max: var(--container-max);
   --spacing-container-desktop: var(--container-gutter-desktop);
-  --spacing-container-tablet: var(--container-gutter-tablet);
-  --spacing-container-phone: var(--container-gutter-phone);
   /* 以下超出 Open Design 的 TAILWIND_V4_THEME_BINDINGS。官方生成器重跑时会丢掉这几行。 */
   --color-secondary: var(--secondary);
   --color-border-strong: var(--border-strong);

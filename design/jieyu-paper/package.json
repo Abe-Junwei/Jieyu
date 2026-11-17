@@ -1,8 +1,5 @@
 {
   "name": "design-system",
   "private": true,
-  "type": "module",
-  "scripts": {
-    "preview": "open system/index.html"
-  }
+  "type": "module"
 }

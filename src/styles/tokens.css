@@ -195,18 +195,15 @@
   --space-admin-inline: var(--space-row-gap);
 
   /* 圆角 — control 专供按钮/输入；勿把 chip/tag 全抬到 10 */
-  --radius-xs: 2px;
-  --radius-sm: 2px;
+  --radius-xs: 4px;
+  --radius-sm: 4px;
   --radius-md: 4px;
   --radius-lg: 8px;
-  --radius-xl: 8px;
-  --radius-2xl: 8px;
-  --radius-3xl: 8px;
   --radius-pill: 999px;
   --radius-control: 4px;
 
   /* 入口卡（首页 hero / 时间轴空态）| Editorial entry card */
-  --entry-card-radius: var(--radius-2xl);
+  --entry-card-radius: var(--radius-lg);
   --entry-card-padding: clamp(24px, 3.5vw, 36px);
   --entry-card-border: 1px solid color-mix(in srgb, var(--border-soft) 70%, transparent);
   --entry-card-shadow: var(--shadow-card);

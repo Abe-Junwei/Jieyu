@@ -10,7 +10,7 @@
   font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   border: 1px solid color-mix(in srgb, var(--border-soft) 94%, transparent);
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface-panel) 99%, transparent);
   box-shadow: var(--shadow-md);
   display: flex;

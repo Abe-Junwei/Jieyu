@@ -7,7 +7,7 @@
  *   node scripts/build-od-design-tokens.mjs --check  hash-only check, no browser
  */
 import { createHash } from 'node:crypto';
-import { lstatSync, readdirSync, readFileSync, readlinkSync, writeFileSync } from 'node:fs';
+import { lstatSync, readFileSync, readlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,6 +16,29 @@ const sourcePath = path.join(root, 'src/styles/tokens.css');
 const outPath = path.join(root, 'design/jieyu-paper/tokens.css');
 const designLink = path.join(root, 'DESIGN.md');
 const designTarget = 'design/jieyu-paper/DESIGN.md';
+const pixsoPath = path.join(root, 'design/jieyu-paper/pixso-variables.json');
+
+// Open Design page-layout and Tailwind helpers that DESIGN.md does not name; Pixso does not get them (ADR-0118).
+const PIXSO_SKIP = new Set([
+  'section-y-desktop', 'container-max', 'container-gutter-desktop',
+  'leading-body', 'leading-tight', 'tracking-display',
+  'elev-flat', 'elev-ring', 'elev-raised',
+  // Pixso does not render shadow spread; focus rings are drawn as ring layers in the components.
+  'focus-ring', 'focus-ring-danger',
+]);
+// Effect styles have no modes in Pixso, so each shadow becomes a light and a dark style.
+const PIXSO_EFFECT_NAMES = {
+  'shadow-popover': ['阴影', '菜单与提示'],
+  'shadow-float': ['阴影', '浮动面板'],
+  'shadow-modal': ['阴影', '模态对话框'],
+};
+// Pixso cloud fonts lack Noto Sans (upright), Noto Sans Mono and Noto Serif SC; drafts use these stand-ins (ADR-0118 §7).
+const PIXSO_FONT_STANDINS = {
+  'font-display': 'Source Han Serif CN',
+  'font-body': 'Noto Sans SC',
+  'font-mono': 'JetBrains Mono',
+  'font-ipa': 'Noto Sans SemiCondensed',
+};
 
 const sha256 = (text) => createHash('sha256').update(text).digest('hex');
 
@@ -68,9 +91,6 @@ const GROUPS = [
     ['text-base', 'length', 'type-body-reg-size'],
     ['text-lg', 'length', 'type-sub-h-size'],
     ['text-xl', 'length', 'type-main-h-size'],
-    ['text-2xl', 'length', 'type-main-h-size'],
-    ['text-3xl', 'length', 'type-main-h-size'],
-    ['text-4xl', 'length', 'type-main-h-size'],
     ['leading-xs', 'length', 'type-code-time-line'],
     ['leading-sm', 'length', 'type-meta-tool-line'],
     ['leading-base', 'length', 'type-body-reg-line'],
@@ -83,8 +103,6 @@ const GROUPS = [
   ['间距、圆角、控件', [
     ...[1, 2, 3, 4, 5, 6, 8, 10, 12, 16].map((n) => [`space-${n}`, 'length', `space-${n}`]),
     ['section-y-desktop', 'const', '24px'],
-    ['section-y-tablet', 'const', '16px'],
-    ['section-y-phone', 'const', '12px'],
     ...['sm', 'md', 'lg', 'pill'].map((n) => [`radius-${n}`, 'length', `radius-${n}`]),
     ['control-height', 'length', 'btn-h-md'],
     ['control-height-compact', 'length', 'btn-h-sm'],
@@ -92,8 +110,6 @@ const GROUPS = [
     ['lane-height', 'length', 'timeline-lane-height'],
     ['container-max', 'const', '1440px'],
     ['container-gutter-desktop', 'const', '32px'],
-    ['container-gutter-tablet', 'const', '16px'],
-    ['container-gutter-phone', 'const', '12px'],
   ]],
   ['遮罩与浮层阴影（工作面、面板、卡片无投影）', [
     ['scrim', 'color', 'scrim'],
@@ -153,8 +169,56 @@ function contrastRatio(hexA, hexB) {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
+function pixsoColor(value) {
+  const m = value.match(/^rgb\((\d+) (\d+) (\d+) \/ (\d+)%\)$/);
+  const h = (n) => Number(n).toString(16).padStart(2, '0');
+  return (m ? `#${h(m[1])}${h(m[2])}${h(m[3])}${h(Math.round((m[4] * 255) / 100))}` : value).toUpperCase();
+}
+
+function pixsoShadow(value) {
+  const color = value.match(/rgb\([^)]*\)|#[0-9a-f]+/i)[0];
+  const [x, y, radius, spread = 0] = value.replace(color, '').trim().split(/\s+/).map(parseFloat);
+  return { type: 'DROP_SHADOW', offset: { x, y }, radius, spread, color: pixsoColor(color) };
+}
+
+/**
+ * Pixso payload from [name, lightValue, darkValue] rows.
+ * `variableSets` / `variables` go to write_variables as-is; `effectStyles` are written by name.
+ */
+export function buildPixsoPayload(rows) {
+  const variables = {};
+  const effectStyles = {};
+  for (const [name, lv, dv] of rows) {
+    if (PIXSO_SKIP.has(name)) continue;
+    if (PIXSO_EFFECT_NAMES[name]) {
+      const [group, label] = PIXSO_EFFECT_NAMES[name];
+      effectStyles[`${group}/${label} --${name}`] = [pixsoShadow(lv)];
+      effectStyles[`${group}-暗色/${label} --${name}`] = [pixsoShadow(dv)];
+    } else if (/^(#|rgb\()/.test(lv)) {
+      variables[`--${name}`] = { type: 'color', variableSet: '颜色', values: { 亮色: pixsoColor(lv), 暗色: pixsoColor(dv) } };
+    } else if (/^-?[\d.]+(px|ms)?$/.test(lv)) {
+      variables[`--${name}`] = { type: 'number', variableSet: '尺寸', values: { 默认: parseFloat(lv) } };
+    } else if (name.startsWith('font-')) {
+      const family = PIXSO_FONT_STANDINS[name] ?? lv.split(',')[0].replace(/['"]/g, '').trim();
+      variables[`--${name}`] = { type: 'string', variableSet: '字体', values: { 默认: family } };
+    } else {
+      variables[`--${name}`] = { type: 'string', variableSet: '尺寸', values: { 默认: lv } };
+    }
+  }
+  const variableSets = { 颜色: { modes: ['亮色', '暗色'] }, 尺寸: { modes: ['默认'] }, 字体: { modes: ['默认'] } };
+  return { variableSets, variables, effectStyles };
+}
+
 function check() {
   const errors = [];
+  const pixso = JSON.parse(readFileSync(pixsoPath, 'utf8'));
+  const { variableSets, variables, effectStyles } = pixso;
+  if (pixso.sourceSha256 !== sha256(readFileSync(sourcePath, 'utf8'))) {
+    errors.push('design/jieyu-paper/pixso-variables.json is stale; run `npm run build:od-tokens`, then sync Pixso (ADR-0118).');
+  }
+  if (pixso.bodySha256 !== sha256(JSON.stringify({ variableSets, variables, effectStyles }))) {
+    errors.push('design/jieyu-paper/pixso-variables.json was edited by hand; edit src/styles/tokens.css and run `npm run build:od-tokens`.');
+  }
   const out = readFileSync(outPath, 'utf8');
   const body = out.slice(out.indexOf('\n:root') + 1);
   if (readHeaderHash(out, 'source-sha256') !== sha256(readFileSync(sourcePath, 'utf8'))) {
@@ -180,24 +244,6 @@ function check() {
   }
   if (!lstatSync(designLink).isSymbolicLink() || readlinkSync(designLink) !== designTarget) {
     errors.push(`DESIGN.md must be a symlink to ${designTarget}.`);
-  }
-  const previewDir = path.join(root, 'design/jieyu-paper/preview');
-  for (const name of readdirSync(previewDir)) {
-    if (!/\.(html|css)$/.test(name)) continue;
-    const text = readFileSync(path.join(previewDir, name), 'utf8');
-    const cssChunks = name.endsWith('.css')
-      ? [text]
-      : [
-          ...[...text.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]),
-          ...[...text.matchAll(/\sstyle="([^"]*)"/gi)].map((m) => m[1]),
-        ];
-    for (const chunk of cssChunks) {
-      const stripped = chunk.replace(/\/\*[\s\S]*?\*\//g, '');
-      const hex = stripped.match(/#[0-9a-f]{3,8}\b/i);
-      if (hex) errors.push(`preview/${name} contains raw color ${hex[0]}; use tokens.css variables.`);
-      const fs = stripped.match(/font-size\s*:\s*\d+(?:\.\d+)?(?:px|rem)\b/i);
-      if (fs) errors.push(`preview/${name} contains raw "${fs[0]}"; use --text-* variables.`);
-    }
   }
   if (errors.length) {
     for (const e of errors) console.error(`[check:od-design-tokens] ${e}`);
@@ -292,7 +338,19 @@ async function build() {
   ].join('\n');
   writeFileSync(outPath, `${header}\n${body}`);
   console.log(`[build:od-tokens] wrote ${path.relative(root, outPath)}`);
+
+  const payload = buildPixsoPayload(light.flatMap((group, gi) => group.map(([name, lv], i) => [name, lv, dark[gi][i][1]])));
+  const pixso = {
+    $comment: '生成文件，不要手改。改 src/styles/tokens.css 后运行 `npm run build:od-tokens`，再由代理同步到 Pixso（ADR-0118）。',
+    sourceSha256: sha256(source),
+    bodySha256: sha256(JSON.stringify(payload)),
+    ...payload,
+  };
+  writeFileSync(pixsoPath, `${JSON.stringify(pixso, null, 2)}\n`);
+  console.log(`[build:od-tokens] wrote ${path.relative(root, pixsoPath)}`);
 }
 
-if (process.argv.includes('--check')) check();
-else await build();
+if (process.argv[1]?.endsWith(`${path.sep}build-od-design-tokens.mjs`)) {
+  if (process.argv.includes('--check')) check();
+  else await build();
+}
