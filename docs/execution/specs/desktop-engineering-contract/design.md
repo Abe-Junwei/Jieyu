@@ -3,7 +3,7 @@ title: desktop-engineering-contract design
 doc_type: execution-spec-design
 status: draft
 owner: repo
-last_reviewed: 2026-11-01
+last_reviewed: 2026-11-18
 source_of_truth: desktop-engineering-contract-spec
 depends_on:
   - ./requirements.md
@@ -95,3 +95,18 @@ depends_on:
 已修正：prepare锁死自身flush、退出先保存而被查询锁阻塞、未提交结果缺迟到请求栅栏、旧版本重试压过新输入、备份快照至媒体pin的竞态、主文件/报告假原子与替换结果未知；并补齐多值否定、跨段缺有限关系、媒体轴小数时间、复合义项身份和字段迁移集合漂移。具体反例随对应专项稿保留，后续必须实现故障断言。
 
 本轮只通过文档静态一致性审查；包装器/ZIP64/文件原语的实测锁定、载荷版本冻结、外部工具往返及8GB容量仍未通过。不能把审查通过当作任何产品门通过，代码实施仍须首片Plan确认。
+
+## 7. 唯一执行队列的条款归属（2026-11-18）
+
+切片 1b 的逐条对照在[转写编辑 design §4](../desktop-4ws-slice1b-transcription-editing/design.md)。切片 2–7 开规格时只抄本片那一行，开工先读 [ADR-0100](../../../adr/0100-desktop-engineering-contract.md) 与 [ADR-0099](../../../adr/0099-desktop-product-design-and-release-contract.md) 对应条款原文，逐条写怎么遵守；与条款冲突回用户定，不自行改规则。
+
+| 切片 | 条款 |
+| --- | --- |
+| 2 IGT 与局部复核 | E03、E04；R03 |
+| 3 完整词典与项目字段 | E05、E07；R05 |
+| 4 专业查询 | E08、E09、E10；R06、R07 |
+| 5 AI 建议审核 | E11；R08 |
+| 6 导入、成果与备份 | E12；R10 |
+| 7 首发终验 | E13、E14；R11；本节 V01–V19 |
+
+第二程 [#285](https://github.com/Abe-Junwei/Jieyu/issues/285) 本程不排，不在此表。
