@@ -35,8 +35,8 @@ it('uses host results as editable candidates and accepts one without saving the 
         modelVersion: '1',
         manifestSha256: 'fixture',
         params: {},
-        rangeStart: 0,
-        rangeEnd: 2,
+        rangeStartMs: 0,
+        rangeEndMs: 2000,
       }) as { id: string };
       callDesktopSession(s.sessionId, 'modelRuns.finish', {
         runId: run.id,

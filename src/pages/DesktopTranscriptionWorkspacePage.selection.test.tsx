@@ -14,8 +14,8 @@ vi.mock('./useDesktopProjectReadController', () => ({
       manuscriptId: 'ms-1',
       manuscripts: [{ id: 'ms-1', title: { und: 'Story' }, timeMapping: null }],
       units: [
-        { id: 'u-a', startTime: 0, endTime: 1, text: 'alpha' },
-        { id: 'u-b', startTime: 1, endTime: 2, text: 'beta' },
+        { id: 'u-a', startMs: 0, endMs: 1000, text: 'alpha' },
+        { id: 'u-b', startMs: 1000, endMs: 2000, text: 'beta' },
       ],
       audioUrl: null,
     },

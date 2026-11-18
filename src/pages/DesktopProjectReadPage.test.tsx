@@ -181,8 +181,8 @@ describe('DesktopProjectReadPage', () => {
               layerId: 'layer-1',
               speakerId: null,
               parentUnitId: null,
-              startTime: 0.4,
-              endTime: 1.2,
+              startMs: 400,
+              endMs: 1200,
               createdAt: '',
               updatedAt: '',
               text: '句子',
@@ -233,8 +233,8 @@ describe('DesktopProjectReadPage', () => {
     }) as { id: string };
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1000,
       text: '原句',
     }) as { id: string };
     mount(session.sessionId);
@@ -262,15 +262,15 @@ describe('DesktopProjectReadPage', () => {
     mount(session.sessionId);
     fireEvent.click(await screen.findByRole('button', { name: /原句/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Split' }));
-    expect(await screen.findByRole('button', { name: '0.0–0.5 原句' })).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: '0.0–0.5 原句' }));
     expect(screen.getByRole('button', { name: '0.5–1.0 原句' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     expect(await screen.findByRole('button', { name: '0.0–1.0 原句' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '0.5–1.0 原句' })).toBeNull();
     reopenDesktopSession(session.sessionId);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1000,
       text: '原句',
     });
   });
@@ -282,24 +282,24 @@ describe('DesktopProjectReadPage', () => {
     const left = seedReadUnit(session.sessionId, 0, 1, '甲');
     const right = callDesktopSession(session.sessionId, 'units.create', {
       layerId: left.layerId,
-      startTime: 1,
-      endTime: 2,
+      startMs: 1000,
+      endMs: 2000,
       text: '乙',
     }) as { id: string };
     mount(session.sessionId);
     fireEvent.click(await screen.findByRole('button', { name: /甲/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Merge next' }));
-    expect(await screen.findByRole('button', { name: '0.0–2.0 甲' })).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 甲' }));
     expect(screen.queryByRole('button', { name: /乙/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     expect(await screen.findByRole('button', { name: /乙/ })).toBeTruthy();
     reopenDesktopSession(session.sessionId);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: left.id })).toMatchObject({
-      endTime: 1,
+      endMs: 1000,
       text: '甲',
     });
     expect(callDesktopSession(session.sessionId, 'units.get', { id: right.id })).toMatchObject({
-      startTime: 1,
+      startMs: 1000,
       text: '乙',
     });
   });
@@ -400,8 +400,8 @@ describe('DesktopProjectReadPage', () => {
       const left = seedReadUnit(session.sessionId, 0, 1, '左');
       callDesktopSession(session.sessionId, 'units.create', {
         layerId: left.layerId,
-        startTime: 1,
-        endTime: 2,
+        startMs: 1000,
+        endMs: 2000,
         text: '右',
       });
       const { host, failText } = countingHost(session.sessionId);
@@ -484,7 +484,7 @@ describe('DesktopProjectReadPage', () => {
           }
           if (method === 'units.list') {
             await oldGate;
-            return [{ id: 'old-unit', startTime: 0, endTime: 1, text: '旧项目' }];
+            return [{ id: 'old-unit', startMs: 0, endMs: 1000, text: '旧项目' }];
           }
           if (method === 'project.get') return { title: { und: 'old' } };
           return [];
@@ -522,8 +522,8 @@ describe('DesktopProjectReadPage', () => {
     const left = seedReadUnit(session.sessionId, 0, 1, '原句');
     callDesktopSession(session.sessionId, 'units.create', {
       layerId: left.layerId,
-      startTime: 1,
-      endTime: 2,
+      startMs: 1000,
+      endMs: 2000,
       text: '后句',
     });
     const language = callDesktopSession(session.sessionId, 'catalog.ensureProjectDefinition', {
@@ -629,8 +629,8 @@ describe('DesktopProjectReadPage', () => {
     ].map(([start, end, text]) =>
       callDesktopSession(session.sessionId, 'units.create', {
         layerId: layer.id,
-        startTime: start,
-        endTime: end,
+        startMs: Number(start) * 1000,
+        endMs: Number(end) * 1000,
         text,
       }),
     ) as { id: string }[];
@@ -646,12 +646,12 @@ describe('DesktopProjectReadPage', () => {
     expect(await screen.findByRole('button', { name: '2.0–3.0 二' })).toBeTruthy();
     reopenDesktopSession(session.sessionId);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: units[1]?.id })).toMatchObject({
-      startTime: 2,
-      endTime: 3,
+      startMs: 2000,
+      endMs: 3000,
     });
     expect(callDesktopSession(session.sessionId, 'units.get', { id: units[2]?.id })).toMatchObject({
-      startTime: 3,
-      endTime: 6,
+      startMs: 3000,
+      endMs: 6000,
     });
   });
 
@@ -677,8 +677,8 @@ describe('DesktopProjectReadPage', () => {
     }) as { id: string };
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 2,
+      startMs: 0,
+      endMs: 2000,
       text: 'sentence',
     }) as { id: string };
     mount(session.sessionId);
@@ -724,8 +724,8 @@ describe('DesktopProjectReadPage', () => {
     }) as { id: string };
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 2,
+      startMs: 0,
+      endMs: 2000,
       text: 'sentence',
     }) as { id: string };
     mount(session.sessionId);
@@ -788,14 +788,14 @@ describe('DesktopProjectReadPage', () => {
     }) as { id: string };
     callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1000,
       text: 'Alpha beta',
     });
     callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 2,
-      endTime: 3,
+      startMs: 2000,
+      endMs: 3000,
       text: 'other',
     });
     mount(session.sessionId);
@@ -854,14 +854,14 @@ describe('DesktopProjectReadPage', () => {
     }) as { id: string };
     callDesktopSession(session.sessionId, 'units.create', {
       layerId: firstLayer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1000,
       text: 'stay',
     });
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: secondLayer.id,
-      startTime: 4,
-      endTime: 5,
+      startMs: 4000,
+      endMs: 5000,
       text: 'jump',
     }) as { id: string };
     rememberOpenProjectSession(session.sessionId);
@@ -931,14 +931,14 @@ describe('DesktopProjectReadPage', () => {
     }) as { id: string };
     callDesktopSession(session.sessionId, 'units.create', {
       layerId: first.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1000,
       text: 'keep',
     });
     callDesktopSession(session.sessionId, 'units.create', {
       layerId: second.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1000,
       text: 'other layer',
     });
     mount(session.sessionId);
@@ -1014,8 +1014,8 @@ describe('DesktopProjectReadPage', () => {
     }) as { id: string };
     callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1000,
       text: 'secret-body',
     });
     callDesktopSession(session.sessionId, 'manuscripts.delete', { id: manuscript.id });
@@ -1069,8 +1069,8 @@ describe('DesktopProjectReadPage', () => {
       modelVersion: '1',
       manifestSha256: 'abc',
       params: {},
-      rangeStart: 0,
-      rangeEnd: 8,
+      rangeStartMs: 0,
+      rangeEndMs: 8000,
     });
     mount(session.sessionId);
     expect(await screen.findByRole('button', { name: '文稿' })).toBeTruthy();
@@ -1284,8 +1284,8 @@ describe('DesktopProjectReadPage', () => {
     }) as { id: string };
     callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1000,
       text: 'secret-body',
     });
     callDesktopSession(session.sessionId, 'manuscripts.delete', { id: due.id });
@@ -1612,8 +1612,8 @@ describe('DesktopProjectReadPage', () => {
       modelVersion: '1',
       manifestSha256: 'abc',
       params: {},
-      rangeStart: 0,
-      rangeEnd: 8,
+      rangeStartMs: 0,
+      rangeEndMs: 8000,
     }) as { id: string };
     callDesktopSession(session.sessionId, 'modelRuns.finish', {
       runId: run.id,
@@ -1660,8 +1660,8 @@ describe('DesktopProjectReadPage', () => {
       modelVersion: '1',
       manifestSha256: 'abc',
       params: {},
-      rangeStart: 0,
-      rangeEnd: 8,
+      rangeStartMs: 0,
+      rangeEndMs: 8000,
     }) as { id: string };
     callDesktopSession(session.sessionId, 'modelRuns.finish', {
       runId: run.id,
@@ -1864,8 +1864,8 @@ function seedReadUnit(
   }) as { id: string };
   return callDesktopSession(sessionId, 'units.create', {
     layerId: layer.id,
-    startTime,
-    endTime,
+    startMs: Math.round(startTime * 1000),
+    endMs: Math.round(endTime * 1000),
     text,
   }) as { id: string; layerId: string };
 }
