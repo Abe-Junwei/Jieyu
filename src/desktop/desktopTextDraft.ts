@@ -20,6 +20,28 @@ export interface DraftStore {
   ) => Promise<'committed' | 'not-submitted' | 'conflict'>;
 }
 
+/** One in-flight save. A later caller waits for it instead of starting a second write. */
+export function claimTextSave(
+  flight: { current: Promise<boolean> | null },
+  alreadyHeld: boolean,
+  run: () => Promise<boolean>,
+): Promise<boolean> {
+  if (flight.current !== null) return flight.current;
+  if (alreadyHeld) return Promise.resolve(true);
+  let done!: (value: boolean | PromiseLike<boolean>) => void;
+  let fail!: (reason: unknown) => void;
+  const pending = new Promise<boolean>((resolve, reject) => {
+    done = resolve;
+    fail = reject;
+  });
+  flight.current = pending;
+  void run().then(done, fail);
+  void pending.finally(() => {
+    if (flight.current === pending) flight.current = null;
+  });
+  return pending;
+}
+
 export function normalizeSave(result: boolean | TextSaveResult): TextSaveResult {
   if (result === true || result === 'saved') return 'saved';
   if (result === 'unknown') return 'unknown';

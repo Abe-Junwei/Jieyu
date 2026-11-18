@@ -38,6 +38,50 @@ function mount(
   return { guard, navigate: (to: string) => act(() => seen.navigate?.(to)), router };
 }
 
+const AUTOSAVE_MS = 500;
+
+function deferredSave() {
+  const resolvers: Array<(result: boolean | TextSaveResult) => void> = [];
+  const saved: Array<{ text: string; operationId: string }> = [];
+  const save = (draft: DesktopTextDraft, operationId: string) => {
+    saved.push({ text: draft.text, operationId });
+    return new Promise<boolean | TextSaveResult>((resolve) => {
+      resolvers.push(resolve);
+    });
+  };
+  return { resolvers, saved, save };
+}
+
+async function settleAutosave(resolvers: unknown[]) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_MS);
+  });
+  expect(resolvers).toHaveLength(1);
+}
+
+async function trackClose(view: ReturnType<typeof mount>) {
+  const close: { finished: boolean; result: string } = { finished: false, result: '' };
+  act(() => {
+    void view
+      .guard()
+      .flushForClose()
+      .then((value) => {
+        close.result = value;
+        close.finished = true;
+      });
+  });
+  await act(async () => {
+    await Promise.resolve();
+  });
+  return close;
+}
+
+async function flushMicrotasks() {
+  await act(async () => {
+    await Promise.resolve();
+  });
+}
+
 describe('useDesktopDraftGuard', () => {
   it('lets a route change through when nothing is unsaved', async () => {
     const view = mount(() => Promise.resolve(true));
@@ -382,6 +426,261 @@ describe('useDesktopDraftGuard', () => {
     const unload = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(unload);
     expect(unload.defaultPrevented).toBe(true);
+  });
+
+  it('waits out a successful autosave before reporting the window saved', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = deferredSave();
+      const persisted: string[] = [];
+      const discarded: string[] = [];
+      const view = mount(pending.save, {
+        persist: (row) => {
+          persisted.push(`${row.unitId}:${row.rawInput}`);
+          return Promise.resolve();
+        },
+        discard: (unitId) => {
+          discarded.push(unitId);
+          return Promise.resolve();
+        },
+      });
+      act(() => view.guard().edit('u1', '新', '旧'));
+      await settleAutosave(pending.resolvers);
+      const close = await trackClose(view);
+      expect(close.finished).toBe(false);
+      expect(pending.saved.map((item) => item.text)).toEqual(['新']);
+      await act(async () => {
+        pending.resolvers[0]?.(true);
+      });
+      expect(close.finished).toBe(true);
+      expect(close.result).toBe('saved');
+      expect(view.guard().draft).toBeNull();
+      expect(pending.saved).toHaveLength(1);
+      expect(persisted).toContain('u1:新');
+      expect(discarded).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reports a real autosave failure only after that write settles', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = deferredSave();
+      const view = mount(pending.save);
+      act(() => view.guard().edit('u1', '新', '旧'));
+      await settleAutosave(pending.resolvers);
+      const close = await trackClose(view);
+      expect(close.finished).toBe(false);
+      await act(async () => {
+        pending.resolvers[0]?.(false);
+      });
+      expect(close.finished).toBe(true);
+      expect(close.result).toBe('failed');
+      expect(view.guard().draft).toEqual({ unitId: 'u1', text: '新' });
+      expect(pending.saved).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('leaves only after an in-flight autosave succeeds', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = deferredSave();
+      const view = mount(pending.save);
+      act(() => view.guard().edit('u1', '新', '旧'));
+      await settleAutosave(pending.resolvers);
+      let navigated = false;
+      act(() => {
+        view.guard().leave(() => {
+          navigated = true;
+        });
+      });
+      await flushMicrotasks();
+      expect(navigated).toBe(false);
+      expect(view.guard().prompt).toBeNull();
+      await act(async () => {
+        pending.resolvers[0]?.(true);
+      });
+      expect(navigated).toBe(true);
+      expect(view.guard().prompt).toBeNull();
+      expect(view.guard().draft).toBeNull();
+      expect(pending.saved.map((item) => item.text)).toEqual(['新']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows the leave failure only after an in-flight autosave fails', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = deferredSave();
+      const view = mount(pending.save);
+      act(() => view.guard().edit('u1', '新', '旧'));
+      await settleAutosave(pending.resolvers);
+      let navigated = false;
+      act(() => {
+        view.guard().leave(() => {
+          navigated = true;
+        });
+      });
+      await flushMicrotasks();
+      expect(navigated).toBe(false);
+      expect(view.guard().prompt).toBeNull();
+      await act(async () => {
+        pending.resolvers[0]?.(false);
+      });
+      expect(navigated).toBe(false);
+      expect(view.guard().prompt).toEqual({ failed: true });
+      expect(view.router.state.location.pathname).toBe('/edit');
+      expect(view.guard().draft).toEqual({ unitId: 'u1', text: '新' });
+      expect(pending.saved).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('saves the newer text before leaving an in-flight autosave', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = deferredSave();
+      const view = mount(pending.save);
+      act(() => view.guard().edit('u1', 'A', 'O'));
+      await settleAutosave(pending.resolvers);
+      let navigated = false;
+      act(() => {
+        view.guard().leave(() => {
+          navigated = true;
+        });
+      });
+      act(() => view.guard().edit('u1', 'B', 'O'));
+      await flushMicrotasks();
+      expect(navigated).toBe(false);
+      expect(view.guard().prompt).toBeNull();
+      await act(async () => {
+        pending.resolvers[0]?.(true);
+      });
+      expect(navigated).toBe(false);
+      expect(pending.saved.map((item) => item.text)).toEqual(['A', 'B']);
+      expect(pending.saved[0]?.operationId).not.toBe(pending.saved[1]?.operationId);
+      await act(async () => {
+        pending.resolvers[1]?.(true);
+      });
+      expect(navigated).toBe(true);
+      expect(view.guard().prompt).toBeNull();
+      expect(view.guard().draft).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not treat a failed in-flight autosave as saved when the user keeps typing', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = deferredSave();
+      const view = mount(pending.save);
+      act(() => view.guard().edit('u1', 'A', 'O'));
+      await settleAutosave(pending.resolvers);
+      let navigated = false;
+      act(() => {
+        view.guard().leave(() => {
+          navigated = true;
+        });
+      });
+      act(() => view.guard().edit('u1', 'B', 'O'));
+      await act(async () => {
+        pending.resolvers[0]?.(false);
+      });
+      expect(navigated).toBe(false);
+      expect(view.guard().prompt).toEqual({ failed: true });
+      expect(view.router.state.location.pathname).toBe('/edit');
+      expect(pending.saved.map((item) => item.text)).toEqual(['A']);
+      expect(view.guard().draft).toEqual({ unitId: 'u1', text: 'B' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('closes as saved only after the text typed during an autosave is written', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = deferredSave();
+      const view = mount(pending.save);
+      act(() => view.guard().edit('u1', 'A', 'O'));
+      await settleAutosave(pending.resolvers);
+      act(() => view.guard().edit('u1', 'B', 'O'));
+      const close = await trackClose(view);
+      expect(close.finished).toBe(false);
+      await act(async () => {
+        pending.resolvers[0]?.(true);
+      });
+      expect(close.finished).toBe(false);
+      expect(pending.saved.map((item) => item.text)).toEqual(['A', 'B']);
+      expect(pending.saved[0]?.operationId).not.toBe(pending.saved[1]?.operationId);
+      await act(async () => {
+        pending.resolvers[1]?.(true);
+      });
+      expect(close.finished).toBe(true);
+      expect(close.result).toBe('saved');
+      expect(view.guard().draft).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('waits for an in-flight autosave that is still unknown', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = deferredSave();
+      const view = mount(pending.save);
+      act(() => view.guard().edit('u1', 'A', 'O'));
+      await settleAutosave(pending.resolvers);
+      const close = await trackClose(view);
+      expect(close.finished).toBe(false);
+      let navigated = false;
+      act(() => {
+        view.guard().leave(() => {
+          navigated = true;
+        });
+      });
+      await act(async () => {
+        pending.resolvers[0]?.('unknown');
+      });
+      expect(close.finished).toBe(true);
+      expect(close.result).toBe('unknown');
+      expect(navigated).toBe(false);
+      expect(view.guard().prompt).toEqual({ failed: true });
+      expect(view.guard().unknown).toBe(true);
+      expect(await act(() => view.guard().discard())).toBe(false);
+      expect(pending.saved.map((item) => item.text)).toEqual(['A']);
+      expect(view.guard().draft).toEqual({ unitId: 'u1', text: 'A' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('treats an in-flight refresh failure as saved without writing it again', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = deferredSave();
+      const view = mount(pending.save);
+      act(() => view.guard().edit('u1', 'A', 'O'));
+      await settleAutosave(pending.resolvers);
+      const close = await trackClose(view);
+      expect(close.finished).toBe(false);
+      await act(async () => {
+        pending.resolvers[0]?.('refresh-failed');
+      });
+      expect(close.finished).toBe(true);
+      expect(close.result).toBe('saved');
+      expect(view.guard().draft).toEqual({ unitId: 'u1', text: 'A' });
+      expect(pending.saved).toHaveLength(1);
+      expect(await act(() => view.guard().flushForClose())).toBe('saved');
+      expect(pending.saved).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('cancels beforeunload only while a draft is unsaved', () => {

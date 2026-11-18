@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDesktopDraftLeaveGuard } from '../hooks/desktop/useDesktopDraftLeaveGuard';
 import {
+  claimTextSave,
   normalizeSave,
   type DesktopTextDraft,
   type DraftStore,
@@ -31,6 +32,7 @@ export function useDesktopDraftGuard(
   const used = useRef<{ id: string; text: string } | null>(null);
   const heldText = useRef<string | null>(null);
   const flying = useRef(false);
+  const flight = useRef<Promise<boolean> | null>(null);
   const dirtySince = useRef<number | null>(null);
   const idleTimer = useRef<number | null>(null);
   const capTimer = useRef<number | null>(null);
@@ -72,8 +74,10 @@ export function useDesktopDraftGuard(
     });
   };
 
-  const trySave = async (current: DesktopTextDraft): Promise<boolean> => {
-    if (flying.current || held(current)) return held(current);
+  const trySave = (current: DesktopTextDraft): Promise<boolean> =>
+    claimTextSave(flight, held(current), () => attempt(current));
+
+  const attempt = async (current: DesktopTextDraft): Promise<boolean> => {
     if (unresolved.current !== null) {
       const previous = unresolved.current;
       flying.current = true;
@@ -119,6 +123,8 @@ export function useDesktopDraftGuard(
       const latest = draftRef.current;
       if (latest === null || held(latest)) return true;
       if (!submittable(latest)) return false;
+      // Callers still await this attempt. Free the slot so the newer text is its own flight.
+      flight.current = null;
       return trySave(latest);
     }
     if (outcome === 'failed') {
