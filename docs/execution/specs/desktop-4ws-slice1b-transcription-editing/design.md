@@ -3,7 +3,7 @@ title: desktop-4ws-slice1b-transcription-editing design
 doc_type: execution-spec-design
 status: draft
 owner: repo
-last_reviewed: 2026-11-17
+last_reviewed: 2026-11-18
 source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 depends_on:
   - ./requirements.md
@@ -24,6 +24,7 @@ depends_on:
 ## 2. 架构选择
 
 - 用户决定（2026-11-17）：点层进第一程且 v29 带表结构；1b-6 全部留第一程；旧库只有合成项目，直接拒绝、不做迁移工具；新建／删除单段复用现成实现；合并分隔偏好存 `project.settings_json`（不改表）；其余交互取值见 requirements §3。
+- 用户决定（2026-11-18，[ADR-0122](../../../adr/0122-integer-milliseconds-and-optional-media.md)）：库和桌面接口都用整数毫秒并改名；录音时长保持秒；删掉逻辑时长和文稿映射，换录音用一次性整体调时；文稿可以不挂录音，句段按 `sort_order` 排，时间可空，允许部分对齐；点必须有时刻，解除关联时保留点和句段时间；一有一无的合并结果无时间；库只要求至少 1 毫秒，界面拖动和拆分用 10 毫秒下限。表结构在 1b-0，无录音界面为 1b-7。
 
 - 状态：选择、媒体、视口、草稿四块受控状态放 controller，Query 只放已保存数据（沿用 slice1 design §8）。
 - 动作：`onSelectUnit`、`onSeek`、`onRequestEdge`、`onRequestSharedBoundary`、`onRequestSplit`、`onRequestMerge`、点层增删改；展示组件不直接 `desktopCall`。
@@ -56,7 +57,7 @@ depends_on:
 | ADR-0100 E02 | 1b-2 | 时间码框半成品可存草稿；拖动非法才按 E06 回退 |
 | ADR-0100 E03 | 1b-2～1b-4 | 时间／说话人变化只使依赖项待复核 |
 | ADR-0100 E04 | 1b-2～1b-6 | 撤销分组、各稿件独立、跨对象无后续修改才可撤；拆合形成完整分析版本 |
-| ADR-0100 E06、EF-018 | 全部 | 时间、句段、点、层；合并保留下级 |
+| ADR-0100 E06、EF-018 | 全部 | 时间、句段、点、层；合并保留下级。E06「文献轴／媒体映射不取消」和「按映射核对媒体范围」以 [ADR-0122](../../../adr/0122-integer-milliseconds-and-optional-media.md) 第 12 条为准 |
 | ADR-0100 E13 | 1b-1～1b-6 | 快捷键双平台固定可查、优先级明确、有非快捷键入口 |
 | [ADR-0099](../../../adr/0099-desktop-product-design-and-release-contract.md) R02／R04／R11 | 全部 | 破坏性操作预览确认、整步提交；合法跨轨重叠；全键盘与焦点返回 |
 | [ADR-0107](../../../adr/0107-motion-compact-height-selection-and-shortcuts.md) | 1b-1、1b-4 | ⌘M 合并下一个；选中底色比悬停深一档 |

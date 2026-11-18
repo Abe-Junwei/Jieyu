@@ -37,7 +37,7 @@ source_of_truth: decision-index
 | 共用定义、定义副本、清单缓存、操作 id、同名合并时机                                                                                                       | ADR-0060 第 2、3、4、7 条。词条、标签定义、自定义字段定义、缩写不进定义副本，见 ADR-0070                                                                                                                 | ADR-0060 第 5、6 条（分块、`VACUUM INTO`）；把这四类目录复制进每份 `.jyd`                                                |
 | 隐藏、系统垃圾箱、协作删除只动本机                                                                                                                        | ADR-0087：首发不做独立隐藏。录音满足清除条件后才送系统垃圾箱，文稿不是被送走的文件。协作删除仍只动本机 | 按 ADR-0058-card 第 5、6 条做独立隐藏，或把文稿立即送垃圾箱 |
 | IndexedDB 归哪一层                                                                                                                                        | ADR-0058-indexeddb 管浏览器库归层。项目文件夹以 ADR-0085 为准                                                                                                                                               | 该篇里「项目内容全进 `project.sqlite` + `media/`」                                                                       |
-| D14 冻结                                                                                                                                                  | 开发格式现为 user_version 28（[ADR-0121](./0121-text-save-receipt-and-draft.md)）：正文保存回执与未生效草稿。一份文稿一条录音，父链接不跨文稿。不兼容文件拒绝打开且不改字节，不做迁移器（ADR-0086）。受控合成项目删文件夹后重开。不再等 #281、#326。不关闭 #259 | 把 user_version 27 的文件补列后打开；为开发库写迁移器。ADR-0046 第 8 条和试用地图里的「冻结对象 = SQLite + `media/`」；把 #281、#326 当冻结前置 |
+| D14 冻结                                                                                                                                                  | 开发格式现为 user_version 28（[ADR-0121](./0121-text-save-receipt-and-draft.md)）：正文保存回执与未生效草稿。[ADR-0122](./0122-integer-milliseconds-and-optional-media.md) 已决定下一版为 29（整数毫秒，文稿可以不挂录音），落地前代码仍是 28。父链接不跨文稿。不兼容文件拒绝打开且不改字节，不做迁移器（ADR-0086）。受控合成项目删文件夹后重开。不再等 #281、#326。不关闭 #259 | 把 user_version 27 的文件补列后打开；为开发库写迁移器。ADR-0046 第 8 条和试用地图里的「冻结对象 = SQLite + `media/`」；把 #281、#326 当冻结前置 |
 | `unit_relations`、`user_notes` 放哪                                                                                                                       | ADR-0085：备注在 `notes`，关系不跨文稿。标记删除保留备注；最终清除时同一事务删掉所属备注（ADR-0087） | 按 ADR-0062 第 3、4 条把备注拆进 `.jyd`；用户一删除就清掉备注 |
 | 存储接口的边界                                                                                                                                            | ADR-0085：一次业务操作一次事务，调用方不传表名。弹窗和订阅仍分开（ADR-0062 第 7 条这一句） | 把新库装回旧 StoragePort；把弹窗、订阅、业务操作收进同一个可选 `files` 对象 |
 | 会话记忆载荷                                                                                                                                              | 能力保留。ADR-0085 未列此表。接替前另写 ADR，不塞进 `settings_json`（ADR-0086） | 沿 ADR-0066 直接建 `ai_session_memories`，或放进 `.jyd` |
@@ -61,7 +61,7 @@ source_of_truth: decision-index
 | 另一项目的层                                                                                                                                              | ADR-0085：`layers.manuscript_id`。不靠可空 `text_id` 判断归属 | ADR-0082 的 `.jyd` `layers.text_id` 和缺列拒绝 |
 | 项目行的标题和时间                                                                                                                                        | ADR-0085：`title_json` 至少一条非空字符串。`created_at`、`updated_at` 必填 | ADR-0083 的可空列和空标题拒绝读取；把 `name` 当成标题 |
 | 后加列的空值                                                                                                                                              | ADR-0085：必填是 `NOT NULL`。`NULL` 只表示可以没有的关系，不是未补全 | ADR-0084 把后加列的空值当成未补全并计数 |
-| 语段时间与播放器时间 | ADR-0100 E06：语段存整数毫秒，保留 ADR-0088 文献轴／媒体轴映射，播放器秒数在边界换算 | 把 ADR-0085「单位与播放器相同」理解成不保存映射 |
+| 语段时间与播放器时间 | [ADR-0122](./0122-integer-milliseconds-and-optional-media.md)：有录音的句段直接存录音上的整数毫秒，不保留文献轴／媒体轴映射；播放器秒数仍只在边界换算。E06 里被点名的两句和 ADR-0088 第 12 条的映射句子不再执行 | 继续执行「文献轴／媒体映射不取消」，或按映射把媒体秒换成文稿秒 |
 | 分析图与词项投影 | ADR-0088：已接受图是真值。`tokens` / `morphemes` 是同事务同步的线性投影。曾经接受仍按 [ADR-0089](./0089-analysis-generation-accept-and-restore.md)，局部复核、历史恢复以 ADR-0100 E03–E04 为准。完整载荷、字段管理和失效引用以 [ADR-0090](./0090-analysis-payload-custom-fields-and-dangling-refs.md) 为准 | 用词项父子表代替分析图，或接受时整表删除再插入。用图内容相等判断当前正在使用，或把旧图直接放到新正文上。把实验键当成协议 |
 | 外部标注重导入 | ADR-0100 E11：首发重复外部文件仅取消或新建独立稿，不自动更新／合并；内部显式分析修改仍按身份校验 | 只按标注 id 字符串更新任意层 |
 
@@ -71,6 +71,7 @@ source_of_truth: decision-index
 
 ## 本轮范围与生命周期
 
+- [0122：整数毫秒、文稿可以不挂录音](./0122-integer-milliseconds-and-optional-media.md)
 - [0121：正文保存回执与未生效草稿进项目库](./0121-text-save-receipt-and-draft.md)
 - [0120：转写人确定度改用状态色圆形徽标](./0120-transcriber-certainty-as-status-badge.md)
 - [0119：向导步骤、标签页、路径与轻提示接入主题色](./0119-theme-accent-for-steps-tabs-paths-and-quiet-indicators.md)
