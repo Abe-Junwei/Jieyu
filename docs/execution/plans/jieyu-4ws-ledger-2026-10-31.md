@@ -3,7 +3,7 @@ title: 解语四页工作区 · 功能对账账本
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-11-15
+last_reviewed: 2026-11-17
 source_of_truth: execution-plan
 depends_on:
   - ./解语-主路线图-master-roadmap-2026-06-01.md
@@ -328,6 +328,7 @@ Figma（只读）约束后续设计规范，**不是**四页定稿：
 | 12 | 设计门槛？ | **精稿先行**：切片 1 起每页 Figma 精稿定稿后才开该片代码；切片 0 与 P0a 不受影响 |
 | 13 | 设计载体与视觉方向（2026-11-15） | 第 8、12 条的设计载体改为 Superdesign，视觉方向重新探索；精稿先行不变。见 [ADR-0101](../../adr/0101-desktop-visual-direction-reexplore-superdesign.md) |
 | 14 | 设计载体（2026-11-16） | Superdesign 不能继续用。设计稿改到 Open Design；第 13 条的视觉重探和精稿先行不变。见 [ADR-0102](../../adr/0102-desktop-design-drafts-move-to-open-design.md) |
+| 15 | 设计载体（2026-11-17） | Open Design 停用。页面精稿改到 Pixso 文件 `va44BZLBUSYRQ7KoiO3PJw`；转写精稿在「精稿」页。精稿先行不变。见 [ADR-0118](../../adr/0118-pixso-is-the-design-draft-workspace.md) |
 
 **库结构**：确有必要可改（#9），须显式迁移决策；解除「绝对冻结 user_version 27」的口头约束，但每次变更要必要性/迁移/兼容/验证。
 

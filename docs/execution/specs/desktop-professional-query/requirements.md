@@ -3,7 +3,7 @@ title: desktop-professional-query requirements
 doc_type: execution-spec-requirements
 status: draft
 owner: repo
-last_reviewed: 2026-11-01
+last_reviewed: 2026-11-17
 source_of_truth: desktop-professional-query-spec
 ---
 
@@ -35,4 +35,4 @@ source_of_truth: desktop-professional-query-spec
 | --- | --- |
 | 现有基础检索 | `DesktopCorpusQueryPanel`／desktop corpus query |
 | 浏览器语料页 | `/corpus` 工作集（非专业语法） |
-| 设计样例 | Open Design 查询页精稿（待画） |
+| 设计样例 | Pixso 查询页精稿（待画，ADR-0118） |

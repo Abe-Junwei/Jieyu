@@ -27,6 +27,9 @@ export interface DesktopReadHost {
   ): Promise<ProjectTranscriptionResult>;
   cancelProjectTranscription?(sessionId: string, requestId: string): Promise<void>;
   desktopCall(sessionId: string, method: string, args: unknown): Promise<unknown>;
+  onTextClose?(listener: () => void): () => void;
+  reportTextClose?(result: string): void;
+  onDiscardClose?(listener: () => void): () => void;
   desktopMediaUrl(sessionId: string, mediaId: string): Promise<{ url: string }>;
 }
 

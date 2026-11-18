@@ -47,6 +47,7 @@ export function DesktopProjectReadView(props: {
   onSelectManuscript: (id: string) => void;
   draft: { unitId: string; text: string } | null;
   onEditText: (unitId: string, text: string, savedText: string) => void;
+  onUnitText?: (unitId: string, savedText: string) => void;
   /** Fired when the visible selection changes, including deep-link focus. */
   onSelectUnit?: (unitId: string) => void;
   onComposeText: (composing: boolean) => void;
@@ -76,6 +77,8 @@ export function DesktopProjectReadView(props: {
   const offsetRef = useRef<HTMLInputElement>(null);
   const scaleRef = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLInputElement>(null);
+  const onUnitText = useRef(props.onUnitText);
+  onUnitText.current = props.onUnitText;
   const onSelectUnit = useRef(props.onSelectUnit);
   onSelectUnit.current = props.onSelectUnit;
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -109,6 +112,11 @@ export function DesktopProjectReadView(props: {
     if (audio === null) return;
     audio.currentTime = playerStart(unit, props.timeMapping);
   }, [props.focusUnitId, props.units, props.timeMapping]);
+  const selectedText = selected?.text;
+  useEffect(() => {
+    if (selectedId === null || selectedText === undefined) return;
+    onUnitText.current?.(selectedId, selectedText);
+  }, [selectedId, selectedText]);
   const readNoteText = () => noteRef.current?.value ?? '';
   const clearNoteText = () => {
     if (noteRef.current !== null) noteRef.current.value = '';

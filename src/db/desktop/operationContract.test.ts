@@ -70,6 +70,10 @@ describe('desktop operation contract', () => {
       'attachments.read',
       'media.listDeleted',
       'sources.create',
+      'units.discardTextDraft',
+      'units.inspectTextSave',
+      'units.putTextDraft',
+      'units.readTextDraft',
     ];
     for (const key of addedAfterSnapshot) {
       expect(DESKTOP_METHODS_AT_5fbc66f8).not.toContain(key);
