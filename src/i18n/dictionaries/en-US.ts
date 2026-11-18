@@ -57,7 +57,10 @@ export const enUSDictionary = {
   'app.desktopRead.text': 'Text',
   'app.desktopRead.saveText': 'Save text',
   'app.desktopRead.undoText': 'Undo',
+  'app.desktopRead.saveTextUnknown':
+    'Could not verify whether the text was saved. Retry to check before leaving or discarding.',
   'app.desktopRead.saveTextFailed': 'Text was not saved; the draft is kept',
+  'app.desktopRead.saveTextUnrefreshed': 'Text was saved; the list did not refresh',
   'app.desktopRead.leaveTitle': 'This text is not saved yet',
   'app.desktopRead.leaveRetry': 'Retry save',
   'app.desktopRead.leaveDiscard': 'Discard this edit',

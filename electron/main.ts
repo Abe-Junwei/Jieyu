@@ -7,8 +7,17 @@ import {
   resetProjectTranscriptions,
 } from '../src/desktop/projectTranscription';
 import type { ProjectTranscriptionInput } from '../src/desktop/transcriptionTypes';
-import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, safeStorage, session } from 'electron';
-import type { IpcMainInvokeEvent, WebContents } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  protocol,
+  safeStorage,
+  session,
+} from 'electron';
+import type { IpcMainEvent, IpcMainInvokeEvent, WebContents } from 'electron';
 import fs from 'node:fs';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -28,7 +37,6 @@ import { listDailyBackupDays, restoreDailyBackup } from '../src/db/desktop/daily
 import {
   grantRestoredProject,
   // exchange path grants (#482)
-
   readRestoredProjectGrant,
 } from '../src/desktop/restoredProjectGrant';
 import { grantExchangePath } from '../src/desktop/exchangePathGrant';
@@ -554,18 +562,87 @@ async function openWindow(): Promise<BrowserWindow> {
     if (abandoned !== null) releaseDesktopMediaSession(abandoned);
   });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  // 渲染进程有未保存正文时会取消 beforeunload；Electron 默认静默不关窗，这里改为问用户。
+  // 渲染进程有未保存正文时会取消 beforeunload。先尝试保存；失败才问用户。
+  let acceptingClose = false;
+  let closeFlight: Promise<void> | null = null;
   win.webContents.on('will-prevent-unload', (event) => {
-    const choice = dialog.showMessageBoxSync(win, {
+    if (acceptingClose) {
+      event.preventDefault();
+      return;
+    }
+    if (closeFlight !== null) return;
+    // beforeunload is still on the stack. A timer lets the renderer run the flush.
+    closeFlight = new Promise<void>((resolve) => {
+      const onResult = (_event: IpcMainEvent, result: unknown) => {
+        if (_event.sender !== win.webContents) return;
+        ipcMain.removeListener('desktop:flush-close-result', onResult);
+        void settleTextClose(win, String(result)).finally(resolve);
+      };
+      ipcMain.on('desktop:flush-close-result', onResult);
+      setTimeout(() => {
+        if (win.isDestroyed()) {
+          ipcMain.removeListener('desktop:flush-close-result', onResult);
+          resolve();
+          return;
+        }
+        win.webContents.send('desktop:flush-close');
+      }, 100);
+    }).finally(() => {
+      closeFlight = null;
+    });
+  });
+
+  const forceClose = () => {
+    acceptingClose = true;
+    win.close();
+  };
+
+  const settleTextClose = async (target: BrowserWindow, result: string): Promise<void> => {
+    if (result === 'saved') {
+      forceClose();
+      return;
+    }
+    const choice = dialog.showMessageBoxSync(target, {
       type: 'question',
-      buttons: ['留在这里', '放弃修改并关闭'],
+      buttons:
+        result === 'unknown'
+          ? ['留在这里', '重试保存']
+          : ['留在这里', '重试保存', '放弃修改并关闭'],
       defaultId: 0,
       cancelId: 0,
       message: '正文还没保存',
-      detail: '关闭后，这段没保存的修改会丢失。',
+      detail:
+        result === 'unknown'
+          ? '还无法核实正文是否已保存，请重试核实。'
+          : result === 'blocked'
+            ? '这段修改还不能提交。'
+            : '保存没有成功，这段修改还在。',
     });
-    if (choice === 1) event.preventDefault();
-  });
+    if (choice === 1) {
+      const again = await new Promise<string>((resolve) => {
+        const onResult = (_event: IpcMainEvent, next: unknown) => {
+          if (_event.sender !== target.webContents) return;
+          ipcMain.removeListener('desktop:flush-close-result', onResult);
+          resolve(String(next));
+        };
+        ipcMain.on('desktop:flush-close-result', onResult);
+        target.webContents.send('desktop:flush-close');
+      });
+      await settleTextClose(target, again);
+      return;
+    }
+    if (choice !== 2 || result === 'unknown') return;
+    const discarded = await new Promise<boolean>((resolve) => {
+      const onResult = (event: IpcMainEvent, value: unknown) => {
+        if (event.sender !== target.webContents) return;
+        ipcMain.removeListener('desktop:flush-close-result', onResult);
+        resolve(value === 'discarded');
+      };
+      ipcMain.on('desktop:flush-close-result', onResult);
+      target.webContents.send('desktop:discard-close');
+    });
+    if (discarded) forceClose();
+  };
   win.webContents.on('will-navigate', (event, url) => {
     if (!isAppNavigation(url, win.webContents.getURL())) event.preventDefault();
   });
@@ -772,7 +849,11 @@ function installAppMenu(): void {
         submenu: [
           { label: 'Minimize', click: (_item, win) => win?.minimize() },
           ...(isMac
-            ? [{ role: 'zoom' as const }, { type: 'separator' as const }, { role: 'front' as const }]
+            ? [
+                { role: 'zoom' as const },
+                { type: 'separator' as const },
+                { role: 'front' as const },
+              ]
             : [{ role: 'close' as const }]),
         ],
       },

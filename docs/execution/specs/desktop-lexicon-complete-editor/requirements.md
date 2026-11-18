@@ -3,7 +3,7 @@ title: desktop-lexicon-complete-editor requirements
 doc_type: execution-spec-requirements
 status: draft
 owner: repo
-last_reviewed: 2026-11-01
+last_reviewed: 2026-11-17
 source_of_truth: desktop-lexicon-complete-editor-spec
 ---
 
@@ -36,4 +36,4 @@ source_of_truth: desktop-lexicon-complete-editor-spec
 | 桌面页 | `DesktopLexiconPage`／附件面板 |
 | 旧完整页 | `LexiconPage`／`LexiconEntryEditForm` |
 | 持久化 | `src/db/desktop` lexicon／attachments |
-| 设计样例 | Open Design 词典页精稿（待画） |
+| 设计样例 | Pixso 词典页精稿（待画，ADR-0118） |

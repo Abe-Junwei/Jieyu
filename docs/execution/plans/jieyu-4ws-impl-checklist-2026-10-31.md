@@ -3,7 +3,7 @@ title: 解语四页工作区 · 实施清单
 doc_type: execution-plan
 status: active
 owner: repo
-last_reviewed: 2026-11-16
+last_reviewed: 2026-11-17
 source_of_truth: execution-plan
 depends_on:
   - ./jieyu-4ws-ledger-2026-10-31.md
@@ -48,7 +48,7 @@ depends_on:
 5. **改库**：仅显式迁移决策；UI 重排本身不是理由。
 6. **冻结依据（ADR-0086）**：M4-C 已落地，本计划各片属「既有首发能力的 SQLite 接替」白名单；该白名单不含新功能，任何「新增」行开工前须单独确认。
 7. **Feature flag**：切片 1 起替换用户已在用的桌面页（转写壳、IGT、完整词典、语料页）时，新界面套 flag 默认 `false`，自用一周后切默认；旧桌面简化页在 flag 关时保持原样。切片 0 **不套 flag**（已拍板；含离开确认框，出问题整片 revert）。
-9. **精稿先行与通用五步法（已拍板，2026-11-16 升级）**：切片 1–6 及后续全部桌面页面在 Open Design 中独立建项目做精稿（绑定 `user:jieyu-paper`，见 [ADR-0102](../../adr/0102-desktop-design-drafts-move-to-open-design.md)、[ADR-0106](../../adr/0106-design-system-package-lives-in-repo.md)），严格按 **P1 通用五步法**（① 调研分流与 `jieyu-paper` 母件认领 → ② 双视口灰盒区块草图评审 → ③ 基于设计系统真件与极端语料的逐区块全样态拼装评审 → ④ 组件微交互与浮层收口评审 → ⑤ 代码组件与单库映射封板）逐关过审后才开该片 UI 代码。切片 0 与 P0a 不等精稿；等待精稿期间优先做不依赖布局的数据链与测试。
+9. **精稿先行与通用五步法（已拍板，2026-11-17 改载体）**：切片 1–6 及后续全部桌面页面在 Pixso 文件 `va44BZLBUSYRQ7KoiO3PJw` 做精稿（[ADR-0118](../../adr/0118-pixso-is-the-design-draft-workspace.md)）。Open Design 停用。设计系统包仍是 `design/jieyu-paper/`（[ADR-0106](../../adr/0106-design-system-package-lives-in-repo.md)）。转写页精稿已在「精稿」页。严格按 **P1 通用五步法**（① 调研分流与 `jieyu-paper` 母件认领 → ② 双视口灰盒区块草图评审 → ③ 基于设计系统真件与极端语料的逐区块全样态拼装评审 → ④ 组件微交互与浮层收口评审 → ⑤ 代码组件与单库映射封板）逐关过审后才开该片 UI 代码。切片 0 与 P0a 不等精稿。转写页精稿已落地，1a 仍先做不依赖布局的数据链。其余页在精稿落地前同样只做数据链与测试。
 10. **验收分工（已拍板）**：代理用合成项目跑 Playwright Electron（打开 → 操作 → 关应用 → 重开读回），用例进 `tests/e2e-desktop/`；用户每片末用木雅会话抽验，未抽验不标完成。代理不读写真实材料（D14）。
 11. **优先级（已拍板）**：四页优先于 #312/#313/#277。
 8. **SDD**：切片 0 引入新模块（事件、查询键、离开拦截），按 §5.2.1 写三件套，见 [desktop-4ws-slice0-text-save](../specs/desktop-4ws-slice0-text-save/)；其余各片开工前各自补。标注/词典/语料 PR 须过 `check:r1-r8`。
@@ -71,7 +71,7 @@ depends_on:
 
 | 项 | 内容 |
 |---|---|
-| **目标** | Open Design 是唯一设计稿来源（[ADR-0102](../../adr/0102-desktop-design-drafts-move-to-open-design.md)）；100% 物理复用 `design/jieyu-paper/` 设计系统包（[ADR-0106](../../adr/0106-design-system-package-lives-in-repo.md)），所有桌面工作区与功能页统一走「五步 + 四道门禁 + 按页弹性插槽」产出高质量精稿 |
+| **目标** | Pixso 文件 `va44BZLBUSYRQ7KoiO3PJw` 是页面精稿来源（[ADR-0118](../../adr/0118-pixso-is-the-design-draft-workspace.md)）；100% 复用 `design/jieyu-paper/` 设计系统包（[ADR-0106](../../adr/0106-design-system-package-lives-in-repo.md)），所有桌面工作区与功能页统一走「五步 + 四道门禁 + 按页弹性插槽」产出高质量精稿。Open Design 停用 |
 | **通用五步法（每页必走）** | **Stage 1 · 调研分流与母件认领（Gate 1 范围审）**：盘点现有 Web 页面实现与主路线图/ADR-0099/0100/社区需求，强制分入「桌面本片交付 / Web 遗留显式剔除（如云协作、旧库弹窗、已撤回面板）/ 第二程延期仅留槽位」三栏；定义本页高频主操作闭环与键盘焦点流；每个保留 UI 成分强制认领 `design/jieyu-paper/preview/*.html` 既有母件，遇母件缺口先走设计系统差额确认，严禁在页面稿私造新组件。<br>**Stage 2 · 双视口灰盒区块草图（Gate 2 结构审）**：套用 `components-shell.html` 全局壳（52px 左轨、无自绘顶栏），只画一级区块划分、`1440×1000` 标准视口 + `1280×720` 窄窗折叠顺序、像素级尺寸预算与最多 2 层可见容器边框标定；不填假波形或视觉细节。<br>**Stage 3 · 逐区块全样态真件拼装（Gate 3 视觉与完备审）**：物理引入全量 `tokens.css`（含 `[data-theme="dark"]`）、`preview/preview.css` 与 `preview/icons.js` sprite，移植 `components-*.html` 母版 DOM，页面 `<style>` 仅写布局网格（零裸 hex/`rgb()` 色值、零野字号、零非标间距、零手绘 `<path>`）；逐区块用虚构卡朗语极端长短/多语/IPA 混排数据压测「空态 / 常规 / 高密度满载 / 保存三态（保存中·结果未知禁重试或放弃·失败留草稿） / 落库成功刷新失败 / 待复核 / 只读锁死 / 亮暗双态」，过机械自检后交审。<br>**Stage 4 · 组件微交互与跨页衔接（Gate 4 体验审）**：基于 `components-overlays.html` 与 `components-feedback.html` 收口右键菜单（单选/多选）、拖拽反馈、IME 防穿透、离开守卫、冲突阻断提示、浮层 Esc 焦点归还及跨页定位上下文。<br>**Stage 5 · 组件映射与准入封板（解锁代码实施）**：产出「画面区块 \| Web 可复用组件 \| 抽离受控 Props \| CSS owner \| `desktopCall` & Query key」映射表并连同 OD 项目锚点写入该片 SDD `design.md`；推进实现第 N 片时并行启动第 N+1 片 Stage 1。导出 HTML 只作参考，不进 `src/` |
 | **按页弹性插槽** | • **时间轴页（转写）**：重压横向缩放、跨轨重叠、块内就地编辑与播放跟随<br>• **网格页（标注 IGT）**：重压词/语素列整组横滚对齐、纯键盘走格、就地增编义项与 AI 待确认双路分流<br>• **主从深度表单页（词典/语言资产/自定义字段）**：重压深层嵌套在「最多 2 层边框」下靠底色与间距分层、引用删除阻断<br>• **查询与流式结果页（语料/JQ1）**：重压构建器↔文本双视图等值切换、执行中只读锁、截断头与过期定位<br>• **对比决策页（分析复核/导入导出）**：重压灰删除线 vs 浅灰底墨下划线差异对照、批量采纳整批冲突阻断；轻量页可合并 Stage 2–3 |
 | **依赖** | 账本十二条；ADR-0101～0111；`design/jieyu-paper/DESIGN.md`；`design/jieyu-paper/SKILL.md` |
@@ -99,7 +99,7 @@ depends_on:
 |---|---|
 | **目标** | `/transcription` 桌面进入**独立转写工作区**；工程读页收窄为项目管理；复用波形、时间轴、选区、播放等成熟能力接单库；沿用切片 0 的事件+Query。 |
 | **交付物** | 独立转写路由/壳；工程读页职责拆分（项目/交换/删稿等可留）；Waveform*/Timeline* 映射与 `desktopCall`（boundary/split/merge/focus/playback）；选区与播放头本地状态；本页精稿与组件映射；表单 UI 标为过渡并逐步让位 |
-| **依赖** | 切片 0（**已合入 [#477](https://github.com/Abe-Junwei/Jieyu/pull/477)**）；P1 转写精稿：待 Open Design 新精稿定稿；期间只做不依赖布局的数据链与测试（[差额](./jieyu-4ws-slice1-transcription-gap-2026-11-01.md)；壳 flag `desktopTranscriptionWorkspaceEnabled` 默认 false） |
+| **依赖** | 切片 0（**已合入 [#477](https://github.com/Abe-Junwei/Jieyu/pull/477)**）；P1 转写精稿在 Pixso「精稿」页（[ADR-0118](../../adr/0118-pixso-is-the-design-draft-workspace.md)）。1b 接线仍等 1a。1a 之前只做不依赖布局的数据链与测试（[差额](./jieyu-4ws-slice1-transcription-gap-2026-11-01.md)；壳 flag `desktopTranscriptionWorkspaceEnabled` 默认 false） |
 | **进度（2026-11-01）** | 壳页 + flag + App 分流已落地（spec `desktop-4ws-slice1-transcription-shell` T1–T3）；T4–T6 波形／检查器／桌面 E2E 仍开 |
 | **不做** | 再造第二套波形；VAD/呼吸组自动分段（FR-072）/口译/多轨若属延期则本片不扩；不按参与者复制层结构（EF-017 不做）；不把 `src/db/desktop/unitSpan.ts` 现行删下级子树的 `mergeUnits` 当作已满足带下级子标注合段；完整分析编辑 |
 | **验收** | • 从侧栏进转写 ≠ 工程读页合流体验<br>• 框选/拖界/切分/合并 → 单库正确 → 事件 → Query → 重开；合段遵循 EF-018 下级保护边界（保留下级内容、顺序与已有时间，只改上级归属，层级冲突阻断合并）<br>• 说话人显示与筛选沿项目目录（FR-032，共享层不复制）；允许部分转写与空缺（FR-066）、无文字前置译释（FR-068）及馆藏音频手动定位对齐（FR-082，不含自动对齐）<br>• 播放与选区跟随；快捷键不破坏草稿规则<br>• 改正文路径仍触发 P0 待复核状态<br>• 流程验收含：改界后列表时间与重开一致 |
@@ -214,7 +214,8 @@ P1 设计按页   ██ 转写 ██ 标注 ██ 词典 ██ 语料 ██
 ## 每片开工前检查（短清单）
 
 - [x] 主路线图四页工作区已书面拍板通过（2026-10-31）
-- [ ] 切片 1–6：本页 Open Design 精稿已按 P1 定稿标准定稿
+- [x] 切片 1：转写精稿在 Pixso「精稿」页（ADR-0118）
+- [ ] 切片 2–6：本页 Pixso 精稿定稿后才开该片 UI
 - [ ] 账本对应行处理决定仍是复用/修错/延期/删除/新增之一，无混称  
 - [ ] 写出本片「用户流程」验收句（至少一条跨保存+重开）  
 - [ ] 确认写入 API 名称与成功事件名；invalidate 只走统一表  

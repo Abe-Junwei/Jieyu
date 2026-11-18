@@ -3,13 +3,13 @@ title: 桌面首发产品设计验收清单
 doc_type: release-gate
 status: active
 owner: repo
-last_reviewed: 2026-11-01
+last_reviewed: 2026-11-17
 source_of_truth: release-gate
 ---
 
 # 桌面首发产品设计验收清单
 
-> 工程范围现已由用户确认：[ADR-0100](../../adr/0100-desktop-engineering-contract.md) 是保存、草稿、分析、字段、查询、文件和容量／性能的新合同；[技术规格](../specs/desktop-engineering-contract/requirements.md) 尚待定稿。UI 以 [DESIGN.md](../../../DESIGN.md) 为准；设计稿自 2026-11-16 改在 Open Design 中做（[ADR-0102](../../adr/0102-desktop-design-drafts-move-to-open-design.md)）；视觉重探仍按 [ADR-0101](../../adr/0101-desktop-visual-direction-reexplore-superdesign.md)。
+> 工程范围现已由用户确认：[ADR-0100](../../adr/0100-desktop-engineering-contract.md) 是保存、草稿、分析、字段、查询、文件和容量／性能的新合同；[技术规格](../specs/desktop-engineering-contract/requirements.md) 尚待定稿。UI 以 [DESIGN.md](../../../DESIGN.md) 为准；页面精稿在 Pixso 文件 `va44BZLBUSYRQ7KoiO3PJw`（[ADR-0118](../../adr/0118-pixso-is-the-design-draft-workspace.md)）。Open Design 停用。视觉方向仍按 [ADR-0101](../../adr/0101-desktop-visual-direction-reexplore-superdesign.md)。
 
 本清单落实 [ADR-0099](../../adr/0099-desktop-product-design-and-release-contract.md) 的 R01–R12。勾选需附当次 Electron 入口、操作、预期／实得、重启读回与故障证据；设计板存在不等于通过。仅用可重建合成项目，不读取真实研究材料。
 
@@ -42,7 +42,7 @@ source_of_truth: release-gate
 
 ## 设计交接门
 
-- [ ] R01：每条要求映射到设计稿（Open Design）、Electron 可达入口、待补实现与测试；不能用旧浏览器截图或函数存在替代端到端证据。
+- [ ] R01：每条要求映射到设计稿（Pixso）、Electron 可达入口、待补实现与测试；不能用旧浏览器截图或函数存在替代端到端证据。
 - [ ] R02：跨工作区往返保留项目／稿件／层／片段，保存中／失败／重试／放弃和关闭拦截有样例。
 - [ ] R03：正文变化、待复核、逐项对应修复、校验失败与重新生效有样例；有效分析和历史内容区分。
 - [ ] R04：真实结构的 IGT 合成样例覆盖长词、空 gloss、多语素、多语言与跨轨重叠，而非只有输入色块。
@@ -74,6 +74,24 @@ source_of_truth: release-gate
 - Electron 外部导入：`src/db/desktop/foreignImport.ts` 识别 EAF、FLExText、TextGrid、Toolbox、LIFT、JYB；仅说明存在解析路径，不保证任意文件都无损，也不将 JYB 解析路径解释为恢复已取消的旧库迁入首发门槛。
 - 既有 EAF、FLEx／TextGrid 和轻量成果序列化、IGT LaTeX、LIFT、DMLex 需要逐项核对 Electron 接线。`src/services/eaf/eafExport.ts`、`src/utils/transcriptionLiteExport.ts`、`src/utils/transcriptionIgtLatexExport.ts`、`src/utils/lexiconLiftExport.ts`、`src/utils/dmlexJsonExport.ts` 可作复用候选，函数存在不代表桌面支持。
 - 本轮复跑 `exchange.test.ts`、`corpusQuery.test.ts`、`lexemeLink.test.ts`、`manuscriptDeletion.test.ts`，4 文件 33 项通过；页面侧 `DesktopAnnotationPage.test.tsx`、`DesktopLexiconPage.test.tsx`、`DesktopDeletionReminderDialog.test.tsx`，3 文件 15 项通过。它们证明现有子链，不证明本清单新要求已满足，也不是格式完整往返／Electron UI 通过证据。
+
+## 2026-11-17 1a 正文保存故障证据
+
+范围仅正文生产链；以下通过不勾选跨对象撤销、只读多窗或全部 E01–E04，也不代表首发发布门通过。仅用临时合成项目，未读取真实研究材料。
+
+`npm run test:e2e:desktop-project`：macOS 开发态 Electron 13 passed／3 skipped。跳过项是本地 Whisper 真模型和两个安装包专用场景，未新增 skip。`tests/e2e-desktop/project-flow.spec.ts` 新增以下真实入口故障场景：
+
+- 事务前失败／留下：正文输入仍在，窗口仍开，SQLite 正文未变；解除故障再关窗，重开读回新正文。
+- 事务前失败／重试：第一次写入失败，重试成功后关闭，重开读回新正文。
+- 事务前失败／放弃：等待草稿删除确认再关闭，重开仍为旧正文，已放弃输入不复活。
+- 正文已提交／回执丢失：查询同一 operationId 的 committed 回执，不重复写，manuscript generation 仅增加一次；关闭重开读回新正文。
+- 正文已提交／回执与核实均失败：继续输入 B 后关窗仍被拦住，库中只有 A；核实恢复后只提交 B，generation 总计增加两次，重开读回 B。guard 定向测试另验证未知期间拒绝放弃、确认未提交后才写最新版本。
+
+`npm run test:e2e:chromium`：121 passed／2 flaky／1 skipped，退出码 0。两项首轮超时后重试通过：AI runtime v2 real entry 的 workspace 挂载、R4 S6 offline cold-open 的创建层对话框关闭；本轮没有改这些浏览器路径，也不把重试通过解释成波动已修复。
+
+定向 Vitest：6 文件 78 passed；`typecheck`、完整架构守卫、agent-evals smoke（4/4）、文档治理、工作流守卫、触及源码的 ESLint 与 `git diff --check` 均通过。
+
+本片未覆盖 Windows、安装包、进程强杀／系统断电或真实材料自用。SQLite 同事务、旧格式拒绝且字节不变、草稿重开及 hook 并发分支另由定向 Vitest 验证。
 
 ## 收口规则
 

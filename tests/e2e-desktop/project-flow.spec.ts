@@ -299,43 +299,159 @@ test('opens, plays, edits, refuses a second process, and reads the edit back', a
   }
 });
 
-test('asks before closing a window with an unsaved text draft', async () => {
+test('saves a text draft when the window closes', async () => {
   if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
-  const copy = mkdtempSync(join(tmpdir(), 'jieyu-m4c-draft-'));
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-m4c-draft-save-'));
   cpSync(folder, copy, { recursive: true });
   rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
-  const app = await launch('draft-close');
+  const app = await launch('draft-close-save');
   let closed = false;
-  let savedText = '';
   try {
     await stubFolderDialog(app, copy);
     const page = await app.firstWindow();
-    await page.getByRole('button', { name: openFolder }).click();
-    await page.getByRole('button', { name: 'Clip', exact: true }).click();
-    await page
-      .getByRole('button', { name: /^0\.0–/ })
-      .first()
-      .click();
-    await expect(page.getByRole('textbox', { name: textLabel })).not.toHaveValue('');
-    savedText = await page.getByRole('textbox', { name: textLabel }).inputValue();
-    await page.getByRole('textbox', { name: textLabel }).fill('unsaved draft');
-    await stubCloseAnswer(app, 0);
-    await closeFirstWindow(app);
-    await expect.poll(() => closeAsks(app)).toBe(1);
-    await expect(page.getByRole('textbox', { name: textLabel })).toHaveValue('unsaved draft');
-    await stubCloseAnswer(app, 1);
+    await openFirstUnit(page);
+    await page.getByRole('textbox', { name: textLabel }).fill('saved on close');
     const gone = page.waitForEvent('close');
     await closeFirstWindow(app);
     await gone;
     closed = true;
-    expect(await closeAsks(app)).toBe(2);
   } finally {
     if (!closed) await app.close();
     else await app.close().catch(() => {});
   }
-  expect(unitTexts(copy)).not.toContain('unsaved draft');
-  expect(unitTexts(copy)).toContain(savedText);
-  rmSync(copy, { recursive: true, force: true });
+  expect(unitTexts(copy)).toContain('saved on close');
+  const again = await launch('draft-close-save-reopen');
+  try {
+    await stubFolderDialog(again, copy);
+    const page = await again.firstWindow();
+    await openFirstUnit(page);
+    await expect(page.getByRole('textbox', { name: textLabel })).toHaveValue('saved on close');
+  } finally {
+    await again.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
+
+for (const choice of [0, 1, 2]) {
+  test(`text close failure: ${['stay', 'retry', 'discard'][choice]}`, async () => {
+    if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+    const copy = mkdtempSync(join(tmpdir(), 'jieyu-close-fault-'));
+    cpSync(folder, copy, { recursive: true });
+    rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+    const app = await launch('close-fault');
+    try {
+      await stubFolderDialog(app, copy);
+      const page = await app.firstWindow();
+      await openFirstUnit(page);
+      const original = await page.getByRole('textbox', { name: textLabel }).inputValue();
+      await injectTextFault(app, 'before', choice);
+      await page.getByRole('textbox', { name: textLabel }).fill('close failure draft');
+      await closeFirstWindow(app);
+      if (choice === 0) {
+        await expect.poll(() => faultState(app)).toMatchObject({ asks: 1 });
+        await expect(page.getByRole('textbox', { name: textLabel })).toHaveValue(
+          'close failure draft',
+        );
+        expect(unitTexts(copy)).toContain(original);
+        expect(unitTexts(copy)).not.toContain('close failure draft');
+        await injectTextFault(app, 'none', 1);
+        await closeFirstWindow(app);
+      }
+      await expect.poll(() => app.windows().length).toBe(0);
+      await app.close().catch(() => {});
+      const again = await launch('close-fault-reopen');
+      try {
+        await stubFolderDialog(again, copy);
+        const reopened = await again.firstWindow();
+        await openFirstUnit(reopened);
+        await expect(reopened.getByRole('textbox', { name: textLabel })).toHaveValue(
+          choice === 2 ? original : 'close failure draft',
+        );
+        expect(unitTexts(copy)).toContain(choice === 2 ? original : 'close failure draft');
+      } finally {
+        await again.close();
+      }
+    } finally {
+      await app.close().catch(() => {});
+      rmSync(copy, { recursive: true, force: true });
+    }
+  });
+}
+
+test('lost text receipt is inspected without writing twice and survives reopen', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-lost-receipt-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  const app = await launch('lost-receipt');
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await openFirstUnit(page);
+    const before = manuscriptGeneration(copy);
+    await injectTextFault(app, 'after', 0);
+    await page.getByRole('textbox', { name: textLabel }).fill('receipt lost but committed');
+    await page.getByRole('button', { name: saveText }).click();
+    await expect.poll(() => faultState(app)).toMatchObject({ writes: 1, inspections: 1 });
+    await closeFirstWindow(app);
+    await expect.poll(() => app.windows().length).toBe(0);
+    expect(manuscriptGeneration(copy)).toBe(before + 1);
+    await app.close().catch(() => {});
+    const again = await launch('lost-receipt-reopen');
+    try {
+      await stubFolderDialog(again, copy);
+      const reopened = await again.firstWindow();
+      await openFirstUnit(reopened);
+      await expect(reopened.getByRole('textbox', { name: textLabel })).toHaveValue(
+        'receipt lost but committed',
+      );
+    } finally {
+      await again.close();
+    }
+  } finally {
+    await app.close().catch(() => {});
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
+
+test('unknown text result blocks close and newer writes until inspection recovers', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-unknown-receipt-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  const app = await launch('unknown-receipt');
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await openFirstUnit(page);
+    const before = manuscriptGeneration(copy);
+    await injectTextFault(app, 'unknown', 0);
+    await page.getByRole('textbox', { name: textLabel }).fill('unknown A');
+    await page.getByRole('button', { name: saveText }).click();
+    await expect.poll(() => faultState(app)).toMatchObject({ writes: 1, inspections: 1 });
+    await page.getByRole('textbox', { name: textLabel }).fill('latest B');
+    await closeFirstWindow(app);
+    await expect.poll(() => faultState(app)).toMatchObject({ writes: 1, asks: 1 });
+    await expect(page.getByRole('textbox', { name: textLabel })).toHaveValue('latest B');
+    expect(unitTexts(copy)).toContain('unknown A');
+    await injectTextFault(app, 'none', 1);
+    await closeFirstWindow(app);
+    await expect.poll(() => app.windows().length).toBe(0);
+    expect(manuscriptGeneration(copy)).toBe(before + 2);
+    await app.close().catch(() => {});
+    const again = await launch('unknown-receipt-reopen');
+    try {
+      await stubFolderDialog(again, copy);
+      const reopened = await again.firstWindow();
+      await openFirstUnit(reopened);
+      await expect(reopened.getByRole('textbox', { name: textLabel })).toHaveValue('latest B');
+    } finally {
+      await again.close();
+    }
+  } finally {
+    await app.close().catch(() => {});
+    rmSync(copy, { recursive: true, force: true });
+  }
 });
 
 test('an unreadable folder stays closed', async () => {
@@ -479,7 +595,11 @@ function flowReady(value: string | undefined): value is string {
   );
 }
 
-async function launch(name: string, keepUserData?: string): Promise<ElectronApplication> {
+async function launch(
+  name: string,
+  keepUserData?: string,
+  extraEnv?: Record<string, string>,
+): Promise<ElectronApplication> {
   const userData = keepUserData ?? mkdtempSync(join(tmpdir(), `jieyu-m4c-${name}-`));
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
@@ -487,6 +607,7 @@ async function launch(name: string, keepUserData?: string): Promise<ElectronAppl
   }
   delete env.ELECTRON_RUN_AS_NODE;
   delete env.JIEYU_SQLITE_STORAGE_PORT;
+  if (extraEnv !== undefined) Object.assign(env, extraEnv);
   if (packagedApp !== undefined) delete env.JIEYU_VITE_DEV_SERVER;
   env.JIEYU_DESKTOP_USER_DATA = userData;
   const app = await electron.launch(
@@ -615,19 +736,14 @@ async function stubFolderDialog(app: ElectronApplication, projectFolder: string)
   }, projectFolder);
 }
 
-async function stubCloseAnswer(app: ElectronApplication, answer: number): Promise<void> {
-  await app.evaluate((main, picked) => {
-    const host = main as unknown as { dialog: { showMessageBoxSync: () => number } };
-    const holder = globalThis as unknown as { __closeAsks?: number };
-    host.dialog.showMessageBoxSync = () => {
-      holder.__closeAsks = (holder.__closeAsks ?? 0) + 1;
-      return picked;
-    };
-  }, answer);
-}
-
-function closeAsks(app: ElectronApplication): Promise<number> {
-  return app.evaluate(() => (globalThis as unknown as { __closeAsks?: number }).__closeAsks ?? 0);
+async function openFirstUnit(page: Page): Promise<void> {
+  await page.getByRole('button', { name: openFolder }).click();
+  await page.getByRole('button', { name: 'Clip', exact: true }).click();
+  await page
+    .getByRole('button', { name: /^0\.0–/ })
+    .first()
+    .click();
+  await expect(page.getByRole('textbox', { name: textLabel })).not.toHaveValue('');
 }
 
 async function closeFirstWindow(app: ElectronApplication): Promise<void> {
@@ -635,7 +751,7 @@ async function closeFirstWindow(app: ElectronApplication): Promise<void> {
     const host = main as unknown as {
       BrowserWindow: { getAllWindows: () => { close: () => void }[] };
     };
-    host.BrowserWindow.getAllWindows()[0]?.close();
+    setTimeout(() => host.BrowserWindow.getAllWindows()[0]?.close(), 0);
   });
 }
 
@@ -644,6 +760,73 @@ function unitTexts(projectFolder: string): string[] {
   try {
     const rows = db.prepare('SELECT body FROM unit_texts').all() as { body: string }[];
     return rows.map((row) => row.body);
+  } finally {
+    db.close();
+  }
+}
+
+async function injectTextFault(
+  app: ElectronApplication,
+  mode: 'before' | 'after' | 'unknown' | 'none',
+  choice: number,
+) {
+  await app.evaluate(
+    (main, input) => {
+      const electron = main as unknown as {
+        ipcMain: { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> };
+        dialog: { showMessageBoxSync: () => number };
+      };
+      const state = globalThis as unknown as {
+        textFault?: {
+          original: (...args: unknown[]) => unknown;
+          writes: number;
+          inspections: number;
+          asks: number;
+        };
+      };
+      const original =
+        state.textFault?.original ?? electron.ipcMain._invokeHandlers.get('desktop:call');
+      if (!original) throw new Error('desktop handler missing');
+      const fault = { original, writes: 0, inspections: 0, asks: 0 };
+      state.textFault = fault;
+      electron.ipcMain._invokeHandlers.set('desktop:call', async (...args) => {
+        if (args[2] === 'units.inspectTextSave') {
+          fault.inspections += 1;
+          if (input.mode === 'unknown') throw new Error('injected inspection failure');
+        }
+        if (args[2] !== 'units.updateText') return original(...args);
+        fault.writes += 1;
+        if (input.mode === 'before' && (input.choice !== 1 || fault.writes === 1))
+          throw new Error('injected precommit failure');
+        const result = await original(...args);
+        if (input.mode === 'after' || input.mode === 'unknown')
+          throw new Error('injected lost receipt');
+        return result;
+      });
+      electron.dialog.showMessageBoxSync = () => {
+        fault.asks += 1;
+        return input.choice;
+      };
+    },
+    { mode, choice },
+  );
+}
+
+function faultState(app: ElectronApplication) {
+  return app.evaluate(() => {
+    const fault = (
+      globalThis as unknown as { textFault?: { writes: number; inspections: number; asks: number } }
+    ).textFault;
+    return { writes: fault?.writes, inspections: fault?.inspections, asks: fault?.asks };
+  });
+}
+
+function manuscriptGeneration(folder: string): number {
+  const db = new Database(join(folder, 'project.sqlite'), { readonly: true });
+  try {
+    return (
+      db.prepare('SELECT SUM(generation) AS value FROM manuscripts').get() as { value: number }
+    ).value;
   } finally {
     db.close();
   }

@@ -13,6 +13,14 @@ depends_on:
 
 复用ADR-0085单库事务、ADR-0091字段修订与诊断补交；不跨对话框持数据库事务，不把renderer回执当真值。下列存储字段是下一次格式设计输入，不是授权改schema或迁移用户库。
 
+## 1a 正文故障收口（2026-11-17，用户已确认执行）
+
+本片修复沿用既有 `units.updateText` 同事务回执、`units.inspectTextSave` 和 Electron IPC，不新增依赖、格式或全项目协调平台。主进程业务调用是同步 SQLite 事务；renderer 在原 invoke 已结束后发 inspect，当前宿主串行执行，核实期间不再发送该正文的新写入。通用异步执行器的 epoch/attempt 栅栏仍属于后续规格。
+
+落位：`useDesktopDraftGuard` 管正文版本、未知请求与保存；`src/hooks/desktop/useDesktopDraftLeaveGuard.ts` 管待执行导航、重试及卸载拦截，避免单 hook 超过 300 行；controller 负责回执查询。未知期间只保留最新草稿，不重写未知操作、不放弃、不关闭。核实 committed 后沿成功基线保存最新输入；not-submitted 后才允许重新提交。放弃必须等待草稿删除确认，主进程仅接受本窗口的关闭回复。
+
+验证：guard 定向测试覆盖未知请求隔离与两种核实结果；Electron `project-flow.spec.ts` 在测试侧包装真实 IPC handler，分别注入事务前失败、提交后回执丢失和回执核实失败，通过实际正文输入、关窗选择、SQLite generation 与重开读回断言业务结果。测试侧私有 handler map 只用于故障注入，不进入生产实现。
+
 ## 业务写入与回执
 
 请求封套`{operationId,projectSessionEpoch,attempt,kind,targetRefs,expectedRevisions,payload}`，operationId由宿主签发/登记，重试不换id；下一版新编辑另取id。主进程规范化后计算digest（kind＋完整身份＋预期修订＋载荷），相同id不同digest报OPERATION_ID_CONFLICT。日志不记录payload正文。
