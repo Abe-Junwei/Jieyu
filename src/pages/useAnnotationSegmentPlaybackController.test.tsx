@@ -167,4 +167,45 @@ describe('useAnnotationSegmentPlaybackController', () => {
     expect(result.current.playingUnitId).toBe('uid-b');
     expect(result.current.lastOutcome).toBe('played');
   });
+
+  it('does not let a late media lookup replace the newer source (#532)', async () => {
+    let resolveA!: (value: unknown) => void;
+    let resolveB!: (value: unknown) => void;
+    mockListMediaByTextId
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveA = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveB = resolve;
+          }),
+      );
+    const { result } = renderHook(() => useAnnotationSegmentPlaybackController('tid-1'));
+    const rowsA = [{ id: 'uid-a', startTime: 1, endTime: 2, mediaId: 'media-a' }];
+    const rowsB = [{ id: 'uid-b', startTime: 3, endTime: 4, mediaId: 'media-b' }];
+
+    let toggleA: Promise<void> = Promise.resolve();
+    let toggleB: Promise<void> = Promise.resolve();
+    act(() => {
+      toggleA = result.current.onPlayToggle('uid-a', rowsA as never);
+      toggleB = result.current.onPlayToggle('uid-b', rowsB as never);
+    });
+    await act(async () => {
+      resolveB([{ id: 'media-b', url: 'https://example.test/b.wav' }]);
+      await toggleB;
+    });
+    const srcAfterB = lastAudio.src;
+    await act(async () => {
+      resolveA([{ id: 'media-a', url: 'https://example.test/a.wav' }]);
+      await toggleA;
+    });
+
+    expect(srcAfterB).toContain('b.wav');
+    expect(lastAudio.src).toBe(srcAfterB);
+    expect(result.current.playingUnitId).toBe('uid-b');
+  });
 });

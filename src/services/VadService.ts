@@ -86,9 +86,12 @@ export function detectVadSegments(buffer: AudioBuffer, options: VadOptions = {})
 
   const frameLen = Math.round(frameDurationSec * sr);
   const hopLen = Math.round(hopDurationSec * sr);
+  // Shorter than one frame cannot form a window; return no candidates instead of a negative length.
+  if (frameLen <= 0 || hopLen <= 0 || total < frameLen) return [];
 
   // 计算每帧 RMS | Compute per-frame RMS energy
   const frameCount = Math.floor((total - frameLen) / hopLen) + 1;
+  if (frameCount <= 0) return [];
   const rms = new Float32Array(frameCount);
   let peakRms = 0;
   for (let fi = 0; fi < frameCount; fi++) {

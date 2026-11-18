@@ -209,7 +209,9 @@ export function exportToTrs(input: TrsExportInput): string {
   const turns: TurnGroup[] = [];
   for (const utt of sorted) {
     const last = turns[turns.length - 1];
-    if (last && last.speakerId === utt.speakerId) {
+    // Sync can represent a turn losslessly only when the next unit starts exactly where the
+    // previous one ends. A gap or overlap would be rewritten on import, so those stay separate.
+    if (last && last.speakerId === utt.speakerId && last.endTime === utt.startTime) {
       last.units.push(utt);
       last.endTime = utt.endTime;
     } else {
@@ -222,7 +224,7 @@ export function exportToTrs(input: TrsExportInput): string {
     }
   }
 
-  const globalEnd = sorted.length > 0 ? sorted[sorted.length - 1]!.endTime : 0;
+  const globalEnd = sorted.reduce((max, unit) => Math.max(max, unit.endTime), 0);
 
   const turnsXml = turns
     .map((turn) => {
