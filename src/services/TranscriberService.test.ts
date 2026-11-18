@@ -176,6 +176,55 @@ describe('exportToTrs', () => {
     const imported = importFromTrs(xml);
     expect(imported.speakers[0]!.lang).toBe('ara');
   });
+
+  it('keeps gaps, overlaps, and a later-ending long span on roundtrip (#544)', () => {
+    const units = [
+      makeUtt({
+        startTime: 0,
+        endTime: 1,
+        transcription: { default: 'gap-left' },
+        speakerId: 'spk1',
+      }),
+      makeUtt({
+        startTime: 3,
+        endTime: 4,
+        transcription: { default: 'gap-right' },
+        speakerId: 'spk1',
+      }),
+      makeUtt({
+        id: 'long',
+        startTime: 0,
+        endTime: 10,
+        transcription: { default: 'long' },
+        speakerId: 'spk2',
+      }),
+      makeUtt({
+        id: 'nested',
+        startTime: 2,
+        endTime: 3,
+        transcription: { default: 'nested' },
+        speakerId: 'spk2',
+      }),
+    ];
+    const xml = exportToTrs({
+      units,
+      speakers: [
+        { id: 'spk1', name: 'A' },
+        { id: 'spk2', name: 'B' },
+      ],
+    });
+    expect(xml).toContain('endTime="10.000"');
+    const imported = importFromTrs(xml);
+    const bounds = imported.units
+      .map((unit) => [unit.transcription, unit.startTime, unit.endTime])
+      .sort((left, right) => String(left[0]).localeCompare(String(right[0])));
+    expect(bounds).toEqual([
+      ['gap-left', 0, 1],
+      ['gap-right', 3, 4],
+      ['long', 0, 10],
+      ['nested', 2, 3],
+    ]);
+  });
 });
 
 // ── Import ───────────────────────────────────────────────────────────────────

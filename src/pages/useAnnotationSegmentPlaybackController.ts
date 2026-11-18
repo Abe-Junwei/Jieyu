@@ -64,9 +64,10 @@ export function useAnnotationSegmentPlaybackController(
   }, []);
 
   const ensureSource = useCallback(
-    async (preferredMediaId: string) => {
+    async (preferredMediaId: string, seq: number) => {
       const audio = audioRef.current;
       if (!audio || textId.length === 0) return false;
+      if (playToggleSeqRef.current !== seq) return false;
       const hintedMediaId = preferredMediaId.trim();
       const loadedKey = loadedKeyRef.current;
       if (audio.src.length > 0 && loadedKey.startsWith(`${textId}:`)) {
@@ -74,12 +75,14 @@ export function useAnnotationSegmentPlaybackController(
         if (hintedMediaId.length === 0 || hintedMediaId === loadedMediaId) return true;
       }
       const items: MediaItemDocType[] = await LinguisticService.media.listByTextId(textId);
+      if (playToggleSeqRef.current !== seq || audioRef.current !== audio) return false;
       const preferred = pickAnnotationPlaybackMedia(items, hintedMediaId);
       if (!preferred?.id) return false;
       const cacheKey = annotationPlaybackSourceKey(textId, preferred.id);
       if (loadedKeyRef.current === cacheKey && audio.src.length > 0) return true;
       const resolved = resolveAnnotationMediaSrc(preferred);
       if (!resolved) return false;
+      if (playToggleSeqRef.current !== seq || audioRef.current !== audio) return false;
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = resolved.objectUrl;
       audio.src = resolved.src;
@@ -99,7 +102,7 @@ export function useAnnotationSegmentPlaybackController(
         setLastOutcome('skipped');
         return;
       }
-      const ready = await ensureSource(range.mediaId);
+      const ready = await ensureSource(range.mediaId, seq);
       if (playToggleSeqRef.current !== seq) return;
       if (!ready) {
         setLastOutcome('skipped');

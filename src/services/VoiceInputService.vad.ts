@@ -54,6 +54,8 @@ export class VadMonitorRuntime {
   private silenceTimerId: number | null = null;
   private lastSpeechTimestamp = 0;
   private _energyLevel = 0;
+  /** Bumped by `stop()` so a start still waiting on the microphone does not install resources. */
+  private startGeneration = 0;
 
   constructor(private readonly callbacks: VadMonitorCallbacks) {}
 
@@ -65,11 +67,22 @@ export class VadMonitorRuntime {
     if (!config.vadEnabled) return;
     if (!navigator.mediaDevices?.getUserMedia) return;
     if (this.vadTimerId !== null) return;
+    const generation = ++this.startGeneration;
 
     let stream: MediaStream | null = null;
     let audioContext: AudioContext | null = null;
+    const releaseLocal = () => {
+      if (audioContext) void audioContext.close();
+      if (stream) {
+        for (const track of stream.getTracks()) track.stop();
+      }
+    };
     try {
       stream = await this.callbacks.createAnalysisCloneStream();
+      if (generation !== this.startGeneration || this.callbacks.isDisposed()) {
+        releaseLocal();
+        return;
+      }
       if (!stream) return;
 
       audioContext = new AudioContext();
@@ -77,6 +90,11 @@ export class VadMonitorRuntime {
       const analyser = audioContext.createAnalyser();
       analyser.fftSize = 1024;
       source.connect(analyser);
+      if (generation !== this.startGeneration || this.callbacks.isDisposed()) {
+        source.disconnect();
+        releaseLocal();
+        return;
+      }
 
       this.vadStream = stream;
       this.vadAudioContext = audioContext;
@@ -130,6 +148,7 @@ export class VadMonitorRuntime {
   }
 
   stop(): void {
+    this.startGeneration += 1;
     if (this.vadTimerId !== null) {
       window.clearInterval(this.vadTimerId);
       this.vadTimerId = null;

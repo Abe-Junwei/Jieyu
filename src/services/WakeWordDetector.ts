@@ -44,6 +44,8 @@ export class WakeWordDetector {
   private rafId: number | null = null;
   private buffer: Float32Array | null = null;
   private _active = false;
+  /** Bumped by `stop()` so an in-flight `start()` cannot activate the microphone afterwards. */
+  private startGeneration = 0;
 
   /** 最后一次触发时间戳 */
   private lastTriggerTs = 0;
@@ -67,26 +69,51 @@ export class WakeWordDetector {
   /** 开始连续监听麦克风 */
   async start(): Promise<void> {
     if (this._active) return;
+    const generation = ++this.startGeneration;
+    let stream: MediaStream | null = null;
+    let audioContext: AudioContext | null = null;
+    const releaseLocal = () => {
+      if (audioContext) void audioContext.close();
+      if (stream) {
+        for (const track of stream.getTracks()) track.stop();
+      }
+    };
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      this.audioContext = new AudioContext();
-      this.source = this.audioContext.createMediaStreamSource(this.stream);
-      this.analyser = this.audioContext.createAnalyser();
-      this.analyser.fftSize = 512;
-      this.source.connect(this.analyser);
-      this.buffer = new Float32Array(this.analyser.fftSize);
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      if (generation !== this.startGeneration) {
+        releaseLocal();
+        return;
+      }
+      audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      if (generation !== this.startGeneration) {
+        source.disconnect();
+        releaseLocal();
+        return;
+      }
+      this.stream = stream;
+      this.audioContext = audioContext;
+      this.source = source;
+      this.analyser = analyser;
+      this.buffer = new Float32Array(analyser.fftSize);
       this.triggered = false;
       this.speechStartTs = null;
       this._active = true;
       this._tick();
     } catch (err) {
       log.warn('start failed, microphone unavailable', { err });
+      releaseLocal();
       this._active = false;
+      throw err;
     }
   }
 
   /** 停止监听，释放资源 */
   stop(): void {
+    this.startGeneration += 1;
     this._active = false;
     if (this.rafId !== null) {
       cancelAnimationFrame(this.rafId);

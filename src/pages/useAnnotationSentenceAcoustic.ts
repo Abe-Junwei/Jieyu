@@ -96,9 +96,10 @@ export function useAnnotationSentenceAcoustic(input: {
             : { status: 'unavailable', figure: null, audioUrl: null },
         );
       } catch {
+        if (cancelled) return;
         if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
         audioUrlRef.current = null;
-        if (!cancelled) setState({ status: 'unavailable', figure: null, audioUrl: null });
+        setState({ status: 'unavailable', figure: null, audioUrl: null });
       }
     })();
     return () => {

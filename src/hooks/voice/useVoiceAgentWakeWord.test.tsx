@@ -62,6 +62,7 @@ describe('useVoiceAgentWakeWord (#517)', () => {
     cleanup();
     FakeWakeWordDetector.instances = [];
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it('keeps one detector across energy-driven re-renders and wakes after 400ms', async () => {
@@ -126,5 +127,38 @@ describe('useVoiceAgentWakeWord (#517)', () => {
     expect(FakeWakeWordDetector.instances).toHaveLength(1);
     expect(onWake).toHaveBeenCalledTimes(1);
     expect(result.current.wakeWordEnergyLevel).toBeGreaterThan(0);
+  });
+
+  it('turns the switch off when the real detector cannot open the microphone (#548)', async () => {
+    vi.stubGlobal('navigator', {
+      mediaDevices: {
+        getUserMedia: vi.fn(async () => {
+          throw new Error('denied');
+        }),
+      },
+    });
+    const setWakeWordEnabledState = vi.fn();
+    const { WakeWordDetector } = await import('../../services/WakeWordDetector');
+
+    renderHook(() => {
+      const wakeWordDetectorRef = useRef<InstanceType<typeof WakeWordDetector> | null>(null);
+      useVoiceAgentWakeWord({
+        wakeWordEnabled: true,
+        listening: false,
+        wakeWordDetectorRef,
+        loadWakeWordRuntime: async () => ({ WakeWordDetector }),
+        setWakeWordEnabledState,
+        setWakeWordEnergyLevel: vi.fn(),
+        onWake: vi.fn(),
+      });
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(setWakeWordEnabledState).toHaveBeenCalledWith(false);
   });
 });
