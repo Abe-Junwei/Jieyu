@@ -372,7 +372,10 @@ export class WhisperXVadService {
     };
   }
 
-  /** 重置 Silero 隐藏状态（切换音频文件时调用）| Reset Silero hidden state (call on audio file switch) */
+  /**
+   * 结束当前流式会话。每次 detect 自己持有循环状态，切换文件不必再调用。
+   * Drops the active streaming session. Each detect owns its recurrent state, so switching files does not require this.
+   */
   resetState(): void {
     if (this.worker && this.ready) {
       this.worker.postMessage({ type: 'reset' });
