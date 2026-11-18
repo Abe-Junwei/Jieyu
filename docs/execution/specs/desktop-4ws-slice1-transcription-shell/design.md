@@ -3,7 +3,7 @@ title: desktop-4ws-slice1-transcription-shell design
 doc_type: execution-spec-design
 status: active
 owner: repo
-last_reviewed: 2026-11-16
+last_reviewed: 2026-11-17
 source_of_truth: desktop-4ws-slice1-transcription-shell-spec
 depends_on:
   - ./requirements.md
@@ -46,7 +46,7 @@ depends_on:
 
 ## 6. 2026-11-02 准入核对与组件映射
 
-**UI 精稿准入未确认：** 用户已撤回转写片段检查器；转写精稿改在 Open Design 按设计系统 `design/jieyu-paper/` 重画（ADR-0102、ADR-0106），尚未定稿。下表为代码接线差额；不得把精稿静态板当 Electron 运行证据。
+**UI 精稿在 Pixso「精稿」页（ADR-0118，2026-11-17）。** Open Design 停用。用户已撤回转写片段检查器。下表为代码接线差额；不得把精稿静态板当 Electron 运行证据。
 
 | 区域/路径 | 实际入口与复用 | 目标接口/状态与差额 |
 | --- | --- | --- |
@@ -72,10 +72,10 @@ depends_on:
 
 - [x] 独立壳/正文保存/离开守卫现有调用链已核对，代码差额已列明。
 - [x] 区域复用候选和单库/刷新/焦点责任已列明，未将候选冒充直接可用。
-- [ ] Open Design 转写精稿及状态定稿，用户撤回片段检查器；实际键盘行为仍待实现验证。
+- [x] Pixso「精稿」页为转写定稿（样态、交互、离开守卫、窄窗）；Open Design 停用（ADR-0118）。实际键盘行为仍待实现验证。
 - [ ] 波形/时间轴候选props与媒体生命周期逐项核对，形成可直接接线的适配签名。
 - [ ] 1a回执/草稿载荷的冻结格式方案及宿主关闭链故障测试方案通过检查。
-- [ ] 壳页布局从过渡三栏收到 Open Design 精稿（上下文+主区，去右栏检查器）。
+- [ ] 壳页布局从过渡三栏收到 Pixso「精稿」页（上下文+主区，去右栏检查器）。
 - [ ] 合成Electron实际页面及重开证据；用户抽验仍由用户执行。
 
 ## 7. 2026-11-02 连接恢复后的视觉复查
@@ -94,4 +94,4 @@ depends_on:
 
 展示动作约定：onSelectUnit(unitId)、onSeek(mediaSeconds)、onTogglePlayback()、onEditText(unitId,text)、onCompositionChange(boolean)、onRequestBoundary(preview)、onRequestSplit(preview)、onRequestMerge(preview)、onLeave(intent)。controller将媒体秒与文献毫秒按映射转换；展示组件不读Dexie、不直接desktopCall。只有成功持久回执后广播统一领域事件，刷新失败独立提示、不重放写入。
 
-**UI 精稿准入：未通过，须核对当前画布。** 代码实现准入仍开：1a 回执／草稿／离开故障验证；1b 受控波形／时间轴（不得直接挂旧 VerticalView）；Electron 重开证据。运行时键盘、焦点返回与持久化仍由实现测试验收。
+**UI 精稿准入：Pixso「精稿」页。** 代码实现准入仍开：1a 的队列、离开链和 Electron 故障验证；1b 受控波形／时间轴（不得直接挂旧 VerticalView）。回执表和草稿表已是 user_version 28（ADR-0121）。运行时键盘、焦点返回与界面上的持久化仍由实现测试验收。

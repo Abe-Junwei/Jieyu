@@ -3,6 +3,7 @@ import { t, useLocale } from '../i18n';
 /** Shown when leaving would drop an unsaved text draft: retry, discard, or stay. */
 export function DesktopDraftLeaveDialog(props: {
   failed: boolean;
+  unknown?: boolean;
   saving: boolean;
   canRetry: boolean;
   onRetry: () => void;
@@ -13,11 +14,15 @@ export function DesktopDraftLeaveDialog(props: {
   return (
     <div role="dialog" aria-labelledby="desktop-draft-leave-title">
       <h2 id="desktop-draft-leave-title">{t(locale, 'app.desktopRead.leaveTitle')}</h2>
-      {props.failed ? <p>{t(locale, 'app.desktopRead.saveTextFailed')}</p> : null}
+      {props.unknown ? (
+        <p>{t(locale, 'app.desktopRead.saveTextUnknown')}</p>
+      ) : props.failed ? (
+        <p>{t(locale, 'app.desktopRead.saveTextFailed')}</p>
+      ) : null}
       <button type="button" disabled={!props.canRetry || props.saving} onClick={props.onRetry}>
         {t(locale, 'app.desktopRead.leaveRetry')}
       </button>
-      <button type="button" disabled={props.saving} onClick={props.onDiscard}>
+      <button type="button" disabled={props.saving || props.unknown} onClick={props.onDiscard}>
         {t(locale, 'app.desktopRead.leaveDiscard')}
       </button>
       <button type="button" disabled={props.saving} onClick={props.onStay}>

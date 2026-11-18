@@ -9,6 +9,7 @@ import { DesktopPageRouter, resetDesktopPageRouters } from '../test/desktopPageR
 import { afterEach, describe, expect, it } from 'vitest';
 import { grantExchangePath, resetExchangePathGrants } from '../desktop/exchangePathGrant';
 import { callDesktopSession } from '../db/desktop/desktopCall';
+import { readUnitTextDraft } from '../db/desktop/textSave';
 import {
   openDesktopSession,
   reopenDesktopSession,
@@ -156,6 +157,13 @@ describe('DesktopProjectReadPage', () => {
           ]);
         }
         if (method === 'units.updateText') return Promise.resolve({});
+        if (
+          method === 'units.readTextDraft' ||
+          method === 'units.putTextDraft' ||
+          method === 'units.discardTextDraft'
+        ) {
+          return Promise.resolve(null);
+        }
         if (method === 'notes.list') return Promise.resolve([]);
         if (
           method === 'speakers.list' ||
@@ -325,6 +333,28 @@ describe('DesktopProjectReadPage', () => {
       reopenDesktopSession(session.sessionId);
       expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
         text: '改过',
+      });
+    });
+
+    it('reopens an unsaved draft and does not write it into the unit', async () => {
+      const dir = tempFolder();
+      writeFileSync(join(dir, 'a.wav'), '');
+      const session = openDesktopSession(dir, [dir]);
+      const unit = seedReadUnit(session.sessionId, 0, 1, '原句');
+      mount(session.sessionId);
+      fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 原句' }));
+      fireEvent.change(screen.getByRole('textbox', { name: 'Text' }), { target: { value: '' } });
+      await waitFor(() => {
+        expect(
+          readUnitTextDraft(requireDesktopSession(session.sessionId).db, unit.id),
+        ).toMatchObject({ rawInput: '', baseBody: '原句' });
+      });
+      cleanup();
+      mount(session.sessionId);
+      fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 原句' }));
+      await waitFor(() => expect(textValue('Text')).toBe(''));
+      expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
+        text: '原句',
       });
     });
 

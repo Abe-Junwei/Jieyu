@@ -12,7 +12,7 @@ export type SessionEdit =
   | { kind: 'merge'; undo: UnitMergeUndo }
   | { kind: 'assign'; undo: SpeakerAssignUndo };
 
-// ponytail: one in-memory step. A crash drops it, and it is not atomic with the sqlite commit. No table; user_version stays 27.
+// ponytail: one in-memory step. A crash drops it, and it is not atomic with the sqlite commit. No table; this step does not change user_version.
 let activeSessionId: string | undefined;
 let step: { sessionId: string; edit: SessionEdit } | undefined;
 

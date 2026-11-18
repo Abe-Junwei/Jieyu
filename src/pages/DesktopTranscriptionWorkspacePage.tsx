@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { readDesktopProjectHost } from '../desktop/projectReadHost';
 import { useDesktopDraftGuard } from '../desktop/useDesktopDraftGuard';
@@ -31,7 +31,26 @@ export function DesktopTranscriptionWorkspacePage() {
     locate === null ? null : { manuscriptId: locate.manuscriptId, layerId: locate.layerId },
   );
   const [focusUnitId, setFocusUnitId] = useState<string | null>(locate?.unitId ?? null);
-  const draft = useDesktopDraftGuard((current) => read.saveText(current.unitId, current.text));
+  const draft = useDesktopDraftGuard(
+    (current, operationId) => read.saveText(current.unitId, current.text, operationId),
+    {
+      persist: (item) => read.persistTextDraft(item.unitId, item.rawInput, item.baseBody),
+      discard: (unitId) => read.discardTextDraft(unitId),
+      inspect: read.inspectTextSave,
+    },
+  );
+  useEffect(() => {
+    const stopFlush = host?.onTextClose?.(() => {
+      void draft.flushForClose().then((result) => host.reportTextClose?.(result));
+    });
+    const stopDiscard = host?.onDiscardClose?.(() => {
+      void draft.discard().then((ok) => host.reportTextClose?.(ok ? 'discarded' : 'unknown'));
+    });
+    return () => {
+      stopFlush?.();
+      stopDiscard?.();
+    };
+  }, [draft, host]);
 
   const selectedUnit = useMemo(() => {
     const id = draft.draft?.unitId ?? focusUnitId;
@@ -126,6 +145,13 @@ export function DesktopTranscriptionWorkspacePage() {
               onSelectManuscript={read.selectManuscript}
               draft={draft.draft}
               onEditText={draft.edit}
+              onSelectUnit={setFocusUnitId}
+              onUnitText={(unitId, savedText) => {
+                draft.syncSaved(unitId, savedText);
+                void read.readTextDraft(unitId).then((row) => {
+                  if (row) draft.restore(row, savedText);
+                });
+              }}
               onComposeText={draft.setComposing}
               onSaveText={() => void draft.commit()}
               onLeaveUnit={(go) => draft.leave(go)}
@@ -175,6 +201,7 @@ export function DesktopTranscriptionWorkspacePage() {
       {draft.prompt === null ? null : (
         <DesktopDraftLeaveDialog
           failed={draft.prompt.failed}
+          unknown={draft.unknown}
           saving={draft.saving}
           canRetry={draft.canRetry}
           onRetry={draft.retry}

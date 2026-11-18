@@ -115,9 +115,11 @@ describe('desktop project schema', () => {
       { name: 'reception_batches' },
       { name: 'sources' },
       { name: 'speakers' },
+      { name: 'text_save_receipts' },
       { name: 'token_lexeme_links' },
       { name: 'tokens' },
       { name: 'transcription_acceptances' },
+      { name: 'unit_text_drafts' },
       { name: 'unit_texts' },
       { name: 'units' },
     ]);

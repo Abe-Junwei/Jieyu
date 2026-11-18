@@ -32,7 +32,7 @@ describe('desktopDomainEvents', () => {
   it('emits after a write succeeds', async () => {
     const seen = record();
     const result = await emitAfterWrite(Promise.resolve('ok'), () => saved);
-    expect(result).toBe('ok');
+    expect(result).toEqual({ value: 'ok', refreshed: true });
     expect(seen).toEqual([saved]);
   });
 

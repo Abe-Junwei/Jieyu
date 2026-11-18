@@ -978,6 +978,8 @@ function deleteUnitTree(db: SqliteDatabase, unitId: string): void {
   db.prepare('DELETE FROM reception_batches WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM transcription_acceptances WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM unit_texts WHERE unit_id = ?').run(unitId);
+  db.prepare('DELETE FROM unit_text_drafts WHERE unit_id = ?').run(unitId);
+  db.prepare('DELETE FROM text_save_receipts WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM units WHERE id = ?').run(unitId);
 }
 

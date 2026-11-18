@@ -2,8 +2,8 @@
 
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
-/** SQLite header offset 60. D14 froze this at 27. A later table change needs a new decision and a new freeze record. */
-export const DESKTOP_PROJECT_USER_VERSION = 27;
+/** SQLite header offset 60. ADR-0121 moved this to 28. A later table change needs a new decision and a new freeze record. */
+export const DESKTOP_PROJECT_USER_VERSION = 28;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -1149,6 +1149,23 @@ WHEN EXISTS (
 BEGIN
   SELECT RAISE(ABORT, 'manuscript is deleted');
 END;
+
+CREATE TABLE text_save_receipts (
+  operation_id TEXT PRIMARY KEY CHECK (length(operation_id) > 0),
+  digest TEXT NOT NULL CHECK (length(digest) = 64),
+  unit_id TEXT NOT NULL REFERENCES units(id),
+  committed_at TEXT NOT NULL
+);
+
+CREATE INDEX text_save_receipts_unit ON text_save_receipts(unit_id);
+
+CREATE TABLE unit_text_drafts (
+  unit_id TEXT PRIMARY KEY REFERENCES units(id),
+  raw_input TEXT NOT NULL,
+  base_body TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  CHECK (raw_input <> base_body)
+);
 
 CREATE TRIGGER local_id_map_reject_deleted_manuscript_insert
 BEFORE INSERT ON local_id_map
