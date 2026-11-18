@@ -13,6 +13,11 @@ function writeSpec(slug: string, design: string) {
   writeFileSync(join(dir, 'design.md'), design);
 }
 
+const uiOk = `## UI 精稿对照
+
+- 不适用：不改桌面页面。
+`;
+
 const filledResearch = `## 1. 成熟方案扫描 / Research
 
 - 同类产品：VS Code 辅助侧栏成对 Detach/Dock。
@@ -48,7 +53,7 @@ describe('checkSpecResearchFilled', () => {
   });
 
   it('fails a non-draft spec whose Research §1 still has template placeholders', () => {
-    writeSpec('feat-b', `---\nstatus: active\n---\n\n${placeholderResearch}`);
+    writeSpec('feat-b', `---\nstatus: active\n---\n\n${placeholderResearch}\n${uiOk}`);
     const failures = checkSpecResearchFilled(specsDir);
     expect(failures).toHaveLength(1);
     expect(failures[0]).toContain('feat-b');
@@ -56,20 +61,27 @@ describe('checkSpecResearchFilled', () => {
   });
 
   it('passes a non-draft spec with a filled Research section', () => {
-    writeSpec('feat-c', `---\nstatus: completed\n---\n\n${filledResearch}`);
+    writeSpec('feat-c', `---\nstatus: completed\n---\n\n${filledResearch}\n${uiOk}`);
     expect(checkSpecResearchFilled(specsDir)).toEqual([]);
   });
 
   it('grandfathers a non-draft spec that has no 成熟方案/Research §1 section', () => {
-    writeSpec('legacy', `---\nstatus: completed\n---\n\n## 1. 设计约束\n\n- 仅项目实际约束：x\n`);
+    writeSpec('legacy', `---\nstatus: completed\n---\n\n## 1. 设计约束\n\n- 仅项目实际约束：x\n\n${uiOk}`);
     expect(checkSpecResearchFilled(specsDir)).toEqual([]);
   });
 
   it('fails a non-draft spec with an empty Research section', () => {
-    writeSpec('feat-d', `---\nstatus: active\n---\n\n## 1. 成熟方案扫描 / Research\n\n## 2. 架构\n`);
+    writeSpec('feat-d', `---\nstatus: active\n---\n\n## 1. 成熟方案扫描 / Research\n\n## 2. 架构\n\n${uiOk}`);
     const failures = checkSpecResearchFilled(specsDir);
     expect(failures).toHaveLength(1);
     expect(failures[0]).toContain('为空');
+  });
+
+  it('fails a non-draft spec that has no UI draft section', () => {
+    writeSpec('feat-e', `---\nstatus: active\n---\n\n${filledResearch}`);
+    const failures = checkSpecResearchFilled(specsDir);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toContain('UI 精稿对照');
   });
 
   it('ignores the _template directory', () => {

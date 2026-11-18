@@ -67,3 +67,7 @@ depends_on:
 | 结构守卫 | `npm run check:architecture-guard` | OK |
 | E2E（换路由） | `npm run test:e2e:chromium` | green |
 | 桌面 E2E | `npx playwright test --config=playwright.desktop-project.config.ts` | green |
+
+## UI 精稿对照
+
+- 不适用：本规格不改桌面页面或桌面样式。后续切片若改 `src/pages/Desktop*.tsx`、`src/styles/**/desktop*.css` 或新建 `src/components/**`，在那次改动里改写本节。

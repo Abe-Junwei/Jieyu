@@ -30,3 +30,7 @@ depends_on:
 
 - `npx vitest run src/ai/vertical/corpusAnalysisReport.test.ts src/ai/vertical/verticalWorkflowSelection.test.ts src/ai/vertical/verticalP0.test.ts`
 - `npm run typecheck`
+
+## UI 精稿对照
+
+- 不适用：本规格不改桌面页面或桌面样式。后续切片若改 `src/pages/Desktop*.tsx`、`src/styles/**/desktop*.css` 或新建 `src/components/**`，在那次改动里改写本节。
