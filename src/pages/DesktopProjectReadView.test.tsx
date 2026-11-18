@@ -10,8 +10,8 @@ afterEach(() => {
 const unit = {
   id: 'u1',
   layerId: 'layer-1',
-  startTime: 0,
-  endTime: 2,
+  startMs: 0,
+  endMs: 2000,
   text: 'sentence',
 };
 
@@ -34,7 +34,6 @@ function renderView(
       units={[unit]}
       notes={[]}
       audioUrl={null}
-      timeMapping={null}
       emptyLabel="empty"
       audioLabel="audio"
       textLabel="Text"
@@ -45,9 +44,6 @@ function renderView(
       mergeNextLabel="Merge next"
       boundaryLabel="Boundary"
       moveBoundaryLabel="Move boundary"
-      offsetLabel="Offset"
-      scaleLabel="Scale"
-      saveMappingLabel="Save mapping"
       noteLabel="Note"
       saveNoteLabel="Save note"
       saveTimelineNoteLabel="Save timeline note"
@@ -62,7 +58,6 @@ function renderView(
       onSplit={() => undefined}
       onMerge={() => undefined}
       onMoveBoundary={() => undefined}
-      onSaveMapping={() => undefined}
       onSaveNote={onSaveNote}
       onSaveTierNote={onSaveTierNote}
     />,

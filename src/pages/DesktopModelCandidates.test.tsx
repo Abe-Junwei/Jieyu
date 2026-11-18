@@ -50,14 +50,12 @@ it('uses host results as editable candidates and accepts one without saving the 
           { chunkIndex: 1, segmentIndex: 0, mediaStart: 1, mediaEnd: 2 },
         ],
       }) as {
-        timeMappingRevision: number;
         candidates: import('../desktop/transcriptionTypes').ModelCandidate[];
       };
       return {
         runId: run.id,
         status: 'ok' as const,
         warnings: [],
-        timeMappingRevision: preview.timeMappingRevision,
         candidates: preview.candidates.map((row) => ({ ...row, text: 'mock candidate' })),
       };
     },

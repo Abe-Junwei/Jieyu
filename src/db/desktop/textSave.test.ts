@@ -53,8 +53,8 @@ function seed(sessionId: string): string {
   return (
     callDesktopSession(sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'ka',
     }) as { id: string }
   ).id;

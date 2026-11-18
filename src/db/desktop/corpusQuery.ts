@@ -6,7 +6,7 @@ type SqliteDatabase = InstanceType<typeof Database>;
 export interface CorpusQueryCursor {
   manuscriptId: string;
   layerId: string;
-  startTime: number;
+  startMs: number;
   unitId: string;
 }
 
@@ -29,8 +29,8 @@ export interface CorpusQueryItem {
   manuscriptId: string;
   layerId: string;
   unitId: string;
-  startTime: number;
-  endTime: number;
+  startMs: number;
+  endMs: number;
   text: string;
   textSpans: CorpusTextSpan[];
   hits: CorpusQueryHit[];
@@ -76,8 +76,8 @@ interface UnitRow {
   manuscript_id: string;
   layer_id: string;
   unit_id: string;
-  start_time: number;
-  end_time: number;
+  start_ms: number;
+  end_ms: number;
   text: string;
 }
 
@@ -113,8 +113,8 @@ export function queryCorpus(db: SqliteDatabase, input: CorpusQuery): CorpusQuery
       manuscriptId: row.manuscript_id,
       layerId: row.layer_id,
       unitId: row.unit_id,
-      startTime: row.start_time,
-      endTime: row.end_time,
+      startMs: row.start_ms,
+      endMs: row.end_ms,
       text: row.text,
       textSpans: spansIn(row.text, text),
       hits: hitsByUnit?.get(row.unit_id) ?? [],
@@ -296,8 +296,8 @@ function selectUnits(
     where.push(`(
       manuscripts.id > ?
       OR (manuscripts.id = ? AND layers.id > ?)
-      OR (manuscripts.id = ? AND layers.id = ? AND units.start_time > ?)
-      OR (manuscripts.id = ? AND layers.id = ? AND units.start_time = ? AND units.id > ?)
+      OR (manuscripts.id = ? AND layers.id = ? AND units.start_ms > ?)
+      OR (manuscripts.id = ? AND layers.id = ? AND units.start_ms = ? AND units.id > ?)
     )`);
     params.push(
       cursor.manuscriptId,
@@ -305,10 +305,10 @@ function selectUnits(
       cursor.layerId,
       cursor.manuscriptId,
       cursor.layerId,
-      cursor.startTime,
+      cursor.startMs,
       cursor.manuscriptId,
       cursor.layerId,
-      cursor.startTime,
+      cursor.startMs,
       cursor.unitId,
     );
   }
@@ -316,13 +316,13 @@ function selectUnits(
   return db
     .prepare(
       `SELECT manuscripts.id AS manuscript_id, layers.id AS layer_id, units.id AS unit_id,
-              units.start_time AS start_time, units.end_time AS end_time, unit_texts.body AS text
+              units.start_ms AS start_ms, units.end_ms AS end_ms, unit_texts.body AS text
        FROM units
        JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
        JOIN layers ON layers.id = units.layer_id
        JOIN manuscripts ON manuscripts.id = layers.manuscript_id
        WHERE ${where.join(' AND ')}
-       ORDER BY manuscripts.id, layers.id, units.start_time, units.id
+       ORDER BY manuscripts.id, layers.id, units.start_ms, units.id
        LIMIT ?`,
     )
     .all(...params) as UnitRow[];

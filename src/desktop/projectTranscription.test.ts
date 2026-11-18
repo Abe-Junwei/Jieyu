@@ -27,13 +27,12 @@ it('returns real HTTP candidates without storing their text, then accepts and re
     segmentIndex: first.segmentIndex,
     mediaStart: first.mediaStart,
     mediaEnd: first.mediaEnd,
-    timeMappingRevision: result.timeMappingRevision,
     targetFingerprint: first.targetFingerprint,
     text: first.text,
   });
   callDesktopSession(s.sessionId, 'reopen', {});
   expect(callDesktopSession(s.sessionId, 'units.list', { layerId: s.layerId })).toMatchObject([
-    { text: 'mock candidate', startTime: 0, endTime: 1 },
+    { text: 'mock candidate', startMs: 0, endMs: 1000 },
   ]);
   expect(callDesktopSession(s.sessionId, 'modelRuns.get', { runId: result.runId })).toMatchObject({
     status: 'ok',
@@ -70,58 +69,46 @@ it('cancels the HTTP request and leaves a cancelled run with no candidate text',
     pendingCount: 0,
   });
 });
-it.each(['mapping', 'text'])(
-  'refuses fresh preview credentials after %s changes in flight',
-  async (change) => {
-    let release!: () => void;
-    let arrived!: () => void;
-    const started = new Promise<void>((r) => (arrived = r));
-    const s = await seed((request, res) => {
-      arrived();
-      release = () =>
-        res.end(
-          JSON.stringify({
-            jieyu: '1',
-            requestId: request.requestId,
-            status: 'ok',
-            model: { id: 'org.example.mock', version: '1' },
-            result: { segments: [{ start: 0, end: 1, text: 'late' }] },
-          }),
-        );
-    });
-    const pending = transcribeProject(s.sessionId, {
-      modelId: s.model.id,
-      manuscriptId: s.manuscriptId,
-      layerId: s.layerId,
-      start: 0,
-      end: 1,
-      requestId: 'stale',
-    });
-    await started;
-    if (change === 'mapping') {
-      callDesktopSession(s.sessionId, 'manuscripts.setTimeMapping', {
-        manuscriptId: s.manuscriptId,
-        expectedRevision: 0,
-        offsetSec: 1,
-        scale: 1,
-      });
-    } else {
-      callDesktopSession(s.sessionId, 'units.create', {
-        layerId: s.layerId,
-        startTime: 0,
-        endTime: 1,
-        text: 'concurrent edit',
-      });
-    }
-    release();
-    const result = await pending;
-    expect(result.status).toBe('error');
-    expect(result.candidates).toEqual([]);
-    expect(callDesktopSession(s.sessionId, 'units.list', { layerId: s.layerId })).toMatchObject(
-      change === 'mapping' ? [] : [{ text: 'concurrent edit' }],
-    );
-  },
-);
+it('refuses fresh preview credentials after text changes in flight', async () => {
+  let release!: () => void;
+  let arrived!: () => void;
+  const started = new Promise<void>((r) => (arrived = r));
+  const s = await seed((request, res) => {
+    arrived();
+    release = () =>
+      res.end(
+        JSON.stringify({
+          jieyu: '1',
+          requestId: request.requestId,
+          status: 'ok',
+          model: { id: 'org.example.mock', version: '1' },
+          result: { segments: [{ start: 0, end: 1, text: 'late' }] },
+        }),
+      );
+  });
+  const pending = transcribeProject(s.sessionId, {
+    modelId: s.model.id,
+    manuscriptId: s.manuscriptId,
+    layerId: s.layerId,
+    start: 0,
+    end: 1,
+    requestId: 'stale',
+  });
+  await started;
+  callDesktopSession(s.sessionId, 'units.create', {
+    layerId: s.layerId,
+    startMs: 0,
+    endMs: 1000,
+    text: 'concurrent edit',
+  });
+  release();
+  const result = await pending;
+  expect(result.status).toBe('error');
+  expect(result.candidates).toEqual([]);
+  expect(callDesktopSession(s.sessionId, 'units.list', { layerId: s.layerId })).toMatchObject([
+    { text: 'concurrent edit' },
+  ]);
+});
 
 it('keeps successful zero-output and malformed-response facts without creating units', async () => {
   for (const mode of ['empty', 'bad']) {

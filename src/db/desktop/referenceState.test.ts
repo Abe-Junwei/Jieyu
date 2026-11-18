@@ -247,8 +247,8 @@ function seedUnit(db: InstanceType<typeof Database>): void {
     ) VALUES (?, ?, ?, '{"en":"Transcription"}', 'time-aligned', 'transcription', 0, ?, ?)`,
   ).run('ly1', 'ms1', 'tx', T, T);
   db.prepare(
-    'INSERT INTO units (id, layer_id, start_time, end_time, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-  ).run('u1', 'ly1', 0, 1, T, T);
+    'INSERT INTO units (id, layer_id, sort_order, start_ms, end_ms, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  ).run('u1', 'ly1', 0, 0, 1, T, T);
   db.prepare(
     `INSERT INTO unit_texts (id, unit_id, role, body, updated_at) VALUES (?, ?, 'transcription', ?, ?)`,
   ).run('tx1', 'u1', 'ka', T);

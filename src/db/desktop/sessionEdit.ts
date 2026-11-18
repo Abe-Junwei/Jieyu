@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import { undoUnitText } from './analysisRestore';
 import { undoAssignSpeaker, type SpeakerAssignUndo } from './speakerAssign';
 import { undoMerge, undoSplit, type UnitMergeUndo, type UnitSplitUndo } from './unitSpan';
+import { undoRetime, type RetimeUndo } from './manuscripts';
 import type { Unit, UnitTextUndo } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -10,7 +11,8 @@ export type SessionEdit =
   | { kind: 'text'; undo: UnitTextUndo }
   | { kind: 'split'; undo: UnitSplitUndo }
   | { kind: 'merge'; undo: UnitMergeUndo }
-  | { kind: 'assign'; undo: SpeakerAssignUndo };
+  | { kind: 'assign'; undo: SpeakerAssignUndo }
+  | { kind: 'retime'; undo: RetimeUndo };
 
 // ponytail: one in-memory step. A crash drops it, and it is not atomic with the sqlite commit. No table; this step does not change user_version.
 let activeSessionId: string | undefined;
@@ -65,6 +67,9 @@ function applySessionEdit(db: SqliteDatabase, edit: SessionEdit): Unit | Unit[] 
       return undoMerge(db, edit.undo);
     case 'assign':
       return undoAssignSpeaker(db, edit.undo);
+    case 'retime':
+      undoRetime(db, edit.undo);
+      return [];
     default: {
       const unreachable: never = edit;
       return unreachable;

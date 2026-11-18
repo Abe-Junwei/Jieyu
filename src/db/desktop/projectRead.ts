@@ -40,6 +40,9 @@ export async function loadDesktopProjectRead(
     layers.find((item) => item.id === layerId) ??
     layers.find((item) => item.tierType === 'time-aligned' && item.contentType === 'transcription');
   const units = layer === undefined ? [] : await api.listUnits(sessionId, layer.id);
-  const audioUrl = includeMedia ? await api.mediaPlayUrl(sessionId, selected.mediaId) : null;
+  const audioUrl =
+    includeMedia && selected.mediaId !== null
+      ? await api.mediaPlayUrl(sessionId, selected.mediaId)
+      : null;
   return { manuscripts, manuscriptId: selected.id, layerId: layer?.id ?? null, audioUrl, units };
 }

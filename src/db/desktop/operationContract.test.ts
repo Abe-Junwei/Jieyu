@@ -68,6 +68,7 @@ describe('desktop operation contract', () => {
     const addedAfterSnapshot = [
       'attachments.finishCleanup',
       'attachments.read',
+      'manuscripts.retime',
       'media.listDeleted',
       'sources.create',
       'units.discardTextDraft',

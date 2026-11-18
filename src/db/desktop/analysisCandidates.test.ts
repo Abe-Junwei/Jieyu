@@ -91,7 +91,7 @@ function seeded() {
     tierType: 'time-aligned',
     contentType: 'transcription',
   });
-  const unit = project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+  const unit = project.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text: 'ka' });
   return { project, unitId: unit.id };
 }
 
@@ -221,8 +221,8 @@ describe('analysis suggestions', () => {
     });
     const unit = await client.createUnit(session.sessionId, {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'ka',
     });
     const state = await client.readAnalysisState(session.sessionId, unit.id);

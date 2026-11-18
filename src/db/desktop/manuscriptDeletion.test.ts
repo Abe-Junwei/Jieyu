@@ -47,8 +47,8 @@ describe('manuscript mark delete', () => {
     const seeded = seed(session.sessionId, '文稿');
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'keep',
     }) as { id: string };
     const words = callDesktopSession(session.sessionId, 'analysis.segmentWords', {
@@ -96,14 +96,14 @@ describe('manuscript mark delete', () => {
     const second = seed(session.sessionId, '另一份', media.id);
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: first.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'keep',
     }) as { id: string };
     const other = callDesktopSession(session.sessionId, 'units.create', {
       layerId: second.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'stay',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'notes.create', {
@@ -199,8 +199,8 @@ describe('manuscript mark delete', () => {
     const seeded = seed(session.sessionId, '文稿');
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'keep',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
@@ -230,8 +230,8 @@ describe('manuscript mark delete', () => {
     const seeded = seed(session.sessionId, '文稿');
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'keep',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
@@ -254,8 +254,8 @@ describe('manuscript mark delete', () => {
     const seeded = seed(session.sessionId, '文稿');
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'keep',
     }) as { id: string };
     const note = callDesktopSession(session.sessionId, 'notes.create', {
@@ -298,8 +298,8 @@ describe('manuscript mark delete', () => {
     const seeded = seed(session.sessionId, '文稿');
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'keep',
     }) as { id: string };
     const field = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
@@ -390,7 +390,6 @@ describe('manuscript mark delete', () => {
         segmentIndex: 0,
         mediaStart: 0,
         mediaEnd: 1,
-        timeMappingRevision: preview.timeMappingRevision,
         targetFingerprint: candidate.targetFingerprint,
         text: 'late',
       }),
@@ -461,14 +460,14 @@ describe('manuscript mark delete', () => {
     const other = seed(session.sessionId, '另一份', seeded.mediaId);
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'keep',
     }) as { id: string };
     const otherUnit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: other.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'stay',
     }) as { id: string };
     const word = (
@@ -541,8 +540,8 @@ describe('manuscript mark delete', () => {
     const seeded = seed(session.sessionId, '文稿');
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'keep',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
@@ -571,8 +570,8 @@ describe('manuscript mark delete', () => {
     const seeded = seed(session.sessionId, '文稿');
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'keep',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId: unit.id });
@@ -659,9 +658,9 @@ describe('manuscript mark delete', () => {
       id: seeded.manuscriptId,
     }) as { lifecycleGeneration: number };
     expect(deleted.lifecycleGeneration).toBe(1);
-    expect(() =>
-      accept(session.sessionId, run.id, preview.timeMappingRevision, candidate.targetFingerprint),
-    ).toThrow('transcription run is stale');
+    expect(() => accept(session.sessionId, run.id, candidate.targetFingerprint)).toThrow(
+      'transcription run is stale',
+    );
     const restored = callDesktopSession(session.sessionId, 'manuscripts.restore', {
       id: seeded.manuscriptId,
     }) as { deletedAt: string | null; lifecycleGeneration: number };
@@ -674,9 +673,9 @@ describe('manuscript mark delete', () => {
     expect(() =>
       callDesktopSession(session.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId }),
     ).toThrow('manuscript is active');
-    expect(() =>
-      accept(session.sessionId, run.id, preview.timeMappingRevision, candidate.targetFingerprint),
-    ).toThrow('transcription run is stale');
+    expect(() => accept(session.sessionId, run.id, candidate.targetFingerprint)).toThrow(
+      'transcription run is stale',
+    );
     const next = callDesktopSession(session.sessionId, 'modelRuns.finish', {
       runId: start(session.sessionId, seeded).id,
       status: 'ok',
@@ -696,15 +695,14 @@ describe('manuscript mark delete', () => {
         segmentIndex: 0,
         mediaStart: 2,
         mediaEnd: 3,
-        timeMappingRevision: fresh.timeMappingRevision,
         targetFingerprint: freshCandidate.targetFingerprint,
         text: 'after',
       }),
     ).toMatchObject({ text: 'after' });
     const written = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 4,
-      endTime: 5,
+      startMs: 4,
+      endMs: 5,
       text: 'hand',
     }) as { id: string };
     expect(
@@ -813,8 +811,8 @@ describe('manuscript mark delete', () => {
     const seeded = seed(session.sessionId, '文稿');
     callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'secret-body',
     });
     callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
@@ -929,14 +927,14 @@ describe('manuscript mark delete', () => {
     const other = seed(session.sessionId, '另一份', seeded.mediaId);
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'saved',
     }) as { id: string };
     const otherUnit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: other.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'other',
     }) as { id: string };
     const running = start(session.sessionId, seeded);
@@ -998,9 +996,9 @@ describe('manuscript mark delete', () => {
         candidates: [{ chunkIndex: 1, segmentIndex: 0, mediaStart: 2, mediaEnd: 3 }],
       }),
     ).toThrow('transcription run is stale');
-    expect(() =>
-      accept(session.sessionId, run.id, preview.timeMappingRevision, candidate.targetFingerprint),
-    ).toThrow('transcription run is stale');
+    expect(() => accept(session.sessionId, run.id, candidate.targetFingerprint)).toThrow(
+      'transcription run is stale',
+    );
     resetDesktopSessions();
     const closed = new Database(join(dir, 'project.sqlite'), { readonly: true });
     const body = closed.prepare('SELECT body FROM unit_texts WHERE unit_id = ?').get(unit.id) as {
@@ -1017,9 +1015,9 @@ describe('manuscript mark delete', () => {
         text: 'rewritten',
       }),
     ).toMatchObject({ text: 'rewritten' });
-    expect(() =>
-      accept(reopened.sessionId, run.id, preview.timeMappingRevision, candidate.targetFingerprint),
-    ).toThrow('transcription run is stale');
+    expect(() => accept(reopened.sessionId, run.id, candidate.targetFingerprint)).toThrow(
+      'transcription run is stale',
+    );
     const next = callDesktopSession(reopened.sessionId, 'modelRuns.finish', {
       runId: start(reopened.sessionId, seeded).id,
       status: 'ok',
@@ -1039,7 +1037,6 @@ describe('manuscript mark delete', () => {
         segmentIndex: 0,
         mediaStart: 2,
         mediaEnd: 3,
-        timeMappingRevision: fresh.timeMappingRevision,
         targetFingerprint: freshCandidate.targetFingerprint,
         text: 'after',
       }),
@@ -1061,14 +1058,14 @@ describe('manuscript mark delete', () => {
     const other = seed(session.sessionId, '另一份', seeded.mediaId);
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'keep',
     }) as { id: string };
     const otherUnit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: other.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'stay',
     }) as { id: string };
     const word = (
@@ -1215,14 +1212,14 @@ describe('manuscript mark delete', () => {
     const seeded = seed(session.sessionId, '文稿');
     const left = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1000,
       text: 'a-b',
     }) as { id: string };
     const right = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 1,
-      endTime: 2,
+      startMs: 1000,
+      endMs: 2000,
       text: 'stay',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId: left.id });
@@ -1242,9 +1239,9 @@ describe('manuscript mark delete', () => {
     const pending = submitAnalysis(db, suggestion);
     callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
     const rejected: [string, Record<string, unknown>][] = [
-      ['units.create', { layerId: seeded.layerId, startTime: 2, endTime: 3, text: 'late' }],
-      ['units.updateBoundary', { leftId: left.id, rightId: right.id, time: 0.5 }],
-      ['units.split', { unitId: left.id, time: 0.5 }],
+      ['units.create', { layerId: seeded.layerId, startMs: 2, endMs: 3, text: 'late' }],
+      ['units.updateBoundary', { leftId: left.id, rightId: right.id, time: 1 }],
+      ['units.split', { unitId: left.id, time: 500 }],
       ['units.merge', { keepId: left.id, removeId: right.id }],
       ['notes.create', { anchor: { kind: 'unit', unitId: left.id }, content: { zh: '迟到' } }],
       [
@@ -1256,13 +1253,9 @@ describe('manuscript mark delete', () => {
           modelVersion: '1',
           manifestSha256: 'abc',
           params: {},
-          rangeStart: 0,
-          rangeEnd: 8,
+          rangeStartMs: 0,
+          rangeEndMs: 8000,
         },
-      ],
-      [
-        'manuscripts.setTimeMapping',
-        { manuscriptId: seeded.manuscriptId, expectedRevision: 0, offsetSec: 1, scale: 1 },
       ],
       ['analysis.segmentMorphemes', { unitId: left.id }],
     ];
@@ -1272,12 +1265,12 @@ describe('manuscript mark delete', () => {
       );
     }
     expect(() =>
-      createUnit(db, { layerId: seeded.layerId, startTime: 2, endTime: 3, text: 'late' }),
+      createUnit(db, { layerId: seeded.layerId, startMs: 2, endMs: 3, text: 'late' }),
     ).toThrow('manuscript is deleted');
-    expect(() => updateBoundary(db, { leftId: left.id, rightId: right.id, time: 0.5 })).toThrow(
+    expect(() => updateBoundary(db, { leftId: left.id, rightId: right.id, time: 1 })).toThrow(
       'manuscript is deleted',
     );
-    expect(() => splitUnit(db, { unitId: left.id, time: 0.5 })).toThrow('manuscript is deleted');
+    expect(() => splitUnit(db, { unitId: left.id, time: 500 })).toThrow('manuscript is deleted');
     expect(() => segmentUnitMorphemes(db, left.id)).toThrow('manuscript is deleted');
     expect(() => submitAnalysis(db, suggestion)).toThrow('manuscript is deleted');
     expect(() => callDesktopSession(session.sessionId, 'analysis.submit', suggestion)).toThrow(
@@ -1300,8 +1293,8 @@ describe('manuscript mark delete', () => {
         modelVersion: '1',
         manifestSha256: 'abc',
         params: {},
-        rangeStart: 0,
-        rangeEnd: 8,
+        rangeStartMs: 0,
+        rangeEndMs: 8000,
       }),
     ).toThrow('manuscript is deleted');
     expect(
@@ -1327,13 +1320,13 @@ describe('manuscript mark delete', () => {
         limit: 10,
       }),
     ).toEqual({ items: [], hasMore: false });
-    expect(db.prepare('SELECT end_time AS endTime FROM units WHERE id = ?').get(left.id)).toEqual({
-      endTime: 1,
+    expect(db.prepare('SELECT end_ms AS endMs FROM units WHERE id = ?').get(left.id)).toEqual({
+      endMs: 1000,
     });
     resetDesktopSessions();
     const closed = openDesktopSession(dir, [dir]);
     expect(() =>
-      callDesktopSession(closed.sessionId, 'units.split', { unitId: left.id, time: 0.5 }),
+      callDesktopSession(closed.sessionId, 'units.split', { unitId: left.id, time: 500 }),
     ).toThrow('manuscript is deleted');
     callDesktopSession(closed.sessionId, 'manuscripts.restore', { id: seeded.manuscriptId });
     expect(() =>
@@ -1345,8 +1338,8 @@ describe('manuscript mark delete', () => {
     expect(
       callDesktopSession(closed.sessionId, 'units.create', {
         layerId: seeded.layerId,
-        startTime: 2,
-        endTime: 3,
+        startMs: 2,
+        endMs: 3,
         text: 'after',
       }),
     ).toMatchObject({ text: 'after' });
@@ -1398,17 +1391,12 @@ function start(
     modelVersion: '1',
     manifestSha256: 'abc',
     params: {},
-    rangeStart: 0,
-    rangeEnd: 8,
+    rangeStartMs: 0,
+    rangeEndMs: 8000,
   }) as { id: string; status: string };
 }
 
-function accept(
-  sessionId: string,
-  runId: string,
-  timeMappingRevision: number,
-  targetFingerprint: string,
-): void {
+function accept(sessionId: string, runId: string, targetFingerprint: string): void {
   callDesktopSession(sessionId, 'modelRuns.accept', {
     operationId: 'op-old',
     runId,
@@ -1416,7 +1404,6 @@ function accept(
     segmentIndex: 0,
     mediaStart: 0,
     mediaEnd: 1,
-    timeMappingRevision,
     targetFingerprint,
     text: 'late',
   });

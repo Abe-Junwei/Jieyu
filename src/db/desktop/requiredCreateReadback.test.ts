@@ -263,8 +263,8 @@ const cases: CreateCase[] = [
     create: (project, parents, fieldId) => ({
       id: project.units.create({
         layerId: need(parents.layerId, 'layer'),
-        startTime: 0,
-        endTime: 1,
+        startMs: 0,
+        endMs: 1,
         text: 'ka',
         ...kept(fieldId),
       }).id,

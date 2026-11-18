@@ -100,12 +100,28 @@ describe('foreign file import', () => {
       roles: join(source, 'roles.txt'),
     });
     const opened = openProject(project);
-    const row = opened.db.prepare('SELECT start_time, end_time FROM units').get() as {
-      start_time: number;
-      end_time: number;
-    };
+    const row = opened.db.prepare('SELECT time_ms FROM points').get() as { time_ms: number };
     opened.close();
-    expect(row).toEqual({ start_time: 0.5, end_time: 0.5 });
+    expect(row).toEqual({ time_ms: 500 });
+  });
+
+  it('keeps a zero-length mark when the same tier also has an interval', () => {
+    const project = library();
+    const source = join(rootOf(project), 'source');
+    writeFileSync(join(source, 'kept.wav'), Buffer.from('synthetic-chain'));
+    writeFileSync(join(source, 'kept.TextGrid'), mixedGrid());
+    writeFileSync(join(source, 'roles.txt'), 'tx 转写\n');
+    importForeignFile({
+      folder: project,
+      file: join(source, 'kept.TextGrid'),
+      roles: join(source, 'roles.txt'),
+    });
+    const opened = openProject(project);
+    const unit = opened.db.prepare('SELECT start_ms, end_ms FROM units').get();
+    const point = opened.db.prepare('SELECT time_ms, label FROM points').get();
+    opened.close();
+    expect(unit).toEqual({ start_ms: 0, end_ms: 500 });
+    expect(point).toEqual({ time_ms: 500, label: 'mark' });
   });
 
   it('refuses a folder that has no library', () => {
@@ -750,6 +766,32 @@ item []:
             xmin = 0
             xmax = 1
             text = "${text}"
+`;
+}
+
+function mixedGrid(): string {
+  return `File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0
+xmax = 1
+tiers? <exists>
+size = 1
+item []:
+    item [1]:
+        class = "IntervalTier"
+        name = "tx"
+        xmin = 0
+        xmax = 1
+        intervals: size = 2
+        intervals [1]:
+            xmin = 0
+            xmax = 0.5
+            text = "span"
+        intervals [2]:
+            xmin = 0.5
+            xmax = 0.5
+            text = "mark"
 `;
 }
 

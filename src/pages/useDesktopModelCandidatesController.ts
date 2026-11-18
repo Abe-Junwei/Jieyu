@@ -167,7 +167,6 @@ export function useDesktopModelCandidatesController(props: {
           segmentIndex: candidate.segmentIndex,
           mediaStart: candidate.mediaStart,
           mediaEnd: candidate.mediaEnd,
-          timeMappingRevision: result.timeMappingRevision,
           targetFingerprint: candidate.targetFingerprint,
           text: candidate.text,
         });

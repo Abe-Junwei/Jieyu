@@ -21,6 +21,5 @@ export interface ProjectTranscriptionResult {
   status: 'ok' | 'error' | 'cancelled' | 'interrupted';
   code?: string;
   warnings: string[];
-  timeMappingRevision: number;
   candidates: ModelCandidate[];
 }

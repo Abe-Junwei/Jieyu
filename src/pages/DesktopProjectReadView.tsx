@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  previewTextTimeMapping,
-  type TextTimeMapping,
-} from '../services/LinguisticService.timeMapping';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
+import { msToSeconds } from '../desktop/timeMs';
 import { DesktopScopeNote } from './DesktopScopeNote';
 
 export interface DesktopProjectReadManuscript {
@@ -15,8 +12,8 @@ export interface DesktopProjectReadUnit {
   id: string;
   layerId?: string;
   textId?: string;
-  startTime: number;
-  endTime: number;
+  startMs: number | null;
+  endMs: number | null;
   text: string;
 }
 
@@ -26,7 +23,6 @@ export function DesktopProjectReadView(props: {
   units: readonly DesktopProjectReadUnit[];
   notes: readonly { id: string; unitId: string | null; text: string }[];
   audioUrl: string | null;
-  timeMapping: TextTimeMapping | null;
   emptyLabel: string;
   audioLabel: string;
   textLabel: string;
@@ -37,9 +33,6 @@ export function DesktopProjectReadView(props: {
   mergeNextLabel: string;
   boundaryLabel: string;
   moveBoundaryLabel: string;
-  offsetLabel: string;
-  scaleLabel: string;
-  saveMappingLabel: string;
   noteLabel: string;
   saveNoteLabel: string;
   saveTimelineNoteLabel: string;
@@ -58,7 +51,10 @@ export function DesktopProjectReadView(props: {
   onSplit: (unitId: string, time: number) => void;
   onMerge: (keepId: string, removeId: string) => void;
   onMoveBoundary: (leftId: string, rightId: string, time: number) => void;
-  onSaveMapping: (offsetSec: number, scale: number) => void;
+  retimeLabel?: string;
+  offsetLabel?: string;
+  scaleLabel?: string;
+  onRetime?: (offsetSec: number, scale: number) => void;
   onSaveNote: (unitId: string, text: string) => void | Promise<void>;
   onSaveTierNote: (
     unitId: string,
@@ -93,7 +89,7 @@ export function DesktopProjectReadView(props: {
       publishSelection(unit.id);
       const audio = audioRef.current;
       if (audio === null) return;
-      audio.currentTime = playerStart(unit, props.timeMapping);
+      audio.currentTime = playerStart(unit);
     };
     if (unit.id === selectedId) go();
     else props.onLeaveUnit(go);
@@ -110,8 +106,8 @@ export function DesktopProjectReadView(props: {
     publishSelection(unit.id);
     const audio = audioRef.current;
     if (audio === null) return;
-    audio.currentTime = playerStart(unit, props.timeMapping);
-  }, [props.focusUnitId, props.units, props.timeMapping]);
+    audio.currentTime = playerStart(unit);
+  }, [props.focusUnitId, props.units]);
   const selectedText = selected?.text;
   useEffect(() => {
     if (selectedId === null || selectedText === undefined) return;
@@ -124,7 +120,8 @@ export function DesktopProjectReadView(props: {
   const next =
     selected === null
       ? null
-      : (props.units.find((unit) => unit.startTime === selected.endTime) ?? null);
+      : (props.units.find((unit) => unit.startMs !== null && unit.startMs === selected.endMs) ??
+        null);
 
   return (
     <div className="desktop-project-read">
@@ -148,9 +145,9 @@ export function DesktopProjectReadView(props: {
         {props.units.map((unit) => (
           <div key={unit.id}>
             <button type="button" onClick={() => focusUnit(unit)}>
-              {`${unit.startTime.toFixed(1)}–${unit.endTime.toFixed(1)} ${unit.text}`}
+              {`${spanLabel(unit)} ${unit.text}`}
             </button>
-            <span>{playerRange(unit, props.timeMapping)}</span>
+            <span>{spanLabel(unit)}</span>
           </div>
         ))}
       </div>
@@ -174,7 +171,11 @@ export function DesktopProjectReadView(props: {
             ref={splitRef}
             key={`split-${selected.id}`}
             aria-label={props.splitTimeLabel}
-            defaultValue={String((selected.startTime + selected.endTime) / 2)}
+            defaultValue={
+              selected.startMs === null || selected.endMs === null
+                ? ''
+                : String(msToSeconds(Math.floor((selected.startMs + selected.endMs) / 2)))
+            }
           />
           <button
             type="button"
@@ -197,7 +198,7 @@ export function DesktopProjectReadView(props: {
                 ref={boundaryRef}
                 key={selected.id}
                 aria-label={props.boundaryLabel}
-                defaultValue={String(selected.endTime)}
+                defaultValue={selected.endMs === null ? '' : String(msToSeconds(selected.endMs))}
               />
               <button
                 type="button"
@@ -291,50 +292,34 @@ export function DesktopProjectReadView(props: {
           )}
         </div>
       )}
-      <div className="desktop-project-read-units">
-        <input
-          ref={offsetRef}
-          key={`offset-${props.manuscriptId ?? ''}-${props.timeMapping?.revision ?? 0}`}
-          aria-label={props.offsetLabel}
-          defaultValue={String(props.timeMapping?.offsetSec ?? 0)}
-        />
-        <input
-          ref={scaleRef}
-          key={`scale-${props.manuscriptId ?? ''}-${props.timeMapping?.revision ?? 0}`}
-          aria-label={props.scaleLabel}
-          defaultValue={String(props.timeMapping?.scale ?? 1)}
-        />
-        <button
-          type="button"
-          onClick={() => {
-            const offsetSec = Number(offsetRef.current?.value);
-            const scale = Number(scaleRef.current?.value);
-            if (!Number.isFinite(offsetSec) || !Number.isFinite(scale)) return;
-            props.onSaveMapping(offsetSec, scale);
-          }}
-        >
-          {props.saveMappingLabel}
-        </button>
-      </div>
+      {props.onRetime === undefined ? null : (
+        <div className="desktop-project-read-units">
+          <input ref={offsetRef} aria-label={props.offsetLabel} defaultValue="0" />
+          <input ref={scaleRef} aria-label={props.scaleLabel} defaultValue="1" />
+          <button
+            type="button"
+            onClick={() => {
+              const offsetSec = Number(offsetRef.current?.value);
+              const scale = Number(scaleRef.current?.value);
+              if (!Number.isFinite(offsetSec) || !Number.isFinite(scale)) return;
+              props.onRetime?.(offsetSec, scale);
+            }}
+          >
+            {props.retimeLabel}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-function playerStart(unit: DesktopProjectReadUnit, mapping: TextTimeMapping | null): number {
-  return previewTextTimeMapping({
-    startTime: unit.startTime,
-    endTime: unit.endTime,
-    ...(mapping === null ? {} : { offsetSec: mapping.offsetSec, scale: mapping.scale }),
-  }).realStartTime;
+function playerStart(unit: DesktopProjectReadUnit): number {
+  return unit.startMs === null ? 0 : msToSeconds(unit.startMs);
 }
 
-function playerRange(unit: DesktopProjectReadUnit, mapping: TextTimeMapping | null): string {
-  const preview = previewTextTimeMapping({
-    startTime: unit.startTime,
-    endTime: unit.endTime,
-    ...(mapping === null ? {} : { offsetSec: mapping.offsetSec, scale: mapping.scale }),
-  });
-  return `${preview.realStartTime.toFixed(1)}–${preview.realEndTime.toFixed(1)}`;
+function spanLabel(unit: DesktopProjectReadUnit): string {
+  if (unit.startMs === null || unit.endMs === null) return '';
+  return `${msToSeconds(unit.startMs).toFixed(1)}–${msToSeconds(unit.endMs).toFixed(1)}`;
 }
 
 function manuscriptLabel(title: Record<string, string>, id: string): string {
