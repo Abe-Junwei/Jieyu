@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDesktopDraftLeaveGuard } from '../hooks/desktop/useDesktopDraftLeaveGuard';
 import {
+  isSameTextDraft,
   normalizeSave,
   type DesktopTextDraft,
   type DraftStore,
@@ -14,7 +15,7 @@ const CAP_MS = 5000;
 /**
  * One unsaved text draft. Leaving saves it first when it can be submitted. A failed save, an unfinished
  * IME composition, or empty text stops the leave until retry or discard. A committed save whose list
- * refresh failed stays on screen and is not written again until that text changes. A stale query
+ * refresh failed stays on that unit and is not written again until that text changes. A stale query
  * baseline is not the committed text. The draft stays out of the query cache.
  */
 export function useDesktopDraftGuard(
@@ -27,10 +28,10 @@ export function useDesktopDraftGuard(
   const draftRef = useRef(draft);
   const baseText = useRef('');
   const operationId = useRef<string | null>(null);
-  const sent = useRef<{ id: string; text: string } | null>(null);
+  const sent = useRef<{ id: string; text: string; unitId: string } | null>(null);
   const unresolved = useRef<{ draft: DesktopTextDraft; id: string } | null>(null);
   const used = useRef<{ id: string; text: string } | null>(null);
-  const heldText = useRef<string | null>(null);
+  const heldDraft = useRef<DesktopTextDraft | null>(null);
   const flying = useRef(false);
   const dirtySince = useRef<number | null>(null);
   const idleTimer = useRef<number | null>(null);
@@ -54,18 +55,19 @@ export function useDesktopDraftGuard(
     dirtySince.current = null;
   };
 
-  const markHeld = (text: string | null) => {
-    heldText.current = text;
+  const markHeld = (next: DesktopTextDraft | null) => {
+    heldDraft.current = next;
   };
-  const held = (current: DesktopTextDraft | null) =>
-    current !== null && heldText.current === current.text;
+  const held = (current: DesktopTextDraft | null) => isSameTextDraft(heldDraft.current, current);
 
   const submittable = (current: DesktopTextDraft) => !composing.current && current.text.length > 0;
 
   const persist = (current: DesktopTextDraft) => {
     const inflight = sent.current;
     const base =
-      inflight !== null && inflight.text !== current.text ? inflight.text : baseText.current;
+      inflight !== null && inflight.unitId === current.unitId && inflight.text !== current.text
+        ? inflight.text
+        : baseText.current;
     void storeRef.current?.persist({
       unitId: current.unitId,
       rawInput: current.text,
@@ -84,11 +86,12 @@ export function useDesktopDraftGuard(
         if (result !== 'committed' && result !== 'not-submitted') return false;
         unresolved.current = null;
         current = draftRef.current ?? current;
-        if (result === 'committed' && current.text === previous.draft.text) {
+        if (result === 'committed' && isSameTextDraft(current, previous.draft)) {
           operationId.current = null;
-          markHeld(current.text);
+          markHeld(current);
           return true;
         }
+        if (result === 'committed') markHeld(previous.draft);
       } catch {
         return false;
       } finally {
@@ -99,7 +102,7 @@ export function useDesktopDraftGuard(
     if (!submittable(current)) return false;
     const id = operationId.current ?? crypto.randomUUID();
     operationId.current = id;
-    sent.current = { id, text: current.text };
+    sent.current = { id, text: current.text, unitId: current.unitId };
     used.current = sent.current;
     flying.current = true;
     setSaving(true);
@@ -114,10 +117,11 @@ export function useDesktopDraftGuard(
       unresolved.current = { draft: current, id };
       return false;
     }
-    if (draftRef.current?.text !== current.text) {
+    const latest = draftRef.current;
+    if (!isSameTextDraft(latest, current)) {
+      if (outcome === 'refresh-failed') markHeld(current);
       sent.current = null;
       if (outcome === 'failed') return false;
-      const latest = draftRef.current;
       if (latest === null || held(latest)) return true;
       if (!submittable(latest)) return false;
       return trySave(latest);
@@ -131,10 +135,10 @@ export function useDesktopDraftGuard(
     used.current = null;
     clearTimers();
     if (outcome === 'refresh-failed') {
-      markHeld(current.text);
+      markHeld(current);
       return true;
     }
-    markHeld(null);
+    if (heldDraft.current?.unitId === current.unitId) markHeld(null);
     show(null);
     return true;
   };
@@ -183,31 +187,36 @@ export function useDesktopDraftGuard(
     canRetry:
       unresolved.current !== null || (draft !== null && draft.text.length > 0 && !held(draft)),
     edit: (unitId: string, text: string, savedText: string) => {
-      const committed =
-        draftRef.current?.unitId === unitId && heldText.current !== null ? heldText.current : null;
+      const committed = heldDraft.current?.unitId === unitId ? heldDraft.current.text : null;
       const queryStale = committed !== null && committed !== savedText;
       baseText.current = queryStale && committed !== null ? committed : savedText;
       const inflight = sent.current;
-      const awaitingDifferent = inflight !== null && inflight.text !== text;
+      const unitChanged = draftRef.current !== null && draftRef.current.unitId !== unitId;
+      const awaitingDifferent =
+        inflight !== null && (inflight.unitId !== unitId || inflight.text !== text);
       if (text === savedText && !queryStale && !awaitingDifferent && unresolved.current === null) {
         operationId.current = null;
         sent.current = null;
         used.current = null;
-        markHeld(null);
+        if (heldDraft.current?.unitId === unitId) markHeld(null);
         clearTimers();
         show(null);
         void storeRef.current?.discard(unitId);
         return;
       }
+      const heldMoved = heldDraft.current?.unitId === unitId && heldDraft.current.text !== text;
       if (
         operationId.current === null ||
         awaitingDifferent ||
+        unitChanged ||
         (used.current !== null && used.current.text !== text) ||
-        (heldText.current !== null && heldText.current !== text)
+        heldMoved
       ) {
         operationId.current = crypto.randomUUID();
-        if (used.current !== null && used.current.text !== text) used.current = null;
-        if (heldText.current !== null && heldText.current !== text) markHeld(null);
+        if (used.current !== null && (used.current.text !== text || unitChanged)) {
+          used.current = null;
+        }
+        if (heldMoved) markHeld(null);
       }
       const next = { unitId, text };
       show(next);
@@ -218,7 +227,9 @@ export function useDesktopDraftGuard(
       if (draftRef.current !== null || row.rawInput === savedText) return;
       baseText.current = row.baseBody;
       operationId.current = crypto.randomUUID();
-      markHeld(null);
+      if (heldDraft.current?.unitId === row.unitId && heldDraft.current.text !== row.rawInput) {
+        markHeld(null);
+      }
       show({ unitId: row.unitId, text: row.rawInput });
       arm();
     },
@@ -234,7 +245,7 @@ export function useDesktopDraftGuard(
       operationId.current = null;
       sent.current = null;
       used.current = null;
-      markHeld(null);
+      if (heldDraft.current?.unitId === unitId) markHeld(null);
       clearTimers();
       show(null);
     },
@@ -277,7 +288,7 @@ export function useDesktopDraftGuard(
       operationId.current = null;
       sent.current = null;
       used.current = null;
-      markHeld(null);
+      if (current === null || heldDraft.current?.unitId === current.unitId) markHeld(null);
       clearTimers();
       show(null);
       leaving.finish(true);

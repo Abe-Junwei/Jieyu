@@ -92,13 +92,15 @@ function bufferSplit(buffer, delimiter) {
 }
 
 /**
- * Trim CR/LF/SP/TAB bytes from both ends of a buffer.
+ * Drop the one CRLF RFC 2046 attaches to each boundary delimiter.
+ * CR, LF, space, tab, NUL, and high bytes inside a file body stay put.
  */
-function bufferTrim(buf) {
-  let start = 0, end = buf.length;
-  while (start < end && (buf[start] === 13 || buf[start] === 10 || buf[start] === 32 || buf[start] === 9)) start++;
-  while (end > start && (buf[end - 1] === 13 || buf[end - 1] === 10 || buf[end - 1] === 32 || buf[end - 1] === 9)) end--;
-  return buf.slice(start, end);
+function stripBoundaryCrlf(part) {
+  let start = 0;
+  let end = part.length;
+  if (end - start >= 2 && part[start] === 13 && part[start + 1] === 10) start += 2;
+  if (end - start >= 2 && part[end - 2] === 13 && part[end - 1] === 10) end -= 2;
+  return part.slice(start, end);
 }
 
 /**
@@ -116,7 +118,8 @@ function indexOfSeq(buf, seq) {
 }
 
 /**
- * Parse multipart/form-data body (ASCII headers + binary body).
+ * Parse multipart/form-data body (ASCII headers + binary file body).
+ * Text field values are trimmed. File bytes keep every byte except the boundary CRLF.
  * Returns { fields: Record<string,string>, files: Record<string,{filename:string,buffer:Buffer}> }
  */
 function parseMultipart(buffer, boundary) {
@@ -126,7 +129,7 @@ function parseMultipart(buffer, boundary) {
   const crlf4 = Buffer.from([13, 10, 13, 10]);
   const parts = bufferSplit(buffer, delim);
   for (const rawPart of parts) {
-    const part = bufferTrim(rawPart);
+    const part = stripBoundaryCrlf(rawPart);
     if (!part.length) continue;
     const headerEnd = indexOfSeq(part, crlf4);
     if (headerEnd < 0) continue;
