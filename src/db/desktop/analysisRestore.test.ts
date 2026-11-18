@@ -109,7 +109,7 @@ function projectWith(nodes: ReturnType<typeof token>[]) {
     tierType: 'time-aligned',
     contentType: 'transcription',
   });
-  const unit = project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+  const unit = project.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text: 'ka' });
   const stored = writeAnalysisRoot(project.db, {
     unitId: unit.id,
     graph: graph(nodes),
@@ -766,11 +766,11 @@ describe('analysis split and merge', () => {
       tierType: 'time-aligned',
       contentType: 'transcription',
     });
-    const first = project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+    const first = project.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text: 'ka' });
     const second = project.units.create({
       layerId: layer.id,
-      startTime: 1,
-      endTime: 2,
+      startMs: 1,
+      endMs: 2,
       text: 'ka',
     });
     const node = token('n1', 0, 'r1');
@@ -810,11 +810,11 @@ describe('analysis split and merge', () => {
       tierType: 'time-aligned',
       contentType: 'transcription',
     });
-    const first = project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+    const first = project.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text: 'ka' });
     const second = project.units.create({
       layerId: layer.id,
-      startTime: 1,
-      endTime: 2,
+      startMs: 1,
+      endMs: 2,
       text: 'ka',
     });
     writeAnalysisRoot(project.db, {
@@ -901,8 +901,8 @@ describe('analysis split and merge', () => {
     });
     const empty = project.units.create({
       layerId: layer.id,
-      startTime: 2,
-      endTime: 3,
+      startMs: 2,
+      endMs: 3,
       text: 'ka',
     });
     expect(() =>

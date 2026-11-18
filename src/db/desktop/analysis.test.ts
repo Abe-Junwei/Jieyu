@@ -81,7 +81,7 @@ function seeded() {
     tierType: 'time-aligned',
     contentType: 'transcription',
   });
-  const unit = project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+  const unit = project.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text: 'ka' });
   const stored = writeAnalysisRoot(project.db, {
     unitId: unit.id,
     graph: graph(),
@@ -392,8 +392,8 @@ describe('analysis apply', () => {
     });
     const unit = await client.createUnit(session.sessionId, {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'ka',
     });
     const db = requireDesktopSession(session.sessionId).db;

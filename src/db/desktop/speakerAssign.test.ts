@@ -163,8 +163,8 @@ function unit(
   return (
     callDesktopSession(sessionId, 'units.create', {
       layerId,
-      startTime: start,
-      endTime: end,
+      startMs: start,
+      endMs: end,
       text,
     }) as { id: string }
   ).id;

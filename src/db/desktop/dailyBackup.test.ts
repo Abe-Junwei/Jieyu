@@ -147,8 +147,8 @@ describe('daily project backup', () => {
     });
     const unit = project.units.create({
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'kept sentence',
     });
     deleteManuscript(project.db, manuscript.id);
@@ -433,7 +433,7 @@ function writeSentence(
     tierType: 'time-aligned',
     contentType: 'transcription',
   });
-  project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text });
+  project.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text });
   return manuscript;
 }
 

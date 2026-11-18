@@ -58,7 +58,6 @@ it.skipIf(!model || !audio || !cli)(
         segmentIndex: row.segmentIndex,
         mediaStart: row.mediaStart,
         mediaEnd: row.mediaEnd,
-        timeMappingRevision: result.timeMappingRevision,
         targetFingerprint: row.targetFingerprint,
         text: row.text,
       });

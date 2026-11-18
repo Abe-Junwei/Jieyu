@@ -34,8 +34,8 @@ export function buildSyntheticSamplePackage(): Uint8Array {
       });
       project.units.create({
         layerId: layer.id,
-        startTime: 0,
-        endTime: 1,
+        startMs: 0,
+        endMs: 1000,
         text: SAMPLE_TEXT,
       });
       return exportDesktopJym(project.db, dir);

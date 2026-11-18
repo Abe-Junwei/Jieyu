@@ -56,7 +56,7 @@ describe('analysis root', () => {
       tierType: 'time-aligned',
       contentType: 'transcription',
     });
-    const unit = created.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+    const unit = created.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text: 'ka' });
     expect(getAnalysisRoot(created.db, unit.id)).toEqual({
       unitId: unit.id,
       graph: null,
@@ -94,7 +94,7 @@ describe('analysis root', () => {
       tierType: 'time-aligned',
       contentType: 'transcription',
     });
-    const unit = created.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+    const unit = created.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text: 'ka' });
     const stored = writeAnalysisRoot(created.db, {
       unitId: unit.id,
       graph: graph(),

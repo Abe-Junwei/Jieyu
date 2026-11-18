@@ -86,8 +86,8 @@ describe('manuscript reminder and purge', () => {
       .run('sp', '甲', PAST, PAST);
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'keep',
       speakerId: 'sp',
     }) as { id: string };
@@ -113,8 +113,8 @@ describe('manuscript reminder and purge', () => {
     const other = seed(session.sessionId, '另一份', seeded.mediaId);
     const otherUnit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: other.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'stay',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'notes.create', {
@@ -263,6 +263,73 @@ describe('manuscript reminder and purge', () => {
     expect(reminderAt(session.sessionId, 'manuscripts', due.manuscriptId)).toBeNull();
     expect(reminderAt(session.sessionId, 'manuscripts', onRecording.manuscriptId)).toBeNull();
     expect(reminderAt(session.sessionId, 'media', recording.id)).toBeNull();
+  });
+
+  it('purges points and links that still name a live unit, and leaves the other manuscript', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const seeded = seed(session.sessionId, '文稿');
+    const other = seed(session.sessionId, '另一份', seeded.mediaId);
+    const db = requireDesktopSession(session.sessionId).db;
+    const pointLayer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: seeded.manuscriptId,
+      key: 'pt',
+      name: { zh: '点' },
+      tierType: 'point',
+      contentType: 'custom',
+    }) as { id: string };
+    const otherPointLayer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: other.manuscriptId,
+      key: 'pt',
+      name: { zh: '点' },
+      tierType: 'point',
+      contentType: 'custom',
+    }) as { id: string };
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: seeded.layerId,
+      startMs: 0,
+      endMs: 1000,
+      text: '走',
+    }) as { id: string };
+    const otherUnit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: other.layerId,
+      startMs: 0,
+      endMs: 1000,
+      text: '留',
+    }) as { id: string };
+    const insertPoint = db.prepare(
+      'INSERT INTO points (id, layer_id, time_ms, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+    );
+    insertPoint.run('point-gone', pointLayer.id, 100, PAST, PAST);
+    insertPoint.run('point-stay', otherPointLayer.id, 200, PAST, PAST);
+    const insertLink = db.prepare(
+      `INSERT INTO unit_identity_links (id, operation_id, kind, old_unit_id, new_unit_id, created_at)
+       VALUES (?, ?, 'split', ?, ?, ?)`,
+    );
+    insertLink.run('link-live', 'op-live', 'old-live', unit.id, PAST);
+    insertLink.run('link-other', 'op-other', 'old-other', otherUnit.id, PAST);
+    insertLink.run('link-detached', 'op-detached', 'gone-old', 'gone-new', PAST);
+
+    callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
+    backdate(session.sessionId, seeded.manuscriptId, PAST, PAST);
+    expect(
+      callDesktopSession(session.sessionId, 'manuscripts.purge', { id: seeded.manuscriptId }),
+    ).toEqual({ id: seeded.manuscriptId });
+
+    callDesktopSession(session.sessionId, 'reopen', {});
+    const stored = requireDesktopSession(session.sessionId).db;
+    expect(stored.prepare('SELECT id FROM manuscripts').all()).toEqual([
+      { id: other.manuscriptId },
+    ]);
+    expect(stored.prepare('SELECT id FROM layers ORDER BY id').all()).toEqual(
+      [other.layerId, otherPointLayer.id].sort().map((id) => ({ id })),
+    );
+    expect(stored.prepare('SELECT id FROM units').all()).toEqual([{ id: otherUnit.id }]);
+    expect(stored.prepare('SELECT id FROM points').all()).toEqual([{ id: 'point-stay' }]);
+    expect(stored.prepare('SELECT id FROM unit_identity_links ORDER BY id').all()).toEqual([
+      { id: 'link-detached' },
+      { id: 'link-other' },
+    ]);
   });
 });
 

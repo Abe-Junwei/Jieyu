@@ -23,6 +23,7 @@ import { writeGraph } from './analysisRestore';
 import { publishAttachment } from './attachments';
 import { listDefinitions } from './customFields';
 import { createLayer } from './layers';
+import { secondsToMs } from './timeMs';
 import { saveLexemeEntry } from './lexicon';
 import { createMedia } from './media';
 import { createManuscript } from './manuscripts';
@@ -286,37 +287,121 @@ function writeTiers(
       unprojected.push({ name: tier.name, reason: 'layer is missing a required field' });
       return;
     }
-    const layer = createLayer(db, {
-      manuscriptId: manuscript.id,
-      key: `tier-${index}`,
-      name: { und: tier.name },
-      tierType: 'time-aligned',
-      contentType: tier.role,
-      sortOrder: index,
-    });
-    for (const row of tier.intervals) {
-      if (blocked(db, 'unit')) {
-        unprojected.push({
-          name: named(row.text, tier.name),
-          reason: 'unit is missing a required field',
-        });
-        continue;
-      }
-      const speakerId = speakerFor(db, speakers, row.speaker, unprojected);
-      const unit = createUnit(db, {
-        layerId: layer.id,
-        startTime: row.start,
-        endTime: row.end,
-        text: row.text,
-        ...(speakerId === undefined ? {} : { speakerId }),
+    const spans = tier.intervals.filter((row) => secondsToMs(row.start) !== secondsToMs(row.end));
+    const marks = tier.intervals.filter((row) => secondsToMs(row.start) === secondsToMs(row.end));
+    if (spans.length > 0) {
+      written += writeIntervals(db, {
+        manuscriptId: manuscript.id,
+        key: `tier-${index}`,
+        name: tier.name,
+        role: tier.role,
+        sortOrder: index,
+        rows: spans,
+        speakers,
+        source,
+        unprojected,
       });
-      stampUnit(db, unit.id, source);
-      if (row.words !== undefined && row.words.length > 0) {
-        projectWords(db, unit.id, row.text, row.words, unprojected);
-      }
-      written += 1;
+    }
+    if (marks.length > 0) {
+      written += writePoints(db, {
+        manuscriptId: manuscript.id,
+        key: spans.length > 0 ? `tier-${index}-point` : `tier-${index}`,
+        name: tier.name,
+        role: tier.role,
+        sortOrder: spans.length > 0 ? index + 1 : index,
+        rows: marks,
+        unprojected,
+      });
     }
   });
+  return written;
+}
+
+function writeIntervals(
+  db: Sqlite,
+  input: {
+    manuscriptId: string;
+    key: string;
+    name: string;
+    role: ProjectedRole;
+    sortOrder: number;
+    rows: Interval[];
+    speakers: Map<string, string>;
+    source: SourceFile;
+    unprojected: ImportNotice[];
+  },
+): number {
+  if (blocked(db, 'layer')) {
+    input.unprojected.push({ name: input.name, reason: 'layer is missing a required field' });
+    return 0;
+  }
+  const layer = createLayer(db, {
+    manuscriptId: input.manuscriptId,
+    key: input.key,
+    name: { und: input.name },
+    tierType: 'time-aligned',
+    contentType: input.role,
+    sortOrder: input.sortOrder,
+  });
+  let written = 0;
+  for (const row of input.rows) {
+    if (blocked(db, 'unit')) {
+      input.unprojected.push({
+        name: named(row.text, input.name),
+        reason: 'unit is missing a required field',
+      });
+      continue;
+    }
+    const speakerId = speakerFor(db, input.speakers, row.speaker, input.unprojected);
+    const unit = createUnit(db, {
+      layerId: layer.id,
+      startMs: secondsToMs(row.start),
+      endMs: secondsToMs(row.end),
+      text: row.text,
+      ...(speakerId === undefined ? {} : { speakerId }),
+    });
+    stampUnit(db, unit.id, input.source);
+    if (row.words !== undefined && row.words.length > 0) {
+      projectWords(db, unit.id, row.text, row.words, input.unprojected);
+    }
+    written += 1;
+  }
+  return written;
+}
+
+function writePoints(
+  db: Sqlite,
+  input: {
+    manuscriptId: string;
+    key: string;
+    name: string;
+    role: ProjectedRole;
+    sortOrder: number;
+    rows: Interval[];
+    unprojected: ImportNotice[];
+  },
+): number {
+  if (blocked(db, 'layer')) {
+    input.unprojected.push({ name: input.name, reason: 'layer is missing a required field' });
+    return 0;
+  }
+  const layer = createLayer(db, {
+    manuscriptId: input.manuscriptId,
+    key: input.key,
+    name: { und: input.name },
+    tierType: 'point',
+    contentType: input.role,
+    sortOrder: input.sortOrder,
+  });
+  let written = 0;
+  const now = new Date().toISOString();
+  for (const row of input.rows) {
+    db.prepare(
+      `INSERT INTO points (id, layer_id, time_ms, label, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run(randomUUID(), layer.id, secondsToMs(row.start), row.text, now, now);
+    written += 1;
+  }
   return written;
 }
 
@@ -628,7 +713,11 @@ function eafTiers(
     tiers.push({
       name,
       fileRole: storedRole(parsed.tierMetadata.get(name)?.role) ?? 'translation',
-      intervals: rows.map((row) => ({ start: row.startTime, end: row.endTime, text: row.text })),
+      intervals: rows.map((row) => ({
+        start: row.startTime,
+        end: row.endTime,
+        text: row.text,
+      })),
     });
   }
   if ((parsed.userNotes?.length ?? 0) > 0) {
@@ -691,7 +780,11 @@ function flexTiers(
     tiers.push({
       name,
       fileRole: 'translation',
-      intervals: rows.map((row) => ({ start: row.startTime, end: row.endTime, text: row.text })),
+      intervals: rows.map((row) => ({
+        start: row.startTime,
+        end: row.endTime,
+        text: row.text,
+      })),
     });
   }
   if ((parsed.userNotes?.length ?? 0) > 0) {
@@ -753,7 +846,11 @@ function textGridTiers(
     tiers.push({
       name,
       fileRole: storedRole(parsed.tierMetadata.get(name)?.role),
-      intervals: rows.map((row) => ({ start: row.startTime, end: row.endTime, text: row.text })),
+      intervals: rows.map((row) => ({
+        start: row.startTime,
+        end: row.endTime,
+        text: row.text,
+      })),
     });
   }
   return { tiers, audio: audioName(file), unprojected: lossNotices(parsed.losses) };
@@ -1281,8 +1378,8 @@ function writeJybProject(
             }
             const createdUnit = createUnit(opened.db, {
               layerId: stored.id,
-              startTime: unit.start,
-              endTime: unit.end,
+              startMs: secondsToMs(unit.start),
+              endMs: secondsToMs(unit.end),
               text: unit.text,
             });
             stampUnit(opened.db, createdUnit.id, source);

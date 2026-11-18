@@ -94,7 +94,7 @@ function seeded() {
     tierType: 'time-aligned',
     contentType: 'transcription',
   });
-  const unit = project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+  const unit = project.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text: 'ka' });
   return { dir, project, layer, unit };
 }
 
@@ -227,13 +227,13 @@ describe('custom fields', () => {
     expect(missingUnitFields(project.db, unit.id)).toEqual([defined.id]);
     expect(updateUnitText(project.db, { unitId: unit.id, text: 'ta' }).text).toBe('ta');
     expect(() =>
-      project.units.create({ layerId: layer.id, startTime: 1, endTime: 2, text: 'new' }),
+      project.units.create({ layerId: layer.id, startMs: 1, endMs: 2, text: 'new' }),
     ).toThrow('unit is missing a required field');
     expect(project.units.list(layer.id)).toHaveLength(1);
     const created = project.units.create({
       layerId: layer.id,
-      startTime: 1,
-      endTime: 2,
+      startMs: 1,
+      endMs: 2,
       text: 'new',
       fieldValues: { [defined.id]: 'kept' },
     });
@@ -439,7 +439,7 @@ describe('custom fields', () => {
 
   it('rejects a reference to a missing unit', () => {
     const { dir, project, layer, unit } = seeded();
-    const other = project.units.create({ layerId: layer.id, startTime: 1, endTime: 2, text: 'ta' });
+    const other = project.units.create({ layerId: layer.id, startMs: 1, endMs: 2, text: 'ta' });
     const field = createDefinition(project.db, {
       targetType: 'unit',
       name: { zh: '引' },
@@ -516,15 +516,15 @@ describe('custom fields', () => {
     await expect(
       client.createUnit(session.sessionId, {
         layerId: layer.id,
-        startTime: 0,
-        endTime: 1,
+        startMs: 0,
+        endMs: 1,
         text: 'ka',
       }),
     ).rejects.toThrow('unit is missing a required field');
     const unit = await client.createUnit(session.sessionId, {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'ka',
       fieldValues: { [field.id]: 'kept' },
     });

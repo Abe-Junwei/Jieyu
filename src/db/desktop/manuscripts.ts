@@ -1,10 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
-import {
-  mergeTextTimeMappingHistory,
-  normalizeTextTimeMapping,
-  type TextTimeMapping,
-} from '../../services/LinguisticService.timeMapping';
 import { writeRequiredFieldValues } from './customFields';
 import { readStringMap } from './stringMap';
 
@@ -13,11 +8,7 @@ type SqliteDatabase = InstanceType<typeof Database>;
 export interface Manuscript {
   id: string;
   title: Record<string, string>;
-  mediaId: string;
-  logicalDurationSec: number | null;
-  timeMapping: TextTimeMapping | null;
-  timeMappingRevision: number;
-  timeMappingHistory: TextTimeMapping[];
+  mediaId: string | null;
   exportTimelineMode: 'document' | 'media' | null;
   tierRoles: Record<string, string>;
   lifecycleGeneration: number;
@@ -30,17 +21,14 @@ export interface Manuscript {
 
 export interface ManuscriptCreate {
   title: Record<string, string>;
-  mediaId: string;
+  mediaId?: string | null;
   fieldValues?: Record<string, unknown>;
 }
 
 interface ManuscriptRow {
   id: string;
   title_json: string;
-  media_id: string;
-  logical_duration_sec: number | null;
-  time_mapping_json: string | null;
-  time_mapping_history_json: string;
+  media_id: string | null;
   export_timeline_mode: string | null;
   tier_roles_json: string;
   lifecycle_generation: number;
@@ -51,23 +39,25 @@ interface ManuscriptRow {
   updated_at: string;
 }
 
-const MANUSCRIPT_COLUMNS = `id, title_json, media_id, logical_duration_sec, time_mapping_json,
-  time_mapping_history_json, export_timeline_mode, tier_roles_json, lifecycle_generation,
-  deleted_at, retain_until, reminder_shown_at, created_at, updated_at`;
+const MANUSCRIPT_COLUMNS = `id, title_json, media_id, export_timeline_mode, tier_roles_json,
+  lifecycle_generation, deleted_at, retain_until, reminder_shown_at, created_at, updated_at`;
 
 export function createManuscript(db: SqliteDatabase, input: ManuscriptCreate): Manuscript {
   const id = randomUUID();
   const now = new Date().toISOString();
   const write = db.transaction(() => {
-    const media = db
-      .prepare('SELECT deleted_at AS deletedAt FROM media WHERE id = ?')
-      .get(input.mediaId) as { deletedAt: string | null } | undefined;
-    if (media === undefined) throw new Error('media is missing');
-    if (media.deletedAt !== null) throw new Error('media is deleted');
+    const mediaId = input.mediaId ?? null;
+    if (mediaId !== null) {
+      const media = db
+        .prepare('SELECT deleted_at AS deletedAt FROM media WHERE id = ?')
+        .get(mediaId) as { deletedAt: string | null } | undefined;
+      if (media === undefined) throw new Error('media is missing');
+      if (media.deletedAt !== null) throw new Error('media is deleted');
+    }
     db.prepare(
       `INSERT INTO manuscripts (id, title_json, media_id, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?)`,
-    ).run(id, JSON.stringify(input.title), input.mediaId, now, now);
+    ).run(id, JSON.stringify(input.title), mediaId, now, now);
     writeRequiredFieldValues(db, 'manuscript', id, input.fieldValues);
     const manuscript = getManuscript(db, id);
     if (!manuscript) throw new Error('manuscript readback failed');
@@ -125,8 +115,8 @@ function plusUtcDays(iso: string, days: number): string {
 export interface ManuscriptDeletePreview {
   id: string;
   title: Record<string, string>;
-  mediaId: string;
-  mediaRelpath: string;
+  mediaId: string | null;
+  mediaRelpath: string | null;
   alreadyDeleted: boolean;
   running: boolean;
 }
@@ -153,16 +143,16 @@ export function previewManuscriptDelete(db: SqliteDatabase, id: string): Manuscr
                 SELECT 1 FROM model_runs
                 WHERE model_runs.manuscript_id = manuscripts.id AND model_runs.status = 'running'
               ) AS running
-       FROM manuscripts JOIN media ON media.id = manuscripts.media_id
+       FROM manuscripts LEFT JOIN media ON media.id = manuscripts.media_id
        WHERE manuscripts.id = ?`,
     )
     .get(id) as
     | {
         id: string;
         titleJson: string;
-        mediaId: string;
+        mediaId: string | null;
         deletedAt: string | null;
-        mediaRelpath: string;
+        mediaRelpath: string | null;
         running: number;
       }
     | undefined;
@@ -351,11 +341,13 @@ export function restoreManuscript(db: SqliteDatabase, id: string): Manuscript {
            lifecycle_generation = lifecycle_generation + 1, updated_at = ?
        WHERE id = ? AND deleted_at IS NOT NULL`,
     ).run(now, id);
-    db.prepare(
-      `UPDATE media
-       SET deleted_at = NULL, retain_until = NULL, reminder_shown_at = NULL
-       WHERE id = ?`,
-    ).run(current.mediaId);
+    if (current.mediaId !== null) {
+      db.prepare(
+        `UPDATE media
+         SET deleted_at = NULL, retain_until = NULL, reminder_shown_at = NULL
+         WHERE id = ?`,
+      ).run(current.mediaId);
+    }
     const next = getManuscript(db, id);
     if (
       !next ||
@@ -371,104 +363,162 @@ export function restoreManuscript(db: SqliteDatabase, id: string): Manuscript {
   return write();
 }
 
-export function setManuscriptTimeMapping(
+export interface RetimeUndo {
+  manuscriptId: string;
+  manuscriptGeneration: number;
+  units: Array<{ id: string; startMs: number; endMs: number }>;
+  points: Array<{ id: string; timeMs: number }>;
+}
+
+/** Rewrite aligned segment and point times in one step. scale must stay positive. */
+export function retimeManuscript(
   db: SqliteDatabase,
-  input: {
-    manuscriptId: string;
-    expectedRevision: number;
-    offsetSec: number;
-    scale: number;
-    sourceMediaId?: string;
-  },
-  afterWrite?: () => void,
-): Manuscript {
+  input: { manuscriptId: string; offsetMs: number; scale: number },
+): { count: number; undo: RetimeUndo } {
+  if (!Number.isFinite(input.scale) || input.scale <= 0 || !Number.isInteger(input.offsetMs)) {
+    throw new Error('retime is invalid');
+  }
   const write = db.transaction(() => {
-    const row = manuscriptRow(db, input.manuscriptId);
-    const stored = readStored(row.time_mapping_json);
-    if (input.expectedRevision !== stored.revision)
-      throw new Error('time mapping revision mismatch');
-    assertMappingNumbers(input.offsetSec, input.scale);
-    if (input.sourceMediaId !== undefined && input.sourceMediaId !== row.media_id) {
-      throw new Error('time mapping media does not match the manuscript');
-    }
+    const manuscript = db
+      .prepare(
+        'SELECT lifecycle_generation AS generation, deleted_at AS deletedAt FROM manuscripts WHERE id = ?',
+      )
+      .get(input.manuscriptId) as { generation: number; deletedAt: string | null } | undefined;
+    if (manuscript === undefined) throw new Error('manuscript is missing');
+    if (manuscript.deletedAt !== null) throw new Error('manuscript is deleted');
+    const units = db
+      .prepare(
+        `SELECT units.id AS id, units.start_ms AS startMs, units.end_ms AS endMs
+         FROM units JOIN layers ON layers.id = units.layer_id
+         WHERE layers.manuscript_id = ? AND units.start_ms IS NOT NULL
+         ORDER BY units.sort_order, units.id`,
+      )
+      .all(input.manuscriptId) as Array<{ id: string; startMs: number; endMs: number }>;
+    const points = db
+      .prepare(
+        `SELECT points.id AS id, points.layer_id AS layerId, points.time_ms AS timeMs,
+                points.label AS label, points.created_at AS createdAt
+         FROM points JOIN layers ON layers.id = points.layer_id
+         WHERE layers.manuscript_id = ?
+         ORDER BY points.time_ms, points.id`,
+      )
+      .all(input.manuscriptId) as Array<{
+      id: string;
+      layerId: string;
+      timeMs: number;
+      label: string;
+      createdAt: string;
+    }>;
     const now = new Date().toISOString();
-    const next: TextTimeMapping = {
-      offsetSec: input.offsetSec,
-      scale: input.scale,
-      revision: stored.revision + 1,
-      updatedAt: now,
-      sourceMediaId: row.media_id,
+    if (units.length > 0) {
+      db.prepare(
+        `UPDATE units SET start_ms = NULL, end_ms = NULL, updated_at = ?
+         WHERE id IN (${units.map(() => '?').join(', ')})`,
+      ).run(now, ...units.map((unit) => unit.id));
+    }
+    for (const unit of units) {
+      const startMs = Math.round(unit.startMs * input.scale + input.offsetMs);
+      const endMs = Math.round(unit.endMs * input.scale + input.offsetMs);
+      if (startMs < 0 || startMs >= endMs) throw new Error('retime is invalid');
+      db.prepare('UPDATE units SET start_ms = ?, end_ms = ?, updated_at = ? WHERE id = ?').run(
+        startMs,
+        endMs,
+        now,
+        unit.id,
+      );
+    }
+    for (const point of points) {
+      db.prepare('DELETE FROM points WHERE id = ?').run(point.id);
+    }
+    for (const point of points) {
+      const timeMs = Math.round(point.timeMs * input.scale + input.offsetMs);
+      if (timeMs < 0) throw new Error('retime is invalid');
+      db.prepare(
+        `INSERT INTO points (id, layer_id, time_ms, label, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run(point.id, point.layerId, timeMs, point.label, point.createdAt, now);
+    }
+    db.prepare(
+      `UPDATE manuscripts SET lifecycle_generation = lifecycle_generation + 1, updated_at = ? WHERE id = ?`,
+    ).run(now, input.manuscriptId);
+    const stored = db
+      .prepare('SELECT lifecycle_generation AS generation FROM manuscripts WHERE id = ?')
+      .get(input.manuscriptId) as { generation: number };
+    if (stored.generation !== manuscript.generation + 1) throw new Error('retime readback failed');
+    return {
+      count: units.length + points.length,
+      undo: {
+        manuscriptId: input.manuscriptId,
+        manuscriptGeneration: stored.generation,
+        units: units.map((unit) => ({ id: unit.id, startMs: unit.startMs, endMs: unit.endMs })),
+        points: points.map((point) => ({ id: point.id, timeMs: point.timeMs })),
+      },
     };
-    const history =
-      mergeTextTimeMappingHistory(
-        stored.mapping ?? undefined,
-        readHistory(row.time_mapping_history_json),
-      ) ?? [];
-    db.prepare(
-      `UPDATE manuscripts
-       SET time_mapping_json = ?, time_mapping_history_json = ?, updated_at = ?
-       WHERE id = ?`,
-    ).run(JSON.stringify(next), JSON.stringify(history), now, row.id);
-    afterWrite?.();
-    const manuscript = getManuscript(db, row.id);
-    if (!manuscript?.timeMapping) throw new Error('time mapping readback failed');
-    return manuscript;
   });
   return write();
 }
 
-export function rollbackManuscriptTimeMapping(
-  db: SqliteDatabase,
-  input: { manuscriptId: string; expectedRevision: number },
-): Manuscript {
+export function undoRetime(db: SqliteDatabase, undo: RetimeUndo): void {
   const write = db.transaction(() => {
-    const row = manuscriptRow(db, input.manuscriptId);
-    const stored = readStored(row.time_mapping_json);
-    if (!stored.mapping) throw new Error('time mapping is identity');
-    if (input.expectedRevision !== stored.revision) {
-      throw new Error('time mapping revision mismatch');
+    const manuscript = db
+      .prepare('SELECT lifecycle_generation AS generation FROM manuscripts WHERE id = ?')
+      .get(undo.manuscriptId) as { generation: number } | undefined;
+    if (manuscript === undefined || manuscript.generation !== undo.manuscriptGeneration) {
+      throw new Error('retime undo is stale');
     }
-    const history = readHistory(row.time_mapping_history_json);
-    const restored = history[0];
     const now = new Date().toISOString();
-    const revision = stored.revision + 1;
-    // ponytail: counter stays in the JSON. Identity keeps {identity,revision} so undo cannot reuse a version. A column is the upgrade if SQL NULL must mean "never mapped".
-    const mappingJson =
-      restored === undefined
-        ? JSON.stringify({ identity: true, revision })
-        : JSON.stringify(restoredMapping(restored, revision, now));
-    db.prepare(
-      `UPDATE manuscripts
-       SET time_mapping_json = ?, time_mapping_history_json = ?, updated_at = ?
-       WHERE id = ?`,
-    ).run(mappingJson, JSON.stringify(restored === undefined ? [] : history.slice(1)), now, row.id);
-    const manuscript = getManuscript(db, row.id);
-    if (!manuscript || manuscript.timeMappingRevision !== revision) {
-      throw new Error('time mapping readback failed');
+    if (undo.units.length > 0) {
+      db.prepare(
+        `UPDATE units SET start_ms = NULL, end_ms = NULL, updated_at = ?
+         WHERE id IN (${undo.units.map(() => '?').join(', ')})`,
+      ).run(now, ...undo.units.map((unit) => unit.id));
     }
-    return manuscript;
+    for (const unit of undo.units) {
+      db.prepare('UPDATE units SET start_ms = ?, end_ms = ?, updated_at = ? WHERE id = ?').run(
+        unit.startMs,
+        unit.endMs,
+        now,
+        unit.id,
+      );
+      const row = db.prepare('SELECT start_ms AS startMs FROM units WHERE id = ?').get(unit.id) as
+        { startMs: number } | undefined;
+      if (row?.startMs !== unit.startMs) throw new Error('retime undo is stale');
+    }
+    if (undo.points.length > 0) {
+      const ids = undo.points.map((point) => point.id);
+      const marks = ids.map(() => '?').join(', ');
+      const current = db
+        .prepare(
+          `SELECT id, layer_id AS layerId, label, created_at AS createdAt
+           FROM points WHERE id IN (${marks})`,
+        )
+        .all(...ids) as Array<{ id: string; layerId: string; label: string; createdAt: string }>;
+      if (current.length !== undo.points.length) throw new Error('retime undo is stale');
+      const kept = new Map(current.map((point) => [point.id, point]));
+      db.prepare(`DELETE FROM points WHERE id IN (${marks})`).run(...ids);
+      const insert = db.prepare(
+        `INSERT INTO points (id, layer_id, time_ms, label, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      );
+      for (const point of undo.points) {
+        const row = kept.get(point.id);
+        if (row === undefined) throw new Error('retime undo is stale');
+        insert.run(point.id, row.layerId, point.timeMs, row.label, row.createdAt, now);
+      }
+    }
+    db.prepare(
+      `UPDATE manuscripts SET lifecycle_generation = lifecycle_generation + 1, updated_at = ? WHERE id = ?`,
+    ).run(now, undo.manuscriptId);
   });
-  return write();
-}
-
-function manuscriptRow(db: SqliteDatabase, id: string): ManuscriptRow {
-  const row = db.prepare(`SELECT ${MANUSCRIPT_COLUMNS} FROM manuscripts WHERE id = ?`).get(id) as
-    ManuscriptRow | undefined;
-  if (!row) throw new Error('manuscript is missing');
-  return row;
+  write();
 }
 
 function mapManuscript(row: ManuscriptRow): Manuscript {
   const mode = row.export_timeline_mode;
-  const stored = readStored(row.time_mapping_json);
   return {
     id: row.id,
     title: readStringMap(row.title_json),
     mediaId: row.media_id,
-    logicalDurationSec: row.logical_duration_sec,
-    timeMapping: stored.mapping,
-    timeMappingRevision: stored.revision,
-    timeMappingHistory: readHistory(row.time_mapping_history_json),
     exportTimelineMode: mode === 'document' || mode === 'media' ? mode : null,
     tierRoles: readStringMap(row.tier_roles_json),
     lifecycleGeneration: row.lifecycle_generation,
@@ -478,61 +528,4 @@ function mapManuscript(row: ManuscriptRow): Manuscript {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
-}
-
-function readStored(json: string | null): { mapping: TextTimeMapping | null; revision: number } {
-  if (json === null) return { mapping: null, revision: 0 };
-  const parsed: unknown = JSON.parse(json);
-  const identity = identityMarker(parsed);
-  if (identity) return { mapping: null, revision: identity.revision };
-  const mapping = normalizeTextTimeMapping(parsed);
-  if (!mapping) throw new Error('time mapping is invalid');
-  return { mapping, revision: mapping.revision };
-}
-
-function identityMarker(value: unknown): { identity: true; revision: number } | undefined {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
-  const record = value as { identity?: unknown; revision?: unknown; offsetSec?: unknown };
-  if (
-    record.identity !== true ||
-    record.offsetSec !== undefined ||
-    typeof record.revision !== 'number' ||
-    !Number.isInteger(record.revision) ||
-    record.revision < 1
-  ) {
-    return undefined;
-  }
-  return { identity: true, revision: record.revision };
-}
-
-function restoredMapping(
-  previous: TextTimeMapping,
-  revision: number,
-  updatedAt: string,
-): TextTimeMapping {
-  return {
-    offsetSec: previous.offsetSec,
-    scale: previous.scale,
-    revision,
-    updatedAt,
-    ...(previous.sourceMediaId === undefined ? {} : { sourceMediaId: previous.sourceMediaId }),
-  };
-}
-
-function readHistory(json: string): TextTimeMapping[] {
-  const parsed: unknown = JSON.parse(json);
-  if (!Array.isArray(parsed)) throw new Error('time mapping history is invalid');
-  return parsed.flatMap((item) => {
-    const mapping = normalizeTextTimeMapping(item);
-    return mapping ? [mapping] : [];
-  });
-}
-
-function assertMappingNumbers(offsetSec: number, scale: number): void {
-  if (!Number.isFinite(offsetSec) || offsetSec < 0) {
-    throw new Error('offsetSec must be a finite number that is not negative');
-  }
-  if (!Number.isFinite(scale) || scale <= 0) {
-    throw new Error('scale must be a finite number greater than 0');
-  }
 }

@@ -3,6 +3,7 @@ import { DesktopModelCandidates } from './DesktopModelCandidates';
 import { useEffect, useState } from 'react';
 import { createDesktopClient } from '../app/desktopProjectReadPageAccess';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
+import { msToSeconds } from '../desktop/timeMs';
 import { t, useLocale } from '../i18n';
 
 interface TranscriptRow {
@@ -84,8 +85,8 @@ function ManualTranscriptionCandidates(props: AcceptProps) {
           if (!wholeRun && (row.start.trim() === '' || row.end.trim() === '')) {
             throw new Error('transcription range is invalid');
           }
-          const mediaStart = wholeRun ? run.rangeStart : Number(row.start);
-          const mediaEnd = wholeRun ? run.rangeEnd : Number(row.end);
+          const mediaStart = wholeRun ? msToSeconds(run.rangeStartMs) : Number(row.start);
+          const mediaEnd = wholeRun ? msToSeconds(run.rangeEndMs) : Number(row.end);
           if (
             !Number.isFinite(mediaStart) ||
             !Number.isFinite(mediaEnd) ||
@@ -117,7 +118,6 @@ function ManualTranscriptionCandidates(props: AcceptProps) {
             segmentIndex: candidate.segmentIndex,
             mediaStart: candidate.mediaStart,
             mediaEnd: candidate.mediaEnd,
-            timeMappingRevision: preview.timeMappingRevision,
             targetFingerprint: candidate.targetFingerprint,
             text: row.text,
           });

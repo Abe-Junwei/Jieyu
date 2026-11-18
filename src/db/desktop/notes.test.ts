@@ -65,8 +65,8 @@ describe('content notes', () => {
     });
     const unit = project.units.create({
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'ka',
     });
     const root = writeAnalysisRoot(project.db, {
@@ -361,7 +361,7 @@ describe('content notes', () => {
       tierType: 'time-aligned',
       contentType: 'transcription',
     });
-    const unit = project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+    const unit = project.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text: 'ka' });
     project.db
       .prepare(
         `INSERT INTO unit_texts (id, unit_id, role, body, updated_at) VALUES ('tr1', ?, 'translation', '你好', ?)`,
@@ -460,7 +460,7 @@ describe('content notes', () => {
       tierType: 'time-aligned',
       contentType: 'transcription',
     });
-    const unit = project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+    const unit = project.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text: 'ka' });
     project.close();
 
     const session = openDesktopSession(dir, [dir]);
@@ -578,7 +578,7 @@ describe('content notes', () => {
       tierType: 'time-aligned',
       contentType: 'transcription',
     });
-    const unit = project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+    const unit = project.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text: 'ka' });
     const text = project.db.prepare(`SELECT id FROM unit_texts WHERE unit_id = ?`).get(unit.id) as {
       id: string;
     };
@@ -594,8 +594,8 @@ describe('content notes', () => {
     });
     const other = project.units.create({
       layerId: layer.id,
-      startTime: 1,
-      endTime: 2,
+      startMs: 1,
+      endMs: 2,
       text: 'ta',
     });
     writeAnalysisRoot(project.db, {

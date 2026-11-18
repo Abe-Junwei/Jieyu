@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { releaseAllProjectLocks } from '../../desktop/skeleton/projectLock';
 import { callDesktopSession } from './desktopCall';
+import { createManuscript } from './manuscripts';
 import { openDesktopSession, requireDesktopSession, resetDesktopSessions } from './projectSession';
 
 const roots: string[] = [];
@@ -114,8 +115,8 @@ describe('delete impact preview', () => {
       modelVersion: '1',
       manifestSha256: 'abc',
       params: {},
-      rangeStart: 0,
-      rangeEnd: 8,
+      rangeStartMs: 0,
+      rangeEndMs: 8,
     });
     expect(
       callDesktopSession(session.sessionId, 'manuscripts.previewDelete', {
@@ -128,6 +129,26 @@ describe('delete impact preview', () => {
     expect(callDesktopSession(session.sessionId, 'manuscripts.list', {})).toEqual([
       expect.objectContaining({ id: seeded.manuscriptId, deletedAt: null }),
     ]);
+  });
+
+  it('previews delete of a manuscript with no recording', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const manuscript = createManuscript(requireDesktopSession(session.sessionId).db, {
+      title: { zh: '无录音' },
+    });
+    const before = cycles(session.sessionId);
+    expect(
+      callDesktopSession(session.sessionId, 'manuscripts.previewDelete', { id: manuscript.id }),
+    ).toEqual({
+      id: manuscript.id,
+      title: { zh: '无录音' },
+      mediaId: null,
+      mediaRelpath: null,
+      alreadyDeleted: false,
+      running: false,
+    });
+    expect(cycles(session.sessionId)).toEqual(before);
   });
 });
 

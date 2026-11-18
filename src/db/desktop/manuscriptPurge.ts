@@ -123,6 +123,11 @@ function removeOwnedRows(db: SqliteDatabase, manuscriptId: string): void {
   const units = `SELECT units.id FROM units
     JOIN layers ON layers.id = units.layer_id
     WHERE layers.manuscript_id = ?`;
+  // ponytail: a link with both ids already gone has no manuscript column, so it stays.
+  db.prepare(
+    `DELETE FROM unit_identity_links
+     WHERE old_unit_id IN (${units}) OR new_unit_id IN (${units})`,
+  ).run(manuscriptId, manuscriptId);
   db.prepare(
     `DELETE FROM local_id_map WHERE batch_id IN (
       SELECT reception_batches.id FROM reception_batches
@@ -171,6 +176,9 @@ function removeOwnedRows(db: SqliteDatabase, manuscriptId: string): void {
   db.prepare(`DELETE FROM text_save_receipts WHERE unit_id IN (${units})`).run(manuscriptId);
   db.prepare(
     `DELETE FROM units WHERE layer_id IN (SELECT id FROM layers WHERE manuscript_id = ?)`,
+  ).run(manuscriptId);
+  db.prepare(
+    `DELETE FROM points WHERE layer_id IN (SELECT id FROM layers WHERE manuscript_id = ?)`,
   ).run(manuscriptId);
   const deleteLeaf = db.prepare(
     `DELETE FROM layers

@@ -30,8 +30,8 @@ function item(unitId: string) {
     manuscriptId: 'ms',
     layerId: 'ly',
     unitId,
-    startTime: Number(unitId.replace(/\D/g, '') || 0),
-    endTime: 1,
+    startMs: Number(unitId.replace(/\D/g, '') || 0),
+    endMs: 1,
     text: unitId,
     textSpans: [],
     hits: [],
@@ -75,7 +75,9 @@ describe('useDesktopCorpusQuery (#406)', () => {
     await act(async () => {
       result.current.more();
     });
-    await waitFor(() => expect(result.current.items.map((row) => row.unitId)).toEqual(['u1', 'u2']));
+    await waitFor(() =>
+      expect(result.current.items.map((row) => row.unitId)).toEqual(['u1', 'u2']),
+    );
     expect(queryCorpus).toHaveBeenLastCalledWith(
       'session-1',
       expect.objectContaining({
@@ -83,7 +85,7 @@ describe('useDesktopCorpusQuery (#406)', () => {
         cursor: {
           manuscriptId: 'ms',
           layerId: 'ly',
-          startTime: 1,
+          startMs: 1,
           unitId: 'u1',
         },
       }),

@@ -29,7 +29,7 @@ ELAN 的时间槽是整数毫秒，允许没有时间值的时间槽，点层独
 
 ## 决定
 
-1. **开发格式改为 `user_version` 29，不写迁移器。** 不是 29 的 `project.sqlite` 仍以「不是解语项目库」拒绝，文件字节保持原样。受控合成项目删文件夹后重开。落地前代码仍是 28。
+1. **开发格式改为 `user_version` 29，不写迁移器。** 不是 29 的 `project.sqlite` 仍以「不是解语项目库」拒绝，文件字节保持原样。受控合成项目删文件夹后重开。代码现为 29。
 2. **用户编辑的时间一律整数毫秒，并且改名。** `units` 的 `start_time`／`end_time` 改为可空的 `start_ms`／`end_ms`。点的时刻是 `time_ms`。`model_runs` 的 `range_start`／`range_end` 改为 `range_start_ms`／`range_end_ms`。桌面操作契约用同名的 `startMs`、`endMs`、`rangeStartMs`、`rangeEndMs`。漏改的调用处由类型检查报出。
 3. **秒只留在边界。** 播放器、波形组件、EAF／TextGrid 导入导出经 `src/db/desktop/timeMs.ts` 换算。恰为半毫秒时向时间轴正方向取整。`media.duration` 保持秒。查媒体范围时把句段毫秒换回秒再比。
 4. **删掉 `logical_duration_sec`、`time_mapping_json` 和 `time_mapping_history_json`。** 挂了录音的句段直接存录音上的毫秒。换录音要整体平移或伸缩时，做成一次性的「整体调时」：改写受影响句段的毫秒，同一步可撤销。不保留一份会让句段时间和录音时间变成两个数的映射。
@@ -60,6 +60,6 @@ ELAN 的时间槽是整数毫秒，允许没有时间值的时间槽，点层独
 
 ## 影响
 
-- DDL 在 `src/db/desktop/schema.ts`，冻结记录在 `src/db/desktop/formatFreeze.record.json`。29 合入前这两处仍是 28。
+- DDL 在 `src/db/desktop/schema.ts`，冻结记录在 `src/db/desktop/formatFreeze.record.json`。代码现为 29。
 - 读句段时间的桌面路径（`units.ts`、`unitSpan.ts`、`foreignImport.ts`、`corpusQuery.ts`、`modelRuns.ts`、`operationContract.ts` 和桌面页面）随 1b-0 改名。
 - 旧页面共用的映射服务不改。桌面不再写入映射列。
