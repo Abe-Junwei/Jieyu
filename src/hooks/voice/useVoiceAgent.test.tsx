@@ -37,6 +37,8 @@ const voiceInputServiceMockState = vi.hoisted(() => {
       private stateListeners: Array<(l: boolean) => void> = [];
       private vadListeners: Array<(s: boolean) => void> = [];
 
+      isRecording = false;
+
       constructor() {
         lastMockVoiceService = this;
       }
@@ -71,10 +73,15 @@ const voiceInputServiceMockState = vi.hoisted(() => {
         for (const fn of this.stateListeners) fn(true);
       }
       stop() {
+        this.isRecording = false;
         for (const fn of this.stateListeners) fn(false);
       }
-      async startRecording() {}
-      async stopRecording() {}
+      async startRecording() {
+        this.isRecording = true;
+      }
+      async stopRecording() {
+        this.isRecording = false;
+      }
       setLang() {}
       dispose() {
         this.stop();

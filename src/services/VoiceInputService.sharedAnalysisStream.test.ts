@@ -36,4 +36,30 @@ describe('VoiceInputSharedAnalysisStreamHandle', () => {
     await h.ensure();
     expect(getUserMedia).toHaveBeenCalledTimes(1);
   });
+
+  it('stops a stream that arrives after release (#553)', async () => {
+    const gate: { resolve: ((stream: MediaStream) => void) | null } = { resolve: null };
+    const track = { stop: vi.fn(), kind: 'audio' };
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      mediaDevices: {
+        getUserMedia: vi.fn(
+          () =>
+            new Promise<MediaStream>((resolve) => {
+              gate.resolve = resolve;
+            }),
+        ),
+      },
+    });
+    const handle = new VoiceInputSharedAnalysisStreamHandle();
+    const pending = handle.ensure();
+    handle.release();
+    gate.resolve?.({
+      active: true,
+      getTracks: () => [track as unknown as MediaStreamTrack],
+      getAudioTracks: () => [track as unknown as MediaStreamTrack],
+    } as MediaStream);
+    await expect(pending).resolves.toBeNull();
+    expect(track.stop).toHaveBeenCalledTimes(1);
+  });
 });
