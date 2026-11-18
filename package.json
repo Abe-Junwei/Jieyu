@@ -25,7 +25,7 @@
     "// === Test ===": "",
     "test:e2e": "playwright test",
     "test:e2e:chromium": "playwright test --project=chromium",
-    "test:e2e:session-sidecar-audit": "cross-env VITE_AI_BACKGROUND_TOOL_SANDBOX_ENABLED=true VITE_AI_BACKGROUND_MEMORY_SANDBOX_PROFILE=readonly npm run build && playwright test --config=playwright.session-sidecar.config.ts",
+    "test:e2e:session-sidecar-audit": "cross-env VITE_LEGACY_WEB_SURFACE=true VITE_AI_BACKGROUND_TOOL_SANDBOX_ENABLED=true VITE_AI_BACKGROUND_MEMORY_SANDBOX_PROFILE=readonly npm run build && playwright test --config=playwright.session-sidecar.config.ts",
     "test:e2e:headed": "playwright test --headed",
     "test:project-files-scripts": "node --experimental-sqlite --experimental-strip-types --test scripts/lib/synthetic-write-target.test.mjs scripts/card-file-portability-check.mjs scripts/jyd-failure-roundtrip.mjs scripts/jyd-folder-roundtrip.mjs scripts/legacy-library-migrate.mjs scripts/operation-log-roundtrip.mjs",
     "test:visual-css": "node scripts/test-visual-css-baseline.mjs",

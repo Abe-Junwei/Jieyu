@@ -4,6 +4,8 @@
 interface ImportMetaEnv {
   /** Package version from `package.json`, injected at build (`vite.config.ts`). */
   readonly VITE_APP_VERSION: string;
+  /** Chromium E2E only. `vite dev` leaves this unset and shows the desktop shell. */
+  readonly VITE_LEGACY_WEB_SURFACE?: string;
   readonly VITE_M5_OBSERVABILITY_ENV?: string;
   readonly VITE_ENABLE_SENTRY?: string;
   readonly VITE_SENTRY_DSN?: string;

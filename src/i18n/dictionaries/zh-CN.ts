@@ -49,6 +49,7 @@ export const zhCNDictionary = {
   'app.desktopRead.audio': '录音',
   'app.desktopRead.loadFailed': '没能读出这个文件夹',
   'app.desktopRead.unavailable': '桌面项目还不可用',
+  'app.desktopRead.openInApp': '请在解语桌面窗口中打开',
   'app.desktopRead.text': '正文',
   'app.desktopRead.saveText': '保存正文',
   'app.desktopRead.undoText': '撤销',

@@ -58,7 +58,7 @@
   justify-content: center;
   min-height: 34px;
   padding: 6px 16px;
-  background: color-mix(in srgb, var(--state-info-solid) 12%, var(--bg-surface));
+  background: color-mix(in srgb, var(--text-primary) 6%, var(--bg-surface));
   color: var(--text-primary);
   font-size: var(--font-size-sm);
 }
@@ -102,19 +102,21 @@
   position: relative;
   width: var(--left-rail-width);
   height: 100%;
-  border-right: 1px solid var(--divider-base);
-  background: color-mix(in srgb, var(--surface-header) 96%, var(--surface-panel));
+  border-right: 1px solid var(--border-soft);
+  background: var(--chrome-rail-bg);
   z-index: var(--z-header);
-  padding: 8px 4px;
+  padding: 4px 0;
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: flex-start;
 }
 
 .app-left-rail-group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 8px;
 }
 
 .app-left-rail-primary {
@@ -179,10 +181,9 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 8px;
   margin-top: auto;
-  padding-top: 8px;
-  border-top: 1px solid var(--divider-subtle);
 }
 
 .left-rail-project-hub-anchor {
@@ -300,7 +301,7 @@
 }
 
 .sidebar-handle-toggle:focus-visible {
-  outline: 2px solid var(--state-info-solid);
+  outline: 1.5px solid var(--focus-accent);
   outline-offset: 1px;
 }
 
@@ -328,7 +329,7 @@
 }
 
 .sidebar-handle-resizer:focus-visible {
-  outline: 2px solid var(--state-info-solid);
+  outline: 1.5px solid var(--focus-accent);
   outline-offset: -2px;
 }
 
@@ -608,7 +609,7 @@
 
 .side-pane-nav-link:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-info-solid) 20%, transparent);
+  box-shadow: 0 0 0 1.5px var(--focus-accent);
 }
 
 .app-side-pane-feature-nav {
@@ -627,38 +628,67 @@
 .app-side-pane-feature-nav .side-pane-nav-link[aria-current='page'] {
   color: var(--text-primary);
   border-color: transparent;
-  background: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2, 16%), transparent);
+  background: var(--timeline-selection-bg);
+}
+
+.app-side-pane-feature-nav .side-pane-nav-link[aria-current='page'] {
+  box-shadow: inset 2px 0 0 var(--text-primary);
 }
 
 .app-side-pane-feature-nav .side-pane-nav-link:focus-visible {
-  box-shadow: inset 0 0 0 1.5px
-    color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4, 56%), transparent);
+  box-shadow: inset 0 0 0 1.5px var(--focus-accent);
 }
 
-.left-rail-btn {
-  width: 100%;
-  min-height: 48px;
-  border-radius: var(--radius-xs);
+.app-left-rail .left-rail-btn {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
   border: 0;
+  border-radius: var(--radius-md);
   appearance: none;
-  -webkit-appearance: none;
-  border-left: 2px solid transparent;
   background: transparent;
-  color: var(--tab-text-muted);
+  color: var(--text-primary);
   text-decoration: none;
   display: inline-flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
-  font-weight: 600;
-  text-align: center;
-  padding: 6px 4px;
+}
+
+.left-rail-btn-active {
+  color: var(--brand-on);
+  background: var(--brand-solid);
+}
+
+/* 当前工作区：精稿 19:6187 的实心块 | Current workspace: solid block from frame 19:6187 */
+.app-left-rail-primary {
+  position: relative;
+}
+
+.app-left-rail-primary .left-rail-btn {
+  position: relative;
   transition:
-    border-color 0.15s ease,
-    background-color 0.15s ease,
-    color 0.15s ease;
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.app-left-rail-primary .left-rail-btn:not(.left-rail-btn-active) {
+  color: var(--text-primary);
+}
+
+.app-left-rail-primary .left-rail-btn:not(.left-rail-btn-active):hover {
+  background: var(--overlay-hover-soft);
+}
+
+.app-left-rail-primary .left-rail-btn-active {
+  color: var(--brand-on);
+  background: var(--brand-solid);
+  opacity: 1;
+}
+
+.app-left-rail-primary .left-rail-btn-active > .jieyu-icon {
+  color: var(--brand-on);
+  background: transparent;
 }
 
 /* 左侧栏按钮文案隐藏，仅保留图标 | Hide left-rail button labels and keep icon-only rail */
@@ -671,7 +701,7 @@
   stroke: currentColor;
 }
 
-.left-rail-btn:hover {
+.left-rail-btn:not(.left-rail-btn-active):hover {
   color: var(--text-primary);
   background: var(--overlay-hover-soft);
 }
@@ -681,89 +711,6 @@
   background: color-mix(in srgb, var(--overlay-hover-soft) 88%, transparent);
 }
 
-.left-rail-btn-utility {
-  border-left-style: dashed;
-}
-
-.left-rail-btn-active {
-  color: var(--text-primary);
-  border-left-color: color-mix(in srgb, var(--state-info-solid) 95%, transparent);
-  background: color-mix(in srgb, var(--state-info-solid) 10%, transparent);
-}
-
-/* 核心工作区主导航标签化选中态 | Tab-like active state for core workspace primary nav */
-.app-left-rail-primary {
-  position: relative;
-  padding-top: 6px;
-}
-
-.app-left-rail-primary .left-rail-btn {
-  position: relative;
-  min-height: 56px;
-  margin-right: -4px;
-  border: 1px solid transparent;
-  border-left: 0;
-  border-right: 0;
-  border-radius: 12px 0 0 12px;
-  padding: 8px 6px;
-  transition:
-    background-color 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease,
-    box-shadow 0.18s ease;
-}
-
-/* 非激活层级更后置 | Push inactive buttons one visual level back */
-.app-left-rail-primary .left-rail-btn:not(.left-rail-btn-active) {
-  color: color-mix(in srgb, var(--tab-text-muted) 82%, var(--text-secondary));
-  opacity: 0.9;
-}
-
-/* 图标底片 | Icon backing */
-.app-left-rail-primary .left-rail-btn > .jieyu-icon {
-  padding: 4px;
-  border-radius: 8px;
-  transition:
-    background-color 0.18s ease,
-    color 0.18s ease;
-}
-
-/* 未选中项悬停反馈 | Hover feedback for inactive nav items */
-.app-left-rail-primary .left-rail-btn:not(.left-rail-btn-active):hover {
-  background: color-mix(in srgb, var(--overlay-hover-soft) 72%, transparent);
-}
-
-/* 选中项呈现“已打开标签”面片 | Active item appears like an opened tab */
-.app-left-rail-primary .left-rail-btn-active {
-  color: var(--state-info-contrast, var(--text-on-solid));
-  background: color-mix(in srgb, var(--state-info-solid) 92%, transparent);
-  border-color: color-mix(in srgb, var(--state-info-solid) 70%, transparent);
-  border-left: 0;
-  border-right: 0;
-  border-left-color: transparent;
-  opacity: 1;
-  z-index: 2;
-  font-weight: 700;
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--state-info-solid) 36%, transparent);
-}
-
-/* 右侧补片与主内容视觉连通 | Right bridge to visually connect with main content */
-.app-left-rail-primary .left-rail-btn-active::after {
-  content: '';
-  position: absolute;
-  top: -1px;
-  right: -4px;
-  bottom: -1px;
-  width: 4px;
-  background: color-mix(in srgb, var(--state-info-solid) 92%, transparent);
-}
-
-/* 选中图标 | Active icon */
-.app-left-rail-primary .left-rail-btn-active > .jieyu-icon {
-  color: var(--state-info-contrast, var(--text-on-solid));
-  background: transparent;
-}
-
 .left-rail-btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--focus-ring-soft);
@@ -771,37 +718,13 @@
 
 @media (max-width: 900px) {
   .left-rail-btn {
-    min-height: 52px;
     font-size: var(--panel-typography-mini-size, calc(9px * var(--ui-font-scale, 1)));
-  }
-
-  .app-left-rail-primary .left-rail-btn {
-    min-height: 52px;
   }
 }
 
 @media (max-width: 640px) {
-  .left-rail-btn {
-    min-height: 46px;
-    border-radius: var(--radius-md);
-  }
   .left-rail-btn span {
     display: none;
-  }
-
-  .app-left-rail-primary .left-rail-btn {
-    min-height: 46px;
-    margin-right: 0;
-    border-right: 1px solid transparent;
-    border-radius: 10px;
-  }
-
-  .app-left-rail-primary .left-rail-btn-active::after {
-    display: none;
-  }
-
-  .app-left-rail-primary .left-rail-btn-active {
-    border-color: color-mix(in srgb, var(--state-info-solid) 32%, var(--divider-base));
   }
 }
 /* ── 首屏过渡抑制：避免初始挂载时的布局过渡产生 CLS | Suppress layout transitions on initial mount to prevent CLS ── */

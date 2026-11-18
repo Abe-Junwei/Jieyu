@@ -71,6 +71,8 @@ source_of_truth: decision-index
 
 ## 本轮范围与生命周期
 
+- [0124：左轨当前项以转写精稿标准帧为准](./0124-left-rail-current-item-matches-pixso-shell.md)
+- [0123：开发服务器默认显示桌面外壳](./0123-dev-server-shows-the-desktop-shell.md)
 - [0122：整数毫秒、文稿可以不挂录音](./0122-integer-milliseconds-and-optional-media.md)
 - [0121：正文保存回执与未生效草稿进项目库](./0121-text-save-receipt-and-draft.md)
 - [0120：转写人确定度改用状态色圆形徽标](./0120-transcriber-certainty-as-status-badge.md)

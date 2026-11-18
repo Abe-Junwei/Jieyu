@@ -54,6 +54,7 @@ export const enUSDictionary = {
   'app.desktopRead.audio': 'Recording',
   'app.desktopRead.loadFailed': 'Could not read this folder',
   'app.desktopRead.unavailable': 'The desktop project is not available',
+  'app.desktopRead.openInApp': 'Open this in the Jieyu desktop window',
   'app.desktopRead.text': 'Text',
   'app.desktopRead.saveText': 'Save text',
   'app.desktopRead.undoText': 'Undo',

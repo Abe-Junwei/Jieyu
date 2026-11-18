@@ -63,7 +63,7 @@ import { isTranscriptionWorkspacePathname } from './utils/transcriptionWorkspace
 import { JIEYU_ICON_NAV, type LeftRailNavIconName } from './utils/jieyuIcon';
 import { CatalogProjectGate } from './components/CatalogProjectGate';
 import { DesktopRoute } from './components/DesktopRoute';
-import { electronDesktopPresent } from './desktop/desktopSurface';
+import { electronDesktopPresent, legacyWebSurfaceEnabled } from './desktop/desktopSurface';
 import { featureFlags } from './ai/config/featureFlags';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
@@ -369,6 +369,7 @@ export function App() {
   );
   const isTranscriptionRoute = isTranscriptionWorkspacePathname(location.pathname);
   const desktopBuild = electronDesktopPresent();
+  const showLegacyWebChrome = !desktopBuild && legacyWebSurfaceEnabled();
   const [openAssetPanel, setOpenAssetPanel] = useState<LanguageAssetPanel>('none');
   const panelSearchRestoreRef = useRef<string | null>(null);
   const [locale, setLocale] = useState<Locale>(() => detectLocale());
@@ -800,7 +801,7 @@ export function App() {
             {...shellStyleProps}
           >
             <div role="region" aria-label={t(locale, 'app.shell.aria.notices')}>
-              <DevBuildBanner locale={locale} />
+              {showLegacyWebChrome ? <DevBuildBanner locale={locale} /> : null}
               <AppOfflineStatusBanner locale={locale} />
               <WorkspaceReturnBanner locale={locale} />
             </div>
@@ -850,7 +851,7 @@ export function App() {
                   aria-label={t(locale, 'app.leftRail.aria.footer')}
                 >
                   <div id="left-rail-project-hub-slot" className="left-rail-project-hub-anchor" />
-                  {isTranscriptionRoute && !desktopBuild ? (
+                  {isTranscriptionRoute && showLegacyWebChrome ? (
                     <button
                       type="button"
                       className="left-rail-btn left-rail-btn-utility"
@@ -897,7 +898,7 @@ export function App() {
                           element={
                             <DesktopRoute
                               folder
-                              desktop={() => <Navigate to="/desktop-project" replace />}
+                              desktop={() => <DesktopProjectReadPage />}
                               legacy={<HomePage />}
                             />
                           }
@@ -987,7 +988,7 @@ export function App() {
                         <Route path="*" element={<NotFound locale={locale} />} />
                       </Routes>
                     </Suspense>
-                    {electronDesktopPresent() ? null : (
+                    {showLegacyWebChrome ? (
                       <Suspense fallback={null}>
                         <ModalPanel
                           isOpen={openAssetPanel === 'language-metadata'}
@@ -1050,21 +1051,21 @@ export function App() {
                           </CatalogProjectGate>
                         </ModalPanel>
                       </Suspense>
-                    )}
+                    ) : null}
                   </AssetPanelProvider>
                 </AiPanelProvider>
               </main>
             </div>
             {import.meta.env.DEV ? <DevErrorAggregationPanel /> : null}
             <AppGlobalToastHost />
-            {electronDesktopPresent() ? null : (
+            {showLegacyWebChrome ? (
               <>
                 <LegacyDataResetDialog locale={locale} />
                 <DbMigrationGateOverlay locale={locale} />
                 <BrowserDataResilience locale={locale} />
               </>
-            )}
-            {desktopBuild ? null : <CollaborationLifecycleNotices locale={locale} />}
+            ) : null}
+            {showLegacyWebChrome ? <CollaborationLifecycleNotices locale={locale} /> : null}
             <SettingsModal
               isOpen={isSettingsOpen}
               onClose={handleSettingsClose}
