@@ -3,6 +3,15 @@ export interface DesktopTextDraft {
   text: string;
 }
 
+export function isSameTextDraft(
+  left: DesktopTextDraft | null,
+  right: DesktopTextDraft | null,
+): boolean {
+  return (
+    left !== null && right !== null && left.unitId === right.unitId && left.text === right.text
+  );
+}
+
 export interface StoredTextDraft {
   unitId: string;
   rawInput: string;
