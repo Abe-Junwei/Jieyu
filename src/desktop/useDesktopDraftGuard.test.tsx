@@ -2,7 +2,7 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider, useNavigate } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { DesktopTextDraft, TextSaveResult } from './desktopTextDraft';
+import type { DesktopTextDraft, StoredTextDraft, TextSaveResult } from './desktopTextDraft';
 import { useDesktopDraftGuard } from './useDesktopDraftGuard';
 
 afterEach(cleanup);
@@ -382,6 +382,191 @@ describe('useDesktopDraftGuard', () => {
     const unload = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(unload);
     expect(unload.defaultPrevented).toBe(true);
+  });
+
+  it('writes another unit whose text matches a refresh-failed hold', async () => {
+    const writes: DesktopTextDraft[] = [];
+    const ids: string[] = [];
+    let refreshFailed = true;
+    const view = mount((draft, operationId) => {
+      writes.push(draft);
+      ids.push(operationId);
+      if (refreshFailed) return Promise.resolve('refresh-failed');
+      return Promise.resolve('saved');
+    });
+    act(() => view.guard().edit('u1', '同', '旧'));
+    expect(await act(() => view.guard().commit())).toBe(true);
+    let left = false;
+    act(() => {
+      view.guard().leave(() => {
+        left = true;
+      });
+    });
+    expect(left).toBe(true);
+    expect(writes).toEqual([{ unitId: 'u1', text: '同' }]);
+    refreshFailed = false;
+    act(() => view.guard().edit('u2', '同', '别'));
+    expect(await act(() => view.guard().commit())).toBe(true);
+    expect(writes).toEqual([
+      { unitId: 'u1', text: '同' },
+      { unitId: 'u2', text: '同' },
+    ]);
+    expect(ids[0]).not.toBe(ids[1]);
+    expect(await act(() => view.guard().flushForClose())).toBe('saved');
+    expect(writes).toHaveLength(2);
+    act(() => view.guard().edit('u1', '同', '旧'));
+    expect(await act(() => view.guard().commit())).toBe(false);
+    expect(writes).toHaveLength(2);
+  });
+
+  it('flush and leave write the other unit instead of reporting the held text saved', async () => {
+    const writes: DesktopTextDraft[] = [];
+    const view = mount((draft) => {
+      writes.push(draft);
+      return Promise.resolve(writes.length === 1 ? 'refresh-failed' : 'saved');
+    });
+    act(() => view.guard().edit('u1', '同', '旧'));
+    expect(await act(() => view.guard().commit())).toBe(true);
+    act(() => view.guard().edit('u2', '同', '别'));
+    expect(await act(() => view.guard().flushForClose())).toBe('saved');
+    expect(writes).toEqual([
+      { unitId: 'u1', text: '同' },
+      { unitId: 'u2', text: '同' },
+    ]);
+    act(() => view.guard().edit('u2', '同', '别'));
+    let left = false;
+    act(() => {
+      view.guard().leave(() => {
+        left = true;
+      });
+    });
+    await waitFor(() => expect(left).toBe(true));
+    expect(writes).toEqual([
+      { unitId: 'u1', text: '同' },
+      { unitId: 'u2', text: '同' },
+      { unitId: 'u2', text: '同' },
+    ]);
+  });
+
+  it('saves the other unit when an in-flight save commits the same text, and does not rewrite the held unit', async () => {
+    const writes: DesktopTextDraft[] = [];
+    const resolvers: Array<(result: TextSaveResult) => void> = [];
+    const view = mount((draft) => {
+      writes.push(draft);
+      return new Promise<TextSaveResult>((resolve) => {
+        resolvers.push(resolve);
+      });
+    });
+    act(() => view.guard().edit('u1', '同', '旧'));
+    act(() => {
+      void view.guard().commit();
+    });
+    await waitFor(() => expect(resolvers).toHaveLength(1));
+    act(() => view.guard().edit('u2', '同', '别'));
+    await act(async () => {
+      resolvers[0]?.('refresh-failed');
+    });
+    await waitFor(() => expect(resolvers).toHaveLength(2));
+    expect(writes).toEqual([
+      { unitId: 'u1', text: '同' },
+      { unitId: 'u2', text: '同' },
+    ]);
+    await act(async () => {
+      resolvers[1]?.('saved');
+    });
+    act(() => view.guard().edit('u1', '同', '旧'));
+    expect(await act(() => view.guard().commit())).toBe(false);
+    expect(writes).toHaveLength(2);
+  });
+
+  it('restores a persisted draft whose text matches a held unit', async () => {
+    const writes: DesktopTextDraft[] = [];
+    const view = mount(
+      (draft) => {
+        writes.push(draft);
+        return Promise.resolve(writes.length === 1 ? 'refresh-failed' : 'saved');
+      },
+      { persist: () => Promise.resolve(), discard: () => Promise.resolve() },
+    );
+    act(() => view.guard().edit('u1', '同', '旧'));
+    expect(await act(() => view.guard().commit())).toBe(true);
+    act(() => view.guard().edit('u2', '同', '别'));
+    expect(await act(() => view.guard().commit())).toBe(true);
+    act(() => view.guard().restore({ unitId: 'u3', rawInput: '同', baseBody: '基' }, '基'));
+    await waitFor(() =>
+      expect(writes).toEqual([
+        { unitId: 'u1', text: '同' },
+        { unitId: 'u2', text: '同' },
+        { unitId: 'u3', text: '同' },
+      ]),
+    );
+    act(() => view.guard().edit('u1', '同', '旧'));
+    expect(await act(() => view.guard().commit())).toBe(false);
+    expect(writes).toHaveLength(3);
+  });
+
+  it('keeps the other unit baseline while a different text is still in flight', async () => {
+    const writes: DesktopTextDraft[] = [];
+    const persisted: StoredTextDraft[] = [];
+    const resolvers: Array<(ok: boolean) => void> = [];
+    const view = mount(
+      (draft) => {
+        writes.push(draft);
+        return new Promise<boolean>((resolve) => {
+          resolvers.push(resolve);
+        });
+      },
+      {
+        persist: (row) => {
+          persisted.push(row);
+          return Promise.resolve();
+        },
+        discard: () => Promise.resolve(),
+      },
+    );
+    act(() => view.guard().edit('u1', '甲', '旧'));
+    act(() => {
+      void view.guard().commit();
+    });
+    await waitFor(() => expect(resolvers).toHaveLength(1));
+    act(() => view.guard().edit('u2', '乙', '基'));
+    expect(persisted.at(-1)).toEqual({ unitId: 'u2', rawInput: '乙', baseBody: '基' });
+    await act(async () => {
+      resolvers[0]?.(true);
+    });
+    await waitFor(() =>
+      expect(writes).toEqual([
+        { unitId: 'u1', text: '甲' },
+        { unitId: 'u2', text: '乙' },
+      ]),
+    );
+    await act(async () => {
+      resolvers[1]?.(true);
+    });
+    await waitFor(() => expect(view.guard().draft).toBeNull());
+  });
+
+  it('does not hold another unit when an unknown save of the same text was committed', async () => {
+    const writes: string[] = [];
+    const view = mount(
+      (draft) => {
+        writes.push(draft.unitId);
+        return Promise.resolve(writes.length === 1 ? 'unknown' : 'saved');
+      },
+      {
+        persist: () => Promise.resolve(),
+        discard: () => Promise.resolve(),
+        inspect: () => Promise.resolve('committed'),
+      },
+    );
+    act(() => view.guard().edit('u1', '同', '旧'));
+    await act(() => view.guard().commit());
+    act(() => view.guard().edit('u2', '同', '别'));
+    expect(await act(() => view.guard().flushForClose())).toBe('saved');
+    expect(writes).toEqual(['u1', 'u2']);
+    act(() => view.guard().edit('u1', '同', '旧'));
+    expect(await act(() => view.guard().commit())).toBe(false);
+    expect(writes).toEqual(['u1', 'u2']);
   });
 
   it('cancels beforeunload only while a draft is unsaved', () => {
