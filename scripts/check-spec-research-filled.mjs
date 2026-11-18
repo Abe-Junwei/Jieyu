@@ -71,10 +71,12 @@ export function checkSpecResearchFilled(specsDir, rootForRel = process.cwd()) {
     const status = parseStatus(text);
     if (!status || status === 'draft') continue; // draft 允许半成品
 
+    const rel = relative(rootForRel, designPath);
+    const uiFailure = uiDraftSectionFailure(text, rel, status);
+    if (uiFailure) failures.push(uiFailure);
+
     const section = extractResearchSection(text);
     if (section === null) continue; // 无成熟方案/Research §1 段 → 豁免（存量/异形）
-
-    const rel = relative(rootForRel, designPath);
     if (section.trim().length === 0) {
       failures.push(`${rel}: §1 成熟方案/Research 段为空（status=${status} 不应留空）`);
       continue;
@@ -87,6 +89,37 @@ export function checkSpecResearchFilled(specsDir, rootForRel = process.cwd()) {
   }
 
   return failures;
+}
+
+/** 非 draft 的 design.md 必须有写实的「UI 精稿对照」。 */
+export function uiDraftSectionFailure(text, rel, status) {
+  if (!status || status === 'draft') return null;
+  const section = extractNamedSection(text, /^##\s+UI 精稿对照\s*$/);
+  if (section === null) {
+    return `${rel}: status=${status} 缺少「## UI 精稿对照」（桌面界面切片必填，不改界面写不适用）`;
+  }
+  if (section.trim().length === 0) {
+    return `${rel}: 「UI 精稿对照」为空（status=${status}）`;
+  }
+  if (PLACEHOLDER_LINE_RE.test(section)) {
+    return `${rel}: 「UI 精稿对照」仍含模板占位符（行尾 "：…"）；status=${status}`;
+  }
+  if (!/不适用|DESIGN\.md|Pixso/.test(section)) {
+    return `${rel}: 「UI 精稿对照」须写不适用、DESIGN.md 章节或 Pixso 画板（status=${status}）`;
+  }
+  return null;
+}
+
+function extractNamedSection(text, heading) {
+  const lines = text.split('\n');
+  const startIdx = lines.findIndex((line) => heading.test(line));
+  if (startIdx === -1) return null;
+  const body = [];
+  for (let i = startIdx + 1; i < lines.length; i += 1) {
+    if (/^##\s/.test(lines[i])) break;
+    body.push(lines[i]);
+  }
+  return body.join('\n');
 }
 
 function isMainModule() {

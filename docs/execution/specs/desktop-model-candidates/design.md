@@ -40,3 +40,7 @@ depends_on:
 ## 4. 验证
 
 先用真实临时库与本机模拟 HTTP 服务写失败测试，再实现；覆盖成功采纳与重开、失败/取消/零产出、目标变化/映射/删除恢复、会话切换、重复点击。跑 typecheck、vitest、Chromium、Electron 项目流程、architecture、格式冻结、agent full、workflow/docs/i18n。使用合成 PCM16 WAV；不以 mock 调用次数代替落库结果。
+
+## UI 精稿对照
+
+- 不适用：本规格不改桌面页面或桌面样式。后续切片若改 `src/pages/Desktop*.tsx`、`src/styles/**/desktop*.css` 或新建 `src/components/**`，在那次改动里改写本节。
