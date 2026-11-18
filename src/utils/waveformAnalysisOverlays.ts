@@ -147,27 +147,37 @@ export function buildWaveformAnalysisOverlaySummary(
 
   const vadSegs = options?.vadSegments;
   const gapBands: WaveformGapBand[] = [];
-  for (let index = 1; index < sorted.length; index += 1) {
-    const previous = sorted[index - 1]!;
-    const current = sorted[index]!;
-    const gapSeconds = current.startTime - previous.endTime;
-    if (gapSeconds >= gapThresholdSeconds) {
-      const gapStart = previous.endTime;
-      const gapEnd = current.startTime;
-      const containsSpeech = vadSegs
-        ? vadSegs.some((seg) => {
-            const overlapStart = Math.max(seg.start, gapStart);
-            const overlapEnd = Math.min(seg.end, gapEnd);
-            return overlapEnd - overlapStart >= VAD_OVERLAP_TOLERANCE_SEC;
-          })
-        : undefined;
-      gapBands.push({
-        id: `gap:${previous.id}:${current.id}`,
-        startTime: gapStart,
-        endTime: gapEnd,
-        gapSeconds,
-        ...(containsSpeech !== undefined ? { containsSpeech } : {}),
-      });
+  // 间隙是已覆盖区间并集上的空洞。只比相邻行会把被长句段包住的区间报成空白。
+  // Gaps are holes in the union of covered intervals. Adjacent rows invent holes inside an enclosure.
+  const first = sorted[0];
+  if (first) {
+    let coveredUntil = first.endTime;
+    let coveredUntilUnitId = first.id;
+    for (let index = 1; index < sorted.length; index += 1) {
+      const current = sorted[index]!;
+      const gapSeconds = current.startTime - coveredUntil;
+      if (gapSeconds >= gapThresholdSeconds) {
+        const gapStart = coveredUntil;
+        const gapEnd = current.startTime;
+        const containsSpeech = vadSegs
+          ? vadSegs.some((seg) => {
+              const overlapStart = Math.max(seg.start, gapStart);
+              const overlapEnd = Math.min(seg.end, gapEnd);
+              return overlapEnd - overlapStart >= VAD_OVERLAP_TOLERANCE_SEC;
+            })
+          : undefined;
+        gapBands.push({
+          id: `gap:${coveredUntilUnitId}:${current.id}`,
+          startTime: gapStart,
+          endTime: gapEnd,
+          gapSeconds,
+          ...(containsSpeech !== undefined ? { containsSpeech } : {}),
+        });
+      }
+      if (current.endTime > coveredUntil) {
+        coveredUntil = current.endTime;
+        coveredUntilUnitId = current.id;
+      }
     }
   }
 
