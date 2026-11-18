@@ -27,6 +27,7 @@ import {
   SILERO_FRAME_SAMPLES,
   type SileroOrtLike,
   type SileroSessionLike,
+  type SileroStreamState,
   type VadWorkerSegment,
 } from '../utils/vadWorkerInferenceUtils';
 
@@ -37,15 +38,25 @@ export type { VadWorkerSegment } from '../utils/vadWorkerInferenceUtils';
 const SILERO_SAMPLE_RATE = 16_000; // Silero 仅支持 16kHz | Silero only supports 16 kHz
 const FRAME_SIZE = SILERO_FRAME_SAMPLES; // Silero 标准帧大小 | Standard Silero frame size
 
-// ── ONNX Runtime 运行时（动态导入）| ONNX Runtime (dynamic import) ─────────────
+export interface VadWorkerOutbound {
+  type: string;
+  id?: string | undefined;
+  message?: string;
+  segments?: VadWorkerSegment[];
+  processedFrames?: number;
+  totalFrames?: number;
+  ratio?: number;
+}
 
-let session: SileroSessionLike | null = null;
-let ort: typeof import('onnxruntime-web') | null = null;
-// Silero v5+ 循环状态与 64 采样上下文 | Silero v5+ recurrent state and 64-sample context
-let sileroStream = createSileroStreamState();
-const cancelledRequestIds = new Set<string>();
+export interface VadWorkerRuntime {
+  ort: SileroOrtLike;
+  session: SileroSessionLike;
+}
 
-// ── 流式推理会话状态 | Streaming inference session state ─────────────────────
+export interface VadWorkerHandlerDeps {
+  /** 测试注入脚本会话；缺省加载 onnxruntime-web。| Tests inject a scripted session; default loads onnxruntime-web. */
+  loadRuntime?: (modelUrl: string) => Promise<VadWorkerRuntime>;
+}
 
 interface StreamingSessionState {
   id: string;
@@ -53,295 +64,327 @@ interface StreamingSessionState {
   leftover: Float32Array;
   frameProbs: number[];
   processedFrames: number;
-}
-
-let streamSession: StreamingSessionState | null = null;
-let streamProcessQueue: Promise<void> = Promise.resolve();
-
-function resetState(): void {
-  sileroStream = createSileroStreamState();
-}
-
-// ── Worker 消息处理 | Worker message handler ─────────────────────────────────
-
-self.onmessage = async (event: MessageEvent) => {
-  const msg = event.data as {
-    type: string;
-    modelUrl?: string;
-    id?: string;
-    pcm?: Float32Array;
-    sampleRate?: number;
-  };
-
-  // WorkerPool 心跳协议 | Heartbeat protocol
-  if (msg.type === 'workerpool:ping') {
-    self.postMessage({ type: 'workerpool:pong' });
-    return;
-  }
-
-  switch (msg.type) {
-    case 'init': {
-      try {
-        ort = await import('onnxruntime-web');
-        // 锁定 WASM 加载路径，dev 由中间件伺服，build 由 copyOnnxWasm 复制 | Pin WASM path; dev served by middleware, build by copyOnnxWasm plugin
-        ort.env.wasm.wasmPaths = '/onnx-wasm/';
-        session = (await ort.InferenceSession.create(msg.modelUrl ?? '/models/silero_vad.onnx', {
-          executionProviders: ['wasm'],
-        })) as unknown as SileroSessionLike;
-        resetState();
-        self.postMessage({ type: 'ready' });
-      } catch (err) {
-        self.postMessage({
-          type: 'error',
-          message: `VAD init failed: ${err instanceof Error ? err.message : String(err)}`,
-        });
-      }
-      break;
-    }
-
-    case 'detect': {
-      if (!session) {
-        self.postMessage({ type: 'error', id: msg.id, message: 'VAD session not initialized' });
-        return;
-      }
-      try {
-        cancelledRequestIds.delete(msg.id!);
-        const pcm = msg.pcm!;
-        const sr = msg.sampleRate ?? SILERO_SAMPLE_RATE;
-
-        // 重采样到 16kHz（如需）| Resample to 16kHz if needed
-        const resampled =
-          sr === SILERO_SAMPLE_RATE ? pcm : resampleLinear(pcm, sr, SILERO_SAMPLE_RATE);
-
-        const segments = await runSileroVad(resampled, {
-          requestId: msg.id!,
-          shouldCancel: () => cancelledRequestIds.has(msg.id!),
-          onProgress: (processedFrames, totalFrames) => {
-            self.postMessage({
-              type: 'progress',
-              id: msg.id,
-              processedFrames,
-              totalFrames,
-              ratio: totalFrames > 0 ? processedFrames / totalFrames : 1,
-            });
-          },
-        });
-        cancelledRequestIds.delete(msg.id!);
-        self.postMessage({ type: 'result', id: msg.id, segments });
-      } catch (err) {
-        const aborted = cancelledRequestIds.has(msg.id!);
-        cancelledRequestIds.delete(msg.id!);
-        self.postMessage({
-          type: 'error',
-          id: msg.id,
-          message: aborted
-            ? 'VAD detect aborted'
-            : `VAD detect failed: ${err instanceof Error ? err.message : String(err)}`,
-        });
-      }
-      break;
-    }
-
-    case 'cancel': {
-      if (msg.id !== undefined && msg.id.length > 0) {
-        cancelledRequestIds.add(msg.id);
-      }
-      break;
-    }
-
-    case 'detect-stream-start': {
-      if (!session) {
-        self.postMessage({ type: 'error', id: msg.id, message: 'VAD session not initialized' });
-        return;
-      }
-      // 若存在旧流式会话，向主线程发错误以拒绝其挂起请求 | Reject pending request for old streaming session if exists
-      if (streamSession) {
-        self.postMessage({
-          type: 'error',
-          id: streamSession.id,
-          message: 'Streaming session superseded by new session',
-        });
-      }
-      cancelledRequestIds.delete(msg.id!);
-      resetState();
-      streamSession = {
-        id: msg.id!,
-        sampleRate: msg.sampleRate ?? SILERO_SAMPLE_RATE,
-        leftover: new Float32Array(0),
-        frameProbs: [],
-        processedFrames: 0,
-      };
-      streamProcessQueue = Promise.resolve();
-      break;
-    }
-
-    case 'detect-stream-chunk': {
-      if (!streamSession || streamSession.id !== msg.id) {
-        self.postMessage({
-          type: 'error',
-          id: msg.id,
-          message: 'No active streaming session for this id',
-        });
-        return;
-      }
-      if (cancelledRequestIds.has(msg.id!)) return;
-      const chunkPcm = msg.pcm!;
-      streamProcessQueue = streamProcessQueue.then(() => processStreamChunk(msg.id!, chunkPcm));
-      break;
-    }
-
-    case 'detect-stream-end': {
-      if (!streamSession || streamSession.id !== msg.id) {
-        self.postMessage({
-          type: 'error',
-          id: msg.id,
-          message: 'No active streaming session for this id',
-        });
-        return;
-      }
-      streamProcessQueue = streamProcessQueue.then(() => finalizeStream(msg.id!));
-      break;
-    }
-
-    case 'reset': {
-      resetState();
-      streamSession = null;
-      break;
-    }
-
-    default:
-      self.postMessage({ type: 'error', message: `Unknown message type: ${msg.type}` });
-  }
-};
-
-// ── Silero VAD 推理 | Silero VAD inference ───────────────────────────────────
-
-/**
- * 对单帧 PCM 运行 Silero VAD ONNX 推理（v5+ 接口：input + state + sr），返回语音概率。
- * Runs Silero VAD ONNX inference on a single frame (v5+ interface: input + state + sr).
- */
-async function runSingleFrame(frame: Float32Array): Promise<number> {
-  if (!ort || !session) throw new Error('onnxruntime-web not loaded');
-  return runSileroFrame(
-    ort as unknown as SileroOrtLike,
-    session,
-    sileroStream,
-    frame,
-    SILERO_SAMPLE_RATE,
-  );
+  silero: SileroStreamState;
 }
 
 /**
- * 对 PCM 数据逐帧运行 Silero VAD ONNX 推理，返回语音段列表。
- * Runs Silero VAD ONNX frame-by-frame over PCM data and returns speech segments.
+ * 每个 Worker 一份模型，循环状态按音频归属。
+ * One model per worker; recurrent state belongs to one audio.
+ *
+ * `detect` 与每条流式会话各持有自己的 state/context。模型权重可以复用，
+ * 独立媒体、失败后的下一次，以及交错中的另一次请求都不能读到这份状态。
+ * Each `detect` and each streaming session owns its state/context. Weights may be
+ * reused; another media item, a later request after failure, or an interleaved
+ * request must not observe this state.
  */
-async function runSileroVad(
-  pcm: Float32Array,
-  options: {
-    requestId: string;
-    shouldCancel?: () => boolean;
-    onProgress?: (processedFrames: number, totalFrames: number) => void;
-  },
-): Promise<VadWorkerSegment[]> {
-  const frameCount = Math.floor(pcm.length / FRAME_SIZE);
-  const frameProbs: number[] = [];
+export function createVadWorkerHandler(
+  postMessage: (message: VadWorkerOutbound) => void,
+  deps: VadWorkerHandlerDeps = {},
+): (event: MessageEvent) => Promise<void> {
+  let session: SileroSessionLike | null = null;
+  let ort: SileroOrtLike | null = null;
+  const cancelledRequestIds = new Set<string>();
 
-  for (let fi = 0; fi < frameCount; fi++) {
-    if (options.shouldCancel?.() === true) {
-      const abortError = new Error('VAD detect aborted');
-      abortError.name = 'AbortError';
-      throw abortError;
-    }
+  let streamSession: StreamingSessionState | null = null;
+  let streamProcessQueue: Promise<void> = Promise.resolve();
 
-    const frame = pcm.slice(fi * FRAME_SIZE, (fi + 1) * FRAME_SIZE);
-    frameProbs.push(await runSingleFrame(frame));
+  const loadRuntime =
+    deps.loadRuntime ??
+    (async (modelUrl: string): Promise<VadWorkerRuntime> => {
+      const ortModule = await import('onnxruntime-web');
+      // 锁定 WASM 加载路径，dev 由中间件伺服，build 由 copyOnnxWasm 复制 | Pin WASM path; dev served by middleware, build by copyOnnxWasm plugin
+      ortModule.env.wasm.wasmPaths = '/onnx-wasm/';
+      const created = (await ortModule.InferenceSession.create(modelUrl, {
+        executionProviders: ['wasm'],
+      })) as unknown as SileroSessionLike;
+      return { ort: ortModule as unknown as SileroOrtLike, session: created };
+    });
 
-    if (options.onProgress !== undefined && (fi === frameCount - 1 || (fi + 1) % 16 === 0)) {
-      options.onProgress(fi + 1, frameCount);
-    }
+  async function runSingleFrame(silero: SileroStreamState, frame: Float32Array): Promise<number> {
+    if (!ort || !session) throw new Error('onnxruntime-web not loaded');
+    return runSileroFrame(ort, session, silero, frame, SILERO_SAMPLE_RATE);
   }
 
-  options.onProgress?.(frameCount, frameCount);
-  return frameProbsToSegments(frameProbs, FRAME_SIZE, SILERO_SAMPLE_RATE);
-}
+  async function runSileroVad(
+    pcm: Float32Array,
+    silero: SileroStreamState,
+    options: {
+      requestId: string;
+      shouldCancel?: () => boolean;
+      onProgress?: (processedFrames: number, totalFrames: number) => void;
+    },
+  ): Promise<VadWorkerSegment[]> {
+    const frameCount = Math.floor(pcm.length / FRAME_SIZE);
+    const frameProbs: number[] = [];
 
-// ── 流式推理处理 | Streaming inference processing ────────────────────────────
+    for (let fi = 0; fi < frameCount; fi++) {
+      if (options.shouldCancel?.() === true) {
+        const abortError = new Error('VAD detect aborted');
+        abortError.name = 'AbortError';
+        throw abortError;
+      }
 
-/**
- * 处理一个流式 PCM 块：重采样、拼接剩余、逐帧推理。
- * Process a streaming PCM chunk: resample, concatenate leftover, run per-frame inference.
- */
-async function processStreamChunk(id: string, rawPcm: Float32Array): Promise<void> {
-  if (!streamSession || streamSession.id !== id) return;
-  if (cancelledRequestIds.has(id)) {
-    streamSession = null;
-    self.postMessage({ type: 'error', id, message: 'VAD detect aborted' });
-    return;
+      const frame = pcm.slice(fi * FRAME_SIZE, (fi + 1) * FRAME_SIZE);
+      frameProbs.push(await runSingleFrame(silero, frame));
+
+      if (options.onProgress !== undefined && (fi === frameCount - 1 || (fi + 1) % 16 === 0)) {
+        options.onProgress(fi + 1, frameCount);
+      }
+    }
+
+    options.onProgress?.(frameCount, frameCount);
+    return frameProbsToSegments(frameProbs, FRAME_SIZE, SILERO_SAMPLE_RATE);
   }
 
-  const sr = streamSession.sampleRate;
-  const resampled =
-    sr === SILERO_SAMPLE_RATE ? rawPcm : resampleLinear(rawPcm, sr, SILERO_SAMPLE_RATE);
-
-  // 拼接剩余 + 新数据 | Concatenate leftover + new data
-  const combined = new Float32Array(streamSession.leftover.length + resampled.length);
-  combined.set(streamSession.leftover);
-  combined.set(resampled, streamSession.leftover.length);
-
-  // 处理完整帧 | Process complete frames
-  const completeFrames = Math.floor(combined.length / FRAME_SIZE);
-  for (let fi = 0; fi < completeFrames; fi++) {
-    if (cancelledRequestIds.has(id)) {
-      streamSession = null;
-      self.postMessage({ type: 'error', id, message: 'VAD detect aborted' });
+  async function processStreamChunk(id: string, rawPcm: Float32Array): Promise<void> {
+    if (!streamSession || streamSession.id !== id) {
+      postMessage({
+        type: 'error',
+        id,
+        message: 'No active streaming session for this id',
+      });
       return;
     }
-    const frame = combined.slice(fi * FRAME_SIZE, (fi + 1) * FRAME_SIZE);
-    streamSession.frameProbs.push(await runSingleFrame(frame));
-    streamSession.processedFrames++;
-
-    if (streamSession.processedFrames % 16 === 0) {
-      self.postMessage({
-        type: 'progress',
-        id,
-        processedFrames: streamSession.processedFrames,
-        totalFrames: 0,
-        ratio: 0,
-      });
+    const active = streamSession;
+    if (cancelledRequestIds.has(id)) {
+      if (streamSession === active) streamSession = null;
+      postMessage({ type: 'error', id, message: 'VAD detect aborted' });
+      return;
     }
+
+    const sr = active.sampleRate;
+    const resampled =
+      sr === SILERO_SAMPLE_RATE ? rawPcm : resampleLinear(rawPcm, sr, SILERO_SAMPLE_RATE);
+
+    const combined = new Float32Array(active.leftover.length + resampled.length);
+    combined.set(active.leftover);
+    combined.set(resampled, active.leftover.length);
+
+    const completeFrames = Math.floor(combined.length / FRAME_SIZE);
+    for (let fi = 0; fi < completeFrames; fi++) {
+      if (cancelledRequestIds.has(id)) {
+        if (streamSession === active) streamSession = null;
+        postMessage({ type: 'error', id, message: 'VAD detect aborted' });
+        return;
+      }
+      if (streamSession !== active) return;
+      const frame = combined.slice(fi * FRAME_SIZE, (fi + 1) * FRAME_SIZE);
+      active.frameProbs.push(await runSingleFrame(active.silero, frame));
+      active.processedFrames++;
+
+      if (active.processedFrames % 16 === 0) {
+        postMessage({
+          type: 'progress',
+          id,
+          processedFrames: active.processedFrames,
+          totalFrames: 0,
+          ratio: 0,
+        });
+      }
+    }
+
+    active.leftover = combined.slice(completeFrames * FRAME_SIZE);
   }
 
-  // 保存剩余 | Keep leftover
-  streamSession.leftover = combined.slice(completeFrames * FRAME_SIZE);
+  async function finalizeStream(id: string): Promise<void> {
+    if (!streamSession || streamSession.id !== id) {
+      postMessage({
+        type: 'error',
+        id,
+        message: 'No active streaming session for this id',
+      });
+      return;
+    }
+    const active = streamSession;
+
+    const leftover = active.leftover;
+    const remainingFrames = Math.floor(leftover.length / FRAME_SIZE);
+    for (let fi = 0; fi < remainingFrames; fi++) {
+      if (streamSession !== active) return;
+      const frame = leftover.slice(fi * FRAME_SIZE, (fi + 1) * FRAME_SIZE);
+      active.frameProbs.push(await runSingleFrame(active.silero, frame));
+      active.processedFrames++;
+    }
+
+    const segments = frameProbsToSegments(active.frameProbs, FRAME_SIZE, SILERO_SAMPLE_RATE);
+
+    postMessage({
+      type: 'progress',
+      id,
+      processedFrames: active.processedFrames,
+      totalFrames: active.processedFrames,
+      ratio: 1,
+    });
+
+    postMessage({ type: 'result', id, segments });
+    cancelledRequestIds.delete(id);
+    if (streamSession === active) streamSession = null;
+  }
+
+  return async (event: MessageEvent) => {
+    const msg = event.data as {
+      type: string;
+      modelUrl?: string;
+      id?: string;
+      pcm?: Float32Array;
+      sampleRate?: number;
+    };
+
+    if (msg.type === 'workerpool:ping') {
+      postMessage({ type: 'workerpool:pong' });
+      return;
+    }
+
+    switch (msg.type) {
+      case 'init': {
+        try {
+          const runtime = await loadRuntime(msg.modelUrl ?? '/models/silero_vad.onnx');
+          ort = runtime.ort;
+          session = runtime.session;
+          postMessage({ type: 'ready' });
+        } catch (err) {
+          postMessage({
+            type: 'error',
+            message: `VAD init failed: ${err instanceof Error ? err.message : String(err)}`,
+          });
+        }
+        break;
+      }
+
+      case 'detect': {
+        if (!session) {
+          postMessage({ type: 'error', id: msg.id, message: 'VAD session not initialized' });
+          return;
+        }
+        // 这次检测自己的循环状态。失败、取消或与别的请求交错都不会留下共享残留。
+        // Recurrent state for this detect only. Failure, cancel, or interleaving leaves nothing shared.
+        const silero = createSileroStreamState();
+        try {
+          cancelledRequestIds.delete(msg.id!);
+          const pcm = msg.pcm!;
+          const sr = msg.sampleRate ?? SILERO_SAMPLE_RATE;
+          const resampled =
+            sr === SILERO_SAMPLE_RATE ? pcm : resampleLinear(pcm, sr, SILERO_SAMPLE_RATE);
+
+          const segments = await runSileroVad(resampled, silero, {
+            requestId: msg.id!,
+            shouldCancel: () => cancelledRequestIds.has(msg.id!),
+            onProgress: (processedFrames, totalFrames) => {
+              postMessage({
+                type: 'progress',
+                id: msg.id,
+                processedFrames,
+                totalFrames,
+                ratio: totalFrames > 0 ? processedFrames / totalFrames : 1,
+              });
+            },
+          });
+          cancelledRequestIds.delete(msg.id!);
+          postMessage({ type: 'result', id: msg.id, segments });
+        } catch (err) {
+          const aborted = cancelledRequestIds.has(msg.id!);
+          cancelledRequestIds.delete(msg.id!);
+          postMessage({
+            type: 'error',
+            id: msg.id,
+            message: aborted
+              ? 'VAD detect aborted'
+              : `VAD detect failed: ${err instanceof Error ? err.message : String(err)}`,
+          });
+        }
+        break;
+      }
+
+      case 'cancel': {
+        if (msg.id !== undefined && msg.id.length > 0) {
+          cancelledRequestIds.add(msg.id);
+        }
+        break;
+      }
+
+      case 'detect-stream-start': {
+        if (!session) {
+          postMessage({ type: 'error', id: msg.id, message: 'VAD session not initialized' });
+          return;
+        }
+        if (streamSession) {
+          postMessage({
+            type: 'error',
+            id: streamSession.id,
+            message: 'Streaming session superseded by new session',
+          });
+        }
+        cancelledRequestIds.delete(msg.id!);
+        streamSession = {
+          id: msg.id!,
+          sampleRate: msg.sampleRate ?? SILERO_SAMPLE_RATE,
+          leftover: new Float32Array(0),
+          frameProbs: [],
+          processedFrames: 0,
+          silero: createSileroStreamState(),
+        };
+        streamProcessQueue = Promise.resolve();
+        break;
+      }
+
+      case 'detect-stream-chunk': {
+        if (!streamSession || streamSession.id !== msg.id) {
+          postMessage({
+            type: 'error',
+            id: msg.id,
+            message: 'No active streaming session for this id',
+          });
+          return;
+        }
+        if (cancelledRequestIds.has(msg.id!)) return;
+        const chunkPcm = msg.pcm!;
+        streamProcessQueue = streamProcessQueue.then(() => processStreamChunk(msg.id!, chunkPcm));
+        break;
+      }
+
+      case 'detect-stream-end': {
+        if (!streamSession || streamSession.id !== msg.id) {
+          postMessage({
+            type: 'error',
+            id: msg.id,
+            message: 'No active streaming session for this id',
+          });
+          return;
+        }
+        streamProcessQueue = streamProcessQueue.then(() => finalizeStream(msg.id!));
+        break;
+      }
+
+      case 'reset': {
+        streamSession = null;
+        break;
+      }
+
+      default:
+        postMessage({ type: 'error', message: `Unknown message type: ${msg.type}` });
+    }
+  };
 }
 
-/**
- * 结束流式会话：处理剩余帧、后处理、返回结果。
- * Finalize streaming session: process remaining frames, post-process, return results.
- */
-async function finalizeStream(id: string): Promise<void> {
-  if (!streamSession || streamSession.id !== id) return;
+function isDedicatedWorkerScope(): boolean {
+  const ctor = (globalThis as { DedicatedWorkerGlobalScope?: new () => object })
+    .DedicatedWorkerGlobalScope;
+  return typeof ctor === 'function' && globalThis instanceof ctor;
+}
 
-  // 处理剩余完整帧 | Process remaining complete frames
-  const leftover = streamSession.leftover;
-  const remainingFrames = Math.floor(leftover.length / FRAME_SIZE);
-  for (let fi = 0; fi < remainingFrames; fi++) {
-    const frame = leftover.slice(fi * FRAME_SIZE, (fi + 1) * FRAME_SIZE);
-    streamSession.frameProbs.push(await runSingleFrame(frame));
-    streamSession.processedFrames++;
-  }
-
-  const segments = frameProbsToSegments(streamSession.frameProbs, FRAME_SIZE, SILERO_SAMPLE_RATE);
-
-  self.postMessage({
-    type: 'progress',
-    id,
-    processedFrames: streamSession.processedFrames,
-    totalFrames: streamSession.processedFrames,
-    ratio: 1,
+function bindDedicatedWorkerHandler(): void {
+  const scope = globalThis as typeof globalThis & {
+    postMessage: (message: unknown) => void;
+    onmessage: ((event: MessageEvent) => void) | null;
+  };
+  const handler = createVadWorkerHandler((message) => {
+    scope.postMessage(message);
   });
+  scope.onmessage = (event: MessageEvent) => {
+    void handler(event);
+  };
+}
 
-  self.postMessage({ type: 'result', id, segments });
-  cancelledRequestIds.delete(id);
-  streamSession = null;
+if (isDedicatedWorkerScope()) {
+  bindDedicatedWorkerHandler();
 }
