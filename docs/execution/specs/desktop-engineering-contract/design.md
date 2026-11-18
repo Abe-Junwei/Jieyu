@@ -3,7 +3,7 @@ title: desktop-engineering-contract design
 doc_type: execution-spec-design
 status: draft
 owner: repo
-last_reviewed: 2026-11-01
+last_reviewed: 2026-11-18
 source_of_truth: desktop-engineering-contract-spec
 depends_on:
   - ./requirements.md
@@ -95,3 +95,26 @@ depends_on:
 已修正：prepare锁死自身flush、退出先保存而被查询锁阻塞、未提交结果缺迟到请求栅栏、旧版本重试压过新输入、备份快照至媒体pin的竞态、主文件/报告假原子与替换结果未知；并补齐多值否定、跨段缺有限关系、媒体轴小数时间、复合义项身份和字段迁移集合漂移。具体反例随对应专项稿保留，后续必须实现故障断言。
 
 本轮只通过文档静态一致性审查；包装器/ZIP64/文件原语的实测锁定、载荷版本冻结、外部工具往返及8GB容量仍未通过。不能把审查通过当作任何产品门通过，代码实施仍须首片Plan确认。
+
+## 7. 唯一执行队列的条款归属（2026-11-18）
+
+切片 1b 的逐条对照在[转写编辑 design §4](../desktop-4ws-slice1b-transcription-editing/design.md)。切片 2–7 开规格时只抄本片那一行，开工先读 [ADR-0100](../../../adr/0100-desktop-engineering-contract.md) 与 [ADR-0099](../../../adr/0099-desktop-product-design-and-release-contract.md) 对应条款原文，逐条写怎么遵守；与条款冲突回用户定，不自行改规则。
+
+| 切片 | 条款 |
+| --- | --- |
+| 2 IGT 与局部复核 | E03、E04；R03 |
+| 3 完整词典与项目字段 | E05、E07；R05 |
+| 4 专业查询 | E08、E09、E10；R06、R07 |
+| 5 AI 建议审核 | E11；R08 |
+| 6 导入、成果与备份 | E12；R10 |
+| 7 首发终验 | E13、E14；R11；本节 V01–V19 |
+
+第二程 [#285](https://github.com/Abe-Junwei/Jieyu/issues/285) 本程不排。下面只收已经写进规格的部分，开工引用、不再重问；没有规格的条目（VAD、外链视频层、命名工作视图等）不在此表，排到时才单独立规格。
+
+| 已有规格的第二程内容 | 规格 | 已定、不再重问 |
+| --- | --- | --- |
+| 模型下载、持久设置、转码、随包 | [ADR-0098](../../../adr/0098-model-delivery-followups-in-second-stage.md)；[本机 Whisper](../desktop-local-whisper/design.md)、[模拟候选](../desktop-model-candidates/design.md) | 不挡第一程；已完成宿主、采纳与 Whisper 闭环保留；延期不等于通过；默认关，不自动打开 |
+| 临时词项 FR-070/074/075 | [字段词典](../desktop-field-editor/design.md) | 同词典标待确认、默认不发布、研究导出可含；禁止用 `access_rights` 或 E02 草稿冒充 |
+| 相邻合并候选扫描 | [分析时间](../desktop-analysis-time/design.md) | 扫描留第二程；保下级、不编造时间、冲突阻断属第一程 1b/2 |
+| 字幕、片段媒体、版式复用 | [文件格式](../desktop-file-formats/design.md) | FR-080 空文本与无时间不生成条、不编造时间；EF-010 扩到完整边界并预览确认；EF-013 复用 ExportPlan／ExportReport |
+| B16a／B16b／B17 | [查询](../corpus-analysis-query-tools/design.md)、[主张核对](../corpus-analysis-report/design.md)、[外部证据](../corpus-external-evidence/design.md) | 已落地、flag 默认关；三工具只读；主张必须对上本次结果行 id；多步只走 ToolLoopAgent（[ADR-0056](../../../adr/0056-single-agent-runtime-toolloopagent.md)）；外发过 [ADR-0055](../../../adr/0055-corpus-analysis-cloud-forms.md) |
