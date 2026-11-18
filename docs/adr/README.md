@@ -37,7 +37,7 @@ source_of_truth: decision-index
 | 共用定义、定义副本、清单缓存、操作 id、同名合并时机                                                                                                       | ADR-0060 第 2、3、4、7 条。词条、标签定义、自定义字段定义、缩写不进定义副本，见 ADR-0070                                                                                                                 | ADR-0060 第 5、6 条（分块、`VACUUM INTO`）；把这四类目录复制进每份 `.jyd`                                                |
 | 隐藏、系统垃圾箱、协作删除只动本机                                                                                                                        | ADR-0087：首发不做独立隐藏。录音满足清除条件后才送系统垃圾箱，文稿不是被送走的文件。协作删除仍只动本机 | 按 ADR-0058-card 第 5、6 条做独立隐藏，或把文稿立即送垃圾箱 |
 | IndexedDB 归哪一层                                                                                                                                        | ADR-0058-indexeddb 管浏览器库归层。项目文件夹以 ADR-0085 为准                                                                                                                                               | 该篇里「项目内容全进 `project.sqlite` + `media/`」                                                                       |
-| D14 冻结                                                                                                                                                  | 开发格式现为 user_version 28（[ADR-0121](./0121-text-save-receipt-and-draft.md)）：正文保存回执与未生效草稿。一份文稿一条录音，父链接不跨文稿。不兼容文件拒绝打开且不改字节，不做迁移器（ADR-0086）。受控合成项目删文件夹后重开。不再等 #281、#326。不关闭 #259 | 把 user_version 27 的文件补列后打开；为开发库写迁移器。ADR-0046 第 8 条和试用地图里的「冻结对象 = SQLite + `media/`」；把 #281、#326 当冻结前置 |
+| D14 冻结                                                                                                                                                  | 开发格式现为 user_version 28（[ADR-0121](./0121-text-save-receipt-and-draft.md)）：正文保存回执与未生效草稿。[ADR-0122](./0122-integer-milliseconds-and-optional-media.md) 已决定下一版为 29（整数毫秒，文稿可以不挂录音），落地前代码仍是 28。父链接不跨文稿。不兼容文件拒绝打开且不改字节，不做迁移器（ADR-0086）。受控合成项目删文件夹后重开。不再等 #281、#326。不关闭 #259 | 把 user_version 27 的文件补列后打开；为开发库写迁移器。ADR-0046 第 8 条和试用地图里的「冻结对象 = SQLite + `media/`」；把 #281、#326 当冻结前置 |
 | `unit_relations`、`user_notes` 放哪                                                                                                                       | ADR-0085：备注在 `notes`，关系不跨文稿。标记删除保留备注；最终清除时同一事务删掉所属备注（ADR-0087） | 按 ADR-0062 第 3、4 条把备注拆进 `.jyd`；用户一删除就清掉备注 |
 | 存储接口的边界                                                                                                                                            | ADR-0085：一次业务操作一次事务，调用方不传表名。弹窗和订阅仍分开（ADR-0062 第 7 条这一句） | 把新库装回旧 StoragePort；把弹窗、订阅、业务操作收进同一个可选 `files` 对象 |
 | 会话记忆载荷                                                                                                                                              | 能力保留。ADR-0085 未列此表。接替前另写 ADR，不塞进 `settings_json`（ADR-0086） | 沿 ADR-0066 直接建 `ai_session_memories`，或放进 `.jyd` |
@@ -71,6 +71,7 @@ source_of_truth: decision-index
 
 ## 本轮范围与生命周期
 
+- [0122：整数毫秒、文稿可以不挂录音](./0122-integer-milliseconds-and-optional-media.md)
 - [0121：正文保存回执与未生效草稿进项目库](./0121-text-save-receipt-and-draft.md)
 - [0120：转写人确定度改用状态色圆形徽标](./0120-transcriber-certainty-as-status-badge.md)
 - [0119：向导步骤、标签页、路径与轻提示接入主题色](./0119-theme-accent-for-steps-tabs-paths-and-quiet-indicators.md)

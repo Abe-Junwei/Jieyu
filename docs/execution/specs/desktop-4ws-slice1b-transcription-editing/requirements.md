@@ -3,7 +3,7 @@ title: desktop-4ws-slice1b-transcription-editing requirements
 doc_type: execution-spec-requirements
 status: draft
 owner: repo
-last_reviewed: 2026-11-17
+last_reviewed: 2026-11-18
 source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 ---
 
@@ -13,7 +13,7 @@ source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 
 - **要做什么**：在桌面转写工作区接上波形、播放、时间轴，按 ADR-0100 E06 交付边界、拆分、合并、点层与撤销，写入单库并可重开读回。
 - **为什么现在做**：主路线图 2026-11-02 唯一执行队列 1b；1a（[#556](https://github.com/Abe-Junwei/Jieyu/issues/556)）合入后开工。现有单库写操作与 E06 有差额（design §1）。
-- **不做什么**：VAD／自动分段（FR-072）、自动对齐、口译轨、相邻合并候选扫描（EF-018 推荐半片，第二程）、按参与者复制层（EF-017）、右栏检查器（精稿已撤回）、ELAN 推土机／平移模式。
+- **不做什么**：VAD／自动分段（FR-072）、自动对齐、口译轨、相邻合并候选扫描（EF-018 推荐半片，第二程）、按参与者复制层（EF-017）、右栏检查器（精稿已撤回）、ELAN 推土机／平移模式、给没录音的句段编造时间。
 
 ## 2. 用户场景
 
@@ -23,7 +23,8 @@ source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 
 ## 3. 验收标准（每片各自验收，见 tasks）
 
-- [ ] 内部时间为整数毫秒，开始早于结束；导入取整按 E06（恰半毫秒向后）
+- [ ] 内部时间为整数毫秒并改名（`startMs`／`endMs`、`timeMs`、`rangeStartMs`／`rangeEndMs`），开始早于结束；导入取整经 `timeMs.ts`（恰半毫秒向时间轴正方向）
+- [ ] 文稿可以不挂录音：按 `sort_order` 和字数排版，时间可空；部分对齐时已对齐段的时间与顺序一致，未对齐段夹在中间。没录音不能新建点层。解除录音关联保留已有句段时间和点（ADR-0122）
 - [ ] 同层区间不重叠、可相接；不同说话人／层的跨轨重叠合法（R04）；超出媒体范围按文献轴映射判断后拒绝
 - [ ] 拖动到非法位置按 E06 回退；时间码框里的半成品按 E02 存为草稿，不回退
 - [ ] 默认单边移动；Shift 拖动联动共用边界，右键菜单同一动作；键盘先选中共用边界再用方向键移；同一步保存与撤销
@@ -55,6 +56,6 @@ source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 
 ## 5. 已知风险与依赖
 
-- 依赖 1a 合入；`useDesktopProjectReadController` 需先拆到 300 行内（守卫例外 30 天）。
+- 1a 已合入，读控制器已拆到 300 行内（[#559](https://github.com/Abe-Junwei/Jieyu/issues/559)）。
 - 改旧组件 props 可能影响 ReadyWorkspace：同 PR 跑 `test:e2e:chromium`。
 - 格式变更须新 ADR，只重建合成项目，旧库拒绝且不改字节（D14 之后的规则）。
