@@ -38,8 +38,8 @@ describe('desktop project create', () => {
     });
     const unit = created.units.create({
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1.2,
+      startMs: 0,
+      endMs: 1200,
       text: '句子',
     });
     expect(created.manuscripts.get('missing')).toBeNull();
@@ -72,8 +72,8 @@ describe('desktop project create', () => {
     });
     const kept = created.units.create({
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: '旧句子',
     });
     expect(() =>
@@ -81,8 +81,8 @@ describe('desktop project create', () => {
         created.db,
         {
           layerId: layer.id,
-          startTime: 1,
-          endTime: 2,
+          startMs: 1,
+          endMs: 2,
           text: '失败',
         },
         () => {
@@ -97,8 +97,8 @@ describe('desktop project create', () => {
     expect(reopened.db.prepare('SELECT body FROM unit_texts').all()).toEqual([{ body: '旧句子' }]);
     const next = reopened.units.create({
       layerId: layer.id,
-      startTime: 1,
-      endTime: 2,
+      startMs: 1,
+      endMs: 2,
       text: '新句子',
     });
     reopened.close();

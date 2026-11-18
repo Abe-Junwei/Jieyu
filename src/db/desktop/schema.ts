@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. ADR-0121 moved this to 28. A later table change needs a new decision and a new freeze record. */
-export const DESKTOP_PROJECT_USER_VERSION = 28;
+export const DESKTOP_PROJECT_USER_VERSION = 29;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -70,16 +70,7 @@ CREATE TABLE speakers (
 CREATE TABLE manuscripts (
   id TEXT PRIMARY KEY,
   title_json TEXT NOT NULL,
-  media_id TEXT NOT NULL REFERENCES media(id),
-  logical_duration_sec REAL CHECK (logical_duration_sec IS NULL OR logical_duration_sec > 0),
-  time_mapping_json TEXT CHECK (
-    time_mapping_json IS NULL OR (
-      json_valid(time_mapping_json) AND json_type(time_mapping_json) = 'object'
-    )
-  ),
-  time_mapping_history_json TEXT NOT NULL DEFAULT '[]' CHECK (
-    json_valid(time_mapping_history_json) AND json_type(time_mapping_history_json) = 'array'
-  ),
+  media_id TEXT REFERENCES media(id),
   export_timeline_mode TEXT CHECK (
     export_timeline_mode IS NULL OR export_timeline_mode IN ('document', 'media')
   ),
@@ -301,7 +292,7 @@ CREATE TABLE layers (
   key TEXT NOT NULL,
   name_json TEXT NOT NULL,
   tier_type TEXT NOT NULL CHECK (tier_type IN (
-    'time-aligned', 'time-subdivision', 'symbolic-subdivision', 'symbolic-association'
+    'time-aligned', 'time-subdivision', 'symbolic-subdivision', 'symbolic-association', 'point'
   )),
   content_type TEXT NOT NULL CHECK (content_type IN (
     'transcription', 'translation', 'gloss', 'pos', 'note', 'custom'
@@ -322,8 +313,9 @@ CREATE TABLE units (
   layer_id TEXT NOT NULL REFERENCES layers(id),
   speaker_id TEXT REFERENCES speakers(id),
   parent_unit_id TEXT,
-  start_time REAL NOT NULL,
-  end_time REAL NOT NULL CHECK (end_time >= start_time),
+  sort_order INTEGER NOT NULL,
+  start_ms INTEGER,
+  end_ms INTEGER,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   analysis_graph_json TEXT CHECK (
@@ -338,7 +330,9 @@ CREATE TABLE units (
   CHECK (
     (analysis_graph_json IS NULL AND graph_fingerprint = '') OR
     (analysis_graph_json IS NOT NULL AND length(graph_fingerprint) = 64)
-  )
+  ),
+  CHECK ((start_ms IS NULL) = (end_ms IS NULL)),
+  CHECK (start_ms IS NULL OR (start_ms >= 0 AND start_ms < end_ms))
 );
 
 CREATE TRIGGER units_parent_same_manuscript_insert
@@ -370,6 +364,73 @@ BEGIN
     SELECT manuscript_id FROM layers WHERE id = NEW.layer_id
   );
 END;
+
+CREATE TRIGGER units_aligned_order_insert
+BEFORE INSERT ON units
+WHEN NEW.start_ms IS NOT NULL
+BEGIN
+  SELECT RAISE(ABORT, 'aligned unit time is out of order')
+  WHERE EXISTS (
+    SELECT 1 FROM units
+    WHERE units.layer_id = NEW.layer_id
+      AND units.start_ms IS NOT NULL
+      AND (
+        (units.sort_order < NEW.sort_order AND units.start_ms > NEW.start_ms)
+        OR (units.sort_order > NEW.sort_order AND units.start_ms < NEW.start_ms)
+      )
+  );
+END;
+
+CREATE TRIGGER units_aligned_order_update
+BEFORE UPDATE OF sort_order, start_ms, end_ms, layer_id ON units
+WHEN NEW.start_ms IS NOT NULL
+BEGIN
+  SELECT RAISE(ABORT, 'aligned unit time is out of order')
+  WHERE EXISTS (
+    SELECT 1 FROM units
+    WHERE units.id <> NEW.id
+      AND units.layer_id = NEW.layer_id
+      AND units.start_ms IS NOT NULL
+      AND (
+        (units.sort_order < NEW.sort_order AND units.start_ms > NEW.start_ms)
+        OR (units.sort_order > NEW.sort_order AND units.start_ms < NEW.start_ms)
+      )
+  );
+END;
+
+CREATE TRIGGER layers_point_needs_media_insert
+BEFORE INSERT ON layers
+WHEN NEW.tier_type = 'point'
+BEGIN
+  SELECT RAISE(ABORT, 'a point layer needs a recording')
+  WHERE (SELECT media_id FROM manuscripts WHERE id = NEW.manuscript_id) IS NULL;
+END;
+
+CREATE TABLE points (
+  id TEXT PRIMARY KEY,
+  layer_id TEXT NOT NULL REFERENCES layers(id),
+  time_ms INTEGER NOT NULL CHECK (typeof(time_ms) = 'integer' AND time_ms >= 0),
+  label TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (layer_id, time_ms)
+);
+
+CREATE TRIGGER points_need_point_layer_insert
+BEFORE INSERT ON points
+BEGIN
+  SELECT RAISE(ABORT, 'a point belongs on a point layer')
+  WHERE (SELECT tier_type FROM layers WHERE id = NEW.layer_id) IS NOT 'point';
+END;
+
+CREATE TABLE unit_identity_links (
+  id TEXT PRIMARY KEY,
+  operation_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('split', 'merge')),
+  old_unit_id TEXT NOT NULL,
+  new_unit_id TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
 
 CREATE TABLE unit_texts (
   id TEXT PRIMARY KEY,
@@ -760,8 +821,8 @@ CREATE TABLE model_runs (
   manifest_sha256 TEXT NOT NULL CHECK (length(manifest_sha256) > 0),
   capability TEXT NOT NULL CHECK (capability = 'transcribe'),
   params_json TEXT NOT NULL CHECK (json_valid(params_json) AND json_type(params_json) = 'object'),
-  range_start REAL NOT NULL,
-  range_end REAL NOT NULL CHECK (range_end >= range_start),
+  range_start_ms INTEGER NOT NULL,
+  range_end_ms INTEGER NOT NULL CHECK (range_end_ms >= range_start_ms),
   started_at TEXT NOT NULL,
   finished_at TEXT,
   status TEXT NOT NULL CHECK (status IN ('running', 'ok', 'error', 'cancelled', 'interrupted')),
@@ -830,8 +891,7 @@ END;
 
 -- ponytail: one trigger per content table. A check in every writer gets missed.
 CREATE TRIGGER manuscripts_reject_update_when_deleted
-BEFORE UPDATE OF title_json, media_id, logical_duration_sec, time_mapping_json,
-  time_mapping_history_json, export_timeline_mode, tier_roles_json, generation
+BEFORE UPDATE OF title_json, media_id, export_timeline_mode, tier_roles_json, generation
 ON manuscripts
 WHEN OLD.deleted_at IS NOT NULL AND NEW.deleted_at IS NOT NULL
 BEGIN

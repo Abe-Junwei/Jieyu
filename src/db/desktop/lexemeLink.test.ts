@@ -131,8 +131,8 @@ describe('token lexeme link', () => {
     });
     const unit = project.units.create({
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'ka-ra',
     });
     project.close();
@@ -303,8 +303,8 @@ function seed(dir: string): void {
     ) VALUES (?, ?, ?, '{"en":"Transcription"}', 'time-aligned', 'transcription', 0, ?, ?)`,
   ).run('ly1', 'ms1', 'tx', T, T);
   db.prepare(
-    'INSERT INTO units (id, layer_id, start_time, end_time, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-  ).run('u1', 'ly1', 0, 1, T, T);
+    'INSERT INTO units (id, layer_id, sort_order, start_ms, end_ms, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  ).run('u1', 'ly1', 0, 0, 1, T, T);
   db.prepare(
     `INSERT INTO tokens (
       id, unit_id, token_index, form_json, gloss_json, created_at, updated_at

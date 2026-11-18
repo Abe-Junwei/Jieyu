@@ -123,7 +123,6 @@ export function DesktopProjectReadPage() {
           units={read.model.units}
           notes={read.notes}
           audioUrl={read.model.audioUrl}
-          timeMapping={selected?.timeMapping ?? null}
           emptyLabel={t(locale, 'app.desktopRead.empty')}
           audioLabel={t(locale, 'app.desktopRead.audio')}
           textLabel={t(locale, 'app.desktopRead.text')}
@@ -134,9 +133,6 @@ export function DesktopProjectReadPage() {
           mergeNextLabel={t(locale, 'app.desktopRead.mergeNext')}
           boundaryLabel={t(locale, 'app.desktopRead.boundary')}
           moveBoundaryLabel={t(locale, 'app.desktopRead.moveBoundary')}
-          offsetLabel={t(locale, 'app.desktopRead.offset')}
-          scaleLabel={t(locale, 'app.desktopRead.scale')}
-          saveMappingLabel={t(locale, 'app.desktopRead.saveMapping')}
           noteLabel={t(locale, 'app.desktopRead.note')}
           saveNoteLabel={t(locale, 'app.desktopRead.saveNote')}
           saveTimelineNoteLabel={t(locale, 'app.desktopRead.saveTimelineNote')}
@@ -157,7 +153,10 @@ export function DesktopProjectReadPage() {
           onSplit={read.splitUnit}
           onMerge={read.mergeUnits}
           onMoveBoundary={read.moveBoundary}
-          onSaveMapping={read.saveMapping}
+          offsetLabel={t(locale, 'app.desktopRead.offset')}
+          scaleLabel={t(locale, 'app.desktopRead.scale')}
+          retimeLabel={t(locale, 'app.desktopRead.saveMapping')}
+          onRetime={read.retime}
           onSaveNote={read.saveUnitNote}
           onSaveTierNote={read.saveTierNote}
           noteSessionId={read.sessionId}

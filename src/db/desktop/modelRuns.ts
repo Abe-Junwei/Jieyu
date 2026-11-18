@@ -1,9 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
-import { invertTextTimeMapping } from '../../services/LinguisticService.timeMapping';
 import { writeUnitFieldValues } from './customFields';
-import { getManuscript } from './manuscripts';
-import { assertUnitTextRoleFree } from './units';
+import { allocateUnitSort, assertUnitTextRoleFree } from './units';
+import { secondsToMs } from './timeMs';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -20,8 +19,8 @@ export interface ModelRun {
   manifestSha256: string;
   capability: 'transcribe';
   params: Record<string, unknown>;
-  rangeStart: number;
-  rangeEnd: number;
+  rangeStartMs: number;
+  rangeEndMs: number;
   startedAt: string;
   finishedAt: string | null;
   status: ModelRunStatus;
@@ -40,8 +39,8 @@ export interface ModelRunStart {
   modelVersion: string;
   manifestSha256: string;
   params: Record<string, unknown>;
-  rangeStart: number;
-  rangeEnd: number;
+  rangeStartMs: number;
+  rangeEndMs: number;
 }
 
 export type ModelRunFinish =
@@ -61,8 +60,8 @@ export interface PreviewCandidate {
   segmentIndex: number;
   mediaStart: number;
   mediaEnd: number;
-  manuscriptStart: number;
-  manuscriptEnd: number;
+  startMs: number;
+  endMs: number;
   targetFingerprint: string;
   occupied: boolean;
 }
@@ -73,8 +72,8 @@ export interface TranscriptionAcceptance {
   candidateId: string;
   unitId: string;
   text: string;
-  startTime: number;
-  endTime: number;
+  startMs: number;
+  endMs: number;
   modelRunId: string;
 }
 
@@ -89,8 +88,8 @@ interface RunRow {
   manifest_sha256: string;
   capability: 'transcribe';
   params_json: string;
-  range_start: number;
-  range_end: number;
+  range_start_ms: number;
+  range_end_ms: number;
   started_at: string;
   finished_at: string | null;
   status: ModelRunStatus;
@@ -104,17 +103,17 @@ interface RunRow {
 
 interface OverlapRow {
   id: string;
-  start_time: number;
-  end_time: number;
+  start_ms: number;
+  end_ms: number;
   body: string;
 }
 
 const RUN_COLUMNS = `id, manuscript_id, media_id, layer_id, lifecycle_generation, model_id, model_version,
-  manifest_sha256, capability, params_json, range_start, range_end, started_at, finished_at, status,
+  manifest_sha256, capability, params_json, range_start_ms, range_end_ms, started_at, finished_at, status,
   error_code, chunk_count, accepted_count, rejected_count, pending_count, abandoned_count`;
 
 export function startModelRun(db: SqliteDatabase, input: ModelRunStart): ModelRun {
-  if (!orderedRange(input.rangeStart, input.rangeEnd)) {
+  if (!orderedRange(input.rangeStartMs, input.rangeEndMs)) {
     throw new Error('transcription range is invalid');
   }
   const now = new Date().toISOString();
@@ -142,7 +141,7 @@ export function startModelRun(db: SqliteDatabase, input: ModelRunStart): ModelRu
     db.prepare(
       `INSERT INTO model_runs (
         id, manuscript_id, media_id, layer_id, lifecycle_generation, model_id, model_version,
-        manifest_sha256, capability, params_json, range_start, range_end, started_at, status
+        manifest_sha256, capability, params_json, range_start_ms, range_end_ms, started_at, status
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'transcribe', ?, ?, ?, ?, 'running')`,
     ).run(
       id,
@@ -154,8 +153,8 @@ export function startModelRun(db: SqliteDatabase, input: ModelRunStart): ModelRu
       input.modelVersion,
       input.manifestSha256,
       JSON.stringify(input.params),
-      input.rangeStart,
-      input.rangeEnd,
+      input.rangeStartMs,
+      input.rangeEndMs,
       now,
     );
     const run = getModelRun(db, id);
@@ -199,14 +198,14 @@ export function finishModelRun(db: SqliteDatabase, input: ModelRunFinish): Model
 
 export interface AcceptableRun {
   id: string;
-  rangeStart: number;
-  rangeEnd: number;
+  rangeStartMs: number;
+  rangeEndMs: number;
 }
 
 export function listAcceptableRuns(db: SqliteDatabase, manuscriptId: string): AcceptableRun[] {
   return db
     .prepare(
-      `SELECT model_runs.id, model_runs.range_start AS rangeStart, model_runs.range_end AS rangeEnd
+      `SELECT model_runs.id, model_runs.range_start_ms AS rangeStartMs, model_runs.range_end_ms AS rangeEndMs
        FROM model_runs
        JOIN manuscripts ON manuscripts.id = model_runs.manuscript_id
        WHERE model_runs.manuscript_id = ?
@@ -221,7 +220,7 @@ export function listAcceptableRuns(db: SqliteDatabase, manuscriptId: string): Ac
 export function previewModelRun(
   db: SqliteDatabase,
   input: { runId: string; candidates: PreviewCandidateInput[] },
-): { pendingCount: number; timeMappingRevision: number; candidates: PreviewCandidate[] } {
+): { pendingCount: number; candidates: PreviewCandidate[] } {
   const write = db.transaction(() => {
     const run = requireRun(db, input.runId);
     if (run.status !== 'running' && run.status !== 'ok') {
@@ -256,7 +255,6 @@ export function previewModelRun(
     }
     return {
       pendingCount: stored.pendingCount,
-      timeMappingRevision: mappingOf(db, run.manuscriptId).revision,
       candidates: placed,
     };
   });
@@ -306,7 +304,6 @@ export function acceptTranscriptionCandidate(
     segmentIndex: number;
     mediaStart: number;
     mediaEnd: number;
-    timeMappingRevision: number;
     targetFingerprint: string;
     text: string;
   },
@@ -319,13 +316,10 @@ export function acceptTranscriptionCandidate(
     assertInsideRun(run, input.mediaStart, input.mediaEnd);
     if (run.pendingCount < 1) throw new Error('transcription run has no pending candidate');
     requireCurrentLifecycle(db, run);
-    const mapping = mappingOf(db, run.manuscriptId);
-    if (mapping.revision !== input.timeMappingRevision)
-      throw new Error('transcription preview is stale');
-    const manuscriptStart = invertTextTimeMapping(input.mediaStart, mapping);
-    const manuscriptEnd = invertTextTimeMapping(input.mediaEnd, mapping);
-    if (!(manuscriptEnd > manuscriptStart)) throw new Error('transcription time is invalid');
-    const overlaps = overlappingTexts(db, run.layerId, manuscriptStart, manuscriptEnd);
+    const startMs = secondsToMs(input.mediaStart);
+    const endMs = secondsToMs(input.mediaEnd);
+    if (!(endMs > startMs)) throw new Error('transcription time is invalid');
+    const overlaps = overlappingTexts(db, run.layerId, startMs, endMs);
     if (overlaps.length > 0) throw new Error('transcription target is occupied');
     if (targetFingerprint(overlaps) !== input.targetFingerprint) {
       throw new Error('transcription preview is stale');
@@ -351,9 +345,17 @@ export function acceptTranscriptionCandidate(
     assertUnitTextRoleFree(db, unitId, 'transcription');
     db.prepare(
       `INSERT INTO units (
-        id, layer_id, start_time, end_time, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run(unitId, run.layerId, manuscriptStart, manuscriptEnd, now, now);
+        id, layer_id, sort_order, start_ms, end_ms, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      unitId,
+      run.layerId,
+      allocateUnitSort(db, run.layerId, startMs),
+      startMs,
+      endMs,
+      now,
+      now,
+    );
     db.prepare(
       `INSERT INTO unit_texts (id, unit_id, role, body, provenance_json, updated_at)
        VALUES (?, ?, 'transcription', ?, ?, ?)`,
@@ -496,8 +498,8 @@ export function getModelRun(db: SqliteDatabase, id: string): ModelRun | null {
     manifestSha256: row.manifest_sha256,
     capability: row.capability,
     params: params as Record<string, unknown>,
-    rangeStart: row.range_start,
-    rangeEnd: row.range_end,
+    rangeStartMs: row.range_start_ms,
+    rangeEndMs: row.range_end_ms,
     startedAt: row.started_at,
     finishedAt: row.finished_at,
     status: row.status,
@@ -521,8 +523,8 @@ export function readTranscriptionAcceptance(
               transcription_acceptances.candidate_id AS candidateId,
               transcription_acceptances.unit_id AS unitId,
               unit_texts.body AS text,
-              units.start_time AS startTime,
-              units.end_time AS endTime,
+              units.start_ms AS startMs,
+              units.end_ms AS endMs,
               unit_texts.provenance_json AS provenanceJson
        FROM transcription_acceptances
        JOIN units ON units.id = transcription_acceptances.unit_id
@@ -536,8 +538,8 @@ export function readTranscriptionAcceptance(
         candidateId: string;
         unitId: string;
         text: string;
-        startTime: number;
-        endTime: number;
+        startMs: number;
+        endMs: number;
         provenanceJson: string | null;
       }
     | undefined;
@@ -552,8 +554,8 @@ export function readTranscriptionAcceptance(
     candidateId: row.candidateId,
     unitId: row.unitId,
     text: row.text,
-    startTime: row.startTime,
-    endTime: row.endTime,
+    startMs: row.startMs,
+    endMs: row.endMs,
     modelRunId,
   };
 }
@@ -565,7 +567,9 @@ function requireRun(db: SqliteDatabase, id: string): ModelRun {
 }
 
 function assertInsideRun(run: ModelRun, start: number, end: number): void {
-  if (start < run.rangeStart || end > run.rangeEnd) {
+  const startMs = secondsToMs(start);
+  const endMs = secondsToMs(end);
+  if (startMs < run.rangeStartMs || endMs > run.rangeEndMs) {
     throw new Error('transcription range is outside the run');
   }
 }
@@ -584,27 +588,8 @@ function requireCurrentLifecycle(db: SqliteDatabase, run: ModelRun): void {
 export function modelRunTarget(db: SqliteDatabase, runId: string) {
   const run = requireRun(db, runId);
   requireCurrentLifecycle(db, run);
-  const mapping = mappingOf(db, run.manuscriptId);
-  const rows = overlappingTexts(
-    db,
-    run.layerId,
-    invertTextTimeMapping(run.rangeStart, mapping),
-    invertTextTimeMapping(run.rangeEnd, mapping),
-  );
-  return { revision: mapping.revision, fingerprint: targetFingerprint(rows) };
-}
-
-function mappingOf(
-  db: SqliteDatabase,
-  manuscriptId: string,
-): { offsetSec: number; scale: number; revision: number } {
-  const manuscript = getManuscript(db, manuscriptId);
-  if (!manuscript) throw new Error('transcription manuscript is missing');
-  return {
-    offsetSec: manuscript.timeMapping?.offsetSec ?? 0,
-    scale: manuscript.timeMapping?.scale ?? 1,
-    revision: manuscript.timeMappingRevision,
-  };
+  const rows = overlappingTexts(db, run.layerId, run.rangeStartMs, run.rangeEndMs);
+  return { fingerprint: targetFingerprint(rows) };
 }
 
 function placeCandidate(
@@ -612,19 +597,18 @@ function placeCandidate(
   run: ModelRun,
   candidate: PreviewCandidateInput,
 ): PreviewCandidate {
-  const mapping = mappingOf(db, run.manuscriptId);
-  const manuscriptStart = invertTextTimeMapping(candidate.mediaStart, mapping);
-  const manuscriptEnd = invertTextTimeMapping(candidate.mediaEnd, mapping);
-  if (!(manuscriptEnd > manuscriptStart)) throw new Error('transcription time is invalid');
-  const overlaps = overlappingTexts(db, run.layerId, manuscriptStart, manuscriptEnd);
+  const startMs = secondsToMs(candidate.mediaStart);
+  const endMs = secondsToMs(candidate.mediaEnd);
+  if (!(endMs > startMs)) throw new Error('transcription time is invalid');
+  const overlaps = overlappingTexts(db, run.layerId, startMs, endMs);
   return {
     candidateId: candidateIdentity(candidate.chunkIndex, candidate.segmentIndex),
     chunkIndex: candidate.chunkIndex,
     segmentIndex: candidate.segmentIndex,
     mediaStart: candidate.mediaStart,
     mediaEnd: candidate.mediaEnd,
-    manuscriptStart,
-    manuscriptEnd,
+    startMs,
+    endMs,
     targetFingerprint: targetFingerprint(overlaps),
     occupied: overlaps.length > 0,
   };
@@ -638,10 +622,10 @@ function overlappingTexts(
 ): OverlapRow[] {
   return db
     .prepare(
-      `SELECT units.id, units.start_time, units.end_time, unit_texts.body
+      `SELECT units.id, units.start_ms, units.end_ms, unit_texts.body
        FROM units
        JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
-       WHERE units.layer_id = ? AND units.start_time < ? AND units.end_time > ?
+       WHERE units.layer_id = ? AND units.start_ms < ? AND units.end_ms > ?
        ORDER BY units.id`,
     )
     .all(layerId, end, start) as OverlapRow[];
@@ -649,7 +633,7 @@ function overlappingTexts(
 
 function targetFingerprint(rows: OverlapRow[]): string {
   const lines = rows
-    .map((row) => `${row.id}\t${row.start_time}\t${row.end_time}\t${row.body}`)
+    .map((row) => `${row.id}\t${row.start_ms}\t${row.end_ms}\t${row.body}`)
     .join('\n');
   return createHash('sha256').update(lines).digest('hex');
 }

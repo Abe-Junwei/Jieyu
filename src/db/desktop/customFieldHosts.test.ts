@@ -15,7 +15,6 @@ import {
   setFieldValue,
 } from './customFields';
 import { callDesktopSession } from './desktopCall';
-import { setManuscriptTimeMapping } from './manuscripts';
 import { openProject } from './openProject';
 import { openDesktopSession, requireDesktopSession, resetDesktopSessions } from './projectSession';
 import { replaceSettings } from './settings';
@@ -105,14 +104,6 @@ describe('custom field hosts', () => {
       expect(missingFields(db, targetType, targetId)).toEqual([defined.id]);
       return defined;
     });
-    expect(
-      setManuscriptTimeMapping(db, {
-        manuscriptId: manuscript.id,
-        expectedRevision: 0,
-        offsetSec: 0,
-        scale: 1,
-      }).timeMappingRevision,
-    ).toBe(1);
     expect(replaceSettings(db, 'p1', { characterVariantLines: 'keep' })).toEqual({
       characterVariantLines: 'keep',
     });

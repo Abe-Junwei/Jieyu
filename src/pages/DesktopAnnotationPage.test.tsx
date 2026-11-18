@@ -57,8 +57,8 @@ describe('DesktopAnnotationPage', () => {
     }) as { id: string };
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 2,
+      startMs: 0,
+      endMs: 2000,
       text: 'sentence',
     }) as { id: string };
     rememberOpenProjectSession(session.sessionId);
@@ -125,8 +125,8 @@ describe('DesktopAnnotationPage', () => {
     }) as { id: string };
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 2,
+      startMs: 0,
+      endMs: 2000,
       text: 'sentence',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'notes.create', {
@@ -240,8 +240,8 @@ describe('DesktopAnnotationPage', () => {
     }) as { id: string };
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 2,
+      startMs: 0,
+      endMs: 2000,
       text: 'alpha beta',
     }) as { id: string };
     rememberOpenProjectSession(session.sessionId);
@@ -354,8 +354,8 @@ describe('DesktopAnnotationPage', () => {
     }) as { id: string };
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 2,
+      startMs: 0,
+      endMs: 2000,
       text: 'ka-ra',
     }) as { id: string };
     rememberOpenProjectSession(session.sessionId);
@@ -442,8 +442,8 @@ describe('DesktopAnnotationPage', () => {
     }) as { id: string };
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 2,
+      startMs: 0,
+      endMs: 2000,
       text: 'ka na',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'lexicon.saveEntry', {
@@ -541,8 +541,8 @@ describe('DesktopAnnotationPage', () => {
     }) as { id: string };
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 2,
+      startMs: 0,
+      endMs: 2000,
       text: 'ka-ra',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'lexicon.saveEntry', {
@@ -643,8 +643,8 @@ describe('DesktopAnnotationPage', () => {
     }) as { id: string };
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 2,
+      startMs: 0,
+      endMs: 2000,
       text: 'ka',
     }) as { id: string };
     rememberOpenProjectSession(session.sessionId);
@@ -743,8 +743,8 @@ describe('DesktopAnnotationPage', () => {
     }) as { id: string };
     callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 2,
+      startMs: 0,
+      endMs: 2000,
       text: 'pre-fix',
     });
     rememberOpenProjectSession(session.sessionId);

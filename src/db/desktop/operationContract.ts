@@ -468,8 +468,8 @@ function modelRunStart(input: Record<string, unknown>): ModelRunStart {
     'modelVersion',
     'manifestSha256',
     'params',
-    'rangeStart',
-    'rangeEnd',
+    'rangeStartMs',
+    'rangeEndMs',
   ]);
   return {
     manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
@@ -478,8 +478,8 @@ function modelRunStart(input: Record<string, unknown>): ModelRunStart {
     modelVersion: requiredString(input.modelVersion, 'modelVersion'),
     manifestSha256: requiredString(input.manifestSha256, 'manifestSha256'),
     params: objectArg(input.params),
-    rangeStart: requiredNumber(input.rangeStart, 'rangeStart'),
-    rangeEnd: requiredNumber(input.rangeEnd, 'rangeEnd'),
+    rangeStartMs: requiredIndex(input.rangeStartMs, 'rangeStartMs'),
+    rangeEndMs: requiredIndex(input.rangeEndMs, 'rangeEndMs'),
   };
 }
 
@@ -533,7 +533,6 @@ function modelRunAccept(input: Record<string, unknown>): {
   segmentIndex: number;
   mediaStart: number;
   mediaEnd: number;
-  timeMappingRevision: number;
   targetFingerprint: string;
   text: string;
 } {
@@ -544,7 +543,6 @@ function modelRunAccept(input: Record<string, unknown>): {
     'segmentIndex',
     'mediaStart',
     'mediaEnd',
-    'timeMappingRevision',
     'targetFingerprint',
     'text',
   ]);
@@ -555,7 +553,6 @@ function modelRunAccept(input: Record<string, unknown>): {
     segmentIndex: requiredIndex(input.segmentIndex, 'segmentIndex'),
     mediaStart: requiredNumber(input.mediaStart, 'mediaStart'),
     mediaEnd: requiredNumber(input.mediaEnd, 'mediaEnd'),
-    timeMappingRevision: requiredIndex(input.timeMappingRevision, 'timeMappingRevision'),
     targetFingerprint: requiredString(input.targetFingerprint, 'targetFingerprint'),
     text: requiredString(input.text, 'text'),
   };
@@ -577,11 +574,11 @@ function requiredLimit(value: unknown): number {
 function corpusCursor(value: unknown): CorpusQueryCursor | null {
   if (value === undefined || value === null) return null;
   const cursor = objectArg(value);
-  knownKeys(cursor, ['manuscriptId', 'layerId', 'startTime', 'unitId']);
+  knownKeys(cursor, ['manuscriptId', 'layerId', 'startMs', 'unitId']);
   return {
     manuscriptId: requiredString(cursor.manuscriptId, 'manuscriptId'),
     layerId: requiredString(cursor.layerId, 'layerId'),
-    startTime: requiredNumber(cursor.startTime, 'startTime'),
+    startMs: requiredNumber(cursor.startMs, 'startMs'),
     unitId: requiredString(cursor.unitId, 'unitId'),
   };
 }
@@ -619,8 +616,8 @@ function corpusQuery(input: Record<string, unknown>): CorpusQuery {
 function unitCreate(input: Record<string, unknown>): UnitCreate {
   knownKeys(input, [
     'layerId',
-    'startTime',
-    'endTime',
+    'startMs',
+    'endMs',
     'text',
     'speakerId',
     'parentUnitId',
@@ -628,8 +625,8 @@ function unitCreate(input: Record<string, unknown>): UnitCreate {
   ]);
   return {
     layerId: requiredString(input.layerId, 'layerId'),
-    startTime: requiredNumber(input.startTime, 'startTime'),
-    endTime: requiredNumber(input.endTime, 'endTime'),
+    startMs: requiredIndex(input.startMs, 'startMs'),
+    endMs: requiredIndex(input.endMs, 'endMs'),
     text: requiredString(input.text, 'text'),
     ...('speakerId' in input ? { speakerId: optionalString(input.speakerId, 'speakerId') } : {}),
     ...('parentUnitId' in input
@@ -1461,38 +1458,22 @@ export const desktopOperations = {
     knownKeys(input, ['id']);
     return { id: requiredString(input.id, 'id') };
   }),
+  'manuscripts.retime': spec<
+    'clear',
+    { manuscriptId: string; offsetMs: number; scale: number },
+    { count: number }
+  >('clear', (input) => {
+    knownKeys(input, ['manuscriptId', 'offsetMs', 'scale']);
+    return {
+      manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
+      offsetMs: requiredNumber(input.offsetMs, 'offsetMs'),
+      scale: requiredNumber(input.scale, 'scale'),
+    };
+  }),
   'manuscripts.purge': spec<'clear', { id: string }, { id: string }>('clear', (input) => {
     knownKeys(input, ['id']);
     return { id: requiredString(input.id, 'id') };
   }),
-  'manuscripts.setTimeMapping': spec<
-    'clear',
-    {
-      manuscriptId: string;
-      expectedRevision: number;
-      offsetSec: number;
-      scale: number;
-      sourceMediaId?: string;
-    },
-    Manuscript
-  >('clear', (input) => {
-    const sourceMediaId = input.sourceMediaId;
-    return {
-      manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
-      expectedRevision: requiredNumber(input.expectedRevision, 'expectedRevision'),
-      offsetSec: requiredNumber(input.offsetSec, 'offsetSec'),
-      scale: requiredNumber(input.scale, 'scale'),
-      ...(typeof sourceMediaId === 'string' ? { sourceMediaId } : {}),
-    };
-  }),
-  'manuscripts.rollbackTimeMapping': spec<
-    'clear',
-    { manuscriptId: string; expectedRevision: number },
-    Manuscript
-  >('clear', (input) => ({
-    manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
-    expectedRevision: requiredNumber(input.expectedRevision, 'expectedRevision'),
-  })),
   'catalog.ensureProjectDefinition': spec<'clear', LanguageEnsure, ProjectLanguage>(
     'clear',
     languageEnsure,
@@ -1651,7 +1632,7 @@ export const desktopOperations = {
   'modelRuns.preview': spec<
     'clear',
     { runId: string; candidates: PreviewCandidateInput[] },
-    { pendingCount: number; timeMappingRevision: number; candidates: PreviewCandidate[] }
+    { pendingCount: number; candidates: PreviewCandidate[] }
   >('clear', modelRunPreview),
   'modelRuns.accept': spec<
     'clear',
@@ -1662,7 +1643,6 @@ export const desktopOperations = {
       segmentIndex: number;
       mediaStart: number;
       mediaEnd: number;
-      timeMappingRevision: number;
       targetFingerprint: string;
       text: string;
     },

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { readDesktopProjectHost } from '../desktop/projectReadHost';
+import { msToSeconds } from '../desktop/timeMs';
 import { useDesktopDraftGuard } from '../desktop/useDesktopDraftGuard';
 import { t, useLocale } from '../i18n';
 import { DesktopDraftLeaveDialog } from './DesktopDraftLeaveDialog';
@@ -9,10 +10,10 @@ import { readDesktopCorpusLocate } from './desktopCorpusLocate';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';
 import '../styles/pages/desktop-transcription-workspace.css';
 
-function formatTime(seconds: number): string {
-  const totalMs = Math.max(0, Math.round(seconds * 1000));
+function formatTime(total: number): string {
+  const totalMs = Math.max(0, total);
   const ms = totalMs % 1000;
-  const totalSec = Math.floor(totalMs / 1000);
+  const totalSec = Math.floor(msToSeconds(totalMs));
   const s = totalSec % 60;
   const m = Math.floor(totalSec / 60) % 60;
   const h = Math.floor(totalSec / 3600);
@@ -59,10 +60,6 @@ export function DesktopTranscriptionWorkspacePage() {
   }, [draft.draft?.unitId, focusUnitId, read.model]);
 
   if (host === null) return <Navigate to="/" replace />;
-
-  const selectedManuscript = read.model?.manuscripts.find(
-    (item) => item.id === read.model?.manuscriptId,
-  );
 
   return (
     <section className="desktop-tx-workspace" data-testid="desktop-transcription-workspace">
@@ -124,7 +121,6 @@ export function DesktopTranscriptionWorkspacePage() {
               units={read.model.units}
               notes={read.notes}
               audioUrl={read.model.audioUrl}
-              timeMapping={selectedManuscript?.timeMapping ?? null}
               emptyLabel={t(locale, 'app.desktopRead.empty')}
               audioLabel={t(locale, 'app.desktopRead.audio')}
               textLabel={t(locale, 'app.desktopRead.text')}
@@ -135,9 +131,6 @@ export function DesktopTranscriptionWorkspacePage() {
               mergeNextLabel={t(locale, 'app.desktopRead.mergeNext')}
               boundaryLabel={t(locale, 'app.desktopRead.boundary')}
               moveBoundaryLabel={t(locale, 'app.desktopRead.moveBoundary')}
-              offsetLabel={t(locale, 'app.desktopRead.offset')}
-              scaleLabel={t(locale, 'app.desktopRead.scale')}
-              saveMappingLabel={t(locale, 'app.desktopRead.saveMapping')}
               noteLabel={t(locale, 'app.desktopRead.note')}
               saveNoteLabel={t(locale, 'app.desktopRead.saveNote')}
               saveTimelineNoteLabel={t(locale, 'app.desktopRead.saveTimelineNote')}
@@ -159,7 +152,10 @@ export function DesktopTranscriptionWorkspacePage() {
               onSplit={read.splitUnit}
               onMerge={read.mergeUnits}
               onMoveBoundary={read.moveBoundary}
-              onSaveMapping={read.saveMapping}
+              offsetLabel={t(locale, 'app.desktopRead.offset')}
+              scaleLabel={t(locale, 'app.desktopRead.scale')}
+              retimeLabel={t(locale, 'app.desktopRead.saveMapping')}
+              onRetime={read.retime}
               onSaveNote={read.saveUnitNote}
               onSaveTierNote={read.saveTierNote}
               noteSessionId={read.sessionId}
@@ -184,7 +180,7 @@ export function DesktopTranscriptionWorkspacePage() {
               <div>
                 <dt>{t(locale, 'app.desktopRead.boundary')}</dt>
                 <dd>
-                  {formatTime(selectedUnit.startTime)} – {formatTime(selectedUnit.endTime)}
+                  {formatTime(selectedUnit.startMs ?? 0)} – {formatTime(selectedUnit.endMs ?? 0)}
                 </dd>
               </div>
               <div>

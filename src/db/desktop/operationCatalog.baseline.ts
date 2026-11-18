@@ -21,8 +21,6 @@ export const DESKTOP_METHODS_AT_5fbc66f8 = [
   'manuscripts.restore',
   'manuscripts.showReminder',
   'manuscripts.purge',
-  'manuscripts.setTimeMapping',
-  'manuscripts.rollbackTimeMapping',
   'layers.create',
   'layers.list',
   'catalog.ensureProjectDefinition',

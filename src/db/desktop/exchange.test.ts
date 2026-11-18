@@ -192,8 +192,8 @@ function seedUnit(
   }) as { id: string };
   const unit = callDesktopSession(sessionId, 'units.create', {
     layerId: layer.id,
-    startTime: 0,
-    endTime: 1,
+    startMs: 0,
+    endMs: 1,
     text,
   }) as { id: string };
   return { id: unit.id, manuscriptId: manuscript.id };

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { createDesktopClient } from '../app/desktopProjectReadPageAccess';
 import { emitAfterWrite } from '../desktop/desktopDomainEvents';
+import { secondsToMs } from '../desktop/timeMs';
 import { readOpenProjectSession, rememberOpenProjectSession } from '../desktop/openProjectSession';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
@@ -151,9 +152,19 @@ export function useDesktopProjectReadController(
 
   const splitUnit = (unitId: string, time: number) => {
     if (host === null || sessionId === null) return;
+    const timeMs = secondsToMs(time);
+    const unit = model?.units.find((item) => item.id === unitId);
+    if (
+      unit?.startMs != null &&
+      unit.endMs != null &&
+      (timeMs - unit.startMs < 10 || unit.endMs - timeMs < 10)
+    ) {
+      setError(t(locale, 'app.desktopRead.splitTooClose'));
+      return;
+    }
     setError('');
     void createDesktopClient({ desktopCall: host.desktopCall })
-      .splitUnit(sessionId, { unitId, time })
+      .splitUnit(sessionId, { unitId, time: timeMs })
       .then(() => reload())
       .catch(() => {
         if (shownSession.current !== sessionId) return;
@@ -173,11 +184,15 @@ export function useDesktopProjectReadController(
       });
   };
 
-  const moveBoundary = (leftId: string, rightId: string, time: number) => {
-    if (host === null || sessionId === null) return;
+  const retime = (offsetSec: number, scale: number) => {
+    if (host === null || sessionId === null || model?.manuscriptId == null) return;
     setError('');
     void createDesktopClient({ desktopCall: host.desktopCall })
-      .updateBoundary(sessionId, { leftId, rightId, time })
+      .retimeManuscript(sessionId, {
+        manuscriptId: model.manuscriptId,
+        offsetMs: secondsToMs(offsetSec),
+        scale,
+      })
       .then(() => reload())
       .catch(() => {
         if (shownSession.current !== sessionId) return;
@@ -185,25 +200,11 @@ export function useDesktopProjectReadController(
       });
   };
 
-  const saveMapping = (offsetSec: number, scale: number) => {
-    if (
-      host === null ||
-      sessionId === null ||
-      model?.manuscriptId === null ||
-      model?.manuscriptId === undefined
-    ) {
-      return;
-    }
-    const manuscriptId = model.manuscriptId;
+  const moveBoundary = (leftId: string, rightId: string, time: number) => {
+    if (host === null || sessionId === null) return;
     setError('');
     void createDesktopClient({ desktopCall: host.desktopCall })
-      .setTimeMapping(sessionId, {
-        manuscriptId,
-        expectedRevision:
-          model.manuscripts.find((item) => item.id === manuscriptId)?.timeMappingRevision ?? 0,
-        offsetSec,
-        scale,
-      })
+      .updateBoundary(sessionId, { leftId, rightId, time: secondsToMs(time) })
       .then(() => reload())
       .catch(() => {
         if (shownSession.current !== sessionId) return;
@@ -248,7 +249,7 @@ export function useDesktopProjectReadController(
     splitUnit,
     mergeUnits,
     moveBoundary,
-    saveMapping,
+    retime,
     ...noteActions,
   };
 }

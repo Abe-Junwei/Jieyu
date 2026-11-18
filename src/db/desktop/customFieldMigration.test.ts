@@ -101,7 +101,7 @@ function seeded() {
     tierType: 'time-aligned',
     contentType: 'transcription',
   });
-  const unit = project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+  const unit = project.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text: 'ka' });
   return { dir, project, layer, unit };
 }
 
@@ -153,7 +153,7 @@ afterEach(() => {
 describe('custom field migration', () => {
   it('migrates current unit values and leaves the recorded number', () => {
     const { dir, project, layer, unit } = seeded();
-    const other = project.units.create({ layerId: layer.id, startTime: 1, endTime: 2, text: 'ta' });
+    const other = project.units.create({ layerId: layer.id, startMs: 1, endMs: 2, text: 'ta' });
     const field = createDefinition(project.db, {
       targetType: 'unit',
       name: { zh: '数' },

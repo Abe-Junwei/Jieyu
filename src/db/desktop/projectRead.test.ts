@@ -60,8 +60,8 @@ describe('desktop project read', () => {
     });
     await client.createUnit(session.sessionId, {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1.2,
+      startMs: 0,
+      endMs: 1200,
       text: '句子',
     });
     await client.reopen(session.sessionId);

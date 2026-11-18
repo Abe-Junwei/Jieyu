@@ -111,6 +111,7 @@ describe('desktop project schema', () => {
       { name: 'notes' },
       { name: 'orthographies' },
       { name: 'orthography_bridges' },
+      { name: 'points' },
       { name: 'project' },
       { name: 'reception_batches' },
       { name: 'sources' },
@@ -119,6 +120,7 @@ describe('desktop project schema', () => {
       { name: 'token_lexeme_links' },
       { name: 'tokens' },
       { name: 'transcription_acceptances' },
+      { name: 'unit_identity_links' },
       { name: 'unit_text_drafts' },
       { name: 'unit_texts' },
       { name: 'units' },
@@ -180,18 +182,21 @@ describe('desktop project schema', () => {
     ).toBe('SQLITE_CONSTRAINT_FOREIGNKEY');
     const insertUnit = db.prepare(
       `INSERT INTO units (
-        id, layer_id, speaker_id, parent_unit_id, start_time, end_time, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, layer_id, speaker_id, parent_unit_id, sort_order, start_ms, end_ms, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
-    expect(constraintCode(() => insertUnit.run('u-back', 'ly1', null, null, 2, 1, T, T))).toBe(
+    expect(constraintCode(() => insertUnit.run('u-back', 'ly1', null, null, 0, 2, 1, T, T))).toBe(
       'SQLITE_CONSTRAINT_CHECK',
     );
-    insertUnit.run('u1', 'ly1', null, null, 0, 1, T, T);
-    insertUnit.run('u2', 'ly2', 'sp', null, 0, 1, T, T);
-    expect(constraintCode(() => insertUnit.run('u-cross', 'ly1', null, 'u2', 0, 1, T, T))).toBe(
+    expect(constraintCode(() => insertUnit.run('u-zero', 'ly1', null, null, 0, 0, 0, T, T))).toBe(
+      'SQLITE_CONSTRAINT_CHECK',
+    );
+    insertUnit.run('u1', 'ly1', null, null, 0, 0, 1, T, T);
+    insertUnit.run('u2', 'ly2', 'sp', null, 0, 0, 1, T, T);
+    expect(constraintCode(() => insertUnit.run('u-cross', 'ly1', null, 'u2', 1, 0, 1, T, T))).toBe(
       'SQLITE_CONSTRAINT_TRIGGER',
     );
-    insertUnit.run('u-child', 'ly1', null, 'u1', 0, 0, T, T);
+    insertUnit.run('u-child', 'ly1', null, 'u1', 1, 0, 1, T, T);
     expect(
       constraintCode(() => {
         db.prepare('UPDATE units SET analysis_graph_json = ? WHERE id = ?').run('[]', 'u1');
@@ -203,27 +208,43 @@ describe('desktop project schema', () => {
       }),
     ).toBe('SQLITE_CONSTRAINT_CHECK');
     expect(
-      constraintCode(() => insertUnit.run('u-speaker', 'ly1', 'missing', null, 0, 1, T, T)),
+      constraintCode(() => insertUnit.run('u-speaker', 'ly1', 'missing', null, 0, 0, 1, T, T)),
     ).toBe('SQLITE_CONSTRAINT_FOREIGNKEY');
     db.close();
   });
 
-  it('rejects a non-positive literature duration and a non-array mapping history', () => {
+  it('rejects a point layer on a manuscript without a recording', () => {
     const db = open();
     seed(db);
+    db.prepare(
+      'INSERT INTO manuscripts (id, title_json, created_at, updated_at) VALUES (?, ?, ?, ?)',
+    ).run('ms-text', '{"zh":"文献"}', T, T);
     expect(
       constraintCode(() => {
-        db.prepare('UPDATE manuscripts SET logical_duration_sec = 0 WHERE id = ?').run('ms1');
+        db.prepare(
+          `INSERT INTO layers (
+            id, manuscript_id, key, name_json, tier_type, content_type, sort_order, created_at, updated_at
+          ) VALUES ('pt', 'ms-text', 'pt', '{}', 'point', 'custom', 0, ?, ?)`,
+        ).run(T, T);
       }),
-    ).toBe('SQLITE_CONSTRAINT_CHECK');
-    expect(
-      constraintCode(() => {
-        db.prepare('UPDATE manuscripts SET time_mapping_history_json = ? WHERE id = ?').run(
-          '{}',
-          'ms1',
-        );
-      }),
-    ).toBe('SQLITE_CONSTRAINT_CHECK');
+    ).toBe('SQLITE_CONSTRAINT_TRIGGER');
+    db.close();
+  });
+
+  it('rejects a fractional or negative point time', () => {
+    const db = open();
+    seed(db);
+    db.prepare(
+      `INSERT INTO layers (
+        id, manuscript_id, key, name_json, tier_type, content_type, sort_order, created_at, updated_at
+      ) VALUES ('pt', 'ms1', 'pt', '{}', 'point', 'custom', 0, ?, ?)`,
+    ).run(T, T);
+    const insert = db.prepare(
+      'INSERT INTO points (id, layer_id, time_ms, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+    );
+    expect(constraintCode(() => insert.run('p1', 'pt', 1.5, T, T))).toBe('SQLITE_CONSTRAINT_CHECK');
+    expect(constraintCode(() => insert.run('p2', 'pt', -1, T, T))).toBe('SQLITE_CONSTRAINT_CHECK');
+    insert.run('p3', 'pt', 500, T, T);
     db.close();
   });
 
@@ -233,8 +254,8 @@ describe('desktop project schema', () => {
     layer(db, 'ly1', 'ms1', 'tx');
     db.prepare(
       `INSERT INTO units (
-        id, layer_id, start_time, end_time, created_at, updated_at
-      ) VALUES ('u1', 'ly1', 0, 1, ?, ?)`,
+        id, layer_id, sort_order, start_ms, end_ms, created_at, updated_at
+      ) VALUES ('u1', 'ly1', 0, 0, 1, ?, ?)`,
     ).run(T, T);
     db.prepare(
       `INSERT INTO tokens (

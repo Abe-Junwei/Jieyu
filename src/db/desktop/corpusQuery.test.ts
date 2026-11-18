@@ -63,13 +63,13 @@ function seed(
 function addUnit(
   sessionId: string,
   layerId: string,
-  startTime: number,
+  startMs: number,
   text: string,
 ): { id: string } {
   return callDesktopSession(sessionId, 'units.create', {
     layerId,
-    startTime,
-    endTime: startTime + 1,
+    startMs,
+    endMs: startMs + 1,
     text,
   }) as { id: string };
 }
@@ -202,8 +202,8 @@ describe('corpus query', () => {
       items: [
         expect.objectContaining({
           text: 'Alpha beta',
-          startTime: 1,
-          endTime: 2,
+          startMs: 1,
+          endMs: 2,
           textSpans: [{ start: 6, end: 10 }],
           hits: [],
         }),
@@ -360,7 +360,7 @@ describe('corpus query', () => {
       cursor = {
         manuscriptId: item.manuscriptId,
         layerId: item.layerId,
-        startTime: item.startTime,
+        startMs: item.startMs,
         unitId: item.unitId,
       };
     }
@@ -401,7 +401,7 @@ describe('corpus query', () => {
         contentType: 'transcription',
       });
       const insertUnit = project.db.prepare(
-        'INSERT INTO units(id,layer_id,start_time,end_time,created_at,updated_at) VALUES(?,?,?,?,?,?)',
+        'INSERT INTO units(id,layer_id,sort_order,start_ms,end_ms,created_at,updated_at) VALUES(?,?,?,?,?,?,?)',
       );
       const insertText = project.db.prepare(
         "INSERT INTO unit_texts(id,unit_id,role,body,updated_at) VALUES(?,?,'transcription','ka',?)",
@@ -412,7 +412,7 @@ describe('corpus query', () => {
       project.db.transaction(() => {
         for (let i = 0; i < 33000; i++) {
           const id = `u${i}`;
-          insertUnit.run(id, layer.id, i, i + 1, t, t);
+          insertUnit.run(id, layer.id, i, i, i + 1, t, t);
           insertText.run(`x${i}`, id, t);
           insertToken.run(`k${i}`, id, JSON.stringify({ default: 'ka' }), t, t);
         }

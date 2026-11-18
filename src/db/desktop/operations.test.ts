@@ -115,23 +115,23 @@ describe('desktop project operations', () => {
     });
     const right = created.units.create({
       layerId: layer.id,
-      startTime: 1,
-      endTime: 2,
+      startMs: 1000,
+      endMs: 2000,
       text: '后',
     });
     const left = created.units.create({
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1000,
       text: '前',
     });
     expect(created.units.list(layer.id).map((unit) => unit.id)).toEqual([left.id, right.id]);
 
-    const moved = created.units.updateBoundary({ leftId: left.id, rightId: right.id, time: 1.4 });
-    expect(moved.left.endTime).toBe(1.4);
-    expect(moved.right.startTime).toBe(1.4);
+    const moved = created.units.updateBoundary({ leftId: left.id, rightId: right.id, time: 1400 });
+    expect(moved.left.endMs).toBe(1400);
+    expect(moved.right.startMs).toBe(1400);
     expect(() =>
-      updateBoundary(created.db, { leftId: left.id, rightId: right.id, time: 1.6 }, () => {
+      updateBoundary(created.db, { leftId: left.id, rightId: right.id, time: 1600 }, () => {
         throw new Error('boom');
       }),
     ).toThrow('boom');
@@ -139,9 +139,9 @@ describe('desktop project operations', () => {
 
     const reopened = openProject(dir);
     const units = reopened.units.list(layer.id);
-    expect(units.map((unit) => [unit.startTime, unit.endTime])).toEqual([
-      [0, 1.4],
-      [1.4, 2],
+    expect(units.map((unit) => [unit.startMs, unit.endMs])).toEqual([
+      [0, 1400],
+      [1400, 2000],
     ]);
     reopened.close();
   });

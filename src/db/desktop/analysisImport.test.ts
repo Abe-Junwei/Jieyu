@@ -62,7 +62,7 @@ function seeded(graph: unknown) {
     tierType: 'time-aligned',
     contentType: 'transcription',
   });
-  const unit = project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'ka' });
+  const unit = project.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text: 'ka' });
   const stored = writeAnalysisRoot(project.db, {
     unitId: unit.id,
     graph,
