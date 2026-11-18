@@ -1,5 +1,5 @@
 import { writeVoiceActionAudit } from '../../services/voiceActionAudit';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import * as Earcon from '../../services/EarconService';
 import { globalContext } from '../../services/GlobalContextService';
 import { applyVoiceConfirmedPendingTelemetry } from '../../services/voiceConfirmedPendingTelemetry';
@@ -75,6 +75,7 @@ export function useVoiceAgentTransportControls({
   setError,
   setEngine,
 }: UseVoiceAgentTransportControlsOptions) {
+  const recordingGenerationRef = useRef(0);
   const stop = useCallback(async () => {
     voiceActivateGenerationRef.current += 1;
     const pendingExclusiveStart = exclusiveStartPromiseRef.current;
@@ -130,9 +131,12 @@ export function useVoiceAgentTransportControls({
   const startRecording = useCallback(async () => {
     const svc = serviceRef.current;
     if (!svc) return;
+    const generation = recordingGenerationRef.current + 1;
+    recordingGenerationRef.current = generation;
     setAgentState('listening');
     try {
       await svc.startRecording();
+      if (recordingGenerationRef.current !== generation || !svc.isRecording) return;
       setIsRecording(true);
       setRecordingDuration(0);
       clearRecordingDurationTimer(recordingDurationIntervalRef);
@@ -140,6 +144,7 @@ export function useVoiceAgentTransportControls({
         setRecordingDuration((d) => d + 1);
       }, 1000);
     } catch (err) {
+      if (recordingGenerationRef.current !== generation) return;
       setIsRecording(false);
       setAgentState('idle');
       Earcon.playError();
@@ -162,6 +167,7 @@ export function useVoiceAgentTransportControls({
   const stopRecording = useCallback(async () => {
     const svc = serviceRef.current;
     if (!svc) return;
+    recordingGenerationRef.current += 1;
     setIsRecording(false);
     clearRecordingDurationTimer(recordingDurationIntervalRef);
     setAgentState('idle');

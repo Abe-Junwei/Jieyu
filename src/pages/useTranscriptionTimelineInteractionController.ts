@@ -18,6 +18,7 @@ import {
   resolveSubdivisionParentUnit as computeSubdivisionParentUnit,
   resolveWaveformSurfacePointerTime,
 } from './transcriptionTimelineInteractionRouting';
+import { findPlaybackFollowInterval } from './waveformPlaybackFollow';
 import {
   resolveTranscriptionSelectionAnchor,
   resolveTranscriptionUnitTarget,
@@ -563,23 +564,7 @@ export function useTranscriptionTimelineInteractionController(
       const now = Date.now();
       if (now - timeUpdateThrottleRef.current < 120) return;
       timeUpdateThrottleRef.current = now;
-      const items = input.waveformTimelineItems;
-      let low = 0;
-      let high = items.length - 1;
-      let hit: WaveformTimelineItemLike | undefined;
-      while (low <= high) {
-        const middle = (low + high) >>> 1;
-        const current = items[middle];
-        if (!current) break;
-        if (time < current.startTime) {
-          high = middle - 1;
-        } else if (time > current.endTime) {
-          low = middle + 1;
-        } else {
-          hit = current;
-          break;
-        }
-      }
+      const hit = findPlaybackFollowInterval(input.waveformTimelineItems, time);
       if (!hit || hit.id === input.selectedWaveformRegionId) return;
       // WaveSurfer 原生高亮已提供即时视觉反馈，React 选区同步降为低优先级 | WaveSurfer native highlight already gives instant visual feedback; React selection sync is low-priority
       startTransition(() => {

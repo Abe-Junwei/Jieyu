@@ -59,6 +59,10 @@ export function useVoiceAgentWakeWord({
 
       wakeWordDetectorRef.current = detector;
       detector.start().catch(() => {
+        if (wakeWordDetectorRef.current === detector) {
+          detector.stop();
+          wakeWordDetectorRef.current = null;
+        }
         setWakeWordEnabledStateRef.current(false);
       });
     })();
