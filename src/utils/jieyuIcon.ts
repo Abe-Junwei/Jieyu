@@ -25,8 +25,10 @@ export type JieyuIconName = keyof typeof icons;
 
 /** lucide-react 1.x：部分旧名仅作 named export 别名，不在 `icons` 字典中 */
 const LUCIDE_NAME_ALIASES: Record<string, keyof typeof icons> = {
-  AlertCircle: 'CircleAlert',
-  AlertTriangle: 'TriangleAlert',
+  AlertCircle: 'CircleExclamationPoint',
+  CircleAlert: 'CircleExclamationPoint',
+  AlertTriangle: 'TriangleExclamationPoint',
+  TriangleAlert: 'TriangleExclamationPoint',
   BookMarked: 'BookBookmark',
   FileAudio: 'FileHeadphone',
   FileVideo: 'FilePlay',
