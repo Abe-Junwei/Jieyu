@@ -14,7 +14,8 @@ const CAP_MS = 5000;
 /**
  * One unsaved text draft. Leaving saves it first when it can be submitted. A failed save, an unfinished
  * IME composition, or empty text stops the leave until retry or discard. A committed save whose list
- * refresh failed stays on screen and is not written again. The draft stays out of the query cache.
+ * refresh failed stays on screen and is not written again until that text changes. A stale query
+ * baseline is not the committed text. The draft stays out of the query cache.
  */
 export function useDesktopDraftGuard(
   save: (draft: DesktopTextDraft, operationId: string) => Promise<boolean | TextSaveResult>,
@@ -182,10 +183,13 @@ export function useDesktopDraftGuard(
     canRetry:
       unresolved.current !== null || (draft !== null && draft.text.length > 0 && !held(draft)),
     edit: (unitId: string, text: string, savedText: string) => {
-      baseText.current = savedText;
+      const committed =
+        draftRef.current?.unitId === unitId && heldText.current !== null ? heldText.current : null;
+      const queryStale = committed !== null && committed !== savedText;
+      baseText.current = queryStale && committed !== null ? committed : savedText;
       const inflight = sent.current;
       const awaitingDifferent = inflight !== null && inflight.text !== text;
-      if (text === savedText && !awaitingDifferent && unresolved.current === null) {
+      if (text === savedText && !queryStale && !awaitingDifferent && unresolved.current === null) {
         operationId.current = null;
         sent.current = null;
         used.current = null;
