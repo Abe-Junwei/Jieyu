@@ -43,9 +43,14 @@ export interface RecordingCallbacks {
  * Manages MediaRecorder capture and STT transcription via whisper-server or commercial providers.
  */
 export class RecordingExecutor {
-  private mediaRecorder: MediaRecorder | null = null;
   private mediaStream: MediaStream | null = null;
-  private recordedChunks: Blob[] = [];
+  /** Chunks belong to the capture that produced them, so a later recording cannot mix or clear them. */
+  private activeCapture: {
+    recorder: MediaRecorder;
+    stream: MediaStream;
+    chunks: Blob[];
+  } | null = null;
+  private readonly stopByRecorder = new WeakMap<MediaRecorder, Promise<void>>();
   private _isRecording = false;
   private _stopRecordingPromise: Promise<void> | null = null;
   /** Bumped to cancel an in-flight start (release before getUserMedia / recorder.start). */
@@ -93,15 +98,15 @@ export class RecordingExecutor {
         return;
       }
       this.mediaStream = stream;
-      this.recordedChunks = [];
       // Prefer webm; fall back to any browser-supported format
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : 'audio/webm';
       const recorder = new MediaRecorder(stream, { mimeType });
+      const capture = { recorder, stream, chunks: [] as Blob[] };
       recorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
-          this.recordedChunks.push(event.data);
+          capture.chunks.push(event.data);
         }
       };
       recorder.onerror = (event) => {
@@ -115,7 +120,7 @@ export class RecordingExecutor {
         this.mediaStream = null;
         return;
       }
-      this.mediaRecorder = recorder;
+      this.activeCapture = capture;
       recorder.start(100); // chunk every 100ms for responsive stop
       this._isRecording = true;
     } catch (err) {
@@ -123,7 +128,6 @@ export class RecordingExecutor {
       if (epoch !== this._startEpoch) return;
       this.mediaStream?.getTracks().forEach((track) => track.stop());
       this.mediaStream = null;
-      this.mediaRecorder = null;
       const message = err instanceof Error ? err.message : RECORDING_START_FAILED_MESSAGE;
       this.callbacks.emitError(message);
       throw new Error(message);
@@ -146,18 +150,28 @@ export class RecordingExecutor {
     // Clear _startInFlight so a subsequent press starts a new epoch instead of joining the cancelled promise (#494).
     this._startEpoch += 1;
     this._startInFlight = null;
-    // Re-entrant guard: if a stop is already in flight, await it instead of racing
-    if (this._stopRecordingPromise) {
-      await this._stopRecordingPromise;
+    const capture = this._isRecording ? this.activeCapture : null;
+    if (!capture) {
+      // Nothing new to stop. A previous transcription may still be running; wait for that one only.
+      if (this._stopRecordingPromise) await this._stopRecordingPromise;
       return;
     }
-    if (!this._isRecording || !this.mediaRecorder) return;
-
-    this._stopRecordingPromise = this._stopRecordingInternal(currentEngine, config);
+    const existing = this.stopByRecorder.get(capture.recorder);
+    if (existing) {
+      await existing;
+      return;
+    }
+    // Detach this capture before transcription so a new recording can start and still be stopped (#551).
+    this.activeCapture = null;
+    this._isRecording = false;
+    this.mediaStream = null;
+    const task = this._stopRecordingInternal(capture, currentEngine, config);
+    this.stopByRecorder.set(capture.recorder, task);
+    this._stopRecordingPromise = task;
     try {
-      await this._stopRecordingPromise;
+      await task;
     } finally {
-      this._stopRecordingPromise = null;
+      if (this._stopRecordingPromise === task) this._stopRecordingPromise = null;
     }
   }
 
@@ -165,19 +179,17 @@ export class RecordingExecutor {
   dispose(): void {
     this._startEpoch += 1;
     this._isRecording = false;
-    if (this.mediaRecorder) {
+    const capture = this.activeCapture;
+    this.activeCapture = null;
+    this.mediaStream = null;
+    if (capture) {
       try {
-        this.mediaRecorder.stop();
+        capture.recorder.stop();
       } catch {
         /* ignore */
       }
-      this.mediaRecorder = null;
+      for (const track of capture.stream.getTracks()) track.stop();
     }
-    if (this.mediaStream) {
-      for (const track of this.mediaStream.getTracks()) track.stop();
-      this.mediaStream = null;
-    }
-    this.recordedChunks = [];
     this._stopRecordingPromise = null;
     this._startInFlight = null;
   }
@@ -185,6 +197,7 @@ export class RecordingExecutor {
   // ── Internal | 内部实现 ──────────────────────────────────────────────────
 
   private async _stopRecordingInternal(
+    capture: { recorder: MediaRecorder; stream: MediaStream; chunks: Blob[] },
     currentEngine: SttEngine,
     config: {
       whisperServerUrl?: string;
@@ -196,52 +209,35 @@ export class RecordingExecutor {
       mediaId?: string;
     },
   ): Promise<void> {
-    const recorder = this.mediaRecorder;
-    if (!recorder) return;
-    const stream = this.mediaStream;
+    const { recorder, stream, chunks } = capture;
 
-    this._isRecording = false;
-    this.mediaRecorder = null;
-    this.mediaStream = null;
-
-    // Wait for final chunk(s) and recorder stop event.
+    // The property handler installed at start is the only chunk collector (#552).
     await new Promise<void>((resolve, reject) => {
-      const dataHandler = (event: BlobEvent) => {
-        if (event.data && event.data.size > 0) {
-          this.recordedChunks.push(event.data);
-        }
-      };
       const stopHandler = () => {
-        recorder.removeEventListener('dataavailable', dataHandler);
         recorder.removeEventListener('error', errorHandler as EventListener);
         resolve();
       };
       const errorHandler = (event: Event) => {
-        recorder.removeEventListener('dataavailable', dataHandler);
         recorder.removeEventListener('stop', stopHandler as EventListener);
         const err = (event as unknown as { error?: string }).error;
         reject(new Error(typeof err === 'string' ? err : RECORDING_STOP_FAILED_MESSAGE));
       };
 
-      recorder.addEventListener('dataavailable', dataHandler);
       recorder.addEventListener('stop', stopHandler, { once: true });
       recorder.addEventListener('error', errorHandler as EventListener, { once: true });
       recorder.stop();
     });
 
-    if (stream) {
-      for (const track of stream.getTracks()) {
-        track.stop();
-      }
+    for (const track of stream.getTracks()) {
+      track.stop();
     }
 
-    if (this.recordedChunks.length === 0) {
+    if (chunks.length === 0) {
       this.callbacks.emitError('No audio recorded');
       return;
     }
 
-    const audioBlob = new Blob(this.recordedChunks, { type: 'audio/webm' });
-    this.recordedChunks = [];
+    const audioBlob = new Blob(chunks, { type: 'audio/webm' });
 
     // VAD 预处理：若 VAD 服务可用且引擎为 whisper-local，先检测是否包含语音（带缓存）
     // VAD pre-check: if VAD service is available and engine is whisper-local, verify speech presence (with cache)
