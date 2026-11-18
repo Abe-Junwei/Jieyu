@@ -7,6 +7,8 @@ last_reviewed: 2026-11-18
 source_of_truth: decision-record
 depends_on:
   - ./0086-desktop-release-scope-and-format-freeze.md
+  - ./0088-desktop-sqlite-domain-landings.md
+  - ./0094-transcription-run-acceptance-facts.md
   - ./0100-desktop-engineering-contract.md
   - ./0121-text-save-receipt-and-draft.md
 ---
@@ -38,6 +40,14 @@ ELAN 的时间槽是整数毫秒，允许没有时间值的时间槽，点层独
 9. **最短长度分两处。** 库只要求开始早于结束（至少 1 毫秒）。界面上拖动和拆分用 10 毫秒下限，和一次方向键微调相同。导入短于 10 毫秒的段不拒绝。
 10. **拆分和合并产生新身份，并留下旧到新的映射。** 映射表只存操作、旧 id、新 id 和种类（拆分或合并）。旧 id 不设外键，因为旧行会删掉。具体列随 1b-0 的实现 PR 定稿。
 11. **界面另片。** 表结构在 1b-0 一次改完。无录音文稿的排版、只按文字位置拆分、逐段补时间，另开 1b-7，排在 1b-6 之后，仍属第一程。
+12. **与旧决定冲突时以本篇为准。** 下列句子不再执行。被点名的 ADR 正文不改，整篇也不改成 superseded。E06 的其余句子（整数毫秒、恰半毫秒向时间轴正方向取整、播放器秒制只在边界转换、同层不重叠、开始早于结束、默认单边、拆合新身份）仍然有效。`export_timeline_mode` 和 `tier_roles_json` 仍按 ADR-0088，本篇不删。
+
+    - ADR-0100 对照表里「文献轴与媒体轴映射保留」。
+    - ADR-0100 E06「既有文献轴／媒体映射不取消」。
+    - ADR-0100 E06「文献轴按映射核对媒体范围，不能直接将文献时码与录音秒数比较」。媒体范围改为：把句段毫秒换回秒，再和 `media.duration` 比。没有文献轴。
+    - ADR-0088 第 12 条里「语段时间是文献轴秒，播放器时间由 `offsetSec + scale × 文献秒` 换算，改映射不改语段时间」，以及 `logical_duration_sec`、`time_mapping_json`、`time_mapping_history_json` 这三列。
+    - ADR-0094 第 3、4 条里「按当前映射把媒体秒换成文稿秒，并核对映射修订」。预览和接受直接使用录音上的整数毫秒。生命周期凭据和目标范围内已有转写的指纹仍要核对；整体调时改的是句段毫秒，指纹对不上就拒绝。
+    - ADR-0091 第 5 条里把「时间映射修订」当作一把独立凭据。该凭据随映射列一起消失，其余凭据仍各管各的。
 
 ## 未选方案
 

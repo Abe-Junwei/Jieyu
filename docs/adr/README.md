@@ -61,7 +61,7 @@ source_of_truth: decision-index
 | 另一项目的层                                                                                                                                              | ADR-0085：`layers.manuscript_id`。不靠可空 `text_id` 判断归属 | ADR-0082 的 `.jyd` `layers.text_id` 和缺列拒绝 |
 | 项目行的标题和时间                                                                                                                                        | ADR-0085：`title_json` 至少一条非空字符串。`created_at`、`updated_at` 必填 | ADR-0083 的可空列和空标题拒绝读取；把 `name` 当成标题 |
 | 后加列的空值                                                                                                                                              | ADR-0085：必填是 `NOT NULL`。`NULL` 只表示可以没有的关系，不是未补全 | ADR-0084 把后加列的空值当成未补全并计数 |
-| 语段时间与播放器时间 | ADR-0100 E06：语段存整数毫秒，保留 ADR-0088 文献轴／媒体轴映射，播放器秒数在边界换算 | 把 ADR-0085「单位与播放器相同」理解成不保存映射 |
+| 语段时间与播放器时间 | [ADR-0122](./0122-integer-milliseconds-and-optional-media.md)：有录音的句段直接存录音上的整数毫秒，不保留文献轴／媒体轴映射；播放器秒数仍只在边界换算。E06 里被点名的两句和 ADR-0088 第 12 条的映射句子不再执行 | 继续执行「文献轴／媒体映射不取消」，或按映射把媒体秒换成文稿秒 |
 | 分析图与词项投影 | ADR-0088：已接受图是真值。`tokens` / `morphemes` 是同事务同步的线性投影。曾经接受仍按 [ADR-0089](./0089-analysis-generation-accept-and-restore.md)，局部复核、历史恢复以 ADR-0100 E03–E04 为准。完整载荷、字段管理和失效引用以 [ADR-0090](./0090-analysis-payload-custom-fields-and-dangling-refs.md) 为准 | 用词项父子表代替分析图，或接受时整表删除再插入。用图内容相等判断当前正在使用，或把旧图直接放到新正文上。把实验键当成协议 |
 | 外部标注重导入 | ADR-0100 E11：首发重复外部文件仅取消或新建独立稿，不自动更新／合并；内部显式分析修改仍按身份校验 | 只按标注 id 字符串更新任意层 |
 
