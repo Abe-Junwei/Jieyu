@@ -4,7 +4,7 @@
  * data-theme="dark" — 暗色（不设 = 浅色）
  * --action-* — 主按钮墨色（暗色反相）
  * --theme-accent-* — 选中/媒体锚点（中性墨灰）；--header-accent 为其 alias
- * --focus-accent / --focus-ring* — 焦点用墨色，不另设青色
+ * --focus-color / --focus-ring* — 焦点用石墨灰，不另设青色
  * 只有这一套外观（纸本田野笔记）。视觉真源见仓库根 DESIGN.md。
  * ─────────────────────────────────────────────────────────── */
 
@@ -89,8 +89,9 @@
   --toast-fg: var(--gray-1);
   --toast-border: var(--gray-12);
 
-  /* 焦点 = 墨色环，不使用靛青 */
-  --focus-accent: #111111;
+  /* 焦点环按 ADR-0110 使用石墨灰，不使用靛青 */
+  --focus-color: #5c5c5c;
+  --focus-accent: var(--focus-color);
   --focus-accent-hover: #000000;
   --focus-accent-active: #000000;
 
@@ -159,7 +160,7 @@
   --shadow-modal: 0 16px 48px color-mix(in srgb, var(--shadow-color) 16%, transparent);
   --shadow-card: none;
   /* 焦点环：2px 纸色间隔 + 2px 墨环 */
-  --shadow-focus: 0 0 0 2px var(--surface-panel), 0 0 0 4px var(--focus-accent);
+  --shadow-focus: 0 0 0 2px var(--surface-panel), 0 0 0 4px var(--focus-color);
   /* 旧档位，存量引用指向新角色 */
   --shadow-xs: none;
   --shadow-sm: var(--shadow-popover);
@@ -271,10 +272,10 @@
   --tab-active: var(--gray-4);
   --tab-underline-hover: color-mix(in srgb, var(--gray-12) 10%, transparent);
 
-  --focus-ring: color-mix(in srgb, var(--focus-accent) 72%, transparent);
-  --focus-ring-soft: color-mix(in srgb, var(--focus-accent) 28%, transparent);
-  --focus-ring-strong: var(--focus-accent);
-  --focus-ring-glow: color-mix(in srgb, var(--focus-accent) 22%, transparent);
+  --focus-ring: color-mix(in srgb, var(--focus-color) 72%, transparent);
+  --focus-ring-soft: color-mix(in srgb, var(--focus-color) 28%, transparent);
+  --focus-ring-strong: var(--focus-color);
+  --focus-ring-glow: color-mix(in srgb, var(--focus-color) 22%, transparent);
 
   --overlay-hover-soft: color-mix(in srgb, var(--border-soft) 24%, transparent);
   --overlay-hover-muted: color-mix(in srgb, var(--border-soft) 30%, transparent);
@@ -299,7 +300,14 @@
   --opacity-muted: 0.72;
   --opacity-subtle: 0.88;
 
+  /* Seven semantic stacking anchors; specialized layers below stay within their band. */
   --z-base: 1;
+  --z-sticky: 20;
+  --z-shell: 40;
+  --z-drawer: 80;
+  --z-popover: 160;
+  --z-toast: 240;
+  --z-modal: 320;
   --z-raised: 2;
   --z-overlay-base: 3;
   --z-overlay: 4;
@@ -307,12 +315,10 @@
   --z-float-strong: 6;
   --z-panel-toggle: 8;
   --z-header: 10;
-  --z-toolbar: 20;
-  --z-toast: 100;
-  --z-timeline-sticky: 120;
-  --z-header-float: 150;
-  --z-popover: 170;
-  --z-timeline-tooltip: 175;
+  --z-toolbar: var(--z-sticky);
+  --z-timeline-sticky: var(--z-sticky);
+  --z-header-float: var(--z-shell);
+  --z-timeline-tooltip: var(--z-popover);
   /* 语段行内角标叠层（低→高）：重叠提示 < 确信 < 保存点 < 工具 < 笔记 < 保存失败 < 拖边把手
      | In-segment badge stack; resize handles stay above so edges stay grabbable */
   --z-timeline-seg-overlap: 2;
@@ -371,15 +377,14 @@
     var(--timeline-segment-tools-annotation-input-pad-end) +
       var(--timeline-segment-self-certainty-input-end-gutter)
   );
-  --z-context-menu: 180;
-  --z-timeline-annotation: 190;
-  --z-timeline-annotation-strong: 200;
-  --z-floating-panel: 420;
-  --z-side-pane-handle: 430;
-  --z-hub-sidebar: 1100;
-  --z-modal-backdrop: 1200;
-  --z-modal: 1220;
-  --z-modal-topmost: 1240;
+  --z-context-menu: calc(var(--z-popover) + 20);
+  --z-timeline-annotation: calc(var(--z-popover) + 30);
+  --z-timeline-annotation-strong: calc(var(--z-popover) + 40);
+  --z-floating-panel: calc(var(--z-drawer) + 1);
+  --z-side-pane-handle: calc(var(--z-drawer) + 2);
+  --z-hub-sidebar: var(--z-drawer);
+  --z-modal-backdrop: calc(var(--z-modal) - 10);
+  --z-modal-topmost: calc(var(--z-modal) + 20);
 
   --input-h-sm: 30px;
   --input-h-md: 32px;
@@ -546,7 +551,8 @@
   --toast-fg: var(--gray-12);
   --toast-border: var(--gray-6);
 
-  --focus-accent: #f4f2ec;
+  --focus-color: #9e998f;
+  --focus-accent: var(--focus-color);
   --focus-accent-hover: #ffffff;
   --focus-accent-active: #e4e0d6;
   --accent-secondary: var(--theme-accent-tint);
@@ -612,10 +618,10 @@
   --state-danger-bg: color-mix(in srgb, #f07171 var(--theme-opacity-1), transparent);
   --state-danger-border: color-mix(in srgb, #f07171 var(--theme-opacity-3), transparent);
 
-  --focus-ring: color-mix(in srgb, var(--focus-accent) 70%, transparent);
-  --focus-ring-soft: color-mix(in srgb, var(--focus-accent) 32%, transparent);
-  --focus-ring-strong: var(--focus-accent);
-  --focus-ring-glow: color-mix(in srgb, var(--focus-accent) 24%, transparent);
+  --focus-ring: color-mix(in srgb, var(--focus-color) 70%, transparent);
+  --focus-ring-soft: color-mix(in srgb, var(--focus-color) 32%, transparent);
+  --focus-ring-strong: var(--focus-color);
+  --focus-ring-glow: color-mix(in srgb, var(--focus-color) 24%, transparent);
 
   --overlay-hover-soft: color-mix(in srgb, var(--surface-panel) 8%, transparent);
   --overlay-hover-muted: color-mix(in srgb, var(--surface-panel) 6%, transparent);

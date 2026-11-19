@@ -158,7 +158,16 @@ interface AcceptanceRow {
   created_at: string;
 }
 
-interface RemovedUnit {
+interface TimeDraftRow {
+  unit_id: string;
+  edge: string;
+  raw_input: string;
+  base_ms: number;
+  issue: string | null;
+  updated_at: string;
+}
+
+export interface RemovedUnit {
   unit: UnitRow;
   texts: TextRow[];
   tokens: TokenRow[];
@@ -170,6 +179,7 @@ interface RemovedUnit {
   batches: BatchRow[];
   localIds: LocalIdRow[];
   acceptances: AcceptanceRow[];
+  timeDrafts: TimeDraftRow[];
 }
 
 export interface UnitMergeUndo {
@@ -736,7 +746,7 @@ function mergeStillAfter(db: SqliteDatabase, undo: UnitMergeUndo): boolean {
   );
 }
 
-function readRemovedUnit(db: SqliteDatabase, unitId: string): RemovedUnit {
+export function readRemovedUnit(db: SqliteDatabase, unitId: string): RemovedUnit {
   const unit = db
     .prepare(
       `SELECT id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, sort_order, created_at, updated_at,
@@ -796,6 +806,12 @@ function readRemovedUnit(db: SqliteDatabase, unitId: string): RemovedUnit {
          FROM transcription_acceptances WHERE unit_id = ?`,
       )
       .all(unitId) as AcceptanceRow[],
+    timeDrafts: db
+      .prepare(
+        `SELECT unit_id, edge, raw_input, base_ms, issue, updated_at
+         FROM unit_time_drafts WHERE unit_id = ?`,
+      )
+      .all(unitId) as TimeDraftRow[],
   };
 }
 
@@ -810,7 +826,7 @@ function shiftSortOrdersAfter(db: SqliteDatabase, layerId: string, sortOrder: nu
   return sortOrder + 1;
 }
 
-function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): void {
+export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): void {
   const unit = removed.unit;
   db.prepare(
     `INSERT INTO units (
@@ -974,9 +990,16 @@ function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): void {
       row.created_at,
     );
   }
+  const insertTimeDraft = db.prepare(
+    `INSERT INTO unit_time_drafts (unit_id, edge, raw_input, base_ms, issue, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  );
+  for (const row of removed.timeDrafts) {
+    insertTimeDraft.run(unit.id, row.edge, row.raw_input, row.base_ms, row.issue, row.updated_at);
+  }
 }
 
-function deleteUnitTree(db: SqliteDatabase, unitId: string): void {
+export function deleteUnitTree(db: SqliteDatabase, unitId: string): void {
   const tokenIds = idsOf(db, 'SELECT id FROM tokens WHERE unit_id = ?', unitId);
   const morphemeIds = morphemeIdsOf(db, tokenIds);
   const noteIds = idsOf(db, 'SELECT id FROM notes WHERE unit_id = ?', unitId);
@@ -1008,6 +1031,7 @@ function deleteUnitTree(db: SqliteDatabase, unitId: string): void {
   db.prepare('DELETE FROM transcription_acceptances WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM unit_texts WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM unit_text_drafts WHERE unit_id = ?').run(unitId);
+  db.prepare('DELETE FROM unit_time_drafts WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM text_save_receipts WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM units WHERE id = ?').run(unitId);
 }

@@ -2,8 +2,8 @@
 
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
-/** SQLite header offset 60. ADR-0122 and ADR-0126 moved this to 29. A later table change needs a new decision and a new freeze record. */
-export const DESKTOP_PROJECT_USER_VERSION = 29;
+/** SQLite header offset 60. ADR-0128 moved this to 30. A later table change needs a new decision and a new freeze record. */
+export const DESKTOP_PROJECT_USER_VERSION = 30;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -1317,6 +1317,16 @@ CREATE TABLE unit_text_drafts (
   base_body TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   CHECK (raw_input <> base_body)
+);
+
+CREATE TABLE unit_time_drafts (
+  unit_id TEXT NOT NULL REFERENCES units(id),
+  edge TEXT NOT NULL CHECK (edge IN ('start', 'end')),
+  raw_input TEXT NOT NULL,
+  base_ms INTEGER NOT NULL CHECK (typeof(base_ms) = 'integer' AND base_ms >= 0),
+  issue TEXT CHECK (issue IS NULL OR length(issue) > 0),
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (unit_id, edge)
 );
 
 CREATE TRIGGER local_id_map_reject_deleted_manuscript_insert

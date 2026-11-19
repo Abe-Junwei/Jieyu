@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import Database from 'better-sqlite3';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -56,6 +57,19 @@ describe('sample project first launch', () => {
     const library = readFileSync(join(sample, 'project.sqlite'));
     expect(ensureBundledSample(sample)).toBe('present');
     expect(readFileSync(join(sample, 'project.sqlite'))).toEqual(library);
+
+    const stale = folder();
+    ensureBundledSample(stale);
+    const bumped = new Database(join(stale, 'project.sqlite'));
+    bumped.exec('PRAGMA user_version = 29');
+    bumped.close();
+    expect(ensureBundledSample(stale)).toBe('imported');
+    const replaced = openProject(stale);
+    const replacedLayer = replaced.db.prepare('SELECT id FROM layers').get() as { id: string };
+    expect(listUnits(replaced.db, replacedLayer.id).map((unit) => unit.text)).toEqual([
+      'synthetic sample',
+    ]);
+    replaced.close();
     const reopened = openProject(sample);
     const layer = reopened.db.prepare('SELECT id FROM layers').get() as { id: string };
     expect(listUnits(reopened.db, layer.id).map((unit) => unit.text)).toEqual(['synthetic sample']);

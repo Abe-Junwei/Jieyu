@@ -128,7 +128,7 @@ describe('desktop call', () => {
     ).toThrow('project session expired');
 
     const live = openDesktopSession(firstDir, [firstDir, secondDir]);
-    expect(() => callDesktopSession(live.sessionId, 'units.delete', {})).toThrow(
+    expect(() => callDesktopSession(live.sessionId, 'units.notAMethod', {})).toThrow(
       'unknown desktop call',
     );
     const count = requireDesktopSession(live.sessionId)

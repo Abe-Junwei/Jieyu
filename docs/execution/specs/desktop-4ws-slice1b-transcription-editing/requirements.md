@@ -42,7 +42,7 @@ source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 - [ ] 拆合产生新身份并保留旧→新映射；唯一对应的分析保留，其余标待复核；拆合形成完整分析历史版本（E04）
 - [ ] 点层：点只带时刻与文字标签（无说话人、上级、下级）；同层同毫秒唯一，可增删改移
 - [ ] 每项写入：写 → 关闭 → 重开 → 读回；Electron 合成证据（`test:e2e:desktop-project`）
-- [ ] flag `desktopTranscriptionWorkspaceEnabled` 默认 false；关时旧读页不变
+- [ ] flag `desktopTranscriptionWorkspaceEnabled` 默认开；显式 `false` 时旧读页不变
 
 ## 4. 受影响代码地图
 

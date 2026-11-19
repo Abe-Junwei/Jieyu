@@ -544,6 +544,7 @@ describe('session unit span undo', () => {
   it('undoes only the newest split, and a text save replaces that record', () => {
     const session = open();
     const unitId = seed(session.sessionId, 0, 2000, '原句');
+    const layerId = layerOf(session.sessionId, unitId);
     const first = callDesktopSession(session.sessionId, 'units.split', {
       unitId,
       time: 1000,
@@ -565,24 +566,36 @@ describe('session unit span undo', () => {
     ).toMatchObject({
       startMs: 1000,
     });
+    expect(callDesktopSession(session.sessionId, 'units.undo', {})).toMatchObject({
+      id: unitId,
+      endMs: 2000,
+    });
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: first.right.id })).toBeNull();
+    expect(callDesktopSession(session.sessionId, 'units.undo', {})).toMatchObject({ id: unitId });
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toBeNull();
     expect(() => callDesktopSession(session.sessionId, 'units.undo', {})).toThrow(
       'unit text undo is empty',
     );
 
-    callDesktopSession(session.sessionId, 'units.split', { unitId: first.left.id, time: 500 });
+    const again = seedUnit(session.sessionId, layerId, 0, 2000, '原句');
+    const split = callDesktopSession(session.sessionId, 'units.split', {
+      unitId: again,
+      time: 500,
+    }) as { left: { id: string } };
+    callDesktopSession(session.sessionId, 'units.split', { unitId: split.left.id, time: 200 });
     callDesktopSession(session.sessionId, 'units.updateText', {
-      unitId: first.left.id,
+      unitId: split.left.id,
       text: '改过',
     });
     expect(callDesktopSession(session.sessionId, 'units.undo', {})).toMatchObject({ text: '原句' });
     expect(
       callDesktopSession(session.sessionId, 'units.list', {
-        layerId: layerOf(session.sessionId, unitId),
+        layerId,
       }),
     ).toHaveLength(3);
   });
 
-  it('drops the record after a boundary move or a closed session', () => {
+  it('undoes a boundary move, and a closed session drops the stack', () => {
     const dir = folder();
     const session = openDesktopSession(dir, [dir]);
     const unitId = seed(session.sessionId, 0, 2000, '原句');
@@ -595,14 +608,10 @@ describe('session unit span undo', () => {
       rightId: split.right.id,
       time: 1200,
     });
-    expect(() => callDesktopSession(session.sessionId, 'units.undo', {})).toThrow(
-      'unit text undo is empty',
-    );
-    expect(callDesktopSession(session.sessionId, 'units.get', { id: split.left.id })).toMatchObject(
-      {
-        endMs: 1200,
-      },
-    );
+    expect(callDesktopSession(session.sessionId, 'units.undo', {})).toEqual([
+      expect.objectContaining({ id: split.left.id, endMs: 1000 }),
+      expect.objectContaining({ id: split.right.id, startMs: 1000 }),
+    ]);
 
     callDesktopSession(session.sessionId, 'units.split', { unitId: split.right.id, time: 1600 });
     closeDesktopSession(session.sessionId);
@@ -634,8 +643,14 @@ describe('session unit span undo', () => {
       text: '原句',
     });
     expect(() => callDesktopSession(session.sessionId, 'units.undo', {})).toThrow(
+      'unit create undo is stale',
+    );
+    expect(() => callDesktopSession(session.sessionId, 'units.undo', {})).toThrow(
       'unit text undo is empty',
     );
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
+      text: '后来',
+    });
   });
 
   it('reads the copied unit after a split that moved morpheme surfaces', () => {

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, type CSSProperties, type RefObject } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { TimeRuler } from '../components/TimeRuler';
-import { TimelineAnnotationItem } from '../components/TimelineAnnotationItem';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
 import { JieyuIcon } from '../components/ui/JieyuIcon';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
+import { ToastProvider } from '../contexts/ToastContext';
 import { readDesktopProjectHost } from '../desktop/projectReadHost';
 import { useDesktopDraftGuard } from '../desktop/useDesktopDraftGuard';
 import { t, tf, useLocale } from '../i18n';
@@ -24,6 +24,7 @@ import {
   getTranscriptionPlaybackClockSnapshot,
   subscribeTranscriptionPlaybackClock,
 } from '../hooks/transcription/transcriptionPlaybackClock';
+import { DesktopTranscriptionLane } from './DesktopTranscriptionLane';
 import {
   formatPlaybackTime,
   useDesktopTranscriptionMediaController,
@@ -31,6 +32,8 @@ import {
 } from './useDesktopTranscriptionMediaController';
 import '../styles/pages/desktop-transcription-workspace.css';
 import '../styles/pages/transcription-waveform.css';
+
+export { desktopSegmentFrame } from './desktopTranscriptionEdgeView';
 
 function PlaybackReadout({ duration, noAudio }: { duration: number; noAudio: boolean }) {
   const currentRef = useRef<HTMLSpanElement>(null);
@@ -58,6 +61,14 @@ function PlaybackReadout({ duration, noAudio }: { duration: number; noAudio: boo
 }
 
 export function DesktopTranscriptionWorkspacePage() {
+  return (
+    <ToastProvider>
+      <DesktopTranscriptionWorkspace />
+    </ToastProvider>
+  );
+}
+
+function DesktopTranscriptionWorkspace() {
   const locale = useLocale();
   const host = readDesktopProjectHost();
   const tierRef = useRef<HTMLDivElement | null>(null);
@@ -69,6 +80,21 @@ export function DesktopTranscriptionWorkspacePage() {
     true,
     locate === null ? null : { manuscriptId: locate.manuscriptId, layerId: locate.layerId },
   );
+  const adoptSample = useRef(read.adoptOpenedSession);
+  adoptSample.current = read.adoptOpenedSession;
+  useEffect(() => {
+    if (host?.openBundledSample === undefined || read.sessionId !== null) return undefined;
+    let cancelled = false;
+    void host
+      .openBundledSample()
+      .then((opened) => {
+        if (!cancelled) adoptSample.current(opened.sessionId);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [host, read.sessionId]);
   const draft = useDesktopDraftGuard(
     (current, operationId) => read.saveText(current.unitId, current.text, operationId),
     {
@@ -109,6 +135,15 @@ export function DesktopTranscriptionWorkspacePage() {
   );
   const hasAudio = (read.model?.audioUrl ?? null) !== null;
   const selection = useDesktopTranscriptionSelectionController(locate?.unitId ?? null);
+  const selectPlaybackUnit = (unit: DesktopPlaybackUnit) => {
+    if (unit.id === selection.selectedUnitId) {
+      selection.selectUnit(unit);
+      return;
+    }
+    draft.leave(() => selection.selectUnit(unit));
+  };
+  const selectPlaybackUnitRef = useRef(selectPlaybackUnit);
+  selectPlaybackUnitRef.current = selectPlaybackUnit;
   const playback = useDesktopTranscriptionMediaController({
     mediaUrl: read.model?.audioUrl ?? null,
     units,
@@ -117,11 +152,30 @@ export function DesktopTranscriptionWorkspacePage() {
     waveformWheelCaptureRootRef: waveHostRef,
     onSelectUnit: (unitId) => {
       const unit = units.find((item) => item.id === unitId);
-      if (unit) selection.selectUnit(unit);
+      if (unit) selectPlaybackUnit(unit);
     },
   });
   selection.seekToRef.current = playback.seekTo;
   const selectedUnit = units.find((unit) => unit.id === selection.selectedUnitId) ?? null;
+  const textSync = useRef({
+    syncSaved: draft.syncSaved,
+    restore: draft.restore,
+    read: read.readTextDraft,
+  });
+  textSync.current = {
+    syncSaved: draft.syncSaved,
+    restore: draft.restore,
+    read: read.readTextDraft,
+  };
+  useEffect(() => {
+    const id = selection.selectedUnitId;
+    if (id === null || selectedUnit === null) return;
+    const saved = selectedUnit.text;
+    textSync.current.syncSaved(id, saved);
+    void textSync.current.read(id).then((row) => {
+      if (row) textSync.current.restore(row, saved);
+    });
+  }, [selectedUnit, selection.selectedUnitId]);
   const waveHeights = getWaveformDisplayHeights(168, playback.waveformDisplayMode);
 
   const speakerCount = new Set(
@@ -148,7 +202,7 @@ export function DesktopTranscriptionWorkspacePage() {
         }
         onSelectUnit={(unitId) => {
           const unit = units.find((item) => item.id === unitId);
-          if (unit) selection.selectUnit(unit);
+          if (unit) selectPlaybackUnitRef.current(unit);
         }}
       />
     ),
@@ -340,7 +394,7 @@ export function DesktopTranscriptionWorkspacePage() {
                 </div>
               ) : null}
             </>
-          ) : (
+          ) : units.length === 0 ? (
             <div className="desktop-tx-no-audio" data-testid="desktop-no-audio">
               <h2>{t(locale, 'app.desktopTranscription.noAudioTitle')}</h2>
               <p>{t(locale, 'app.desktopTranscription.noAudioMessage')}</p>
@@ -348,54 +402,28 @@ export function DesktopTranscriptionWorkspacePage() {
                 {t(locale, 'app.desktopTranscription.importAudio')}
               </button>
             </div>
-          )}
-          {hasAudio ? (
-            <div className="desktop-tx-lane" data-testid="desktop-readonly-timeline">
-              <div className="desktop-tx-band-label">
-                {t(locale, 'app.desktopTranscription.contextLayerTranscription')}
-              </div>
-              <div ref={tierRef} className="desktop-tx-lane__body">
-                <div
-                  className="desktop-tx-lane__track"
-                  style={
-                    playback.zoomPxPerSec > 0
-                      ? { width: playback.duration * playback.zoomPxPerSec }
-                      : undefined
-                  }
-                >
-                  {units.map((unit, index) => {
-                    const frame = desktopSegmentFrame(
-                      unit,
-                      playback.duration,
-                      index,
-                      units.length,
-                      playback.zoomPxPerSec,
-                    );
-                    return (
-                      <TimelineAnnotationItem
-                        key={unit.id}
-                        left={frame.left ?? 0}
-                        width={frame.width ?? 0}
-                        isSelected={unit.id === selection.selectedUnitId}
-                        isActive={false}
-                        isCompact={false}
-                        title={unit.text}
-                        draft={unit.text}
-                        onClick={() => selection.selectUnit(unit)}
-                        onContextMenu={readOnlyAnnotationEvent}
-                        onDoubleClick={readOnlyAnnotationEvent}
-                        onResizeStartPointerDown={readOnlyAnnotationEvent}
-                        onResizeEndPointerDown={readOnlyAnnotationEvent}
-                        onChange={readOnlyAnnotationEvent}
-                        onBlur={readOnlyAnnotationEvent}
-                        onKeyDown={readOnlyAnnotationEvent}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
           ) : null}
+          <DesktopTranscriptionLane
+            locale={locale}
+            sessionId={read.sessionId}
+            manuscriptId={read.model?.manuscriptId ?? null}
+            layerId={read.model?.layerId ?? null}
+            layers={read.model?.layers}
+            desktopCall={host?.desktopCall}
+            sourceUnits={sourceUnits}
+            units={units}
+            hasAudio={hasAudio}
+            duration={playback.duration}
+            zoomPxPerSec={playback.zoomPxPerSec}
+            selectedUnitId={selection.selectedUnitId}
+            bodyDraft={draft.draft}
+            onEditBody={draft.edit}
+            onComposeBody={draft.setComposing}
+            onCommitBody={() => void draft.commit()}
+            onSelectUnit={selectPlaybackUnit}
+            reload={() => read.refresh()}
+            tierRef={tierRef}
+          />
         </div>
       </div>
 
@@ -412,33 +440,6 @@ export function DesktopTranscriptionWorkspacePage() {
       )}
     </section>
   );
-}
-
-function readOnlyAnnotationEvent() {
-  return undefined;
-}
-
-export function desktopSegmentFrame(
-  unit: DesktopPlaybackUnit,
-  duration: number,
-  index: number,
-  count: number,
-  zoomPxPerSec: number,
-): CSSProperties {
-  if (zoomPxPerSec > 0 && unit.endTime > unit.startTime) {
-    return {
-      left: unit.startTime * zoomPxPerSec,
-      width: Math.max(1, (unit.endTime - unit.startTime) * zoomPxPerSec),
-    };
-  }
-  if (duration > 0 && unit.endTime > unit.startTime) {
-    return {
-      left: `${(unit.startTime / duration) * 100}%`,
-      width: `${((unit.endTime - unit.startTime) / duration) * 100}%`,
-    };
-  }
-  const share = 100 / Math.max(count, 1);
-  return { left: `${index * share}%`, width: `${share}%` };
 }
 
 const DESKTOP_VIEW_MODES = [

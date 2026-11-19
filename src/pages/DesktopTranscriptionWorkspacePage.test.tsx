@@ -24,8 +24,8 @@ afterEach(() => {
 });
 
 describe('DesktopTranscriptionWorkspacePage', () => {
-  it('keeps the slice-1 workspace behind a default-off flag', () => {
-    expect(featureFlags.desktopTranscriptionWorkspaceEnabled).toBe(false);
+  it('opens the transcription workspace unless the flag is forced off', () => {
+    expect(featureFlags.desktopTranscriptionWorkspaceEnabled).toBe(true);
   });
 
   it('renders the board-27 shell regions when a desktop host is present', () => {
@@ -186,6 +186,9 @@ describe('DesktopTranscriptionWorkspacePage', () => {
     expect(css).toMatch(/data-theme='dark'[\s\S]*rgb\(244 242 236 \/ 18%\)/);
     expect(css).toMatch(
       /\.desktop-tx-lane \.timeline-annotation-resize-handle[\s\S]*display:\s*none/,
+    );
+    expect(css).toMatch(
+      /timeline-annotation-selected\s+\.timeline-annotation-resize-handle[\s\S]*display:\s*block/,
     );
   });
 });

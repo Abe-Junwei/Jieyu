@@ -35,7 +35,7 @@ function textOf(sessionId: string, unitId: string): string {
 }
 
 describe('session unit text undo', () => {
-  it('undoes only the latest text write, then forgets it', () => {
+  it('undoes each text write, then the create, until the stack is empty', () => {
     const dir = folder();
     const session = openDesktopSession(dir, [dir]);
     const unitId = seed(session.sessionId);
@@ -44,11 +44,14 @@ describe('session unit text undo', () => {
     expect(callDesktopSession(session.sessionId, 'units.undoText', {})).toMatchObject({
       text: 'ta',
     });
-    expect(() => callDesktopSession(session.sessionId, 'units.undoText', {})).toThrow(
+    expect(callDesktopSession(session.sessionId, 'units.undoText', {})).toMatchObject({
+      text: 'ka',
+    });
+    expect(callDesktopSession(session.sessionId, 'units.undo', {})).toMatchObject({ id: unitId });
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toBeNull();
+    expect(() => callDesktopSession(session.sessionId, 'units.undo', {})).toThrow(
       'unit text undo is empty',
     );
-    callDesktopSession(session.sessionId, 'reopen', {});
-    expect(textOf(session.sessionId, unitId)).toBe('ta');
   });
 
   it('keeps the record across a reread and drops it after another write, a closed session, or a stale row', () => {

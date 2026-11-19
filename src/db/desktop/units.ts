@@ -17,6 +17,7 @@ import {
 } from './analysisCandidates';
 import { assertStoredCustomFields, writeUnitFieldValues } from './customFields';
 import { claimTextSave, finishTextSave, textSaveDigest } from './textSave';
+import { secToMs } from './timeMs';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -127,12 +128,33 @@ export function sortOrderForInsert(
   return next.sortOrder;
 }
 
+function assertCreateInsideMedia(
+  db: SqliteDatabase,
+  layerId: string,
+  start: number | null,
+  end: number | null,
+): void {
+  if (start === null || end === null) return;
+  const row = db
+    .prepare(
+      `SELECT media.duration AS duration
+       FROM layers
+       JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+       LEFT JOIN media ON media.id = manuscripts.media_id AND media.deleted_at IS NULL
+       WHERE layers.id = ?`,
+    )
+    .get(layerId) as { duration: number | null } | undefined;
+  if (!row || row.duration === null) return;
+  if (start < 0 || end > secToMs(row.duration)) throw new Error('edge is outside the media');
+}
+
 export function createUnit(
   db: SqliteDatabase,
   input: UnitCreate,
   afterUnitInsert?: () => void,
 ): Unit {
   assertUnitSpan(input.startMs, input.endMs);
+  assertCreateInsideMedia(db, input.layerId, input.startMs, input.endMs);
   const id = randomUUID();
   const now = new Date().toISOString();
   const write = db.transaction(() => {

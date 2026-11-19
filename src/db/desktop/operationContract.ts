@@ -645,7 +645,7 @@ function unitCreate(input: Record<string, unknown>): UnitCreate {
     layerId: requiredString(input.layerId, 'layerId'),
     startMs,
     endMs,
-    text: requiredString(input.text, 'text'),
+    text: typeof input.text === 'string' ? input.text : requiredString(input.text, 'text'),
     ...('speakerId' in input ? { speakerId: optionalString(input.speakerId, 'speakerId') } : {}),
     ...('parentUnitId' in input
       ? { parentUnitId: optionalString(input.parentUnitId, 'parentUnitId') }
@@ -677,6 +677,48 @@ function unitBoundary(input: Record<string, unknown>): {
     leftId: requiredString(input.leftId, 'leftId'),
     rightId: requiredString(input.rightId, 'rightId'),
     time: requiredNumber(input.time, 'time'),
+  };
+}
+
+function timeEdge(value: unknown): 'start' | 'end' {
+  if (value === 'start' || value === 'end') return value;
+  throw new Error('desktop call edge is invalid');
+}
+
+function unitEdge(input: Record<string, unknown>): {
+  unitId: string;
+  edge: 'start' | 'end';
+  time: number;
+} {
+  knownKeys(input, ['unitId', 'edge', 'time']);
+  return {
+    unitId: requiredString(input.unitId, 'unitId'),
+    edge: timeEdge(input.edge),
+    time: requiredNumber(input.time, 'time'),
+  };
+}
+
+function unitStack(input: Record<string, unknown>): { manuscriptId?: string } {
+  knownKeys(input, ['manuscriptId']);
+  if (input.manuscriptId === undefined) return {};
+  return { manuscriptId: requiredString(input.manuscriptId, 'manuscriptId') };
+}
+
+function unitTimeDraft(input: Record<string, unknown>): {
+  unitId: string;
+  edge: 'start' | 'end';
+  rawInput: string;
+  baseMs: number;
+  issue: string | null;
+} {
+  knownKeys(input, ['unitId', 'edge', 'rawInput', 'baseMs', 'issue']);
+  if (typeof input.rawInput !== 'string') throw new Error('desktop call rawInput must be a string');
+  return {
+    unitId: requiredString(input.unitId, 'unitId'),
+    edge: timeEdge(input.edge),
+    rawInput: input.rawInput,
+    baseMs: requiredNumber(input.baseMs, 'baseMs'),
+    issue: input.issue === null ? null : requiredString(input.issue, 'issue'),
   };
 }
 
@@ -1710,7 +1752,7 @@ export const desktopOperations = {
     },
   ),
   'corpus.query': spec<'keep', CorpusQuery, CorpusQueryPage>('keep', corpusQuery),
-  'units.create': spec<'clear', UnitCreate, Unit>('clear', unitCreate),
+  'units.create': spec<'keep', UnitCreate, Unit>('keep', unitCreate),
   'units.get': spec<'keep', { id: string }, Unit | null>('keep', (input) => ({
     id: requiredString(input.id, 'id'),
   })),
@@ -1721,20 +1763,81 @@ export const desktopOperations = {
     'keep',
     () => ({}) as Record<string, never>,
   ),
-  'units.undo': spec<'keep', Record<string, never>, Unit | Unit[]>(
-    'keep',
-    () => ({}) as Record<string, never>,
-  ),
+  'units.undo': spec<'keep', { manuscriptId?: string }, Unit | Unit[]>('keep', unitStack),
+  'units.redo': spec<'keep', { manuscriptId?: string }, Unit | Unit[]>('keep', unitStack),
   'units.split': spec<'keep', { unitId: string; time: number }, { left: Unit; right: Unit }>(
     'keep',
     unitSplit,
   ),
   'units.merge': spec<'clear', { keepId: string; removeId: string }, Unit>('clear', unitMerge),
   'units.updateBoundary': spec<
-    'clear',
+    'keep',
     { leftId: string; rightId: string; time: number },
     { left: Unit; right: Unit }
-  >('clear', unitBoundary),
+  >('keep', unitBoundary),
+  'units.moveEdge': spec<'keep', { unitId: string; edge: 'start' | 'end'; time: number }, Unit>(
+    'keep',
+    unitEdge,
+  ),
+  'units.moveSharedBoundary': spec<
+    'keep',
+    { leftId: string; rightId: string; time: number },
+    { left: Unit; right: Unit }
+  >('keep', unitBoundary),
+  'units.previewDelete': spec<'keep', { unitId: string }, { tokens: number; notes: number }>(
+    'keep',
+    (input) => {
+      knownKeys(input, ['unitId']);
+      return { unitId: requiredString(input.unitId, 'unitId') };
+    },
+  ),
+  'units.delete': spec<'keep', { unitId: string }, { id: string }>('keep', (input) => {
+    knownKeys(input, ['unitId']);
+    return { unitId: requiredString(input.unitId, 'unitId') };
+  }),
+  'units.readTimeDraft': spec<
+    'keep',
+    { unitId: string },
+    {
+      unitId: string;
+      edge: 'start' | 'end';
+      rawInput: string;
+      baseMs: number;
+      issue: string | null;
+      updatedAt: string;
+    }[]
+  >('keep', (input) => {
+    knownKeys(input, ['unitId']);
+    return { unitId: requiredString(input.unitId, 'unitId') };
+  }),
+  'units.putTimeDraft': spec<
+    'keep',
+    {
+      unitId: string;
+      edge: 'start' | 'end';
+      rawInput: string;
+      baseMs: number;
+      issue: string | null;
+    },
+    {
+      unitId: string;
+      edge: 'start' | 'end';
+      rawInput: string;
+      baseMs: number;
+      issue: string | null;
+      updatedAt: string;
+    }
+  >('keep', unitTimeDraft),
+  'units.discardTimeDraft': spec<'keep', { unitId: string; edge?: 'start' | 'end' }, null>(
+    'keep',
+    (input) => {
+      knownKeys(input, ['unitId', 'edge']);
+      return {
+        unitId: requiredString(input.unitId, 'unitId'),
+        ...(input.edge === undefined ? {} : { edge: timeEdge(input.edge) }),
+      };
+    },
+  ),
   'deletion.listDue': spec<'keep', Record<string, never>, DueDeletionReminder[]>(
     'keep',
     (input) => {

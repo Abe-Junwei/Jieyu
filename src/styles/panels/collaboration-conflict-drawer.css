@@ -3,7 +3,7 @@
   right: 16px;
   bottom: 16px;
   width: min(420px, calc(100vw - 24px));
-  z-index: 80;
+  z-index: var(--z-drawer);
   border: 1px solid color-mix(in srgb, var(--border-muted) 82%, transparent);
   border-radius: 14px;
   background: color-mix(in srgb, var(--surface-panel) 96%, transparent);

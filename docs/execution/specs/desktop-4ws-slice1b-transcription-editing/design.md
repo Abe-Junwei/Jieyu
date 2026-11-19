@@ -75,7 +75,7 @@ depends_on:
 
 ## 5. Flag
 
-- 沿用 `desktopTranscriptionWorkspaceEnabled`（默认 false）。1b 全部片完成、自用一周后再议默认开。
+- 沿用 `desktopTranscriptionWorkspaceEnabled`。本地直接使用，默认开。`VITE_DESKTOP_TRANSCRIPTION_WORKSPACE_ENABLED=false` 仍回到旧读页。
 
 ## 6. 失败模式 / 兼容性
 

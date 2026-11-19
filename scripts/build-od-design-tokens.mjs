@@ -54,11 +54,11 @@ const GROUPS = [
     ['fg-2', 'color', 'text-secondary'],
     ['muted', 'color', 'text-tertiary'],
     ['meta', 'color', 'text-tertiary'],
-    ['border', 'color', 'border-soft'],
-    ['border-soft', 'color', 'border-subtle'],
+    ['border', 'color', 'border-subtle'],
+    ['border-soft', 'color', 'border-soft'],
     ['border-strong', 'color', 'border-strong'],
     ['border-control', 'color', 'border-control'],
-    ['focus-color', 'pair', ['#5c5c5c', '#9e998f']],
+    ['focus-color', 'color', 'focus-color'],
     ['text-selection', 'pair', ['#e2e2e2', '#3a3832']],
     ['accent', 'color', 'action-solid'],
     ['accent-on', 'color', 'text-on-action'],
@@ -133,13 +133,13 @@ const GROUPS = [
     ['motion-fast', 'raw', 'duration-fast'],
     ['motion-base', 'raw', 'duration-normal'],
     ['ease-standard', 'raw', 'ease-default'],
-    ['z-base', 'const', '1'],
-    ['z-sticky', 'const', '20'],
-    ['z-shell', 'const', '40'],
-    ['z-drawer', 'const', '80'],
-    ['z-popover', 'const', '160'],
-    ['z-toast', 'const', '240'],
-    ['z-modal', 'const', '320'],
+    ['z-base', 'raw', 'z-base'],
+    ['z-sticky', 'raw', 'z-sticky'],
+    ['z-shell', 'raw', 'z-shell'],
+    ['z-drawer', 'raw', 'z-drawer'],
+    ['z-popover', 'raw', 'z-popover'],
+    ['z-toast', 'raw', 'z-toast'],
+    ['z-modal', 'raw', 'z-modal'],
   ]],
 ];
 
@@ -153,19 +153,48 @@ function parseBlockVars(block) {
   return vars;
 }
 
-function contrastRatio(hexA, hexB) {
-  const relLum = (hex) => {
-    if (!/^#[0-9a-f]{6}$/i.test(hex ?? '')) return null;
-    const n = parseInt(hex.slice(1), 16);
+function parseColor(value) {
+  const hex = /^#([0-9a-f]{6})$/i.exec(value ?? '');
+  if (hex) {
+    const n = parseInt(hex[1], 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255, a: 1 };
+  }
+  const rgb = /^rgb\((\d+) (\d+) (\d+) \/ ([\d.]+)%\)$/i.exec(value ?? '');
+  if (!rgb) return null;
+  return {
+    r: Number(rgb[1]),
+    g: Number(rgb[2]),
+    b: Number(rgb[3]),
+    a: Number(rgb[4]) / 100,
+  };
+}
+
+function compositeColor(foreground, background) {
+  return {
+    r: foreground.r * foreground.a + background.r * (1 - foreground.a),
+    g: foreground.g * foreground.a + background.g * (1 - foreground.a),
+    b: foreground.b * foreground.a + background.b * (1 - foreground.a),
+    a: 1,
+  };
+}
+
+function contrastRatio(foreground, background, backdrop = background) {
+  const fg = parseColor(foreground);
+  const bg = parseColor(background);
+  const underlay = parseColor(backdrop);
+  if (!fg || !bg || !underlay) return null;
+  const displayedBackground = bg.a === 1 ? bg : compositeColor(bg, underlay);
+  const displayedForeground =
+    fg.a === 1 ? fg : compositeColor(fg, displayedBackground);
+  const relLum = ({ r, g, b }) => {
     const lin = (c) => {
       const s = c / 255;
       return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
     };
-    return 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
   };
-  const a = relLum(hexA);
-  const b = relLum(hexB);
-  if (a === null || b === null) return null;
+  const a = relLum(displayedForeground);
+  const b = relLum(displayedBackground);
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
@@ -232,14 +261,41 @@ function check() {
     ...lightVars,
     ...parseBlockVars(body.match(/\[data-theme="dark"\]\s*\{([^}]*)\}/)?.[1] ?? ''),
   };
+  const contrastPairs = [
+    ['fg', 'surface', 4.5],
+    ['fg-2', 'surface', 4.5],
+    ['muted', 'surface', 4.5],
+    ['fg', 'context', 4.5],
+    ['fg-2', 'context', 4.5],
+    ['muted', 'context', 4.5],
+    ['focus-color', 'surface', 3],
+    ['border-control', 'surface', 3],
+    ['accent-on', 'accent', 4.5],
+    ['brand-on', 'brand', 4.5],
+    ['secondary', 'brand-tint', 4.5],
+    ['toast-fg', 'toast-bg', 4.5],
+    ['success-text', 'success-bg', 4.5],
+    ['warn-text', 'warn-bg', 4.5],
+    ['danger-text', 'danger-bg', 4.5],
+  ];
   for (const [mode, vars] of [['light', lightVars], ['dark', darkVars]]) {
-    for (const token of ['border-control', 'focus-color']) {
-      const ratio = contrastRatio(vars[token], vars.surface);
-      if (ratio === null || ratio < 3) {
+    for (const [foreground, background, minimum] of contrastPairs) {
+      const ratio = contrastRatio(vars[foreground], vars[background], vars.surface);
+      if (ratio === null || ratio < minimum) {
         errors.push(
-          `--${token} (${vars[token]}) vs --surface (${vars.surface}) in ${mode} mode is ${ratio === null ? 'invalid' : `${ratio.toFixed(2)}:1`} (< 3:1).`,
+          `--${foreground} (${vars[foreground]}) vs --${background} (${vars[background]}) in ${mode} mode is ${ratio === null ? 'invalid' : `${ratio.toFixed(2)}:1`} (minimum ${minimum}:1).`,
         );
       }
+    }
+  }
+  const zStack = ['z-base', 'z-sticky', 'z-shell', 'z-drawer', 'z-popover', 'z-toast', 'z-modal'];
+  const expectedZStack = [1, 20, 40, 80, 160, 240, 320];
+  for (const [mode, vars] of [['light', lightVars], ['dark', darkVars]]) {
+    const actual = zStack.map((token) => Number(vars[token]));
+    if (actual.some((value, index) => value !== expectedZStack[index])) {
+      errors.push(
+        `Semantic z-index anchors in ${mode} mode must be ${expectedZStack.join(' < ')}; got ${actual.join(' < ')}.`,
+      );
     }
   }
   if (!lstatSync(designLink).isSymbolicLink() || readlinkSync(designLink) !== designTarget) {

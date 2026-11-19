@@ -1,35 +1,44 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '../i18n';
 import { DesktopPageRouter, resetDesktopPageRouters } from '../test/desktopPageRouter';
 
 const saveText = vi.fn(async () => true);
+const persistTextDraft = vi.fn(async () => undefined);
+
+const readState = vi.hoisted(() => {
+  const base = () => ({
+    manuscriptId: 'ms-1',
+    manuscripts: [{ id: 'ms-1', title: { und: 'Story' }, timeMapping: null }],
+    layers: [] as { id: string; name: Record<string, string> }[],
+    layerId: null as string | null,
+    units: [
+      { id: 'u-a', startMs: 0, endMs: 1000, text: 'alpha', speakerId: null as string | null },
+      { id: 'u-b', startMs: 1000, endMs: 2000, text: 'beta', speakerId: null as string | null },
+    ],
+    audioUrl: 'blob:test-audio',
+  });
+  return { model: base(), base };
+});
 
 vi.mock('./useDesktopProjectReadController', () => ({
   useDesktopProjectReadController: () => ({
     sessionId: 'session-1',
-    model: {
-      manuscriptId: 'ms-1',
-      manuscripts: [{ id: 'ms-1', title: { und: 'Story' }, timeMapping: null }],
-      units: [
-        { id: 'u-a', startMs: 0, endMs: 1000, text: 'alpha', speakerId: null },
-        { id: 'u-b', startMs: 1000, endMs: 2000, text: 'beta', speakerId: null },
-      ],
-      audioUrl: 'blob:test-audio',
-    },
+    model: readState.model,
     notes: [],
     projectTitle: 'Project',
     error: '',
     openFolder: vi.fn(),
     selectManuscript: vi.fn(),
     saveText,
-    persistTextDraft: vi.fn(async () => undefined),
+    persistTextDraft,
     discardTextDraft: vi.fn(async () => undefined),
     inspectTextSave: vi.fn(async () => 'saved'),
     readTextDraft: vi.fn(async () => null),
     undoText: vi.fn(),
+    refresh: vi.fn(async () => undefined),
     splitUnit: vi.fn(),
     mergeUnits: vi.fn(),
     moveBoundary: vi.fn(),
@@ -50,23 +59,38 @@ vi.mock('wavesurfer.js/dist/plugins/regions.esm.js', () => ({
 }));
 
 afterEach(() => {
+  readState.model = readState.base();
   resetDesktopPageRouters();
   cleanup();
   saveText.mockClear();
+  persistTextDraft.mockClear();
   delete (globalThis as { jieyuDesktop?: unknown }).jieyuDesktop;
 });
 
 function annotation(text: string): Element | null {
-  return screen.getByText(text).closest('.timeline-annotation');
+  return document.querySelector(`.timeline-annotation[title="${text}"]`);
 }
 
-function renderWorkspace(entry = '/transcription') {
+function bodyInput(): HTMLInputElement {
+  const input = document.querySelector('.timeline-annotation-input');
+  if (!(input instanceof HTMLInputElement)) throw new Error('missing body input');
+  return input;
+}
+
+function renderWorkspace(
+  entry = '/transcription',
+  desktopCall: (
+    sessionId: string,
+    method: string,
+    args: unknown,
+  ) => Promise<unknown> = async () => {
+    throw new Error('unused');
+  },
+) {
   (globalThis as { jieyuDesktop?: unknown }).jieyuDesktop = {
     projectReadEnabled: true,
     chooseDesktopFolder: vi.fn(async () => ({ cancelled: true as const })),
-    desktopCall: vi.fn(async () => {
-      throw new Error('unused');
-    }),
+    desktopCall: vi.fn(desktopCall),
     desktopMediaUrl: vi.fn(async () => ({ url: '' })),
   };
   render(
@@ -119,12 +143,33 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
 
     fireEvent.click(screen.getByText('alpha'));
     expect(annotation('alpha')?.classList.contains('timeline-annotation-selected')).toBe(true);
-    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(screen.getByRole('textbox', { name: '起点' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '结束时间' })).toBeTruthy();
+    expect(screen.queryByRole('complementary', { name: '片段检查器' })).toBeNull();
 
     fireEvent.click(screen.getByText('beta'));
     expect(annotation('beta')?.classList.contains('timeline-annotation-selected')).toBe(true);
     expect(annotation('alpha')?.classList.contains('timeline-annotation-selected')).toBe(false);
     expect(saveText).not.toHaveBeenCalled();
+  });
+
+  it('names the lane after the deep-linked layer and keeps that layer’s units', () => {
+    readState.model = {
+      ...readState.base(),
+      layers: [
+        { id: 'layer-tx', name: { zh: '转写' } },
+        { id: 'layer-tl', name: { zh: '翻译' } },
+      ],
+      layerId: 'layer-tl',
+      units: [{ id: 'u-tl', startMs: 0, endMs: 1000, text: '译文', speakerId: null }],
+    };
+    renderWorkspace('/transcription?manuscriptId=ms-1&layerId=layer-tl');
+    const lane = screen.getByTestId('desktop-readonly-timeline');
+    expect(lane.querySelector('.desktop-tx-band-label')?.textContent).toBe('翻译');
+    expect(lane.textContent).not.toContain('转写');
+    expect(screen.getByText('译文')).toBeTruthy();
+    expect(screen.queryByText('alpha')).toBeNull();
+    expect(screen.queryByRole('textbox')).toBeNull();
   });
 
   it('replaces a deep-linked unit when another unit is clicked', () => {
@@ -133,5 +178,64 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     fireEvent.click(screen.getByText('alpha'));
     expect(annotation('alpha')?.classList.contains('timeline-annotation-selected')).toBe(true);
     expect(annotation('beta')?.classList.contains('timeline-annotation-selected')).toBe(false);
+  });
+
+  it('writes a finished end time on blur and keeps an unfinished one as a draft', async () => {
+    const calls: { method: string; args: unknown }[] = [];
+    renderWorkspace('/transcription', async (_sessionId, method, args) => {
+      calls.push({ method, args });
+      if (method === 'units.readTimeDraft') return [];
+      return null;
+    });
+    fireEvent.click(screen.getByText('alpha'));
+    const end = screen.getByRole('textbox', { name: '结束时间' });
+    expect(end).toHaveValue('00:00:01.000');
+    fireEvent.change(end, { target: { value: '00:00:01.500' } });
+    expect(calls.some((call) => call.method === 'units.moveEdge')).toBe(false);
+    fireEvent.blur(end);
+    await waitFor(() => {
+      expect(calls).toContainEqual({
+        method: 'units.moveEdge',
+        args: { unitId: 'u-a', edge: 'end', time: 1500 },
+      });
+    });
+    await waitFor(() => expect(end).toHaveValue('00:00:01.000'));
+
+    fireEvent.change(end, { target: { value: '00:00:01.' } });
+    fireEvent.blur(end);
+    await waitFor(() => {
+      expect(calls.some((call) => call.method === 'units.putTimeDraft')).toBe(true);
+    });
+    expect(calls.filter((call) => call.method === 'units.moveEdge')).toHaveLength(1);
+  });
+
+  it('edits the selected body, restores it on escape, and saves a finished edit on blur', async () => {
+    renderWorkspace();
+    fireEvent.click(screen.getByText('alpha'));
+    expect(document.querySelector('.timeline-annotation-input')).toBeNull();
+    fireEvent.click(screen.getByText('alpha'));
+    const input = bodyInput();
+    expect(input.value).toBe('alpha');
+    expect(document.activeElement).toBe(input);
+
+    fireEvent.change(input, { target: { value: 'alpha!' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(document.querySelector('.timeline-annotation-input')).toBeNull();
+    expect(screen.getByText('alpha')).toBeTruthy();
+    expect(saveText).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('alpha'));
+    const again = bodyInput();
+    fireEvent.change(again, { target: { value: '' } });
+    fireEvent.blur(again);
+    expect(saveText).not.toHaveBeenCalled();
+    expect(persistTextDraft).toHaveBeenCalled();
+    expect(screen.getByText('草稿已保存，尚未生效')).toBeTruthy();
+
+    fireEvent.change(again, { target: { value: 'alpha beta' } });
+    fireEvent.blur(again);
+    await waitFor(() => {
+      expect(saveText).toHaveBeenCalledWith('u-a', 'alpha beta', expect.any(String));
+    });
   });
 });

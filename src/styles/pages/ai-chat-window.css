@@ -1,7 +1,7 @@
 .transcription-chat-window-host {
   position: fixed;
   inset: 0;
-  z-index: calc(var(--z-modal-topmost, 1240) + 20);
+  z-index: calc(var(--z-modal-topmost, 340) + 20);
   pointer-events: none;
   isolation: isolate;
 }

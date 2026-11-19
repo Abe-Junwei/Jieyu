@@ -128,12 +128,18 @@ import {
   reopenDesktopSession,
   requireDesktopSession,
 } from './projectSession';
-import { clearSessionEdit, rememberSessionEdit, undoSessionEdit } from './sessionEdit';
+import {
+  clearSessionEdit,
+  rememberSessionEdit,
+  redoSessionEdit,
+  undoSessionEdit,
+} from './sessionEdit';
 import { desktopOperations, isDesktopOperation, type DesktopOperations } from './operationContract';
 import {
   createUnit,
   getUnit,
   listUnits,
+  readStoredUnit,
   updateBoundary,
   updateUnitText,
   type UnitTextUndo,
@@ -145,7 +151,15 @@ import {
   readUnitTextDraft,
   textSaveDigest,
 } from './textSave';
-import { mergeUnits, splitUnit } from './unitSpan';
+import { mergeUnits, readRemovedUnit, splitUnit } from './unitSpan';
+import {
+  manuscriptIdOf,
+  moveSharedBoundary,
+  moveUnitEdge,
+  previewUnitDelete,
+  removeUnit,
+} from './unitEdges';
+import { discardUnitTimeDraft, putUnitTimeDraft, readUnitTimeDrafts } from './unitTimeDrafts';
 
 type ContractCtx = {
   db: ReturnType<typeof requireDesktopSession>['db'];
@@ -360,8 +374,17 @@ const operationHandlers = {
       queryCorpus(ctx.db, input),
   },
   'units.create': {
-    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.create']['check']>) =>
-      createUnit(ctx.db, input),
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.create']['check']>) => {
+      const unit = createUnit(ctx.db, input);
+      rememberSessionEdit(ctx.sessionId, {
+        kind: 'create',
+        undo: {
+          manuscriptId: manuscriptIdOf(ctx.db, unit.id),
+          tree: readRemovedUnit(ctx.db, unit.id),
+        },
+      });
+      return unit;
+    },
   },
   'units.get': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.get']['check']>) =>
@@ -375,7 +398,12 @@ const operationHandlers = {
     run: (ctx: ContractCtx) => undoSessionEdit(ctx.sessionId, ctx.db, 'text'),
   },
   'units.undo': {
-    run: (ctx: ContractCtx) => undoSessionEdit(ctx.sessionId, ctx.db),
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.undo']['check']>) =>
+      undoSessionEdit(ctx.sessionId, ctx.db, undefined, input.manuscriptId),
+  },
+  'units.redo': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.redo']['check']>) =>
+      redoSessionEdit(ctx.sessionId, ctx.db, input.manuscriptId),
   },
   'units.split': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.split']['check']>) => {
@@ -395,7 +423,79 @@ const operationHandlers = {
     run: (
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['units.updateBoundary']['check']>,
-    ) => updateBoundary(ctx.db, input),
+    ) => {
+      const before = readStoredUnit(ctx.db, input.leftId);
+      const right = readStoredUnit(ctx.db, input.rightId);
+      const moved = updateBoundary(ctx.db, input);
+      if (before?.startMs != null && before.endMs != null && right?.endMs != null) {
+        rememberSessionEdit(ctx.sessionId, {
+          kind: 'boundary',
+          undo: {
+            leftId: input.leftId,
+            rightId: input.rightId,
+            from: before.endMs,
+            to: input.time,
+            leftStart: before.startMs,
+            rightEnd: right.endMs,
+            manuscriptId: manuscriptIdOf(ctx.db, input.leftId),
+          },
+        });
+      }
+      return moved;
+    },
+  },
+  'units.moveEdge': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.moveEdge']['check']>) => {
+      const moved = moveUnitEdge(ctx.db, input);
+      if (moved.move) {
+        rememberSessionEdit(ctx.sessionId, { kind: 'edge', undo: moved.move });
+        discardUnitTimeDraft(ctx.db, input.unitId, input.edge);
+      }
+      return moved.unit;
+    },
+  },
+  'units.moveSharedBoundary': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['units.moveSharedBoundary']['check']>,
+    ) => {
+      const moved = moveSharedBoundary(ctx.db, input);
+      if (moved.move) {
+        rememberSessionEdit(ctx.sessionId, { kind: 'boundary', undo: moved.move });
+        discardUnitTimeDraft(ctx.db, input.leftId, 'end');
+        discardUnitTimeDraft(ctx.db, input.rightId, 'start');
+      }
+      return { left: moved.left, right: moved.right };
+    },
+  },
+  'units.previewDelete': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.previewDelete']['check']>) =>
+      previewUnitDelete(ctx.db, input.unitId),
+  },
+  'units.delete': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.delete']['check']>) => {
+      const manuscriptId = manuscriptIdOf(ctx.db, input.unitId);
+      const tree = removeUnit(ctx.db, input.unitId);
+      rememberSessionEdit(ctx.sessionId, { kind: 'delete', undo: { manuscriptId, tree } });
+      return { id: input.unitId };
+    },
+  },
+  'units.readTimeDraft': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.readTimeDraft']['check']>) =>
+      readUnitTimeDrafts(ctx.db, input.unitId),
+  },
+  'units.putTimeDraft': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.putTimeDraft']['check']>) =>
+      putUnitTimeDraft(ctx.db, input),
+  },
+  'units.discardTimeDraft': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['units.discardTimeDraft']['check']>,
+    ) => {
+      discardUnitTimeDraft(ctx.db, input.unitId, input.edge);
+      return null;
+    },
   },
   'deletion.listDue': {
     run: (ctx: ContractCtx) => listDueDeletionReminders(ctx.db),

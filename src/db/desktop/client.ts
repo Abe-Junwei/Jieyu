@@ -89,13 +89,41 @@ export function createDesktopClient(bridge: DesktopBridge) {
     discardTextDraft: (sessionId: string, unitId: string) =>
       once(sessionId, 'units.discardTextDraft', { unitId }),
     undoUnitText: (sessionId: string) => once(sessionId, 'units.undoText', {}),
-    undoStep: (sessionId: string) => once(sessionId, 'units.undo', {}),
+    undoStep: (sessionId: string, manuscriptId?: string) =>
+      once(sessionId, 'units.undo', manuscriptId === undefined ? {} : { manuscriptId }),
+    redoStep: (sessionId: string, manuscriptId?: string) =>
+      once(sessionId, 'units.redo', manuscriptId === undefined ? {} : { manuscriptId }),
     splitUnit: (sessionId: string, input: { unitId: string; time: number }) =>
       once(sessionId, 'units.split', input),
     mergeUnits: (sessionId: string, input: { keepId: string; removeId: string }) =>
       once(sessionId, 'units.merge', input),
     updateBoundary: (sessionId: string, input: { leftId: string; rightId: string; time: number }) =>
       once(sessionId, 'units.updateBoundary', input),
+    moveUnitEdge: (
+      sessionId: string,
+      input: { unitId: string; edge: 'start' | 'end'; time: number },
+    ) => once(sessionId, 'units.moveEdge', input),
+    moveSharedBoundary: (
+      sessionId: string,
+      input: { leftId: string; rightId: string; time: number },
+    ) => once(sessionId, 'units.moveSharedBoundary', input),
+    previewUnitDelete: (sessionId: string, unitId: string) =>
+      once(sessionId, 'units.previewDelete', { unitId }),
+    deleteUnit: (sessionId: string, unitId: string) => once(sessionId, 'units.delete', { unitId }),
+    readTimeDraft: (sessionId: string, unitId: string) =>
+      once(sessionId, 'units.readTimeDraft', { unitId }),
+    putTimeDraft: (
+      sessionId: string,
+      input: {
+        unitId: string;
+        edge: 'start' | 'end';
+        rawInput: string;
+        baseMs: number;
+        issue: string | null;
+      },
+    ) => once(sessionId, 'units.putTimeDraft', input),
+    discardTimeDraft: (sessionId: string, unitId: string, edge?: 'start' | 'end') =>
+      once(sessionId, 'units.discardTimeDraft', edge === undefined ? { unitId } : { unitId, edge }),
     createCustomFieldDefinition: (sessionId: string, input: unknown) =>
       once(sessionId, 'customFields.createDefinition', input),
     updateCustomFieldDefinition: (sessionId: string, input: unknown) =>

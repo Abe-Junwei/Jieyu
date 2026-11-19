@@ -6,6 +6,7 @@ type SqliteDatabase = InstanceType<typeof Database>;
 
 export interface SpeakerAssignUndo {
   speakerId: string;
+  manuscriptId: string;
   units: { id: string; speakerId: string | null }[];
 }
 
@@ -39,10 +40,15 @@ export function assignSpeaker(
       }
       return stored;
     });
+    const manuscript = db
+      .prepare(`SELECT manuscript_id AS manuscriptId FROM layers WHERE id = ?`)
+      .get(before[0]?.layerId) as { manuscriptId: string } | undefined;
+    if (!manuscript) throw new Error('unit is missing');
     return {
       units,
       undo: {
         speakerId: input.speakerId,
+        manuscriptId: manuscript.manuscriptId,
         units: before.map((unit) => ({ id: unit.id, speakerId: unit.speakerId })),
       },
     };

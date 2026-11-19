@@ -1,7 +1,7 @@
 {
-  "userVersion": 29,
+  "userVersion": 30,
   "applicationId": 1247367242,
-  "schemaSha256": "0b389d94d1f90bf13e47e02320538e1778798f5c73506c91c85e3e5fd86e335d",
+  "schemaSha256": "26ac68677c8c85cb3008e494cf963436a6bf6db4330e7077759e51a97eb1a826",
   "journalMode": "delete",
   "migrator": false,
   "rejection": "project.sqlite is not a Jieyu project library",
@@ -44,6 +44,7 @@
     "reception_batches",
     "local_id_map",
     "text_save_receipts",
-    "unit_text_drafts"
+    "unit_text_drafts",
+    "unit_time_drafts"
   ]
 }

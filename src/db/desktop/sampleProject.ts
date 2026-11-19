@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { openProject } from './openProject';
+import { openProject, projectLibraryHeaderMatches } from './openProject';
 import { exportDesktopJym, importDesktopJym } from './projectExchange';
 
 export const SAMPLE_PROJECT_DIRNAME = 'sample-project';
@@ -11,7 +11,7 @@ const SAMPLE_TEXT = 'synthetic sample';
 export function buildSyntheticSamplePackage(): Uint8Array {
   const dir = mkdtempSync(path.join(tmpdir(), 'jieyu-synthetic-sample-'));
   try {
-    const body = Buffer.from('sample-wav');
+    const body = silentWav();
     writeFileSync(path.join(dir, 'sample.wav'), body);
     const sha256 = createHash('sha256').update(body).digest('hex');
     const project = openProject(dir);
@@ -48,10 +48,31 @@ export function buildSyntheticSamplePackage(): Uint8Array {
 }
 
 export function ensureBundledSample(folder: string): 'present' | 'imported' {
-  const bytes = existsSync(path.join(folder, 'project.sqlite'))
-    ? new Uint8Array()
-    : buildSyntheticSamplePackage();
+  const library = path.join(folder, 'project.sqlite');
+  if (existsSync(library) && !projectLibraryHeaderMatches(library)) {
+    rmSync(folder, { recursive: true, force: true });
+  }
+  const bytes = existsSync(library) ? new Uint8Array() : buildSyntheticSamplePackage();
   return ensureSampleProject(folder, bytes);
+}
+
+function silentWav(seconds = 1, sampleRate = 8000): Buffer {
+  const dataBytes = sampleRate * seconds * 2;
+  const body = Buffer.alloc(44 + dataBytes);
+  body.write('RIFF', 0);
+  body.writeUInt32LE(36 + dataBytes, 4);
+  body.write('WAVE', 8);
+  body.write('fmt ', 12);
+  body.writeUInt32LE(16, 16);
+  body.writeUInt16LE(1, 20);
+  body.writeUInt16LE(1, 22);
+  body.writeUInt32LE(sampleRate, 24);
+  body.writeUInt32LE(sampleRate * 2, 28);
+  body.writeUInt16LE(2, 32);
+  body.writeUInt16LE(16, 34);
+  body.write('data', 36);
+  body.writeUInt32LE(dataBytes, 40);
+  return body;
 }
 
 export function ensureSampleProject(folder: string, bytes: Uint8Array): 'present' | 'imported' {

@@ -428,7 +428,11 @@
 }
 
 .desktop-tx-band-label {
-  flex: 0 0 64px;
+  flex: 0 0 var(--lane-label-width);
+  width: var(--lane-label-width);
+  min-width: 0;
+  max-width: var(--lane-label-width);
+  overflow: hidden;
   display: flex;
   align-items: center;
   padding-left: 8px;
@@ -436,6 +440,7 @@
   font-size: 12px;
   font-weight: 400;
   line-height: 18px;
+  white-space: nowrap;
 }
 
 .desktop-tx-wave-host {
@@ -752,16 +757,138 @@
   top: 8px;
   bottom: 8px;
   box-sizing: border-box;
+  margin-inline: 0;
   border-radius: 0;
 }
 
-/* 拖柄留给 1b-2。本片只读，选中也不露出。 */
+/* 未选中的拖柄仍隐藏。选中句段露出 6px 拖柄。 */
 .desktop-tx-lane .timeline-annotation-resize-handle {
   display: none;
 }
 
+.desktop-tx-lane
+  .timeline-annotation.timeline-annotation-selected
+  .timeline-annotation-resize-handle {
+  display: block;
+  opacity: 1;
+  width: 6px;
+  background: transparent;
+}
+
+.desktop-tx-seam {
+  position: absolute;
+  top: 8px;
+  z-index: 4;
+  width: 1px;
+  height: 38px;
+  background: var(--text-primary);
+  cursor: ew-resize;
+}
+
+.desktop-tx-seam::before,
+.desktop-tx-seam::after {
+  content: '';
+  position: absolute;
+  top: 15px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  opacity: 0;
+}
+
+.desktop-tx-seam:hover::before,
+.desktop-tx-seam:hover::after {
+  opacity: 1;
+}
+
+.desktop-tx-seam::before {
+  right: calc(100% + 3px);
+  border-width: 3.5px 5px 3.5px 0;
+  border-color: transparent var(--text-primary) transparent transparent;
+}
+
+.desktop-tx-seam::after {
+  left: calc(100% + 3px);
+  border-width: 3.5px 0 3.5px 5px;
+  border-color: transparent transparent transparent var(--text-primary);
+}
+
+.desktop-tx-create {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  background: var(--brand-tint);
+  pointer-events: none;
+}
+
+.desktop-tx-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  min-height: 32px;
+  padding: 4px 12px;
+  border-top: 1px solid var(--divider-base);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.desktop-tx-time {
+  width: 104px;
+  height: 24px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border: 1px solid var(--border-control);
+  border-radius: 4px;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.desktop-tx-time:focus-visible {
+  outline: 1.5px solid var(--text-secondary);
+  outline-offset: 2px;
+}
+
+.desktop-tx-status__reason {
+  color: var(--state-danger-text);
+}
+
+.desktop-tx-snap {
+  position: fixed;
+  z-index: var(--z-popover);
+  padding: 2px 6px;
+  background: var(--text-primary);
+  color: var(--surface-panel);
+  font-size: 12px;
+  line-height: 18px;
+  pointer-events: none;
+}
+
+.desktop-tx-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-popover);
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.desktop-tx-menu.desktop-tx-menu-fixed {
+  position: fixed;
+  z-index: calc(var(--z-popover) + 1);
+}
+
+.desktop-tx-delete {
+  width: 400px;
+  padding: 16px;
+}
+
 .desktop-tx-lane .timeline-annotation.timeline-annotation-selected,
-.desktop-tx-lane .timeline-annotation.timeline-annotation-selected:hover {
+.desktop-tx-lane .timeline-annotation.timeline-annotation-selected:hover,
+.desktop-tx-lane .timeline-annotation.timeline-annotation-selected:focus-within {
   background: var(--brand-tint);
   border: 1px solid var(--text-secondary);
   border-radius: var(--radius-md);
@@ -769,7 +896,10 @@
 }
 
 :root[data-theme='dark'] .desktop-tx-lane .timeline-annotation.timeline-annotation-selected,
-:root[data-theme='dark'] .desktop-tx-lane .timeline-annotation.timeline-annotation-selected:hover {
+:root[data-theme='dark'] .desktop-tx-lane .timeline-annotation.timeline-annotation-selected:hover,
+:root[data-theme='dark']
+  .desktop-tx-lane
+  .timeline-annotation.timeline-annotation-selected:focus-within {
   box-shadow: 0 0 0 3px rgb(244 242 236 / 18%);
 }
 

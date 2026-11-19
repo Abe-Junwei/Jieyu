@@ -51,6 +51,7 @@ import {
   abandonDesktopSession,
   closeDesktopSession,
   desktopSessionFolder,
+  liveDesktopSession,
   openDesktopSession,
   openPreparedDesktopSession,
   resetDesktopSessions,
@@ -289,6 +290,22 @@ function registerIpc(): void {
   handle('skeleton:write-probe', (note: unknown) => {
     if (typeof note !== 'string' || note.length === 0) throw new Error('empty probe');
     return writeSkeletonProbe(app.getPath('temp'), note);
+  });
+
+  handle('desktop:open-bundled-sample', () => {
+    const folder = path.resolve(app.getPath('userData'), SAMPLE_PROJECT_DIRNAME);
+    const library = path.join(folder, 'project.sqlite');
+    if (!fs.existsSync(library) || !projectLibraryHeaderMatches(library)) {
+      ensureBundledSample(folder);
+    }
+    allowedProjectFolders.add(folder);
+    const live = liveDesktopSession();
+    const opened =
+      live !== null && path.resolve(live.folder) === folder
+        ? { sessionId: live.sessionId }
+        : openUserProjectSession(folder);
+    bindDesktopMediaSession(opened.sessionId);
+    return opened;
   });
 
   handle('desktop:open-session', (folder: unknown) => {
@@ -913,15 +930,15 @@ app
     installMediaProtocol();
     installAppProtocol();
     registerIpc();
-    const win = await openWindow();
-    if (process.argv.includes('--smoke')) {
-      await runSmoke(win);
-      return;
-    }
     try {
       ensureBundledSample(path.join(app.getPath('userData'), SAMPLE_PROJECT_DIRNAME));
     } catch (error) {
       console.error(error);
+    }
+    const win = await openWindow();
+    if (process.argv.includes('--smoke')) {
+      await runSmoke(win);
+      return;
     }
     ipcMain.handle('skeleton:choose-project', () => chooseProject());
     app.on('activate', () => {

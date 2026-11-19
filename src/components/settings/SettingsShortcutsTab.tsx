@@ -12,7 +12,7 @@ import {
 import { keyEventToCombo } from './settingsHelpers';
 import { SHORTCUT_CATEGORY_ORDER } from './settingsConstants';
 import type { SettingsModalMessages, ShortcutsPanelMessages } from '../../i18n/messages';
-import type { Locale } from '../../i18n';
+import { t, type Locale } from '../../i18n';
 
 interface SettingsShortcutsTabProps {
   locale: Locale;
@@ -20,11 +20,7 @@ interface SettingsShortcutsTabProps {
   shortcutsMsg: ShortcutsPanelMessages;
 }
 
-export function SettingsShortcutsTab({
-  locale: _locale,
-  msg,
-  shortcutsMsg,
-}: SettingsShortcutsTabProps) {
+export function SettingsShortcutsTab({ locale, msg, shortcutsMsg }: SettingsShortcutsTabProps) {
   const [editingKeybindingId, setEditingKeybindingId] = useState<string | null>(null);
   const [userOverrides, setUserOverrides] = useState<Map<string, KeyCombo>>(() =>
     loadUserOverrides(),
@@ -126,7 +122,9 @@ export function SettingsShortcutsTab({
                       )}
                     </td>
                     <td className="shortcuts-panel-desc">
-                      {entry.label}
+                      {entry.id === 'playSegment'
+                        ? t(locale, 'app.desktopTranscription.playSegment')
+                        : entry.label}
                       {isOverridden && !isEditing && (
                         <span className="shortcuts-customized-badge">{msg.shortcutCustomized}</span>
                       )}

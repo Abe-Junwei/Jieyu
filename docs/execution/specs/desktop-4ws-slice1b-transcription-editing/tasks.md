@@ -39,8 +39,8 @@ depends_on:
 - [ ] 口译轨（[#603](https://github.com/Abe-Junwei/Jieyu/issues/603)）翻译层上的译文录音、播放、删除、语音转文字：短录音复用 `attachments/objects/<sha256>` 与 `unit_texts` 关联；语音转文字本机 Whisper 优先，云端遵守 E11 项目授权不静默回退，转出结果进候选待确认后再写入译文正文；适配受控 `TimelineTranslationAudioControls` → 验证：单库与页面 vitest + 桌面流程（写→关→重开读回）
 - [ ] 层显示样式（[#599](https://github.com/Abe-Junwei/Jieyu/issues/599)）层的正字法与字体（落 `layers` 表）。不放回旧层头 → 验证：单库与页面 vitest
 - [ ] 分轨（[#600](https://github.com/Abe-Junwei/Jieyu/issues/600)）自动分轨、锁定到某一轨（落 `layer_lane_locks` 子表，不进 `settings_json`）、一人一轨、折叠时重叠临时展开、单轨重叠轮换。同层仅同说话人（或均未标说话人）禁重叠，不同说话人允许重叠；本片用预置多说话人种子验收，指派交互留 1b-6。精稿补同一层上下两行且一行锁定 → 验证：单库与页面 vitest + 桌面流程
-- [ ] 1b-2（[#562](https://github.com/Abe-Junwei/Jieyu/issues/562)）边界：默认单边、Shift 联动、吸附、键盘微调、拖动预览、非法回退、同层同说话人（同一子轨）重叠／媒体范围拦截、撤销重做；新建与删除单段（复用 `createUnit`／`deleteUnitTree`）；时间码框半成品按 E02 存草稿、不回退。精稿补选中语段两端拖柄 → 验证：单库与页面 vitest + 桌面流程
-- [ ] 行内正文（[#601](https://github.com/Abe-Junwei/Jieyu/issues/601)）选中后改正文：光标、保存、Esc 还原；确信度勾只读。必须在 1b-3 之前 → 验证：单库与页面 vitest + 桌面流程（写→关→重开读回）
+- [x] 1b-2（[#562](https://github.com/Abe-Junwei/Jieyu/issues/562)）边界：默认单边、Shift 联动、吸附、键盘微调、拖动预览、非法回退、同层同说话人（同一子轨）重叠／媒体范围拦截、撤销重做；新建与删除单段（复用 `createUnit`／`deleteUnitTree`）；时间码框半成品按 E02 存草稿、不回退。选中拖柄精稿已有，不另补。写入已落：`unitEdges.ts`、`unit_time_drafts`（user_version 30，ADR-0128）、按稿件撤销和重做。页面已接：选中拖柄、拖动预览、吸附提示、时间码草稿、共用边界、删除确认。→ 验证：页面 vitest 已过；`npm run test:e2e:desktop-project` 14 passed、3 skipped（转写页选段并空格播放通过）
+- [x] 行内正文（[#601](https://github.com/Abe-Junwei/Jieyu/issues/601)）选中后再点进入正文：光标、失焦保存、Esc 还原并退出；空正文留草稿。确信度不在本片改。→ 验证：页面 vitest 13 passed；`npm run test:e2e:desktop-project` 14 passed、3 skipped（转写页选段并空格播放通过）
 - [ ] 1b-3（[#563](https://github.com/Abe-Junwei/Jieyu/issues/563)）拆分：时间切点 + 文字位置、预览、新身份与映射、跨切点分析待复核、撤销 → 验证：同上
 - [ ] 1b-4（[#564](https://github.com/Abe-Junwei/Jieyu/issues/564)）合并：同稿同层同说话人相邻、显示空隙、确认正文分隔（记 `project.settings_json`）、下级保留与冲突阻断（EF-018）、新身份与映射、撤销 → 验证：同上
 - [ ] 1b-5（[#565](https://github.com/Abe-Junwei/Jieyu/issues/565)）点层：增删改移、同层同毫秒唯一 → 验证：同上
@@ -58,7 +58,7 @@ depends_on:
 - [ ] `npm run check:architecture-guard`
 - [ ] `npm run check:docs-governance`
 - [x] 不适用：不触及 `src/ai/**`
-- [ ] Flag `desktopTranscriptionWorkspaceEnabled` 保持默认 false
+- [x] Flag `desktopTranscriptionWorkspaceEnabled` 默认开。`false` 才回到旧读页
 
 ## Post-merge
 

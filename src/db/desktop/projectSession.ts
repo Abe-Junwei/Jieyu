@@ -120,6 +120,10 @@ export function requireDesktopSession(sessionId: string): DesktopProject {
   return current.project;
 }
 
+export function liveDesktopSession(): { sessionId: string; folder: string } | null {
+  return current === undefined ? null : { sessionId: current.id, folder: current.folder };
+}
+
 export function desktopSessionFolder(sessionId: string): string {
   if (current?.id !== sessionId) throw new Error('project session expired');
   return current.folder;

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useWaveSurfer, type UseWaveSurferOptions } from '../hooks/media/useWaveSurfer';
 import { useTimelineViewport } from '../hooks/transcription/useTimelineViewport';
-import { playbackKeyAction } from '../desktop/playbackKeys';
+import { usePlaybackHotkeys } from '../desktop/usePlaybackHotkeys';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
@@ -109,13 +109,12 @@ export function useDesktopTranscriptionMediaController(input: {
   const { setVolume: applyVolume, setPlaybackRate: applyRate } = player;
   seekToRef.current = player.seekTo;
   const playRegionRef = useRef(player.playRegion);
-  const toggleRef = useRef(player.togglePlayback);
   playRegionRef.current = player.playRegion;
-  toggleRef.current = player.togglePlayback;
   const playSegment = () => {
     const selected = unitsRef.current.find((unit) => unit.id === selectedRef.current);
     if (selected) playRegionRef.current(selected.startTime, selected.endTime, true);
   };
+  usePlaybackHotkeys({ playPause: player.togglePlayback, playSegment });
 
   useEffect(() => {
     applyVolume(volume);
@@ -146,23 +145,6 @@ export function useDesktopTranscriptionMediaController(input: {
       // Decoded audio is not available yet.
     }
   }, [player.instanceRef, player.isReady, zoomPxPerSec]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const tag = target?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) {
-        return;
-      }
-      const action = playbackKeyAction(event);
-      if (action === null) return;
-      event.preventDefault();
-      if (action === 'playPause') toggleRef.current();
-      else playSegment();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
 
   return {
     waveformRef: player.waveformRef,

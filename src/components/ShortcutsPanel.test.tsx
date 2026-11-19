@@ -29,6 +29,7 @@ describe('ShortcutsPanel', () => {
     expect(dialog.className).toContain('pnl-shortcuts-panel');
     expect(closeButton.closest('.dialog-header')).toBeTruthy();
     expect(screen.getByText('播放控制')).toBeTruthy();
+    expect(screen.getByText('只播本段')).toBeTruthy();
     expect(screen.getByText('编辑操作')).toBeTruthy();
     expect(keycaps.length).toBeGreaterThan(0);
   });

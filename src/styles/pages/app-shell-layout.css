@@ -773,7 +773,7 @@
 .db-integrity-overlay {
   position: fixed;
   inset: 0;
-  z-index: calc(var(--z-modal-topmost, 1240) + 40);
+  z-index: calc(var(--z-modal-topmost, 340) + 40);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -825,7 +825,7 @@
 .legacy-data-reset-dialog {
   position: fixed;
   inset: 0;
-  z-index: calc(var(--z-modal-topmost, 1240) + 41);
+  z-index: calc(var(--z-modal-topmost, 340) + 41);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -873,5 +873,5 @@
 }
 
 .app-global-toast-host {
-  z-index: calc(var(--z-modal-topmost, 12000) - 1);
+  z-index: calc(var(--z-modal-topmost, 340) - 1);
 }

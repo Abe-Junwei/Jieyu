@@ -3,7 +3,7 @@
  */
 import { useMemo } from 'react';
 import { DEFAULT_KEYBINDINGS, formatKeyComboForDisplay } from '../services/KeybindingService';
-import { useOptionalLocale } from '../i18n';
+import { t, useOptionalLocale } from '../i18n';
 import { getShortcutsPanelMessages } from '../i18n/messages';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '~/hooks/ui/useUiFontScaleRuntime';
@@ -73,7 +73,11 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
                   <td className="shortcuts-panel-key">
                     <kbd>{formatKeyComboForDisplay(entry.defaultKey)}</kbd>
                   </td>
-                  <td className="shortcuts-panel-desc">{entry.label}</td>
+                  <td className="shortcuts-panel-desc">
+                    {entry.id === 'playSegment'
+                      ? t(locale, 'app.desktopTranscription.playSegment')
+                      : entry.label}
+                  </td>
                   <td className="shortcuts-panel-scope">
                     {entry.scope === 'waveform' ? messages.scopeWaveform : messages.scopeGlobal}
                   </td>

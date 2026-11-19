@@ -62,7 +62,7 @@ export const DEFAULT_KEYBINDINGS: KeybindingEntry[] = [
   },
   {
     id: 'playSegment',
-    label: '\u53ea\u64ad\u672c\u6bb5',
+    label: 'app.desktopTranscription.playSegment',
     defaultKey: 'shift+space',
     scope: 'waveform',
     category: 'playback',
@@ -143,6 +143,34 @@ export const DEFAULT_KEYBINDINGS: KeybindingEntry[] = [
     defaultKey: 'arrowright',
     scope: 'waveform',
     category: 'navigation',
+  },
+  {
+    id: 'nudgeEdgeBack',
+    label: '\u8fb9\u754c\u5411\u524d 10 \u6beb\u79d2',
+    defaultKey: 'arrowleft',
+    scope: 'waveform',
+    category: 'editing',
+  },
+  {
+    id: 'nudgeEdgeForward',
+    label: '\u8fb9\u754c\u5411\u540e 10 \u6beb\u79d2',
+    defaultKey: 'arrowright',
+    scope: 'waveform',
+    category: 'editing',
+  },
+  {
+    id: 'nudgeEdgeBackCoarse',
+    label: '\u8fb9\u754c\u5411\u524d 100 \u6beb\u79d2',
+    defaultKey: 'shift+arrowleft',
+    scope: 'waveform',
+    category: 'editing',
+  },
+  {
+    id: 'nudgeEdgeForwardCoarse',
+    label: '\u8fb9\u754c\u5411\u540e 100 \u6beb\u79d2',
+    defaultKey: 'shift+arrowright',
+    scope: 'waveform',
+    category: 'editing',
   },
   {
     id: 'tabNext',
