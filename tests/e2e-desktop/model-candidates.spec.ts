@@ -191,7 +191,7 @@ test('mock model HTTP response becomes candidates, persists accepted text, and r
     opened = await launch();
     app = opened.current;
     await expect(
-      opened.page.getByRole('button', { name: '1.0–1.5 model candidate one' }),
+      opened.page.getByRole('button', { name: '1.000–1.500 model candidate one' }),
     ).toBeVisible();
     await app.close();
     app = undefined;

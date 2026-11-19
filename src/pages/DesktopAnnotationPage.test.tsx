@@ -77,7 +77,7 @@ describe('DesktopAnnotationPage', () => {
       </LocaleProvider>
     );
     const view = render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 sentence' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 sentence' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'Note category' }), {
       target: { value: 'question' },
     });
@@ -88,7 +88,7 @@ describe('DesktopAnnotationPage', () => {
     expect(await screen.findByText('Question: check this')).toBeTruthy();
     view.unmount();
     render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 sentence' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 sentence' }));
     expect(await screen.findByText('Question: check this')).toBeTruthy();
     expect(
       callDesktopSession(session.sessionId, 'notes.list', {
@@ -150,7 +150,7 @@ describe('DesktopAnnotationPage', () => {
       </LocaleProvider>
     );
     const view = render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 sentence' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 sentence' }));
     expect(screen.queryByText('axis')).toBeNull();
     fireEvent.change(screen.getByRole('combobox', { name: 'Note category' }), {
       target: { value: 'comment' },
@@ -187,7 +187,7 @@ describe('DesktopAnnotationPage', () => {
     const reopened = openDesktopSession(folder, [folder]);
     rememberOpenProjectSession(reopened.sessionId);
     render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 sentence' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 sentence' }));
     expect(await screen.findByText('Linguistic: kept')).toBeTruthy();
     expect(screen.queryByText('Question: drop me')).toBeNull();
     expect(screen.queryByText('axis')).toBeNull();
@@ -260,7 +260,7 @@ describe('DesktopAnnotationPage', () => {
       </LocaleProvider>
     );
     const view = render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 alpha beta' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 alpha beta' }));
     fireEvent.click(screen.getByRole('button', { name: 'Split into words' }));
     expect(await screen.findByText('alpha')).toBeTruthy();
     expect(screen.getByText('beta')).toBeTruthy();
@@ -315,7 +315,7 @@ describe('DesktopAnnotationPage', () => {
     const reopened = openDesktopSession(folder, [folder]);
     rememberOpenProjectSession(reopened.sessionId);
     render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 alpha beta' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 alpha beta' }));
     expect(await screen.findByText('alpha')).toBeTruthy();
     expect(screen.getByText('beta')).toBeTruthy();
     expect(screen.getByRole('textbox', { name: 'Gloss: alpha' })).toHaveProperty('value', 'dog');
@@ -374,7 +374,7 @@ describe('DesktopAnnotationPage', () => {
       </LocaleProvider>
     );
     const view = render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 ka-ra' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 ka-ra' }));
     fireEvent.click(screen.getByRole('button', { name: 'Split into words' }));
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Split morphemes on -/=' })).toHaveProperty(
@@ -401,7 +401,7 @@ describe('DesktopAnnotationPage', () => {
     const reopened = openDesktopSession(folder, [folder]);
     rememberOpenProjectSession(reopened.sessionId);
     render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 ka-ra' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 ka-ra' }));
     expect(await screen.findByText('ka')).toBeTruthy();
     expect(screen.getByText('ra')).toBeTruthy();
     expect(screen.getByRole('textbox', { name: 'Morpheme gloss: ka' })).toHaveProperty(
@@ -476,7 +476,7 @@ describe('DesktopAnnotationPage', () => {
       </LocaleProvider>
     );
     const view = render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 ka na' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 ka na' }));
     fireEvent.click(screen.getByRole('button', { name: 'Split into words' }));
     await screen.findByText('ka');
     const kaLink = screen.getByRole('textbox', { name: 'Lexeme link: ka' });
@@ -507,7 +507,7 @@ describe('DesktopAnnotationPage', () => {
     const reopened = openDesktopSession(folder, [folder]);
     rememberOpenProjectSession(reopened.sessionId);
     render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 ka na' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 ka na' }));
     expect(await screen.findByText('Linked na')).toBeTruthy();
     expect(screen.queryByText('Linked ka')).toBeNull();
     expect(
@@ -575,7 +575,7 @@ describe('DesktopAnnotationPage', () => {
       </LocaleProvider>
     );
     const view = render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 ka-ra' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 ka-ra' }));
     fireEvent.click(screen.getByRole('button', { name: 'Split into words' }));
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Split morphemes on -/=' })).toHaveProperty(
@@ -612,7 +612,7 @@ describe('DesktopAnnotationPage', () => {
     const reopened = openDesktopSession(folder, [folder]);
     rememberOpenProjectSession(reopened.sessionId);
     render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 ka-ra' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 ka-ra' }));
     expect(await screen.findByText('Linked ra')).toBeTruthy();
     expect(screen.queryByText('Linked ka')).toBeNull();
     expect(callDesktopSession(reopened.sessionId, 'units.get', { id: unit.id })).toMatchObject({
@@ -663,7 +663,7 @@ describe('DesktopAnnotationPage', () => {
       </LocaleProvider>
     );
     const view = render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 ka' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 ka' }));
     fireEvent.click(screen.getByRole('button', { name: 'Split into words' }));
     const gloss = await screen.findByRole('textbox', { name: 'Gloss: ka' });
     fireEvent.blur(gloss, { target: { value: 'dog' } });
@@ -713,7 +713,7 @@ describe('DesktopAnnotationPage', () => {
     const reopened = openDesktopSession(folder, [folder]);
     rememberOpenProjectSession(reopened.sessionId);
     render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 ka' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 ka' }));
     expect(await screen.findByText('Linked kappa')).toBeTruthy();
     expect(callDesktopSession(reopened.sessionId, 'units.get', { id: unit.id })).toMatchObject({
       text: 'ka',
@@ -762,7 +762,7 @@ describe('DesktopAnnotationPage', () => {
       </LocaleProvider>
     );
     const view = render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 pre-fix' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 pre-fix' }));
     fireEvent.click(screen.getByRole('button', { name: 'Split into words' }));
     expect(await screen.findByRole('textbox', { name: 'Word note: pre-fix' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Split morphemes on -/=' }));
@@ -782,7 +782,7 @@ describe('DesktopAnnotationPage', () => {
     const reopened = openDesktopSession(folder, [folder]);
     rememberOpenProjectSession(reopened.sessionId);
     render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 pre-fix' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 pre-fix' }));
     expect(await screen.findByText('word-note')).toBeTruthy();
     expect(await screen.findByText('stem-note')).toBeTruthy();
   });

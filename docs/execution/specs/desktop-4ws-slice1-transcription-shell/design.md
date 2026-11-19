@@ -3,7 +3,7 @@ title: desktop-4ws-slice1-transcription-shell design
 doc_type: execution-spec-design
 status: active
 owner: repo
-last_reviewed: 2026-11-17
+last_reviewed: 2026-11-19
 source_of_truth: desktop-4ws-slice1-transcription-shell-spec
 depends_on:
   - ./requirements.md
@@ -98,4 +98,5 @@ depends_on:
 
 ## UI 精稿对照
 
-- 不适用：本规格不改桌面页面或桌面样式。后续切片若改 `src/pages/Desktop*.tsx`、`src/styles/**/desktop*.css` 或新建 `src/components/**`，在那次改动里改写本节。
+- 转写壳的整页精稿仍是本规格正文已记载的 Pixso「精稿」页（ADR-0118）。这次修标签时环境里没有 Pixso MCP，没有重读画板，也不新记画板名。
+- 局部控件：句段时间标签按存储的整数毫秒显示到 0.001 秒。阅读、标注、分析、语料检索四处共用 `formatMillisecondSpan`。对照 DESIGN.md §3「时间码与参数」（等宽、固定 LTR）。不改布局、颜色、字体或时间数据。

@@ -1,6 +1,6 @@
 import type { CorpusQueryHit, CorpusTextSpan } from '../app/desktopProjectReadPageAccess';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
-import { msToSeconds } from '../desktop/timeMs';
+import { formatMillisecondSpan } from '../desktop/formatMillisecondSpan';
 import { t, tf, useLocale } from '../i18n';
 import { useDesktopCorpusQuery } from './useDesktopCorpusQuery';
 
@@ -59,7 +59,7 @@ export function DesktopCorpusQueryPanel(props: {
             >
               <LocatedText
                 label={tf(locale, 'app.desktopRead.queryLocate', {
-                  time: `${msToSeconds(item.startMs).toFixed(1)}–${msToSeconds(item.endMs).toFixed(1)}`,
+                  time: formatMillisecondSpan(item.startMs, item.endMs),
                   text: '\u0000',
                 })}
                 text={item.text}

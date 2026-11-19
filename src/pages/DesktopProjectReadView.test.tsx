@@ -71,7 +71,7 @@ describe('DesktopProjectReadView note draft', () => {
       throw new Error('persist failed');
     });
     renderView({ onSaveNote });
-    fireEvent.click(screen.getByRole('button', { name: '0.0–2.0 sentence' }));
+    fireEvent.click(screen.getByRole('button', { name: '0.000–2.000 sentence' }));
     const note = screen.getByRole('textbox', { name: 'Note' });
     fireEvent.change(note, { target: { value: 'keep me' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save note' }));
@@ -90,7 +90,7 @@ describe('DesktopProjectReadView note draft', () => {
         }),
     );
     renderView({ onSaveNote });
-    fireEvent.click(screen.getByRole('button', { name: '0.0–2.0 sentence' }));
+    fireEvent.click(screen.getByRole('button', { name: '0.000–2.000 sentence' }));
     const note = screen.getByRole('textbox', { name: 'Note' });
     fireEvent.change(note, { target: { value: 'pending' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save note' }));
@@ -109,7 +109,7 @@ describe('DesktopProjectReadView note draft', () => {
       throw new Error('tier persist failed');
     });
     renderView({ onSaveTierNote });
-    fireEvent.click(screen.getByRole('button', { name: '0.0–2.0 sentence' }));
+    fireEvent.click(screen.getByRole('button', { name: '0.000–2.000 sentence' }));
     const note = screen.getByRole('textbox', { name: 'Note' });
     fireEvent.change(note, { target: { value: 'tier keep' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save timeline note' }));

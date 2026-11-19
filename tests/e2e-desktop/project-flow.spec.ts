@@ -32,8 +32,8 @@ const textLabel = /^(Text|正文|app\.desktopRead\.text)$/;
 const saveText = /^(Save text|保存正文|app\.desktopRead\.saveText)$/;
 const boundaryLabel = /^(Literature boundary|文献边界|app\.desktopRead\.boundary)$/;
 const moveBoundary = /^(Move boundary|移动边界|app\.desktopRead\.moveBoundary)$/;
-const edited = '0.0–0.2 edited';
-const played = '0.0–0.2';
+const edited = '0.000–0.200 edited';
+const played = '0.000–0.200';
 const restoreAction = /^(Restore|恢复)$/;
 const confirmRestore = /^(Continue restore|继续恢复)$/;
 const cancelRestore = /^(Cancel|取消)$/;
@@ -121,27 +121,27 @@ test('restores a backup into an empty folder, then plays and edits that copy', a
     await page.getByRole('button', { name: openCopy }).click();
     await expect(page.getByRole('button', { name: 'Take', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Take', exact: true }).click();
-    await expect(page.getByRole('button', { name: '0.3–0.6 three' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '0.300–0.600 three' })).toBeVisible();
     await waitForAudio(page);
-    await page.getByRole('button', { name: '0.3–0.6 three' }).click();
+    await page.getByRole('button', { name: '0.300–0.600 three' }).click();
     await expect
       .poll(() =>
         page.locator('audio').evaluate((element) => (element as HTMLAudioElement).currentTime),
       )
       .toBeGreaterThan(0.2);
     await page.getByRole('button', { name: 'Clip', exact: true }).click();
-    await expect(page.getByRole('button', { name: '0.0–0.4 one' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '0.000–0.400 one' })).toBeVisible();
     await waitForAudio(page);
-    await page.getByRole('button', { name: '0.4–0.8 two' }).click();
+    await page.getByRole('button', { name: '0.400–0.800 two' }).click();
     await expect
       .poll(() =>
         page.locator('audio').evaluate((element) => (element as HTMLAudioElement).currentTime),
       )
       .toBeGreaterThan(0.3);
-    await page.getByRole('button', { name: '0.0–0.4 one' }).click();
+    await page.getByRole('button', { name: '0.000–0.400 one' }).click();
     await page.getByRole('textbox', { name: textLabel }).fill('copy-edit');
     await page.getByRole('button', { name: saveText }).click();
-    await expect(page.getByRole('button', { name: '0.0–0.4 copy-edit' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '0.000–0.400 copy-edit' })).toBeVisible();
 
     expect(fileHash(join(folder, 'project.sqlite'))).toBe(sourceHashes.sqlite);
     expect(fileHash(join(folder, 'clip.wav'))).toBe(sourceHashes.clip);
@@ -154,7 +154,7 @@ test('restores a backup into an empty folder, then plays and edits that copy', a
     await again.getByRole('button', { name: openFolder }).click();
     await expect(again.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
     await expect(again.getByRole('button', { name: 'Take', exact: true })).toBeVisible();
-    await expect(again.getByRole('button', { name: '0.0–0.4 copy-edit' })).toBeVisible();
+    await expect(again.getByRole('button', { name: '0.000–0.400 copy-edit' })).toBeVisible();
   } finally {
     if (backupBytes !== undefined && backupFile.length > 0 && existsSync(backupFile)) {
       writeFileSync(backupFile, backupBytes);
@@ -563,19 +563,19 @@ async function editProject(app: ElectronApplication, projectFolder: string): Pro
   await page.getByRole('button', { name: 'Clip', exact: true }).click();
   const audio = page.locator('audio');
   await waitForAudio(page);
-  await page.getByRole('button', { name: '0.4–0.8 two' }).click();
+  await page.getByRole('button', { name: '0.400–0.800 two' }).click();
   await expect
     .poll(() => audio.evaluate((element) => (element as HTMLAudioElement).currentTime))
     .toBeGreaterThan(0.3);
-  await page.getByRole('button', { name: '0.0–0.4 one' }).click();
+  await page.getByRole('button', { name: '0.000–0.400 one' }).click();
   await page.getByRole('textbox', { name: textLabel }).fill('edited');
   await page.getByRole('button', { name: saveText }).click();
-  await expect(page.getByRole('button', { name: '0.0–0.4 edited' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '0.000–0.400 edited' })).toBeVisible();
   await page.getByRole('textbox', { name: boundaryLabel }).fill('0.2');
   await page.getByRole('button', { name: moveBoundary }).click();
   await expect(page.getByRole('button', { name: edited })).toBeVisible();
   await expect(page.getByText(played, { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '0.2–0.8 two' }).click();
+  await page.getByRole('button', { name: '0.200–0.800 two' }).click();
   await expect
     .poll(() => audio.evaluate((element) => (element as HTMLAudioElement).currentTime))
     .toBeGreaterThan(0.1);
@@ -735,7 +735,7 @@ async function openFirstUnit(page: Page): Promise<void> {
   await page.getByRole('button', { name: openFolder }).click();
   await page.getByRole('button', { name: 'Clip', exact: true }).click();
   await page
-    .getByRole('button', { name: /^0\.0–/ })
+    .getByRole('button', { name: /^0\.000–/ })
     .first()
     .click();
   await expect(page.getByRole('textbox', { name: textLabel })).not.toHaveValue('');

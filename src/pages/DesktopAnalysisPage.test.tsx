@@ -162,7 +162,7 @@ describe('DesktopAnalysisPage', () => {
     rememberOpenProjectSession(sessionId);
     const view = render(page());
 
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 ka' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–1.000 ka' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Accept suggestion: past' }));
     expect(await screen.findByText('Current analysis: past')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Accept suggestion: past' })).toBeNull();
@@ -177,7 +177,7 @@ describe('DesktopAnalysisPage', () => {
     const reopened = openDesktopSession(folder, [folder]);
     rememberOpenProjectSession(reopened.sessionId);
     render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 ka' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–1.000 ka' }));
     expect(await screen.findByText('Current analysis: past')).toBeTruthy();
     expect(readState(reopened.sessionId, unitId).graph?.nodes.map((node) => node.label)).toEqual([
       'past',
@@ -196,7 +196,7 @@ describe('DesktopAnalysisPage', () => {
     (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = hostFor([], []);
     rememberOpenProjectSession(sessionId);
     const view = render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 ka' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–1.000 ka' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Accept suggestion: past' }));
     fireEvent.change(await screen.findByRole('textbox', { name: 'Analysis note: past' }), {
       target: { value: 'node-note' },
@@ -208,7 +208,7 @@ describe('DesktopAnalysisPage', () => {
     const reopened = openDesktopSession(folder, [folder]);
     rememberOpenProjectSession(reopened.sessionId);
     render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 ka' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–1.000 ka' }));
     expect(await screen.findByText('node-note')).toBeTruthy();
   });
 
@@ -224,7 +224,7 @@ describe('DesktopAnalysisPage', () => {
     rememberOpenProjectSession(sessionId);
     render(page());
 
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 ta' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–1.000 ta' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Accept suggestion: past' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('This analysis was not written');
     expect(screen.getByText('No current analysis')).toBeTruthy();
@@ -276,7 +276,7 @@ describe('DesktopAnalysisPage', () => {
     rememberOpenProjectSession(sessionId);
     const view = render(page());
 
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 ka' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–1.000 ka' }));
     expect(await screen.findByText('Current analysis: left right')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Restore snapshot: past' }));
     expect(await screen.findByText('Current analysis: past')).toBeTruthy();
@@ -291,7 +291,7 @@ describe('DesktopAnalysisPage', () => {
     const reopened = openDesktopSession(folder, [folder]);
     rememberOpenProjectSession(reopened.sessionId);
     render(page());
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 ka' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–1.000 ka' }));
     expect(await screen.findByText('Current analysis: past')).toBeTruthy();
     const restored = readState(reopened.sessionId, unitId);
     expect(restored.graph?.nodes.map((node) => node.label)).toEqual(['past']);

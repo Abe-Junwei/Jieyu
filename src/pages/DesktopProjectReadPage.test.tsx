@@ -200,7 +200,7 @@ describe('DesktopProjectReadPage', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: 'Open folder' }));
     expect(await screen.findByRole('button', { name: '文稿' })).toBeTruthy();
-    const unit = screen.getByRole('button', { name: '0.4–1.2 句子' });
+    const unit = screen.getByRole('button', { name: '0.400–1.200 句子' });
     const audio = screen.getByLabelText('Recording') as HTMLAudioElement;
     expect(audio.getAttribute('src')).toBe('jieyu-media://local/token');
     fireEvent.click(unit);
@@ -262,11 +262,11 @@ describe('DesktopProjectReadPage', () => {
     mount(session.sessionId);
     fireEvent.click(await screen.findByRole('button', { name: /原句/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Split' }));
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–0.5 原句' }));
-    expect(screen.getByRole('button', { name: '0.5–1.0 原句' })).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–0.500 原句' }));
+    expect(screen.getByRole('button', { name: '0.500–1.000 原句' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
-    expect(await screen.findByRole('button', { name: '0.0–1.0 原句' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '0.5–1.0 原句' })).toBeNull();
+    expect(await screen.findByRole('button', { name: '0.000–1.000 原句' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '0.500–1.000 原句' })).toBeNull();
     reopenDesktopSession(session.sessionId);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
       startMs: 0,
@@ -289,7 +289,7 @@ describe('DesktopProjectReadPage', () => {
     mount(session.sessionId);
     fireEvent.click(await screen.findByRole('button', { name: /甲/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Merge next' }));
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 甲' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 甲' }));
     expect(screen.queryByRole('button', { name: /乙/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     expect(await screen.findByRole('button', { name: /乙/ })).toBeTruthy();
@@ -313,13 +313,13 @@ describe('DesktopProjectReadPage', () => {
       const { host, calls } = countingHost(session.sessionId);
       const events = recordEvents();
       mountWith(host);
-      fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 原句' }));
+      fireEvent.click(await screen.findByRole('button', { name: '0.000–1.000 原句' }));
       const listsBefore = calls.filter((call) => call === 'units.list').length;
       fireEvent.change(screen.getByRole('textbox', { name: 'Text' }), {
         target: { value: '改过' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Save text' }));
-      expect(await screen.findByRole('button', { name: '0.0–1.0 改过' })).toBeTruthy();
+      expect(await screen.findByRole('button', { name: '0.000–1.000 改过' })).toBeTruthy();
       expect(textValue('Text')).toBe('改过');
       expect(events).toEqual([
         {
@@ -342,7 +342,7 @@ describe('DesktopProjectReadPage', () => {
       const session = openDesktopSession(dir, [dir]);
       const unit = seedReadUnit(session.sessionId, 0, 1, '原句');
       mount(session.sessionId);
-      fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 原句' }));
+      fireEvent.click(await screen.findByRole('button', { name: '0.000–1.000 原句' }));
       fireEvent.change(screen.getByRole('textbox', { name: 'Text' }), { target: { value: '' } });
       await waitFor(() => {
         expect(
@@ -351,7 +351,7 @@ describe('DesktopProjectReadPage', () => {
       });
       cleanup();
       mount(session.sessionId);
-      fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 原句' }));
+      fireEvent.click(await screen.findByRole('button', { name: '0.000–1.000 原句' }));
       await waitFor(() => expect(textValue('Text')).toBe(''));
       expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
         text: '原句',
@@ -366,7 +366,7 @@ describe('DesktopProjectReadPage', () => {
       const { host, failText } = countingHost(session.sessionId);
       const events = recordEvents();
       mountWith(host);
-      fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 原句' }));
+      fireEvent.click(await screen.findByRole('button', { name: '0.000–1.000 原句' }));
       failText(true);
       fireEvent.change(screen.getByRole('textbox', { name: 'Text' }), {
         target: { value: '草稿' },
@@ -406,18 +406,18 @@ describe('DesktopProjectReadPage', () => {
       });
       const { host, failText } = countingHost(session.sessionId);
       mountWith(host);
-      fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 左' }));
+      fireEvent.click(await screen.findByRole('button', { name: '0.000–1.000 左' }));
       fireEvent.change(screen.getByRole('textbox', { name: 'Text' }), {
         target: { value: '左改' },
       });
-      fireEvent.click(screen.getByRole('button', { name: '1.0–2.0 右' }));
-      expect(await screen.findByRole('button', { name: '0.0–1.0 左改' })).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: '1.000–2.000 右' }));
+      expect(await screen.findByRole('button', { name: '0.000–1.000 左改' })).toBeTruthy();
       await waitFor(() => expect(textValue('Text')).toBe('右'));
       failText(true);
       fireEvent.change(screen.getByRole('textbox', { name: 'Text' }), {
         target: { value: '右改' },
       });
-      fireEvent.click(screen.getByRole('button', { name: '0.0–1.0 左改' }));
+      fireEvent.click(screen.getByRole('button', { name: '0.000–1.000 左改' }));
       await screen.findByRole('dialog', { name: 'This text is not saved yet' });
       expect(textValue('Text')).toBe('右改');
       fireEvent.click(screen.getByRole('button', { name: 'Discard this edit' }));
@@ -425,7 +425,7 @@ describe('DesktopProjectReadPage', () => {
       expect(callDesktopSession(session.sessionId, 'units.get', { id: left.id })).toMatchObject({
         text: '左改',
       });
-      expect(screen.getByRole('button', { name: '1.0–2.0 右' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: '1.000–2.000 右' })).toBeTruthy();
     });
 
     it('does not submit while an IME composition is open', async () => {
@@ -435,7 +435,7 @@ describe('DesktopProjectReadPage', () => {
       const unit = seedReadUnit(session.sessionId, 0, 1, '原句');
       const { host, calls } = countingHost(session.sessionId);
       mountWith(host);
-      fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 原句' }));
+      fireEvent.click(await screen.findByRole('button', { name: '0.000–1.000 原句' }));
       const input = screen.getByRole('textbox', { name: 'Text' });
       fireEvent.compositionStart(input);
       fireEvent.change(input, { target: { value: 'ni' } });
@@ -447,7 +447,7 @@ describe('DesktopProjectReadPage', () => {
       fireEvent.change(input, { target: { value: '你' } });
       fireEvent.compositionEnd(input);
       fireEvent.click(screen.getByRole('button', { name: 'Save text' }));
-      expect(await screen.findByRole('button', { name: '0.0–1.0 你' })).toBeTruthy();
+      expect(await screen.findByRole('button', { name: '0.000–1.000 你' })).toBeTruthy();
       expect(calls.filter((call) => call === 'units.updateText')).toEqual(['units.updateText']);
       expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
         text: '你',
@@ -494,12 +494,12 @@ describe('DesktopProjectReadPage', () => {
       mountWith(host);
       await waitFor(() => expect(readOpenProjectSession()).toBe(stale));
       fireEvent.click(screen.getByRole('button', { name: 'Open folder' }));
-      expect(await screen.findByRole('button', { name: '0.0–1.0 新项目' })).toBeTruthy();
+      expect(await screen.findByRole('button', { name: '0.000–1.000 新项目' })).toBeTruthy();
       releaseOld();
       await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(screen.queryByRole('button', { name: '0.0–1.0 旧项目' })).toBeNull();
+      expect(screen.queryByRole('button', { name: '0.000–1.000 旧项目' })).toBeNull();
       expect(screen.queryByRole('button', { name: '旧稿' })).toBeNull();
-      expect(screen.getByRole('button', { name: '0.0–1.0 新项目' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: '0.000–1.000 新项目' })).toBeTruthy();
     });
   });
 
@@ -588,7 +588,7 @@ describe('DesktopProjectReadPage', () => {
     expect(screen.getByRole('button', { name: '木雅' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Syrc' })).toBeTruthy();
     expect(screen.getByDisplayValue('{"mappings":[{"from":"a","to":"c"}]}')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '0.0–1.0 原句' }));
+    fireEvent.click(screen.getByRole('button', { name: '0.000–1.000 原句' }));
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     await waitFor(() => {
       expect(screen.queryByText('原句 · Ada')).toBeNull();
@@ -635,15 +635,15 @@ describe('DesktopProjectReadPage', () => {
       }),
     ) as { id: string }[];
     mount(session.sessionId);
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 一' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 一' }));
     expect(textValue('Literature boundary')).toBe('2');
-    fireEvent.click(screen.getByRole('button', { name: '2.0–4.0 二' }));
+    fireEvent.click(screen.getByRole('button', { name: '2.000–4.000 二' }));
     expect(textValue('Literature boundary')).toBe('4');
     fireEvent.change(screen.getByRole('textbox', { name: 'Literature boundary' }), {
       target: { value: '3' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Move boundary' }));
-    expect(await screen.findByRole('button', { name: '2.0–3.0 二' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '2.000–3.000 二' })).toBeTruthy();
     reopenDesktopSession(session.sessionId);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: units[1]?.id })).toMatchObject({
       startMs: 2000,
@@ -683,7 +683,7 @@ describe('DesktopProjectReadPage', () => {
     }) as { id: string };
     mount(session.sessionId);
     await waitFor(() => expect(readOpenProjectSession()).toBe(session.sessionId));
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 sentence' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 sentence' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Note' }), {
       target: { value: 'remember' },
     });
@@ -729,7 +729,7 @@ describe('DesktopProjectReadPage', () => {
       text: 'sentence',
     }) as { id: string };
     mount(session.sessionId);
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 sentence' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–2.000 sentence' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Note' }), {
       target: { value: 'on the line' },
     });
@@ -799,7 +799,7 @@ describe('DesktopProjectReadPage', () => {
       text: 'other',
     });
     mount(session.sessionId);
-    await screen.findByRole('button', { name: '0.0–1.0 Alpha beta' });
+    await screen.findByRole('button', { name: '0.000–1.000 Alpha beta' });
     fireEvent.change(screen.getByRole('textbox', { name: 'Query lexeme' }), {
       target: { value: 'lex' },
     });
@@ -814,11 +814,11 @@ describe('DesktopProjectReadPage', () => {
       target: { value: 'beta' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Search corpus' }));
-    const result = await screen.findByRole('button', { name: 'Result 0.0–1.0 Alpha beta' });
+    const result = await screen.findByRole('button', { name: 'Result 0.000–1.000 Alpha beta' });
     expect(result.querySelector('mark')?.textContent).toBe('beta');
     fireEvent.click(result);
     expect(textValue('Text')).toBe('Alpha beta');
-    expect(screen.queryByRole('button', { name: 'Result 2.0–3.0 other' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Result 2.000–3.000 other' })).toBeNull();
   });
 
   it('carries the manuscript, layer, and unit from the corpus page', async () => {
@@ -887,7 +887,7 @@ describe('DesktopProjectReadPage', () => {
       target: { value: 'jump' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Search corpus' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Result 4.0–5.0 jump' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Result 4.000–5.000 jump' }));
     const location = screen.getByTestId('location').textContent ?? '';
     expect(location).toContain('/desktop-project?');
     expect(location).toContain(`manuscriptId=${second.id}`);
@@ -897,7 +897,7 @@ describe('DesktopProjectReadPage', () => {
     await waitFor(() => {
       expect(textValue('Text')).toBe('jump');
     });
-    expect(screen.queryByRole('button', { name: '0.0–1.0 stay' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '0.000–1.000 stay' })).toBeNull();
   });
 
   it('opens the layer that contains the hit', async () => {
@@ -942,14 +942,14 @@ describe('DesktopProjectReadPage', () => {
       text: 'other layer',
     });
     mount(session.sessionId);
-    await screen.findByRole('button', { name: '0.0–1.0 keep' });
+    await screen.findByRole('button', { name: '0.000–1.000 keep' });
     fireEvent.change(screen.getByRole('textbox', { name: 'Query text' }), {
       target: { value: 'layer' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Search corpus' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Result 0.0–1.0 other layer' }));
-    expect(await screen.findByRole('button', { name: '0.0–1.0 other layer' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '0.0–1.0 keep' })).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: 'Result 0.000–1.000 other layer' }));
+    expect(await screen.findByRole('button', { name: '0.000–1.000 other layer' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '0.000–1.000 keep' })).toBeNull();
     await waitFor(() => {
       expect(textValue('Text')).toBe('other layer');
     });
@@ -1030,7 +1030,7 @@ describe('DesktopProjectReadPage', () => {
     expect(await screen.findByRole('button', { name: '文稿' })).toBeTruthy();
     expect(screen.queryByText(/Recording a\.wav, kept until /)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '文稿' }));
-    expect(await screen.findByRole('button', { name: '0.0–1.0 secret-body' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '0.000–1.000 secret-body' })).toBeTruthy();
     cleanup();
     resetDesktopSessions();
     const again = openDesktopSession(dir, [dir]);
@@ -1625,12 +1625,12 @@ describe('DesktopProjectReadPage', () => {
       target: { value: 'said' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Accept transcript' }));
-    expect(await screen.findByRole('button', { name: '0.0–8.0 said' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '0.000–8.000 said' })).toBeTruthy();
     cleanup();
     resetDesktopSessions();
     const again = openDesktopSession(dir, [dir]);
     mount(again.sessionId);
-    expect(await screen.findByRole('button', { name: '0.0–8.0 said' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '0.000–8.000 said' })).toBeTruthy();
   });
 
   it('accepts two transcript lines and reads both after reopen', async () => {
@@ -1689,14 +1689,14 @@ describe('DesktopProjectReadPage', () => {
       target: { value: '2' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Accept transcript' }));
-    expect(await screen.findByRole('button', { name: '0.0–1.0 one' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '1.0–2.0 two' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '0.000–1.000 one' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '1.000–2.000 two' })).toBeTruthy();
     cleanup();
     resetDesktopSessions();
     const again = openDesktopSession(dir, [dir]);
     mount(again.sessionId);
-    expect(await screen.findByRole('button', { name: '0.0–1.0 one' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '1.0–2.0 two' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '0.000–1.000 one' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '1.000–2.000 two' })).toBeTruthy();
   });
 
   it('keeps project, manuscript, layer, and text notes after reopen', async () => {
@@ -1717,7 +1717,7 @@ describe('DesktopProjectReadPage', () => {
       target: { value: 'layer-note' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save layer note' }));
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 keep' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–1.000 keep' }));
     fireEvent.change(await screen.findByRole('textbox', { name: 'Text note: keep' }), {
       target: { value: 'text-note' },
     });
@@ -1733,7 +1733,7 @@ describe('DesktopProjectReadPage', () => {
     expect(await screen.findByText('project-note')).toBeTruthy();
     expect(await screen.findByText('manuscript-note')).toBeTruthy();
     expect(await screen.findByText('layer-note')).toBeTruthy();
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–1.0 keep' }));
+    fireEvent.click(await screen.findByRole('button', { name: '0.000–1.000 keep' }));
     expect(await screen.findByText('text-note')).toBeTruthy();
   });
 

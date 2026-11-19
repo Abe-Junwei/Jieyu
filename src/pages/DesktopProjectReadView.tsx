@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
+import { formatMillisecondSpan } from '../desktop/formatMillisecondSpan';
 import { msToSeconds } from '../desktop/timeMs';
 import { DesktopScopeNote } from './DesktopScopeNote';
 
@@ -318,8 +319,7 @@ function playerStart(unit: DesktopProjectReadUnit): number {
 }
 
 function spanLabel(unit: DesktopProjectReadUnit): string {
-  if (unit.startMs === null || unit.endMs === null) return '';
-  return `${msToSeconds(unit.startMs).toFixed(1)}–${msToSeconds(unit.endMs).toFixed(1)}`;
+  return formatMillisecondSpan(unit.startMs, unit.endMs);
 }
 
 function manuscriptLabel(title: Record<string, string>, id: string): string {
