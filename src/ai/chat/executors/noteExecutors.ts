@@ -175,26 +175,18 @@ export async function listNotesDetail(
 
   let fetched: UserNoteDocType[];
   try {
-    fetched = await listRecentUserNotes(800);
+    fetched = await listRecentUserNotes(limit, (note) => {
+      if (!noteMatchesTimelineScope(note, idSet, workspaceTextId)) return false;
+      if (categoryFilter && (note.category ?? 'comment') !== categoryFilter) return false;
+      return true;
+    });
   } catch {
     return { ok: false, name: 'list_notes_detail', result: null, error: 'notes_read_failed' };
   }
 
-  const notes: Array<{
-    id: string;
-    targetType: string;
-    targetId: string;
-    hostTargetId?: string;
-    category?: NoteCategory;
-    updatedAt: string;
-    contentPreview: string;
-  }> = [];
-
-  for (const note of fetched) {
-    if (!noteMatchesTimelineScope(note, idSet, workspaceTextId)) continue;
-    if (categoryFilter && (note.category ?? 'comment') !== categoryFilter) continue;
+  const notes = fetched.map((note) => {
     const hostTargetId = noteHostTargetId(note);
-    notes.push({
+    return {
       id: note.id,
       targetType: note.targetType,
       targetId: note.targetId,
@@ -202,9 +194,8 @@ export async function listNotesDetail(
       ...(note.category ? { category: note.category } : {}),
       updatedAt: note.updatedAt,
       contentPreview: firstNoteContentPreview(note.content, 120),
-    });
-    if (notes.length >= limit) break;
-  }
+    };
+  });
 
   return {
     ok: true,
