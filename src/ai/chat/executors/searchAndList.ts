@@ -267,11 +267,40 @@ function persistentListQuery(
 ): ListUnitsPersistentQuery | null {
   const resolved = resolveSegmentReadQueryScope(context, scope);
   if (!resolved) return null;
+  // textId comes only from this resolver. #589 will start supplying workspaceTextId here;
+  // keep the field on the stored query and do not read workspaceTextId in this file.
   return {
     ...(resolved.textId ? { textId: resolved.textId } : {}),
     ...(resolved.mediaId ? { mediaId: resolved.mediaId } : {}),
     ...(resolved.layerId ? { layerId: resolved.layerId } : {}),
   };
+}
+
+function persistentListUnitsResult(
+  context: AiPromptContext,
+  args: Record<string, unknown>,
+  scope: LocalUnitScope,
+  query: ListUnitsPersistentQuery,
+  page: Awaited<ReturnType<typeof readPersistentListUnitsPage>>,
+): LocalContextToolResult {
+  const epoch = listUnitsEpoch(context);
+  const sort = readListUnitsSort(args);
+  const resultHandle =
+    page.total > LIST_UNITS_SNAPSHOT_ROW_THRESHOLD
+      ? createListUnitsQueryHandle({
+          scope,
+          query,
+          sort,
+          after: page.endKey,
+          nextOffset: page.endOffset,
+          ...(epoch !== undefined ? { epoch } : {}),
+        })
+      : undefined;
+  return buildListUnitsPageResult(context, mapSegmentMetaRows(page.rows), args, scope, {
+    ...(resultHandle ? { resultHandle, snapshotPaging: true } : {}),
+    readModelSource: 'segment_meta',
+    prepaged: { offset: page.offset, total: page.total },
+  });
 }
 
 function listUnitsEpoch(context: AiPromptContext): number | undefined {
@@ -338,31 +367,20 @@ export async function listUnits(
   }
 
   const query = persistentListQuery(context, scope);
-  // Populated localUnitIndex keeps the in-memory snapshot path and must not open Dexie first.
-  // The persistent branch is the empty-index segment_meta read.
-  if (query && loadNormalizedUnitRows(context).length === 0) {
+  const indexCount = loadNormalizedUnitRows(context).length;
+  // segment_meta wins whenever it has rows, including when localUnitIndex holds only
+  // 1..51 of them. An empty persistence table leaves the in-memory snapshot contract alone.
+  const probePersistedScope =
+    indexCount > 0 && SegmentMetaService.listUnitsPersistentProbe === true;
+  if (query && (indexCount === 0 || probePersistedScope)) {
     try {
       const sort = readListUnitsSort(args);
       const limit = normalizeLimit(args.limit, 8);
       const offset = normalizeOffset(args.offset, 0, LIST_UNITS_DEFAULT_OFFSET_MAX);
       const page = await readPersistentListUnitsPage(query, { sort, offset, limit });
-      const epoch = listUnitsEpoch(context);
-      const resultHandle =
-        page.total > LIST_UNITS_SNAPSHOT_ROW_THRESHOLD
-          ? createListUnitsQueryHandle({
-              scope,
-              query,
-              sort,
-              after: page.endKey,
-              nextOffset: page.endOffset,
-              ...(epoch !== undefined ? { epoch } : {}),
-            })
-          : undefined;
-      return buildListUnitsPageResult(context, mapSegmentMetaRows(page.rows), args, scope, {
-        ...(resultHandle ? { resultHandle, snapshotPaging: true } : {}),
-        readModelSource: 'segment_meta',
-        prepaged: { offset: page.offset, total: page.total },
-      });
+      if (indexCount === 0 || page.total > 0) {
+        return persistentListUnitsResult(context, args, scope, query, page);
+      }
     } catch {
       // Dexie is unavailable in some unit tests; the legacy loader below still answers.
     }

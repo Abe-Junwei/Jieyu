@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { writeFileSync } from 'node:fs';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { executeLocalContextToolCall } from '../localContextTools';
 import {
   clearListUnitsSnapshotsForTests,
@@ -24,6 +25,7 @@ interface SeedRow {
   startTime: number;
   endTime: number;
   mediaId: string;
+  textId?: string;
 }
 
 /**
@@ -79,7 +81,7 @@ function toDoc(row: SeedRow): SegmentMetaDocType {
     id: row.id,
     segmentId: row.segmentId,
     unitKind: 'segment',
-    textId: 'text-a',
+    textId: row.textId ?? 'text-a',
     mediaId: row.mediaId,
     layerId: row.mediaId === MEDIA ? LAYER : 'layer-b',
     startTime: row.startTime,
@@ -131,6 +133,70 @@ interface ListPayload {
   snapshotPaging?: boolean;
   matches: Array<{ id: string; mediaId?: string }>;
   _readModel?: { source: string };
+}
+
+const perfSamples: Array<Record<string, number | string>> = [];
+
+function indexContext(count: number): AiPromptContext {
+  return {
+    shortTerm: {
+      currentMediaId: MEDIA,
+      timelineReadModelEpoch: 4,
+      localUnitIndex: Array.from({ length: count }, (_, index) => ({
+        id: `idx-${index}`,
+        kind: 'segment' as const,
+        mediaId: MEDIA,
+        layerId: LAYER,
+        textId: 'text-a',
+        startTime: index,
+        endTime: index + 0.1,
+        text: `idx-${index}`,
+      })),
+    },
+    longTerm: {},
+  };
+}
+
+async function walkAsc(ctx: AiPromptContext = context()): Promise<{
+  handle: string;
+  elapsedMs: number;
+  pages: number;
+}> {
+  const ref = { current: 0 };
+  const started = performance.now();
+  const seen: string[] = [];
+  let handle: string | undefined;
+  let offset = 0;
+  let pages = 0;
+  while (seen.length < ascIds.length) {
+    const result = await listUnits(
+      ref,
+      {
+        scope: 'current_track',
+        limit: PAGE,
+        offset,
+        sort: 'time_asc',
+        ...(handle ? { resultHandle: handle } : {}),
+      },
+      ctx,
+    );
+    expect(result.ok, result.error).toBe(true);
+    const payload = payloadOf(result);
+    if (!handle) {
+      expect(typeof payload.resultHandle).toBe('string');
+      handle = payload.resultHandle;
+    }
+    expect(payload.total).toBe(COUNT);
+    expect(payload.offset).toBe(offset);
+    expect(payload.matches.map((row) => row.id)).toEqual(ascIds.slice(offset, offset + PAGE));
+    if (payload.matches.length === 0) break;
+    seen.push(...payload.matches.map((row) => row.id));
+    offset += payload.matches.length;
+    pages += 1;
+  }
+  expect(seen).toEqual(ascIds);
+  expect(new Set(seen).size).toBe(COUNT);
+  return { handle: handle ?? '', elapsedMs: performance.now() - started, pages };
 }
 
 function payloadOf(result: { ok: boolean; result: unknown }): ListPayload {
@@ -204,6 +270,7 @@ describe('persistent list_units paging past the default offset cap', () => {
   it('walks every in-scope row once, in stable order, across pages past offset 500', async () => {
     const listAll = vi.spyOn(SegmentMetaService, 'listAll');
     const listByMediaId = vi.spyOn(SegmentMetaService, 'listByMediaId');
+    const started = performance.now();
     const ref = { current: 0 };
     const seen: string[] = [];
     let handle: string | undefined;
@@ -238,6 +305,14 @@ describe('persistent list_units paging past the default offset cap', () => {
 
     expect(seen).toEqual(ascIds);
     expect(new Set(seen).size).toBe(COUNT);
+    const elapsedMs = performance.now() - started;
+    perfSamples.push({
+      case: 'empty-index',
+      rows: COUNT,
+      pages: Math.ceil(COUNT / PAGE),
+      elapsedMs: Math.round(elapsedMs),
+      msPerPage: Math.round(elapsedMs / Math.ceil(COUNT / PAGE)),
+    });
     const trailing = await listUnits(ref, {
       scope: 'current_track',
       limit: PAGE,
@@ -407,6 +482,125 @@ describe('persistent list_units paging past the default offset cap', () => {
       expect(expired.error).toBe('invalid_or_expired_handle');
     } finally {
       spy.mockRestore();
+    }
+  });
+
+  it('pages all persisted rows when localUnitIndex has 1, 49, 50, or 51 rows', async () => {
+    await db.segment_meta.bulkAdd(
+      [1, 2, 3, 4, 5].map((n) =>
+        toDoc({
+          id: `${LAYER}::foreign-${n}`,
+          segmentId: `foreign-${n}`,
+          startTime: n * 17,
+          endTime: n * 17 + 0.3,
+          mediaId: MEDIA,
+          textId: 'text-b',
+        }),
+      ),
+    );
+    const listAll = vi.spyOn(SegmentMetaService, 'listAll');
+    const listByMediaId = vi.spyOn(SegmentMetaService, 'listByMediaId');
+    let lastHandle = '';
+    let lastCtx = indexContext(1);
+    for (const indexCount of [1, 49, 50, 51]) {
+      clearListUnitsSnapshotsForTests();
+      const ctx = indexContext(indexCount);
+      const walked = await walkAsc(ctx);
+      lastHandle = walked.handle;
+      lastCtx = ctx;
+      perfSamples.push({
+        case: `partial-index-${indexCount}`,
+        rows: COUNT,
+        indexRows: indexCount,
+        pages: walked.pages,
+        elapsedMs: Math.round(walked.elapsedMs),
+        msPerPage: Math.round(walked.elapsedMs / walked.pages),
+      });
+      const stored = getListUnitsHandle(walked.handle);
+      expect(stored?.kind).toBe('query');
+      if (stored?.kind === 'query') {
+        expect(stored.query.textId).toBe('text-a');
+        expect(stored.query.mediaId).toBe(MEDIA);
+        expect(stored).not.toHaveProperty('rows');
+      }
+    }
+    const sticky = await listUnits(
+      { current: 0 },
+      {
+        resultHandle: lastHandle,
+        scope: 'project',
+        limit: 3,
+        offset: 0,
+        sort: 'time_asc',
+      },
+      lastCtx,
+    );
+    expect(sticky.ok, sticky.error).toBe(true);
+    const stickyPayload = payloadOf(sticky);
+    expect(stickyPayload.scope).toBe('current_track');
+    expect(stickyPayload.total).toBe(COUNT);
+    expect(stickyPayload.matches.map((row) => row.id)).toEqual(ascIds.slice(0, 3));
+    expect(stickyPayload.matches.some((row) => row.id.startsWith('foreign-'))).toBe(false);
+    expect(stickyPayload.matches.some((row) => row.id.startsWith('idx-'))).toBe(false);
+    const clamped = await listUnits(
+      { current: 0 },
+      { scope: 'current_track', limit: 3, offset: 520, sort: 'time_asc' },
+      indexContext(1),
+    );
+    expect(clamped.ok).toBe(true);
+    expect(payloadOf(clamped).offset).toBe(500);
+    expect(payloadOf(clamped).matches.map((row) => row.id)).toEqual(ascIds.slice(500, 503));
+    expect(listAll).not.toHaveBeenCalled();
+    expect(listByMediaId).not.toHaveBeenCalled();
+    expect(segmentMetaToArray).toBe(0);
+  }, 60_000);
+
+  it('keeps the in-memory row snapshot when segment_meta is empty', async () => {
+    await db.segment_meta.clear();
+    const ref = { current: 0 };
+    const ctx = indexContext(51);
+    const first = await listUnits(
+      ref,
+      { scope: 'current_track', limit: PAGE, offset: 0, sort: 'time_asc' },
+      ctx,
+    );
+    expect(first.ok).toBe(true);
+    const payload = payloadOf(first);
+    expect(payload.total).toBe(51);
+    expect(payload.matches.map((row) => row.id)).toEqual(
+      Array.from({ length: PAGE }, (_, index) => `idx-${index}`),
+    );
+    expect(payload._readModel?.source).not.toBe('segment_meta');
+    const handle = payload.resultHandle;
+    expect(typeof handle).toBe('string');
+    expect(getListUnitsHandle(handle ?? '')?.kind).toBe('rows');
+    const later = await listUnits(
+      ref,
+      { resultHandle: handle, limit: 20, offset: 40, sort: 'time_asc', scope: 'project' },
+      ctx,
+    );
+    expect(later.ok).toBe(true);
+    const laterPayload = payloadOf(later);
+    expect(laterPayload.scope).toBe('current_track');
+    expect(laterPayload.offset).toBe(40);
+    expect(laterPayload.matches.map((row) => row.id)).toEqual(
+      Array.from({ length: 11 }, (_, index) => `idx-${40 + index}`),
+    );
+  });
+
+  afterAll(() => {
+    const payload = {
+      engine: 'fake-indexeddb',
+      note: 'Each page scans the resolved segment_meta scope. startTime is not an index; no schema change.',
+      samples: perfSamples,
+    };
+    try {
+      writeFileSync(
+        '/opt/cursor/artifacts/list-units-page-scan-perf.json',
+        `${JSON.stringify(payload, null, 2)}\n`,
+      );
+    } catch {
+      // Artifact directory is optional outside the cloud agent.
     }
   });
 });

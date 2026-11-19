@@ -154,6 +154,10 @@ async function scanPage(
   return { page: finished.page, total: finished.total };
 }
 
+/**
+ * Each page walks the resolved scope with a cursor. `startTime` is not indexed;
+ * this fix does not add one. Tests record wall time for that full-scope scan.
+ */
 export async function readPersistentListUnitsPage(
   query: ListUnitsPersistentQuery,
   options: {
