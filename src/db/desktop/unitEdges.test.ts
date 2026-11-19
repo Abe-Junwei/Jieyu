@@ -158,6 +158,25 @@ describe('desktop unit edges', () => {
     ]);
   });
 
+  it('undoes and redoes a single edge move and reads the time back', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const id = unit(session.sessionId, layer(session.sessionId, true), 0, 1000, '句');
+    callDesktopSession(session.sessionId, 'units.moveEdge', {
+      unitId: id,
+      edge: 'end',
+      time: 1500,
+    });
+    callDesktopSession(session.sessionId, 'units.undo', {});
+    expect(callDesktopSession(session.sessionId, 'units.get', { id })).toMatchObject({
+      endMs: 1000,
+    });
+    callDesktopSession(session.sessionId, 'units.redo', {});
+    expect(callDesktopSession(session.sessionId, 'units.get', { id })).toMatchObject({
+      endMs: 1500,
+    });
+  });
+
   it('keeps a time draft across reopen without changing the official time', () => {
     const dir = folder();
     const session = openDesktopSession(dir, [dir]);
