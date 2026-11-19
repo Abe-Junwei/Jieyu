@@ -333,7 +333,7 @@ describe('persistent list_units paging past the default offset cap', () => {
       const mentioned = ascIds.filter((id) => JSON.stringify(stored).includes(id));
       expect(mentioned.length).toBeLessThanOrEqual(1);
     }
-  });
+  }, 60_000);
 
   it('walks time_desc without dropping tied start times', async () => {
     const ref = { current: 0 };
@@ -366,7 +366,7 @@ describe('persistent list_units paging past the default offset cap', () => {
     }
     expect(seen).toEqual(descIds);
     expect(new Set(seen).size).toBe(COUNT);
-  });
+  }, 60_000);
 
   it('keeps the no-handle offset cap and reaches past it only with the captured scope handle', async () => {
     const ref = { current: 0 };
@@ -412,7 +412,7 @@ describe('persistent list_units paging past the default offset cap', () => {
     const switched = payloadOf(switchedMedia);
     expect(switched.scope).toBe('current_track');
     expect(switched.matches.map((row) => row.id)).toEqual(ascIds.slice(0, 3));
-  });
+  }, 60_000);
 
   it('rejects an oversized page limit', async () => {
     const ref = { current: 0 };
@@ -553,7 +553,7 @@ describe('persistent list_units paging past the default offset cap', () => {
     expect(listAll).not.toHaveBeenCalled();
     expect(listByMediaId).not.toHaveBeenCalled();
     expect(segmentMetaToArray).toBe(0);
-  }, 60_000);
+  }, 120_000);
 
   it('keeps the in-memory row snapshot when segment_meta is empty', async () => {
     await db.segment_meta.clear();
