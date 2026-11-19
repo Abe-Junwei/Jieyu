@@ -581,8 +581,10 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
         user_notes: {
           orderBy: () => ({
             reverse: () => ({
-              limit: () => ({
-                toArray: async () => notes,
+              filter: (predicate: (row: (typeof notes)[number]) => boolean) => ({
+                limit: (count: number) => ({
+                  toArray: async () => notes.filter(predicate).slice(0, count),
+                }),
               }),
             }),
           }),
@@ -651,8 +653,10 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
         user_notes: {
           orderBy: () => ({
             reverse: () => ({
-              limit: () => ({
-                toArray: async () => notes,
+              filter: (predicate: (row: (typeof notes)[number]) => boolean) => ({
+                limit: (count: number) => ({
+                  toArray: async () => notes.filter(predicate).slice(0, count),
+                }),
               }),
             }),
           }),
