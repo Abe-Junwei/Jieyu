@@ -93,6 +93,13 @@ describe('session unit text undo', () => {
     );
     expect(textOf(session.sessionId, unitId)).toBe('qi');
     expect(() => callDesktopSession(session.sessionId, 'units.undoText', {})).toThrow(
+      'unit text undo is stale',
+    );
+    expect(callDesktopSession(session.sessionId, 'units.dropUndo', {})).toEqual({
+      dropped: true,
+    });
+    expect(textOf(session.sessionId, unitId)).toBe('qi');
+    expect(() => callDesktopSession(session.sessionId, 'units.undoText', {})).toThrow(
       'unit text undo is empty',
     );
 

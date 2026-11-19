@@ -856,6 +856,35 @@
   color: var(--state-danger-text);
 }
 
+.desktop-tx-status__focus {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.desktop-tx-conflict,
+.desktop-tx-stale {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.desktop-tx-conflict {
+  font-family: var(--font-mono);
+}
+
+.desktop-tx-stale {
+  padding: 4px 12px;
+  border-top: 1px solid var(--divider-base);
+  color: var(--state-danger-text);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.desktop-tx-lane .timeline-annotation:focus-visible {
+  outline: 1.5px solid var(--text-secondary);
+  outline-offset: 2px;
+}
+
 .desktop-tx-snap {
   position: fixed;
   z-index: var(--z-popover);
@@ -883,7 +912,11 @@
 
 .desktop-tx-delete {
   width: 400px;
-  padding: 16px;
+}
+
+.desktop-tx-delete__counts {
+  margin: 8px 0 0;
+  padding-left: 20px;
 }
 
 .desktop-tx-lane .timeline-annotation.timeline-annotation-selected,

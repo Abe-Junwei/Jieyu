@@ -19,6 +19,8 @@ import { TimelineBadges } from './TimelineBadges';
 // ── Types ────────────────────────────────────────────────────
 
 export interface TimelineAnnotationItemProps {
+  /** Marks the element with `data-unit-id` and makes it focusable from script (focus return). */
+  unitId?: string;
   left: number | string;
   width: number | string;
   isSelected: boolean;
@@ -65,6 +67,7 @@ export interface TimelineAnnotationItemProps {
 // ── Component ────────────────────────────────────────────────
 
 export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
+  unitId,
   left,
   width,
   isSelected,
@@ -141,6 +144,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         ...layerStyle,
       }}
       dir={contentDirection}
+      {...(unitId === undefined ? {} : { 'data-unit-id': unitId, tabIndex: -1 })}
       onClick={onClick}
       onContextMenu={onContextMenu}
       title={title}

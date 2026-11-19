@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  cycleEdge,
   dragTimeMs,
+  edgeFocusKind,
   edgeRejectKind,
   neighborTargets,
   parseTimecode,
+  selectedPair,
   snapEdgeMs,
   touchingPair,
 } from './desktopTranscriptionEdge';
@@ -57,5 +60,45 @@ describe('desktop transcription edge math', () => {
     expect(edgeRejectKind('same speaker intervals overlap')).toBe('overlap');
     expect(edgeRejectKind('edge is outside the media')).toBe('outside');
     expect(edgeRejectKind('SQLITE_CONSTRAINT')).toBe('failed');
+  });
+});
+
+describe('keyboard edge cycling', () => {
+  it('goes start, end, shared with next, shared with previous, then wraps', () => {
+    const seen: string[] = [];
+    let current = null as ReturnType<typeof cycleEdge>;
+    for (let i = 0; i < 5; i += 1) {
+      current = cycleEdge(units, 'b', current);
+      seen.push(edgeFocusKind(units, current!));
+    }
+    expect(seen).toEqual(['start', 'end', 'sharedPrev', 'start', 'end']);
+    const middle = [
+      { id: 'a', startMs: 0, endMs: 1000 },
+      { id: 'b', startMs: 1000, endMs: 2000 },
+      { id: 'c', startMs: 2000, endMs: 3000 },
+    ];
+    const kinds: string[] = [];
+    current = null;
+    for (let i = 0; i < 4; i += 1) {
+      current = cycleEdge(middle, 'b', current);
+      kinds.push(edgeFocusKind(middle, current!));
+    }
+    expect(kinds).toEqual(['start', 'end', 'sharedNext', 'sharedPrev']);
+  });
+
+  it('nudges the pair the shared selection names, not just the first touching one', () => {
+    const middle = [
+      { id: 'a', startMs: 0, endMs: 1000 },
+      { id: 'b', startMs: 1000, endMs: 2000 },
+      { id: 'c', startMs: 2000, endMs: 3000 },
+    ];
+    expect(selectedPair(middle, { unitId: 'b', edge: 'shared', otherId: 'a' })).toMatchObject({
+      leftId: 'a',
+      rightId: 'b',
+    });
+    expect(selectedPair(middle, { unitId: 'b', edge: 'shared', otherId: 'c' })).toMatchObject({
+      leftId: 'b',
+      rightId: 'c',
+    });
   });
 });

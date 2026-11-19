@@ -1,4 +1,11 @@
-import { useEffect, useState, type ChangeEvent, type KeyboardEvent, type RefObject } from 'react';
+import {
+  useEffect,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+  type MutableRefObject,
+  type RefObject,
+} from 'react';
 import { TimelineAnnotationItem } from '../components/TimelineAnnotationItem';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, tf, type Locale } from '../i18n';
@@ -13,10 +20,15 @@ import {
   seamSeconds,
 } from './desktopTranscriptionEdgeView';
 import { useDesktopTranscriptionEdgeController } from './useDesktopTranscriptionEdgeController';
+import type { EdgeActions } from './desktopTranscriptionEdgeActions';
+import { edgeFocusKind } from './desktopTranscriptionEdge';
+import { NO_CONFLICTS } from './desktopTranscriptionEdgeSession';
 import {
   formatPlaybackTime,
   type DesktopPlaybackUnit,
 } from './useDesktopTranscriptionMediaController';
+
+export type WaveCreate = EdgeActions['beginWaveCreate'];
 
 export function DesktopTranscriptionLane(props: {
   locale: Locale;
@@ -38,22 +50,24 @@ export function DesktopTranscriptionLane(props: {
   onSelectUnit: (unit: DesktopPlaybackUnit) => void;
   reload: () => Promise<unknown>;
   tierRef: RefObject<HTMLDivElement | null>;
+  waveCreateRef?: MutableRefObject<WaveCreate | null>;
 }) {
   const toast = useToast();
   const [editingId, setEditingId] = useState<string | null>(null);
   useEffect(() => {
     if (editingId !== null && editingId !== props.selectedUnitId) setEditingId(null);
   }, [editingId, props.selectedUnitId]);
+  const timedUnits = (props.sourceUnits ?? []).flatMap((unit) =>
+    unit.startMs === null || unit.endMs === null
+      ? []
+      : [{ id: unit.id, startMs: unit.startMs, endMs: unit.endMs }],
+  );
   const edges = useDesktopTranscriptionEdgeController({
     sessionId: props.sessionId,
     manuscriptId: props.manuscriptId,
     layerId: props.layerId,
     desktopCall: props.desktopCall,
-    units: (props.sourceUnits ?? []).flatMap((unit) =>
-      unit.startMs === null || unit.endMs === null
-        ? []
-        : [{ id: unit.id, startMs: unit.startMs, endMs: unit.endMs }],
-    ),
+    units: timedUnits,
     hasMedia: props.hasAudio,
     zoomPxPerSec: props.zoomPxPerSec,
     selectedUnitId: props.selectedUnitId,
@@ -73,7 +87,19 @@ export function DesktopTranscriptionLane(props: {
       ),
     draftSavedMessage: t(props.locale, 'app.desktopTranscription.draftSaved'),
     notify: (message, tone) => toast.showToast(message, tone ?? 'error'),
+    focusUnit: (unitId) =>
+      props.tierRef.current
+        ?.querySelector<HTMLElement>(`[data-unit-id="${CSS.escape(unitId)}"]`)
+        ?.focus(),
   });
+  const waveCreateRef = props.waveCreateRef;
+  useEffect(() => {
+    if (!waveCreateRef) return undefined;
+    waveCreateRef.current = edges.beginWaveCreate;
+    return () => {
+      waveCreateRef.current = null;
+    };
+  }, [edges.beginWaveCreate, waveCreateRef]);
   const selected = props.units.find((unit) => unit.id === props.selectedUnitId) ?? null;
   const seconds = seamSeconds(edges.ui.edge, edges.ui.preview, props.units);
   return (
@@ -113,6 +139,7 @@ export function DesktopTranscriptionLane(props: {
                 return (
                   <TimelineAnnotationItem
                     key={unit.id}
+                    unitId={unit.id}
                     left={frame.left ?? 0}
                     width={frame.width ?? 0}
                     isSelected={selected}
@@ -205,8 +232,19 @@ export function DesktopTranscriptionLane(props: {
             ? { text: edges.ui.preview.tip, x: edges.ui.preview.x, y: edges.ui.preview.y }
             : null
         }
+        edgeFocus={
+          edges.ui.edge !== null &&
+          (edges.ui.edge.unitId === selected?.id || edges.ui.edge.otherId === selected?.id)
+            ? edgeFocusKind(timedUnits, edges.ui.edge)
+            : null
+        }
+        conflicts={edges.ui.raw.unitId === selected?.id ? edges.ui.raw.conflicts : NO_CONFLICTS}
+        stale={edges.ui.stale}
         menu={edges.ui.menu}
-        deletePrompt={edges.ui.deletePrompt}
+        deletePrompt={edges.ui.deletePrompt?.counts ?? null}
+        onRebase={(edge) => void edges.rebaseDraft(edge)}
+        onDiscardDraft={(edge) => void edges.discardDraft(edge)}
+        onDropStale={() => void edges.dropStale()}
         onEdit={edges.editTime}
         onFlush={edges.flushTime}
         onCloseMenu={edges.closeMenu}

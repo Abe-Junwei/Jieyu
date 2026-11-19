@@ -1088,7 +1088,7 @@ function fieldsOf(
   return [unit, ...notes].flatMap((pair) => select.all(...pair) as FieldRow[]);
 }
 
-function nodeIdsOf(json: string | null): string[] {
+export function nodeIdsOf(json: string | null): string[] {
   if (json === null) return [];
   const parsed = JSON.parse(json) as { nodes?: { id?: unknown }[] };
   if (!Array.isArray(parsed.nodes)) return [];

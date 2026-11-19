@@ -197,9 +197,15 @@ describe('desktop unit edges', () => {
       id,
       endMs: 1600,
     });
-    expect(callDesktopSession(session.sessionId, 'units.previewDelete', { unitId: id })).toEqual({
+    expect(callDesktopSession(session.sessionId, 'units.deletePreview', { unitId: id })).toEqual({
       tokens: 0,
+      morphemes: 0,
       notes: 0,
+      lexemeLinks: 0,
+      analysisCandidates: 0,
+      customFieldValues: 0,
+      drafts: 0,
+      receptionRecords: 0,
     });
     expect(callDesktopSession(session.sessionId, 'units.delete', { unitId: id })).toEqual({ id });
     expect(callDesktopSession(session.sessionId, 'units.get', { id })).toBeNull();

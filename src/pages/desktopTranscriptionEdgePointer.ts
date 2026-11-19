@@ -2,7 +2,9 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { edgeKeyAction } from '../desktop/edgeKeys';
 import { formatPlaybackTime } from './useDesktopTranscriptionMediaController';
 import {
+  neighborTargets,
   previewDrag,
+  snapEdgeMs,
   touchingPair,
   EDGE_MIN_MS,
   type EdgeSelection,
@@ -27,6 +29,7 @@ export function bindEdgeKeys(read: {
   undo: () => void;
   redo: () => void;
   remove: (unitId: string) => void;
+  cycle: (unitId: string) => void;
   nudge: (edge: EdgeSelection, delta: number) => void;
 }): () => void {
   const onKey = (event: KeyboardEvent) => {
@@ -38,11 +41,12 @@ export function bindEdgeKeys(read: {
       else read.redo();
       return;
     }
-    if (action === 'deleteSegment') {
+    if (action === 'deleteSegment' || action === 'cycleEdge') {
       const id = read.selectedUnitId();
       if (id === null) return;
       event.preventDefault();
-      read.remove(id);
+      if (action === 'cycleEdge') read.cycle(id);
+      else read.remove(id);
       return;
     }
     const selected = read.edge();
@@ -125,42 +129,76 @@ export function startEdgeDrag(input: {
   );
 }
 
-export function startEmptyCreate(input: {
-  event: ReactPointerEvent<HTMLDivElement>;
+/** Under this horizontal travel a press stays a click (seek / select). */
+export const CREATE_DRAG_PX = 4;
+
+/** Eats the click the browser sends after a create drag, so the drag does not also seek. */
+function swallowNextClick() {
+  const swallow = (event: MouseEvent) => {
+    event.stopPropagation();
+    event.preventDefault();
+  };
+  window.addEventListener('click', swallow, { capture: true, once: true });
+  window.setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0);
+}
+
+/**
+ * Press on empty time and drag to create a unit. Shared by the lane track and the waveform.
+ * Snaps both ends like an edge drag (8px to neighbor edges and the playhead; Alt turns it off).
+ */
+export function startCreate(input: {
+  event: ReactPointerEvent<HTMLElement>;
+  msAt: (clientX: number) => number;
   zoomPxPerSec: number;
+  units: readonly TimedEdgeUnit[];
+  playheadMs: () => number | null;
+  snapMessage: (kind: 'neighbor' | 'playhead', time: string) => string;
   setPreview: (preview: ShownPreview | null) => void;
   commit: (startMs: number, endMs: number) => void;
+  tooShort: (endMs: number) => void;
 }) {
   const event = input.event;
-  if (event.button !== 0 || event.target !== event.currentTarget || !(input.zoomPxPerSec > 0))
-    return;
+  if (event.button !== 0 || !(input.zoomPxPerSec > 0)) return;
+  const pressMs = Math.round(input.msAt(event.clientX));
+  if (input.units.some((unit) => pressMs >= unit.startMs && pressMs < unit.endMs)) return;
   const zoom = input.zoomPxPerSec;
-  const origin = event.currentTarget;
-  const start = Math.round(((event.clientX - origin.getBoundingClientRect().left) / zoom) * 1000);
-  let startMs = start;
-  let endMs = start;
+  const snap = (timeMs: number, alt: boolean) =>
+    snapEdgeMs({
+      timeMs,
+      zoomPxPerSec: zoom,
+      neighborMs: neighborTargets(input.units, []),
+      playheadMs: input.playheadMs(),
+      alt,
+    });
+  const originX = event.clientX;
+  let range: { startMs: number; endMs: number } | null = null;
   listen(
     (pointer) => {
-      const end = Math.round(
-        ((pointer.clientX - origin.getBoundingClientRect().left) / zoom) * 1000,
-      );
-      startMs = Math.min(start, end);
-      endMs = Math.max(start, end);
+      if (range === null && Math.abs(pointer.clientX - originX) <= CREATE_DRAG_PX) return;
+      const start = snap(pressMs, pointer.altKey).timeMs;
+      const end = snap(Math.round(input.msAt(pointer.clientX)), pointer.altKey);
+      range = { startMs: Math.min(start, end.timeMs), endMs: Math.max(start, end.timeMs) };
       input.setPreview({
         unitId: null,
-        startMs,
-        endMs,
+        ...range,
         otherId: null,
         otherStartMs: null,
         otherEndMs: null,
-        tip: null,
+        tip:
+          end.kind === null
+            ? null
+            : input.snapMessage(end.kind, formatPlaybackTime(end.timeMs / 1000)),
         x: pointer.clientX,
         y: pointer.clientY,
       });
     },
     () => {
+      const done = range;
+      if (done === null) return;
       input.setPreview(null);
-      if (endMs - startMs >= EDGE_MIN_MS) input.commit(startMs, endMs);
+      swallowNextClick();
+      if (done.endMs - done.startMs < EDGE_MIN_MS) input.tooShort(done.endMs);
+      else input.commit(done.startMs, done.endMs);
     },
   );
 }

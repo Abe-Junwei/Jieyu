@@ -1,5 +1,27 @@
-import { t, tf, type Locale } from '../i18n';
-import type { TimeEdge } from './desktopTranscriptionEdge';
+import { ModalPanel } from '../components/ui/ModalPanel';
+import { t, tf, type DictKey, type Locale } from '../i18n';
+import type { UnitDeletePreview } from '../app/desktopProjectReadPageAccess';
+import type { TimeEdge, edgeFocusKind } from './desktopTranscriptionEdge';
+import type { TimeConflict } from './desktopTranscriptionEdgeSession';
+import { formatPlaybackTime } from './useDesktopTranscriptionMediaController';
+
+const EDGE_FOCUS: Record<ReturnType<typeof edgeFocusKind>, DictKey> = {
+  start: 'app.desktopTranscription.edgeFocusStart',
+  end: 'app.desktopTranscription.edgeFocusEnd',
+  sharedNext: 'app.desktopTranscription.edgeFocusSharedNext',
+  sharedPrev: 'app.desktopTranscription.edgeFocusSharedPrev',
+};
+
+const DELETE_COUNTS: Record<keyof UnitDeletePreview, DictKey> = {
+  tokens: 'app.desktopTranscription.deleteCount.tokens',
+  morphemes: 'app.desktopTranscription.deleteCount.morphemes',
+  notes: 'app.desktopTranscription.deleteCount.notes',
+  lexemeLinks: 'app.desktopTranscription.deleteCount.lexemeLinks',
+  analysisCandidates: 'app.desktopTranscription.deleteCount.analysisCandidates',
+  customFieldValues: 'app.desktopTranscription.deleteCount.customFieldValues',
+  drafts: 'app.desktopTranscription.deleteCount.drafts',
+  receptionRecords: 'app.desktopTranscription.deleteCount.receptionRecords',
+};
 
 export function DesktopTranscriptionEdgeChrome(props: {
   locale: Locale;
@@ -10,8 +32,14 @@ export function DesktopTranscriptionEdgeChrome(props: {
   hasMedia: boolean;
   reason: string | null;
   tip: { text: string; x: number; y: number } | null;
+  edgeFocus: ReturnType<typeof edgeFocusKind> | null;
+  conflicts: Record<TimeEdge, TimeConflict | null>;
+  stale: { action: 'undo' | 'redo' } | null;
   menu: { x: number; y: number } | null;
-  deletePrompt: { tokens: number; notes: number } | null;
+  deletePrompt: UnitDeletePreview | null;
+  onRebase: (edge: TimeEdge) => void;
+  onDiscardDraft: (edge: TimeEdge) => void;
+  onDropStale: () => void;
   onEdit: (edge: TimeEdge, value: string) => void;
   onFlush: (edge: TimeEdge) => void;
   onCloseMenu: () => void;
@@ -45,9 +73,61 @@ export function DesktopTranscriptionEdgeChrome(props: {
           {props.hasMedia ? null : (
             <span>{t(locale, 'app.desktopTranscription.noMediaLinked')}</span>
           )}
+          {props.edgeFocus === null ? null : (
+            <span className="desktop-tx-status__focus" data-testid="desktop-edge-focus">
+              {t(locale, EDGE_FOCUS[props.edgeFocus])}
+            </span>
+          )}
           {props.reason === null ? null : (
             <span className="desktop-tx-status__reason">{props.reason}</span>
           )}
+          {(['start', 'end'] as const).map((edge) => {
+            const conflict = props.conflicts[edge];
+            if (conflict === null) return null;
+            return (
+              <div
+                key={edge}
+                className="desktop-tx-conflict"
+                role="group"
+                aria-label={t(
+                  locale,
+                  edge === 'start'
+                    ? 'app.desktopTranscription.timeStart'
+                    : 'app.desktopTranscription.timeEnd',
+                )}
+              >
+                <span>
+                  {tf(locale, 'app.desktopTranscription.draftConflictCurrent', {
+                    time: formatPlaybackTime(conflict.currentMs / 1000),
+                  })}
+                </span>
+                <span>
+                  {tf(locale, 'app.desktopTranscription.draftConflictInput', {
+                    raw: conflict.rawInput,
+                  })}
+                </span>
+                <button type="button" className="btn" onClick={() => props.onRebase(edge)}>
+                  {t(locale, 'app.desktopTranscription.draftConflictRebase')}
+                </button>
+                <button type="button" className="btn" onClick={() => props.onDiscardDraft(edge)}>
+                  {t(locale, 'app.desktopTranscription.draftConflictDiscard')}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {props.stale === null ? null : (
+        <div className="desktop-tx-stale" role="alert" data-testid="desktop-edge-stale">
+          <span>{t(locale, 'app.desktopTranscription.edgeStale')}</span>
+          <button type="button" className="btn" onClick={props.onDropStale}>
+            {t(
+              locale,
+              props.stale.action === 'undo'
+                ? 'app.desktopTranscription.dropUndo'
+                : 'app.desktopTranscription.dropRedo',
+            )}
+          </button>
         </div>
       )}
       {props.tip === null ? null : (
@@ -78,25 +158,42 @@ export function DesktopTranscriptionEdgeChrome(props: {
         </>
       )}
       {props.deletePrompt === null ? null : (
-        <div className="dialog-overlay">
-          <div
-            role="dialog"
-            aria-labelledby="desktop-tx-delete-title"
-            className="dialog-card desktop-tx-delete"
-          >
-            <h2 id="desktop-tx-delete-title">
-              {t(locale, 'app.desktopTranscription.deleteSegment')}
-            </h2>
-            <p>{tf(locale, 'app.desktopTranscription.deleteBody', props.deletePrompt)}</p>
-            <button type="button" className="btn btn-danger" onClick={props.onConfirmDelete}>
-              {t(locale, 'app.desktopTranscription.deleteConfirm')}
-            </button>
-            <button type="button" onClick={props.onCancelDelete}>
-              {t(locale, 'app.desktopTranscription.cancel')}
-            </button>
-          </div>
-        </div>
+        <ModalPanel
+          isOpen
+          compact
+          className="desktop-tx-delete"
+          closeLabel={t(locale, 'app.desktopTranscription.cancel')}
+          onClose={props.onCancelDelete}
+          title={t(locale, 'app.desktopTranscription.deleteSegment')}
+          footer={
+            <>
+              <button type="button" className="btn btn-danger" onClick={props.onConfirmDelete}>
+                {t(locale, 'app.desktopTranscription.deleteConfirm')}
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={props.onCancelDelete}>
+                {t(locale, 'app.desktopTranscription.cancel')}
+              </button>
+            </>
+          }
+        >
+          <p>{t(locale, 'app.desktopTranscription.deleteBody')}</p>
+          <DeleteCounts locale={locale} counts={props.deletePrompt} />
+        </ModalPanel>
       )}
     </>
+  );
+}
+
+function DeleteCounts(props: { locale: Locale; counts: UnitDeletePreview }) {
+  const shown = (Object.keys(DELETE_COUNTS) as (keyof UnitDeletePreview)[]).filter(
+    (key) => props.counts[key] > 0,
+  );
+  if (shown.length === 0) return null;
+  return (
+    <ul className="desktop-tx-delete__counts">
+      {shown.map((key) => (
+        <li key={key}>{tf(props.locale, DELETE_COUNTS[key], { count: props.counts[key] })}</li>
+      ))}
+    </ul>
   );
 }

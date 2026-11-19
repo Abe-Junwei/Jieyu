@@ -145,6 +145,13 @@ export const DEFAULT_KEYBINDINGS: KeybindingEntry[] = [
     category: 'navigation',
   },
   {
+    id: 'cycleEdge',
+    label: '\u5207\u6362\u5f53\u524d\u8fb9\u754c',
+    defaultKey: 'e',
+    scope: 'waveform',
+    category: 'editing',
+  },
+  {
     id: 'nudgeEdgeBack',
     label: '\u8fb9\u754c\u5411\u524d 10 \u6beb\u79d2',
     defaultKey: 'arrowleft',

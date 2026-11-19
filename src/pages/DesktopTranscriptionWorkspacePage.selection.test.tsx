@@ -196,7 +196,7 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     await waitFor(() => {
       expect(calls).toContainEqual({
         method: 'units.moveEdge',
-        args: { unitId: 'u-a', edge: 'end', time: 1500 },
+        args: expect.objectContaining({ unitId: 'u-a', edge: 'end', time: 1500 }),
       });
     });
     await waitFor(() => expect(end).toHaveValue('00:00:01.000'));
@@ -237,5 +237,176 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     await waitFor(() => {
       expect(saveText).toHaveBeenCalledWith('u-a', 'alpha beta', expect.any(String));
     });
+  });
+});
+
+describe('DesktopTranscriptionWorkspacePage edge gaps (#562)', () => {
+  function recordCalls(answer: (method: string, args: unknown) => unknown = () => null) {
+    const calls: { method: string; args: unknown }[] = [];
+    renderWorkspace('/transcription', async (_sessionId, method, args) => {
+      calls.push({ method, args });
+      return answer(method, args);
+    });
+    return calls;
+  }
+
+  it('cycles the current edge with E and nudges the shared boundary', async () => {
+    const calls = recordCalls((method) => (method === 'units.readTimeDraft' ? [] : null));
+    fireEvent.click(screen.getByText('alpha'));
+    fireEvent.keyDown(window, { key: 'e' });
+    expect(screen.getByTestId('desktop-edge-focus').textContent).toBe('当前边界：起点');
+    fireEvent.keyDown(window, { key: 'e' });
+    expect(screen.getByTestId('desktop-edge-focus').textContent).toBe('当前边界：终点');
+    fireEvent.keyDown(window, { key: 'e' });
+    expect(screen.getByTestId('desktop-edge-focus').textContent).toBe('当前边界：与下一段共用');
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    await waitFor(() => {
+      expect(calls).toContainEqual({
+        method: 'units.moveSharedBoundary',
+        args: expect.objectContaining({ leftId: 'u-a', rightId: 'u-b', time: 1010 }),
+      });
+    });
+    fireEvent.keyDown(window, { key: 'e' });
+    expect(screen.getByTestId('desktop-edge-focus').textContent).toBe('当前边界：起点');
+  });
+
+  it('shows a draft typed against an older time side by side and rechecks it on request', async () => {
+    const calls = recordCalls((method) =>
+      method === 'units.readTimeDraft'
+        ? [
+            {
+              unitId: 'u-a',
+              edge: 'end',
+              rawInput: '00:00:01.500',
+              baseMs: 900,
+              issue: null,
+              updatedAt: '2026-01-01T00:00:00.000Z',
+              currentMs: 1000,
+              conflict: true,
+            },
+          ]
+        : null,
+    );
+    fireEvent.click(screen.getByText('alpha'));
+    expect(await screen.findByText('现正式时间 00:00:01.000')).toBeTruthy();
+    expect(screen.getByText('你的输入 00:00:01.500')).toBeTruthy();
+    expect(calls.some((call) => call.method === 'units.moveEdge')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: '按新时间重新校验并提交' }));
+    await waitFor(() => {
+      expect(calls).toContainEqual({
+        method: 'units.moveEdge',
+        args: expect.objectContaining({ unitId: 'u-a', edge: 'end', time: 1500 }),
+      });
+    });
+    await waitFor(() => expect(screen.queryByText('现正式时间 00:00:01.000')).toBeNull());
+  });
+
+  it('keeps an unfinished conflicting draft on the new base, or discards it', async () => {
+    const calls = recordCalls((method) =>
+      method === 'units.readTimeDraft'
+        ? [
+            {
+              unitId: 'u-a',
+              edge: 'start',
+              rawInput: '00:00:00.',
+              baseMs: 200,
+              issue: 'format',
+              updatedAt: '2026-01-01T00:00:00.000Z',
+              currentMs: 0,
+              conflict: true,
+            },
+          ]
+        : null,
+    );
+    fireEvent.click(screen.getByText('alpha'));
+    fireEvent.click(await screen.findByRole('button', { name: '按新时间重新校验并提交' }));
+    await waitFor(() => {
+      expect(calls).toContainEqual({
+        method: 'units.putTimeDraft',
+        args: {
+          unitId: 'u-a',
+          edge: 'start',
+          rawInput: '00:00:00.',
+          baseMs: 0,
+          issue: 'format',
+        },
+      });
+    });
+    expect(calls.some((call) => call.method === 'units.moveEdge')).toBe(false);
+
+    cleanup();
+    const again = recordCalls((method) =>
+      method === 'units.readTimeDraft'
+        ? [
+            {
+              unitId: 'u-a',
+              edge: 'start',
+              rawInput: '00:00:00.300',
+              baseMs: 200,
+              issue: null,
+              updatedAt: '2026-01-01T00:00:00.000Z',
+              currentMs: 0,
+              conflict: true,
+            },
+          ]
+        : null,
+    );
+    fireEvent.click(screen.getByText('alpha'));
+    fireEvent.click(await screen.findByRole('button', { name: '放弃草稿' }));
+    await waitFor(() => {
+      expect(again).toContainEqual({
+        method: 'units.discardTimeDraft',
+        args: { unitId: 'u-a', edge: 'start' },
+      });
+    });
+    await waitFor(() => expect(screen.queryByRole('button', { name: '放弃草稿' })).toBeNull());
+    expect(again.some((call) => call.method === 'units.moveEdge')).toBe(false);
+  });
+
+  it('confirms deletion in a modal that lists only non-empty children and returns focus on Escape', async () => {
+    const calls = recordCalls((method) => {
+      if (method === 'units.readTimeDraft') return [];
+      if (method === 'units.deletePreview') {
+        return {
+          tokens: 2,
+          morphemes: 0,
+          notes: 1,
+          lexemeLinks: 0,
+          analysisCandidates: 0,
+          customFieldValues: 0,
+          drafts: 0,
+          receptionRecords: 0,
+        };
+      }
+      return null;
+    });
+    fireEvent.click(screen.getByText('alpha'));
+    fireEvent.keyDown(window, { key: 'Delete' });
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('词注 2');
+    expect(dialog.textContent).toContain('备注 1');
+    expect(dialog.textContent).not.toContain('语素');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(annotation('alpha')));
+    expect(calls.some((call) => call.method === 'units.delete')).toBe(false);
+  });
+
+  it('keeps a stale undo step and drops it only when asked', async () => {
+    const calls = recordCalls((method) => {
+      if (method === 'units.undo') throw new Error('undo is stale');
+      if (method === 'units.inspectEdit') return { status: 'not-submitted' };
+      if (method === 'units.dropUndo') return { dropped: true };
+      return null;
+    });
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    const notice = await screen.findByTestId('desktop-edge-stale');
+    expect(notice.textContent).toContain('该语段之后又被改过，先处理后续修改');
+    expect(calls.some((call) => call.method === 'units.dropUndo')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: '放弃这一步撤销' }));
+    await waitFor(() => {
+      expect(calls).toContainEqual({ method: 'units.dropUndo', args: { manuscriptId: 'ms-1' } });
+    });
+    await waitFor(() => expect(screen.queryByTestId('desktop-edge-stale')).toBeNull());
   });
 });

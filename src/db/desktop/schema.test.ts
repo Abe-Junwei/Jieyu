@@ -65,7 +65,52 @@ function layer(
   ).run(id, manuscriptId, key, parentId, T, T);
 }
 
+// ADR-0129 E03: nothing stored today is derived from a unit's time span, so a time edit invalidates nothing.
+// Every table that points at units and carries time-shaped columns is listed here after review.
+const REVIEWED_UNIT_TIME_TABLES: Record<string, string> = {
+  unit_time_drafts: 'base_ms is compared with the formal edge on read; a mismatch is a conflict.',
+};
+
+function unitTimeTables(db: SqliteDatabase): string[] {
+  const tables = (
+    db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+      .all() as { name: string }[]
+  ).map((row) => row.name);
+  const timeShaped = /(_ms$|time|alignment|acoustic)/i;
+  return tables
+    .filter((table) => table !== 'units')
+    .filter((table) => {
+      const columns = (
+        db.prepare('SELECT name FROM pragma_table_info(?)').all(table) as { name: string }[]
+      ).map((row) => row.name);
+      const foreign = db
+        .prepare('SELECT "table" AS target FROM pragma_foreign_key_list(?)')
+        .all(table) as { target: string }[];
+      const pointsAtUnits =
+        foreign.some((row) => row.target === 'units') ||
+        columns.some((name) => /(^|_)unit_ids?$/.test(name));
+      const shaped = timeShaped.test(table) || columns.some((name) => timeShaped.test(name));
+      return pointsAtUnits && shaped;
+    })
+    .sort();
+}
+
 describe('desktop project schema', () => {
+  it('lists every unit table with time-shaped columns as reviewed (ADR-0129 E03)', () => {
+    const db = open();
+    const found = unitTimeTables(db);
+    db.close();
+    const unreviewed = found.filter((table) => !(table in REVIEWED_UNIT_TIME_TABLES));
+    expect(
+      unreviewed,
+      `These tables point at units and look time-dependent: ${unreviewed.join(', ')}. ` +
+        'A unit time edit must now invalidate or flag them. Wire that, then add them to ' +
+        'REVIEWED_UNIT_TIME_TABLES with the reason (docs/adr/0129-edit-receipts-and-undo-guard.md, E03).',
+    ).toEqual([]);
+    expect(found).toEqual(Object.keys(REVIEWED_UNIT_TIME_TABLES).sort());
+  });
+
   it('creates the desktop project tables', () => {
     const db = open();
     const names = db
@@ -95,6 +140,7 @@ describe('desktop project schema', () => {
       { name: 'custom_field_options' },
       { name: 'custom_field_values' },
       { name: 'diagnostic_deliveries' },
+      { name: 'edit_receipts' },
       { name: 'language_aliases' },
       { name: 'language_catalog_history' },
       { name: 'language_display_names' },

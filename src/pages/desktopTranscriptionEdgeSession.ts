@@ -1,10 +1,10 @@
-import { createDesktopClient } from '../app/desktopProjectReadPageAccess';
+import { createDesktopClient, EDIT_OUTCOME_UNKNOWN } from '../app/desktopProjectReadPageAccess';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { formatPlaybackTime } from './useDesktopTranscriptionMediaController';
 import {
   edgeRejectKind,
   parseTimecode,
-  touchingPair,
+  selectedPair,
   type TimeEdge,
   type TimedEdgeUnit,
 } from './desktopTranscriptionEdge';
@@ -15,12 +15,27 @@ export interface EdgeCall {
   api: ReturnType<typeof createDesktopClient>;
 }
 
+/** A stored draft typed against an older formal edge (ADR-0129 E02). */
+export interface TimeConflict {
+  currentMs: number;
+  rawInput: string;
+}
+
+export interface StoredTimes {
+  start: string | null;
+  end: string | null;
+  saved: boolean;
+  conflicts: Record<TimeEdge, TimeConflict | null>;
+}
+
+export const NO_CONFLICTS: StoredTimes['conflicts'] = { start: null, end: null };
+
 export function watchTimeDraft(input: {
   sessionId: string | null;
   desktopCall: DesktopReadHost['desktopCall'] | undefined;
   unitId: string | null;
   stale: () => boolean;
-  apply: (raw: { start: string | null; end: string | null; saved: boolean }) => void;
+  apply: (raw: StoredTimes) => void;
 }): () => void {
   if (input.unitId === null || input.sessionId === null || input.desktopCall === undefined) {
     return () => undefined;
@@ -31,10 +46,17 @@ export function watchTimeDraft(input: {
     .readTimeDraft(input.sessionId, unitId)
     .then((rows) => {
       if (cancel || input.stale()) return;
+      const conflict = (edge: TimeEdge): TimeConflict | null => {
+        const row = rows.find((item) => item.edge === edge);
+        return row?.conflict && row.currentMs !== null
+          ? { currentMs: row.currentMs, rawInput: row.rawInput }
+          : null;
+      };
       input.apply({
         start: rows.find((row) => row.edge === 'start')?.rawInput ?? null,
         end: rows.find((row) => row.edge === 'end')?.rawInput ?? null,
         saved: rows.length > 0,
+        conflicts: { start: conflict('start'), end: conflict('end') },
       });
     })
     .catch(() => undefined);
@@ -86,8 +108,7 @@ export async function nudgeSelection(
   const unit = units.find((item) => item.id === selected.unitId);
   if (!unit) return null;
   if (selected.edge === 'shared') {
-    const pair =
-      touchingPair(units, selected.unitId, 'end') ?? touchingPair(units, selected.unitId, 'start');
+    const pair = selectedPair(units, selected);
     if (!pair) return null;
     const time = pair.timeMs + delta;
     await commitSharedEdge(call, pair.leftId, pair.rightId, time);
@@ -120,19 +141,66 @@ export async function applyNudge(input: {
   }
 }
 
+export type StackResult = 'empty' | 'done' | 'stale' | 'unknown' | 'failed';
+
+/** Undo/redo. A stale step stays on the stack until it is dropped explicitly (ADR-0129 E04). */
 export async function runEdgeStack(
   call: EdgeCall,
   manuscriptId: string | null,
   action: 'undo' | 'redo',
-): Promise<'empty' | 'done' | 'failed'> {
+): Promise<StackResult> {
   try {
     if (action === 'undo') await call.api.undoStep(call.sessionId, manuscriptId ?? undefined);
     else await call.api.redoStep(call.sessionId, manuscriptId ?? undefined);
     return 'done';
   } catch (error) {
     const text = error instanceof Error ? error.message : '';
-    return text.endsWith('is empty') ? 'empty' : 'failed';
+    if (text.endsWith('is empty')) return 'empty';
+    if (text.endsWith('is stale')) return 'stale';
+    return text.includes(EDIT_OUTCOME_UNKNOWN) ? 'unknown' : 'failed';
   }
+}
+
+export async function dropEdgeStack(
+  call: EdgeCall,
+  manuscriptId: string | null,
+  action: 'undo' | 'redo',
+): Promise<void> {
+  if (action === 'undo') await call.api.dropUndoStep(call.sessionId, manuscriptId ?? undefined);
+  else await call.api.dropRedoStep(call.sessionId, manuscriptId ?? undefined);
+}
+
+/**
+ * Re-checks a conflicting draft against the current formal edge and commits it through the
+ * normal edge move. When it is still not a valid time the draft stays, now based on the
+ * current value and carrying the reason.
+ */
+export async function rebaseTimeDraft(input: {
+  call: EdgeCall;
+  unit: TimedEdgeUnit;
+  edge: TimeEdge;
+  raw: string;
+}): Promise<{ committed: true } | { committed: false; error: unknown; time: number }> {
+  const baseMs = input.edge === 'start' ? input.unit.startMs : input.unit.endMs;
+  const parsed = parseTimecode(input.raw);
+  let error: unknown = new Error('time draft is unfinished');
+  if (parsed !== null) {
+    try {
+      await commitUnitEdge(input.call, input.unit.id, input.edge, parsed);
+      return { committed: true };
+    } catch (caught) {
+      error = caught;
+    }
+  }
+  const text = error instanceof Error ? error.message : '';
+  await input.call.api.putTimeDraft(input.call.sessionId, {
+    unitId: input.unit.id,
+    edge: input.edge,
+    rawInput: input.raw,
+    baseMs,
+    issue: parsed === null ? 'format' : edgeRejectKind(text),
+  });
+  return { committed: false, error, time: parsed ?? baseMs };
 }
 
 export async function flushTypedEdge(input: {

@@ -130,8 +130,10 @@ import {
 } from './projectSession';
 import {
   clearSessionEdit,
+  dropSessionEdit,
   rememberSessionEdit,
   redoSessionEdit,
+  sessionEditManuscript,
   undoSessionEdit,
 } from './sessionEdit';
 import { desktopOperations, isDesktopOperation, type DesktopOperations } from './operationContract';
@@ -156,9 +158,10 @@ import {
   manuscriptIdOf,
   moveSharedBoundary,
   moveUnitEdge,
-  previewUnitDelete,
+  previewUnitDeletion,
   removeUnit,
 } from './unitEdges';
+import { inspectEditReceipt, withEditReceipt, type EditReceiptKind } from './editReceipts';
 import { discardUnitTimeDraft, putUnitTimeDraft, readUnitTimeDrafts } from './unitTimeDrafts';
 
 type ContractCtx = {
@@ -184,6 +187,15 @@ type ContractHandlers = {
         ) => DesktopOperations[K]['output'] | Promise<DesktopOperations[K]['output']>;
       };
 };
+
+const EDIT_METHODS = {
+  create: 'units.create',
+  moveEdge: 'units.moveEdge',
+  moveSharedBoundary: 'units.moveSharedBoundary',
+  delete: 'units.delete',
+  undo: 'units.undo',
+  redo: 'units.redo',
+} as const satisfies Record<EditReceiptKind, keyof DesktopOperations>;
 
 const operationHandlers = {
   'project.get': {
@@ -375,15 +387,27 @@ const operationHandlers = {
   },
   'units.create': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.create']['check']>) => {
-      const unit = createUnit(ctx.db, input);
-      rememberSessionEdit(ctx.sessionId, {
-        kind: 'create',
-        undo: {
-          manuscriptId: manuscriptIdOf(ctx.db, unit.id),
-          tree: readRemovedUnit(ctx.db, unit.id),
+      const { operationId, ...create } = input;
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'create',
+          payload: create,
+          manuscriptId: (unit) => manuscriptIdOf(ctx.db, unit.id),
         },
-      });
-      return unit;
+        () => {
+          const unit = createUnit(ctx.db, create);
+          rememberSessionEdit(ctx.sessionId, {
+            kind: 'create',
+            undo: {
+              manuscriptId: manuscriptIdOf(ctx.db, unit.id),
+              tree: readRemovedUnit(ctx.db, unit.id),
+            },
+          });
+          return unit;
+        },
+      );
     },
   },
   'units.get': {
@@ -398,12 +422,52 @@ const operationHandlers = {
     run: (ctx: ContractCtx) => undoSessionEdit(ctx.sessionId, ctx.db, 'text'),
   },
   'units.undo': {
-    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.undo']['check']>) =>
-      undoSessionEdit(ctx.sessionId, ctx.db, undefined, input.manuscriptId),
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.undo']['check']>) => {
+      const stackManuscript = sessionEditManuscript(ctx.sessionId, input.manuscriptId) ?? '-';
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId: input.operationId,
+          kind: 'undo',
+          payload: input,
+          manuscriptId: () => stackManuscript,
+        },
+        () => undoSessionEdit(ctx.sessionId, ctx.db, undefined, input.manuscriptId),
+      );
+    },
   },
   'units.redo': {
-    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.redo']['check']>) =>
-      redoSessionEdit(ctx.sessionId, ctx.db, input.manuscriptId),
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.redo']['check']>) => {
+      const stackManuscript = sessionEditManuscript(ctx.sessionId, input.manuscriptId) ?? '-';
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId: input.operationId,
+          kind: 'redo',
+          payload: input,
+          manuscriptId: () => stackManuscript,
+        },
+        () => redoSessionEdit(ctx.sessionId, ctx.db, input.manuscriptId),
+      );
+    },
+  },
+  'units.dropUndo': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.dropUndo']['check']>) => ({
+      dropped: dropSessionEdit(ctx.sessionId, 'undo', input.manuscriptId),
+    }),
+  },
+  'units.dropRedo': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.dropRedo']['check']>) => ({
+      dropped: dropSessionEdit(ctx.sessionId, 'redo', input.manuscriptId),
+    }),
+  },
+  'units.inspectEdit': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.inspectEdit']['check']>) => {
+      const method = EDIT_METHODS[input.kind];
+      const check = desktopOperations[method].check as (raw: Record<string, unknown>) => object;
+      const { operationId: _ignored, ...payload } = check(input.payload) as Record<string, unknown>;
+      return inspectEditReceipt(ctx.db, { ...input, payload });
+    },
   },
   'units.split': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.split']['check']>) => {
@@ -446,12 +510,24 @@ const operationHandlers = {
   },
   'units.moveEdge': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.moveEdge']['check']>) => {
-      const moved = moveUnitEdge(ctx.db, input);
-      if (moved.move) {
-        rememberSessionEdit(ctx.sessionId, { kind: 'edge', undo: moved.move });
-        discardUnitTimeDraft(ctx.db, input.unitId, input.edge);
-      }
-      return moved.unit;
+      const { operationId, ...move } = input;
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'moveEdge',
+          payload: move,
+          manuscriptId: () => manuscriptIdOf(ctx.db, move.unitId),
+        },
+        () => {
+          const moved = moveUnitEdge(ctx.db, move);
+          if (moved.move) {
+            rememberSessionEdit(ctx.sessionId, { kind: 'edge', undo: moved.move });
+            discardUnitTimeDraft(ctx.db, move.unitId, move.edge);
+          }
+          return moved.unit;
+        },
+      );
     },
   },
   'units.moveSharedBoundary': {
@@ -459,25 +535,45 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['units.moveSharedBoundary']['check']>,
     ) => {
-      const moved = moveSharedBoundary(ctx.db, input);
-      if (moved.move) {
-        rememberSessionEdit(ctx.sessionId, { kind: 'boundary', undo: moved.move });
-        discardUnitTimeDraft(ctx.db, input.leftId, 'end');
-        discardUnitTimeDraft(ctx.db, input.rightId, 'start');
-      }
-      return { left: moved.left, right: moved.right };
+      const { operationId, ...move } = input;
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'moveSharedBoundary',
+          payload: move,
+          manuscriptId: () => manuscriptIdOf(ctx.db, move.leftId),
+        },
+        () => {
+          const moved = moveSharedBoundary(ctx.db, move);
+          if (moved.move) {
+            rememberSessionEdit(ctx.sessionId, { kind: 'boundary', undo: moved.move });
+            discardUnitTimeDraft(ctx.db, move.leftId, 'end');
+            discardUnitTimeDraft(ctx.db, move.rightId, 'start');
+          }
+          return { left: moved.left, right: moved.right };
+        },
+      );
     },
   },
-  'units.previewDelete': {
-    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.previewDelete']['check']>) =>
-      previewUnitDelete(ctx.db, input.unitId),
+  'units.deletePreview': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.deletePreview']['check']>) =>
+      previewUnitDeletion(ctx.db, input.unitId),
   },
   'units.delete': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.delete']['check']>) => {
-      const manuscriptId = manuscriptIdOf(ctx.db, input.unitId);
-      const tree = removeUnit(ctx.db, input.unitId);
-      rememberSessionEdit(ctx.sessionId, { kind: 'delete', undo: { manuscriptId, tree } });
-      return { id: input.unitId };
+      const { operationId, unitId } = input;
+      let manuscriptId = '';
+      return withEditReceipt(
+        ctx.db,
+        { operationId, kind: 'delete', payload: { unitId }, manuscriptId: () => manuscriptId },
+        () => {
+          manuscriptId = manuscriptIdOf(ctx.db, unitId);
+          const tree = removeUnit(ctx.db, unitId);
+          rememberSessionEdit(ctx.sessionId, { kind: 'delete', undo: { manuscriptId, tree } });
+          return { id: unitId };
+        },
+      );
     },
   },
   'units.readTimeDraft': {

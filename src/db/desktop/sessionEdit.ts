@@ -103,6 +103,13 @@ export function clearSessionEdit(sessionId?: string): void {
   lastManuscript.delete(sessionId);
 }
 
+export function sessionEditManuscript(
+  sessionId: string,
+  manuscriptId: string | undefined,
+): string | undefined {
+  return manuscriptId ?? lastManuscript.get(sessionId);
+}
+
 function topBook(sessionId: string, manuscriptId: string | undefined): Book | undefined {
   const id = manuscriptId ?? lastManuscript.get(sessionId);
   if (id === undefined) return undefined;
@@ -120,16 +127,11 @@ export function undoSessionEdit(
   if (!frame || (only === 'text' && frame.edit.kind !== 'text')) {
     throw new Error('unit text undo is empty');
   }
-  try {
-    const undone = applyUndo(db, frame.edit);
-    book.undo.pop();
-    book.redo.push(frame);
-    retargetGeneration(db, sessionId, manuscriptOf(frame.edit));
-    return undone;
-  } catch (error) {
-    if (error instanceof Error && error.message.endsWith('undo is stale')) book.undo.pop();
-    throw error;
-  }
+  const undone = guarded(db, () => applyUndo(db, frame.edit));
+  book.undo.pop();
+  book.redo.push(frame);
+  retargetGeneration(db, sessionId, manuscriptOf(frame.edit));
+  return undone;
 }
 
 export function redoSessionEdit(
@@ -140,16 +142,39 @@ export function redoSessionEdit(
   const book = activeSessionId === sessionId ? topBook(sessionId, manuscriptId) : undefined;
   const frame = book?.redo[book.redo.length - 1];
   if (!frame) throw new Error('unit text redo is empty');
+  const next = guarded(db, () => applyRedo(db, frame.edit));
+  book.redo.pop();
+  book.undo.push({ edit: next.edit });
+  retargetGeneration(db, sessionId, manuscriptOf(next.edit));
+  return next.value;
+}
+
+/** ADR-0129: the step stays on its stack; only an explicit drop removes it. */
+export class StaleEditError extends Error {
+  readonly code = 'edit-stale';
+}
+
+function guarded<T>(db: SqliteDatabase, apply: () => T): T {
   try {
-    const next = applyRedo(db, frame.edit);
-    book.redo.pop();
-    book.undo.push({ edit: next.edit });
-    retargetGeneration(db, sessionId, manuscriptOf(next.edit));
-    return next.value;
+    return db.transaction(apply)();
   } catch (error) {
-    if (error instanceof Error && error.message.endsWith('redo is stale')) book.redo.pop();
+    if (error instanceof Error && error.message.endsWith('is stale')) {
+      throw new StaleEditError(error.message);
+    }
     throw error;
   }
+}
+
+/** Removes the top step without applying it. Returns false when that stack is empty. */
+export function dropSessionEdit(
+  sessionId: string,
+  stack: 'undo' | 'redo',
+  manuscriptId?: string,
+): boolean {
+  const book = activeSessionId === sessionId ? topBook(sessionId, manuscriptId) : undefined;
+  if (!book || book[stack].length === 0) return false;
+  book[stack].pop();
+  return true;
 }
 
 function retargetGeneration(db: SqliteDatabase, sessionId: string, manuscriptId: string): void {

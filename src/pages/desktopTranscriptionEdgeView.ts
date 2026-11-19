@@ -10,6 +10,8 @@ const EDGE_REASON = {
   apart: 'app.desktopTranscription.edgeNotTouching',
   order: 'app.desktopTranscription.edgeOrder',
   failed: 'app.desktopTranscription.edgeFailed',
+  unknown: 'app.desktopTranscription.edgeUnknown',
+  stale: 'app.desktopTranscription.edgeStale',
 } as const;
 
 export function edgeNotice(locale: Locale, kind: keyof typeof EDGE_REASON, time: string): string {

@@ -1,6 +1,12 @@
 import type Database from 'better-sqlite3';
 import { secToMs } from './timeMs';
-import { deleteUnitTree, insertRemovedUnit, readRemovedUnit, type RemovedUnit } from './unitSpan';
+import {
+  deleteUnitTree,
+  insertRemovedUnit,
+  nodeIdsOf,
+  readRemovedUnit,
+  type RemovedUnit,
+} from './unitSpan';
 import { readStoredUnit, updateBoundary, type Unit } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -157,18 +163,66 @@ export function moveSharedBoundary(
   };
 }
 
-export function previewUnitDelete(
-  db: SqliteDatabase,
-  unitId: string,
-): { tokens: number; notes: number } {
-  if (!readStoredUnit(db, unitId)) throw new Error('unit is missing');
-  const tokens = db.prepare('SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?').get(unitId) as {
-    n: number;
-  };
-  const notes = db.prepare('SELECT COUNT(*) AS n FROM notes WHERE unit_id = ?').get(unitId) as {
-    n: number;
-  };
-  return { tokens: tokens.n, notes: notes.n };
+export interface UnitDeletePreview {
+  tokens: number;
+  morphemes: number;
+  notes: number;
+  lexemeLinks: number;
+  analysisCandidates: number;
+  customFieldValues: number;
+  drafts: number;
+  receptionRecords: number;
+}
+
+/** Counts, in one read transaction, the rows deleteUnitTree removes besides the unit and its texts. */
+export function previewUnitDeletion(db: SqliteDatabase, unitId: string): UnitDeletePreview {
+  const read = db.transaction((): UnitDeletePreview => {
+    if (!readStoredUnit(db, unitId)) throw new Error('unit is missing');
+    const count = (sql: string, ...args: unknown[]): number =>
+      (db.prepare(sql).get(...args) as { n: number }).n;
+    const graph = db.prepare('SELECT analysis_graph_json FROM units WHERE id = ?').get(unitId) as
+      { analysis_graph_json: string | null } | undefined;
+    const nodeIds = nodeIdsOf(graph?.analysis_graph_json ?? null);
+    return {
+      tokens: count('SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?', unitId),
+      morphemes: count(
+        `SELECT COUNT(*) AS n FROM morphemes
+         WHERE token_id IN (SELECT id FROM tokens WHERE unit_id = ?)`,
+        unitId,
+      ),
+      notes: count('SELECT COUNT(*) AS n FROM notes WHERE unit_id = ?', unitId),
+      lexemeLinks: count(
+        `SELECT COUNT(DISTINCT id) AS n FROM token_lexeme_links
+         WHERE target_id IN (SELECT id FROM tokens WHERE unit_id = ?)
+            OR target_id IN (
+              SELECT morphemes.id FROM morphemes JOIN tokens ON tokens.id = morphemes.token_id
+              WHERE tokens.unit_id = ?
+            )
+            OR target_id IN (SELECT value FROM json_each(?))`,
+        unitId,
+        unitId,
+        JSON.stringify(nodeIds),
+      ),
+      analysisCandidates: count(
+        'SELECT COUNT(*) AS n FROM analysis_candidates WHERE unit_id = ?',
+        unitId,
+      ),
+      customFieldValues: count(
+        `SELECT COUNT(*) AS n FROM custom_field_values
+         WHERE (target_type = 'unit' AND target_id = ?)
+            OR (target_type = 'note' AND target_id IN (SELECT id FROM notes WHERE unit_id = ?))`,
+        unitId,
+        unitId,
+      ),
+      drafts:
+        count('SELECT COUNT(*) AS n FROM unit_text_drafts WHERE unit_id = ?', unitId) +
+        count('SELECT COUNT(*) AS n FROM unit_time_drafts WHERE unit_id = ?', unitId),
+      receptionRecords:
+        count('SELECT COUNT(*) AS n FROM reception_batches WHERE unit_id = ?', unitId) +
+        count('SELECT COUNT(*) AS n FROM transcription_acceptances WHERE unit_id = ?', unitId),
+    };
+  });
+  return read();
 }
 
 export function removeUnit(db: SqliteDatabase, unitId: string): RemovedUnit {

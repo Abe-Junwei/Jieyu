@@ -137,7 +137,7 @@ describe('desktop call', () => {
     expect(count.n).toBe(0);
   });
 
-  it('does not retry when the response is lost', async () => {
+  it('does not retry a plain call when the response is lost', async () => {
     let calls = 0;
     const client = createDesktopClient({
       desktopCall: () => {
@@ -146,7 +146,7 @@ describe('desktop call', () => {
       },
     });
     await expect(
-      client.createUnit('session', { layerId: 'layer', startMs: 0, endMs: 1, text: '句子' }),
+      client.putTextDraft('session', { unitId: 'unit', rawInput: '句子', baseBody: '' }),
     ).rejects.toThrow('response lost');
     expect(calls).toBe(1);
   });

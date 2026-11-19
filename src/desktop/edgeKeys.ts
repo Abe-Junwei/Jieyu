@@ -7,7 +7,8 @@ export type EdgeKeyAction =
   | 'nudgeEdgeForwardCoarse'
   | 'undo'
   | 'redo'
-  | 'deleteSegment';
+  | 'deleteSegment'
+  | 'cycleEdge';
 
 const ORDER: readonly EdgeKeyAction[] = [
   'nudgeEdgeBackCoarse',
@@ -17,6 +18,7 @@ const ORDER: readonly EdgeKeyAction[] = [
   'undo',
   'redo',
   'deleteSegment',
+  'cycleEdge',
 ];
 
 export function edgeKeyAction(event: KeyboardEvent): EdgeKeyAction | null {

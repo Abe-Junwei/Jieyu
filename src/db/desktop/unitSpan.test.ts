@@ -626,7 +626,7 @@ describe('session unit span undo', () => {
     ).toHaveLength(3);
   });
 
-  it('clears a stale split and does not delete the newer unit', () => {
+  it('keeps a stale split on the stack until it is dropped, and does not delete the newer unit', () => {
     const session = open();
     const unitId = seed(session.sessionId, 0, 2, '原句');
     const split = callDesktopSession(session.sessionId, 'units.split', {
@@ -643,14 +643,25 @@ describe('session unit span undo', () => {
       text: '原句',
     });
     expect(() => callDesktopSession(session.sessionId, 'units.undo', {})).toThrow(
+      'unit split undo is stale',
+    );
+    expect(callDesktopSession(session.sessionId, 'units.dropUndo', {})).toEqual({ dropped: true });
+    expect(() => callDesktopSession(session.sessionId, 'units.undo', {})).toThrow(
       'unit create undo is stale',
     );
+    expect(callDesktopSession(session.sessionId, 'units.dropUndo', {})).toEqual({ dropped: true });
     expect(() => callDesktopSession(session.sessionId, 'units.undo', {})).toThrow(
       'unit text undo is empty',
     );
+    expect(callDesktopSession(session.sessionId, 'units.dropUndo', {})).toEqual({
+      dropped: false,
+    });
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
       text: '后来',
     });
+    expect(
+      callDesktopSession(session.sessionId, 'units.get', { id: split.right.id }),
+    ).toMatchObject({ text: '原句' });
   });
 
   it('reads the copied unit after a split that moved morpheme surfaces', () => {

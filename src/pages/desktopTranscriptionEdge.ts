@@ -1,3 +1,4 @@
+import { EDIT_OUTCOME_UNKNOWN } from '../app/desktopProjectReadPageAccess';
 export const EDGE_MIN_MS = 10;
 export const SNAP_PX = 8;
 
@@ -80,6 +81,55 @@ export function touchingPair(
   }
   const left = units.find((item) => item.id !== unitId && item.endMs === unit.startMs);
   return left ? { leftId: left.id, rightId: unit.id, timeMs: unit.startMs } : null;
+}
+
+/** The touching pair a shared selection names; `otherId` says which side. */
+export function selectedPair(
+  units: readonly TimedEdgeUnit[],
+  selected: EdgeSelection,
+): { leftId: string; rightId: string; timeMs: number } | null {
+  const after = touchingPair(units, selected.unitId, 'end');
+  const before = touchingPair(units, selected.unitId, 'start');
+  if (selected.otherId !== null) {
+    if (after?.rightId === selected.otherId) return after;
+    if (before?.leftId === selected.otherId) return before;
+    return null;
+  }
+  return after ?? before;
+}
+
+/** start → end → shared with the next unit → shared with the previous unit (shared only when touching). */
+export function cycleEdge(
+  units: readonly TimedEdgeUnit[],
+  unitId: string,
+  current: EdgeSelection | null,
+): EdgeSelection | null {
+  if (!units.some((unit) => unit.id === unitId)) return null;
+  const options: EdgeSelection[] = [
+    { unitId, edge: 'start', otherId: null },
+    { unitId, edge: 'end', otherId: null },
+  ];
+  const after = touchingPair(units, unitId, 'end');
+  if (after) options.push({ unitId, edge: 'shared', otherId: after.rightId });
+  const before = touchingPair(units, unitId, 'start');
+  if (before) options.push({ unitId, edge: 'shared', otherId: before.leftId });
+  const index =
+    current?.unitId === unitId
+      ? options.findIndex(
+          (option) => option.edge === current.edge && option.otherId === current.otherId,
+        )
+      : -1;
+  return options[(index + 1) % options.length] ?? null;
+}
+
+/** Which edge the selection names, for the visible status text. */
+export function edgeFocusKind(
+  units: readonly TimedEdgeUnit[],
+  selected: EdgeSelection,
+): 'start' | 'end' | 'sharedNext' | 'sharedPrev' {
+  if (selected.edge !== 'shared') return selected.edge;
+  const pair = selectedPair(units, selected);
+  return pair?.leftId === selected.unitId ? 'sharedNext' : 'sharedPrev';
 }
 
 export function neighborTargets(
@@ -172,7 +222,8 @@ export function previewDrag(input: {
 
 export function edgeRejectKind(
   message: string,
-): 'overlap' | 'outside' | 'short' | 'apart' | 'order' | 'failed' {
+): 'overlap' | 'outside' | 'short' | 'apart' | 'order' | 'unknown' | 'failed' {
+  if (message.includes(EDIT_OUTCOME_UNKNOWN)) return 'unknown';
   if (message.includes('same speaker intervals overlap')) return 'overlap';
   if (message.includes('edge is outside the media')) return 'outside';
   if (message.includes('edge span is under 10ms')) return 'short';

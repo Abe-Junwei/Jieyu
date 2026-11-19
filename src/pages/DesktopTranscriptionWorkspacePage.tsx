@@ -24,7 +24,7 @@ import {
   getTranscriptionPlaybackClockSnapshot,
   subscribeTranscriptionPlaybackClock,
 } from '../hooks/transcription/transcriptionPlaybackClock';
-import { DesktopTranscriptionLane } from './DesktopTranscriptionLane';
+import { DesktopTranscriptionLane, type WaveCreate } from './DesktopTranscriptionLane';
 import {
   formatPlaybackTime,
   useDesktopTranscriptionMediaController,
@@ -73,6 +73,7 @@ function DesktopTranscriptionWorkspace() {
   const host = readDesktopProjectHost();
   const tierRef = useRef<HTMLDivElement | null>(null);
   const waveHostRef = useRef<HTMLDivElement | null>(null);
+  const waveCreateRef = useRef<WaveCreate | null>(null);
   const [searchParams] = useSearchParams();
   const locate = readDesktopCorpusLocate(searchParams);
   const read = useDesktopProjectReadController(
@@ -319,7 +320,20 @@ function DesktopTranscriptionWorkspace() {
                     } as CSSProperties
                   }
                 >
-                  <div className="desktop-tx-wave-stage">
+                  <div
+                    className="desktop-tx-wave-stage"
+                    onPointerDown={(event) => {
+                      const wave = playback.waveformRef.current;
+                      const zoom = playback.zoomPxPerSec;
+                      if (!wave || !(event.target instanceof Node) || !wave.contains(event.target))
+                        return;
+                      const left = wave.getBoundingClientRect().left;
+                      waveCreateRef.current?.(
+                        event,
+                        (clientX) => ((clientX - left + playback.scrollLeftPx) / zoom) * 1000,
+                      );
+                    }}
+                  >
                     <div
                       ref={playback.waveformRef}
                       className="desktop-tx-wave"
@@ -423,6 +437,7 @@ function DesktopTranscriptionWorkspace() {
             onSelectUnit={selectPlaybackUnit}
             reload={() => read.refresh()}
             tierRef={tierRef}
+            waveCreateRef={waveCreateRef}
           />
         </div>
       </div>
