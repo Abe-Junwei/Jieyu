@@ -86,8 +86,8 @@ describe('transcription run storage', () => {
     });
     const beside = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startMs: 10000,
-      endMs: 11000,
+      startMs: 3000,
+      endMs: 4000,
       text: 'keep',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'units.updateText', { unitId: beside.id, text: 'kept' });
