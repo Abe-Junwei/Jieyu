@@ -80,14 +80,14 @@ describe('transcription run storage', () => {
     const seeded = seed(session.sessionId);
     callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 1,
-      endTime: 2,
+      startMs: 1000,
+      endMs: 2000,
       text: 'next',
     });
     const beside = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 10,
-      endTime: 11,
+      startMs: 10000,
+      endMs: 11000,
       text: 'keep',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'units.updateText', { unitId: beside.id, text: 'kept' });
@@ -97,12 +97,10 @@ describe('transcription run storage', () => {
       candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 0, mediaEnd: 1 }],
     }) as {
       pendingCount: number;
-      timeMappingRevision: number;
       candidates: { candidateId: string; targetFingerprint: string; occupied: boolean }[];
     };
     expect(preview).toMatchObject({
       pendingCount: 1,
-      timeMappingRevision: 0,
       candidates: [{ candidateId: '0:0', occupied: false }],
     });
     const first = preview.candidates[0];
@@ -118,7 +116,6 @@ describe('transcription run storage', () => {
         segmentIndex: 0,
         mediaStart: 0,
         mediaEnd: 1,
-        timeMappingRevision: preview.timeMappingRevision,
         targetFingerprint: 'wrong',
         text: 'nope',
       }),
@@ -130,11 +127,10 @@ describe('transcription run storage', () => {
       segmentIndex: 0,
       mediaStart: 0,
       mediaEnd: 1,
-      timeMappingRevision: preview.timeMappingRevision,
       targetFingerprint: first.targetFingerprint,
       text: 'ka',
     }) as { unitId: string; text: string; modelRunId: string };
-    expect(accepted).toMatchObject({ text: 'ka', modelRunId: run.id, startTime: 0, endTime: 1 });
+    expect(accepted).toMatchObject({ text: 'ka', modelRunId: run.id, startMs: 0, endMs: 1000 });
     expect(() =>
       callDesktopSession(session.sessionId, 'modelRuns.accept', {
         operationId: 'op-2',
@@ -143,7 +139,6 @@ describe('transcription run storage', () => {
         segmentIndex: 0,
         mediaStart: 0,
         mediaEnd: 1,
-        timeMappingRevision: preview.timeMappingRevision,
         targetFingerprint: first.targetFingerprint,
         text: 'again',
       }),
@@ -162,7 +157,6 @@ describe('transcription run storage', () => {
         segmentIndex: 0,
         mediaStart: 4,
         mediaEnd: 5,
-        timeMappingRevision: preview.timeMappingRevision,
         targetFingerprint: againCandidate.targetFingerprint,
         text: 'again',
       }),
@@ -175,7 +169,6 @@ describe('transcription run storage', () => {
         segmentIndex: 0,
         mediaStart: 6,
         mediaEnd: 7,
-        timeMappingRevision: preview.timeMappingRevision,
         targetFingerprint: againCandidate.targetFingerprint,
         text: 'other',
       }),
@@ -202,7 +195,6 @@ describe('transcription run storage', () => {
         segmentIndex: 1,
         mediaStart: 0.5,
         mediaEnd: 1.5,
-        timeMappingRevision: 0,
         targetFingerprint: occupiedCandidate.targetFingerprint,
         text: 'over',
       }),
@@ -211,15 +203,9 @@ describe('transcription run storage', () => {
     const stale = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: staleRun.id,
       candidates: [{ chunkIndex: 1, segmentIndex: 0, mediaStart: 6, mediaEnd: 8 }],
-    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    }) as { candidates: { targetFingerprint: string }[] };
     const staleCandidate = stale.candidates[0];
     if (staleCandidate === undefined) throw new Error('preview missing');
-    callDesktopSession(session.sessionId, 'manuscripts.setTimeMapping', {
-      manuscriptId: seeded.manuscriptId,
-      expectedRevision: 0,
-      offsetSec: 1,
-      scale: 2,
-    });
     expect(() =>
       callDesktopSession(session.sessionId, 'modelRuns.accept', {
         operationId: 'op-stale',
@@ -228,21 +214,16 @@ describe('transcription run storage', () => {
         segmentIndex: 0,
         mediaStart: 6,
         mediaEnd: 8,
-        timeMappingRevision: stale.timeMappingRevision,
-        targetFingerprint: staleCandidate.targetFingerprint,
+        targetFingerprint: '0'.repeat(64),
         text: 'old',
       }),
     ).toThrow('transcription preview is stale');
     const fresh = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: staleRun.id,
       candidates: [{ chunkIndex: 1, segmentIndex: 0, mediaStart: 6, mediaEnd: 8 }],
-    }) as {
-      timeMappingRevision: number;
-      candidates: { manuscriptStart: number; manuscriptEnd: number; targetFingerprint: string }[];
-    };
+    }) as { candidates: { targetFingerprint: string }[] };
     const freshCandidate = fresh.candidates[0];
     if (freshCandidate === undefined) throw new Error('preview missing');
-    expect(freshCandidate).toMatchObject({ manuscriptStart: 2.5, manuscriptEnd: 3.5 });
     expect(
       callDesktopSession(session.sessionId, 'modelRuns.accept', {
         operationId: 'op-fresh',
@@ -251,11 +232,10 @@ describe('transcription run storage', () => {
         segmentIndex: 0,
         mediaStart: 6,
         mediaEnd: 8,
-        timeMappingRevision: fresh.timeMappingRevision,
         targetFingerprint: freshCandidate.targetFingerprint,
         text: 'mapped',
       }),
-    ).toMatchObject({ text: 'mapped', startTime: 2.5, endTime: 3.5 });
+    ).toMatchObject({ text: 'mapped', startMs: 6000, endMs: 8000 });
     resetDesktopSessions();
     const reopened = openDesktopSession(dir, [dir]);
     expect(
@@ -304,7 +284,6 @@ describe('transcription run storage', () => {
         segmentIndex: 0,
         mediaStart: 0,
         mediaEnd: 1,
-        timeMappingRevision: 0,
         targetFingerprint: 'none',
         text: 'gone',
       }),
@@ -330,7 +309,6 @@ describe('transcription run storage', () => {
         segmentIndex: 0,
         mediaStart: 2,
         mediaEnd: 3,
-        timeMappingRevision: 0,
         targetFingerprint: 'none',
         text: 'gone',
       }),
@@ -345,7 +323,7 @@ describe('transcription run storage', () => {
     const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: run.id,
       candidates: [{ chunkIndex: 2, segmentIndex: 0, mediaStart: 4, mediaEnd: 5 }],
-    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    }) as { candidates: { targetFingerprint: string }[] };
     const candidate = preview.candidates[0];
     if (candidate === undefined) throw new Error('preview missing');
     resetDesktopSessions();
@@ -363,7 +341,6 @@ describe('transcription run storage', () => {
         segmentIndex: 0,
         mediaStart: 4,
         mediaEnd: 5,
-        timeMappingRevision: preview.timeMappingRevision,
         targetFingerprint: candidate.targetFingerprint,
         text: 'late',
       }),
@@ -409,7 +386,7 @@ describe('transcription run storage', () => {
     const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: next.id,
       candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 2, mediaEnd: 3 }],
-    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    }) as { candidates: { targetFingerprint: string }[] };
     const candidate = preview.candidates[0];
     if (candidate === undefined) throw new Error('preview missing');
     expect(
@@ -420,7 +397,6 @@ describe('transcription run storage', () => {
         segmentIndex: 0,
         mediaStart: 2,
         mediaEnd: 3,
-        timeMappingRevision: preview.timeMappingRevision,
         targetFingerprint: candidate.targetFingerprint,
         text: 'next',
       }),
@@ -435,7 +411,7 @@ describe('transcription run storage', () => {
     const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: run.id,
       candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 0, mediaEnd: 1 }],
-    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    }) as { candidates: { targetFingerprint: string }[] };
     const candidate = preview.candidates[0];
     if (candidate === undefined) throw new Error('preview missing');
     callDesktopSession(session.sessionId, 'customFields.createDefinition', {
@@ -452,7 +428,6 @@ describe('transcription run storage', () => {
         segmentIndex: 0,
         mediaStart: 0,
         mediaEnd: 1,
-        timeMappingRevision: preview.timeMappingRevision,
         targetFingerprint: candidate.targetFingerprint,
         text: 'ka',
       }),
@@ -518,8 +493,8 @@ describe('transcription run storage', () => {
       modelVersion: '1',
       manifestSha256: 'x',
       params: {},
-      rangeStart: 2,
-      rangeEnd: 3,
+      rangeStartMs: 2000,
+      rangeEndMs: 3000,
     }) as { id: string };
     callDesktopSession(session.sessionId, 'modelRuns.finish', {
       runId: run.id,
@@ -540,7 +515,6 @@ describe('transcription run storage', () => {
         segmentIndex: 0,
         mediaStart: 3,
         mediaEnd: 4,
-        timeMappingRevision: 0,
         targetFingerprint: 'none',
         text: 'outside-run',
       }),
@@ -558,8 +532,8 @@ describe('transcription run storage', () => {
       modelVersion: '1',
       manifestSha256: 'x',
       params: {},
-      rangeStart: 2,
-      rangeEnd: 3,
+      rangeStartMs: 2000,
+      rangeEndMs: 3000,
     }) as { id: string };
     callDesktopSession(session.sessionId, 'modelRuns.finish', {
       runId: run.id,
@@ -569,7 +543,7 @@ describe('transcription run storage', () => {
     const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: run.id,
       candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 2, mediaEnd: 3 }],
-    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    }) as { candidates: { targetFingerprint: string }[] };
     const candidate = preview.candidates[0];
     if (candidate === undefined) throw new Error('preview missing');
     expect(() =>
@@ -580,7 +554,6 @@ describe('transcription run storage', () => {
         segmentIndex: 0,
         mediaStart: 100,
         mediaEnd: 101,
-        timeMappingRevision: preview.timeMappingRevision,
         targetFingerprint: candidate.targetFingerprint,
         text: 'outside',
       }),
@@ -619,8 +592,8 @@ function start(
     modelVersion: '1',
     manifestSha256: 'abc',
     params: { language: 'muya' },
-    rangeStart: 0,
-    rangeEnd: 8,
+    rangeStartMs: 0,
+    rangeEndMs: 8000,
   }) as { id: string };
 }
 

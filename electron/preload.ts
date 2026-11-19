@@ -23,6 +23,8 @@ const desktop = {
     ipcRenderer.invoke('desktop:cancel-project-transcription', sessionId, requestId),
   projectReadEnabled: true,
   chooseDesktopFolder: () => ipcRenderer.invoke('desktop:choose-folder'),
+  importRecording: (sessionId: string | null) =>
+    ipcRenderer.invoke('desktop:import-recording', sessionId),
   chooseImportFile: (sessionId: string) =>
     ipcRenderer.invoke('desktop:choose-import-file', sessionId),
   chooseExportFile: (sessionId: string, name: string) =>

@@ -87,20 +87,20 @@ describe('desktop JYT exchange', () => {
     });
     const selectedUnit = source.units.create({
       layerId: selectedLayer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'selected sentence',
     });
     const otherUnit = source.units.create({
       layerId: otherLayer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'other sentence',
     });
     const removedUnit = source.units.create({
       layerId: removedLayer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'deleted sentence',
     });
     const removedManuscript = deleteManuscript(source.db, removed.id);
@@ -160,8 +160,8 @@ describe('desktop JYT exchange', () => {
       });
       source.units.create({
         layerId: layer.id,
-        startTime: 0,
-        endTime: 1,
+        startMs: 0,
+        endMs: 1,
         text: `${manuscript.id} sentence`,
       });
     }
@@ -212,7 +212,7 @@ describe('desktop JYT exchange', () => {
       tierType: 'time-aligned',
       contentType: 'transcription',
     });
-    source.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'sentence' });
+    source.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text: 'sentence' });
     const packed = exportDesktopJyt(source.db);
     source.close();
     const before = projectBytes(sourceDir);
@@ -422,8 +422,8 @@ describe('desktop JYT exchange', () => {
     });
     const unit = source.units.create({
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'kept sentence',
     });
     deleteManuscript(source.db, manuscript.id);
@@ -497,7 +497,7 @@ describe('desktop JYT exchange', () => {
       tierType: 'time-aligned',
       contentType: 'transcription',
     });
-    project.units.create({ layerId: layer.id, startTime: 0, endTime: 1, text: 'first' });
+    project.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text: 'first' });
     const files = unzipSync(exportDesktopJyt(project.db));
     project.close();
     const payload = JSON.parse(strFromU8(files['data/project.json']!)) as {

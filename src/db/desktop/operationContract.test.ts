@@ -79,7 +79,8 @@ describe('desktop operation contract', () => {
       expect(DESKTOP_METHODS_AT_5fbc66f8).not.toContain(key);
       expect(contract).toContain(key);
     }
-    expect(unique(['reopen', ...contract]).sort()).toEqual(
+    const removedByAdr0122 = ['manuscripts.rollbackTimeMapping', 'manuscripts.setTimeMapping'];
+    expect(unique(['reopen', ...contract, ...removedByAdr0122]).sort()).toEqual(
       unique([...DESKTOP_METHODS_AT_5fbc66f8, ...addedAfterSnapshot]).sort(),
     );
     expect(Object.keys(desktopOperations).sort()).toEqual([...contract].sort());

@@ -60,7 +60,7 @@ describe('unit span', () => {
     });
     const db = requireDesktopSession(session.sessionId).db;
     const split = splitUnit(db, { unitId, time: 1 });
-    expect(split.left.endTime).toBe(1);
+    expect(split.left.endMs).toBe(1);
     expect(split.right.text).toBe('pre-fix');
     expect(count(db, 'SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?', unitId)).toBe(1);
     expect(count(db, 'SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?', split.right.id)).toBe(1);
@@ -87,7 +87,7 @@ describe('unit span', () => {
 
     undoSplit(db, split.undo);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
-      endTime: 2,
+      endMs: 2,
       text: 'pre-fix',
     });
     expect(callDesktopSession(session.sessionId, 'units.get', { id: split.right.id })).toBeNull();
@@ -95,7 +95,7 @@ describe('unit span', () => {
     expect(count(db, 'SELECT COUNT(*) AS n FROM notes WHERE unit_id = ?', unitId)).toBe(2);
     callDesktopSession(session.sessionId, 'reopen', {});
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
-      endTime: 2,
+      endMs: 2,
     });
   });
 
@@ -114,7 +114,7 @@ describe('unit span', () => {
       }),
     ).toHaveLength(1);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
-      endTime: 2,
+      endMs: 2,
     });
 
     const split = splitUnit(db, { unitId, time: 1 });
@@ -127,7 +127,7 @@ describe('unit span', () => {
     });
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
       text: '后来',
-      endTime: 1,
+      endMs: 1,
     });
   });
 
@@ -164,7 +164,7 @@ describe('unit span', () => {
     );
 
     const merged = mergeUnits(db, { keepId: left, removeId: right });
-    expect(merged.unit).toMatchObject({ id: left, startTime: 0, endTime: 2, text: '甲' });
+    expect(merged.unit).toMatchObject({ id: left, startMs: 0, endMs: 2, text: '甲' });
     expect(count(db, 'SELECT COUNT(*) AS n FROM notes WHERE id = ?', 'drop-note')).toBe(0);
     expect(count(db, 'SELECT COUNT(*) AS n FROM notes WHERE id = ?', 'keep-note')).toBe(1);
     expect(count(db, 'SELECT COUNT(*) AS n FROM analysis_candidates WHERE id = ?', 'cand-1')).toBe(
@@ -174,8 +174,8 @@ describe('unit span', () => {
     undoMerge(db, merged.undo);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: right })).toMatchObject({
       id: right,
-      startTime: 1,
-      endTime: 2,
+      startMs: 1,
+      endMs: 2,
       text: '乙',
     });
     expect(count(db, 'SELECT COUNT(*) AS n FROM notes WHERE id = ?', 'drop-note')).toBe(1);
@@ -191,13 +191,13 @@ describe('unit span', () => {
       keepId: right,
       removeId: left,
     });
-    expect(other.unit).toMatchObject({ id: right, startTime: 0, endTime: 2, text: '乙' });
+    expect(other.unit).toMatchObject({ id: right, startMs: 0, endMs: 2, text: '乙' });
     expect(callDesktopSession(session.sessionId, 'units.get', { id: left })).toBeNull();
     undoMerge(requireDesktopSession(session.sessionId).db, other.undo);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: left })).toMatchObject({
       id: left,
       text: '甲',
-      endTime: 1,
+      endMs: 1,
     });
   });
 
@@ -213,7 +213,7 @@ describe('unit span', () => {
     const db = requireDesktopSession(session.sessionId).db;
     expect(() => splitUnit(db, { unitId, time: 1 })).toThrow('unit is missing a required field');
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
-      endTime: 2,
+      endMs: 2,
     });
     callDesktopSession(session.sessionId, 'customFields.setValue', {
       definitionId: field.id,
@@ -430,7 +430,7 @@ describe('unit span', () => {
     const split = callDesktopSession(session.sessionId, 'units.split', {
       unitId,
       time: 2,
-    }) as { left: { id: string; endTime: number }; right: { id: string } };
+    }) as { left: { id: string; endMs: number }; right: { id: string } };
     removeUnitValue(db, { definitionId: field.id, unitId: split.left.id });
     const optional = createDefinition(db, {
       targetType: 'unit',
@@ -450,13 +450,13 @@ describe('unit span', () => {
       callDesktopSession(session.sessionId, 'units.split', { unitId: split.left.id, time: 1 }),
     ).toThrow('unit is missing a required field');
     expect(callDesktopSession(session.sessionId, 'units.get', { id: split.left.id })).toMatchObject(
-      { endTime: split.left.endTime },
+      { endMs: split.left.endMs },
     );
     expect(generationOf(db, split.left.id)).toBe(generation);
     expect(getAnalysisRoot(db, split.left.id)?.graphFingerprint ?? '').toBe(fingerprint);
     expect(callDesktopSession(session.sessionId, 'units.undo', {})).toMatchObject({
       id: unitId,
-      endTime: 4,
+      endMs: 4,
     });
     expect(callDesktopSession(session.sessionId, 'units.get', { id: split.right.id })).toBeNull();
   });
@@ -498,7 +498,7 @@ describe('unit span', () => {
     });
     expect(() => splitUnit(db, { unitId, time: 1 })).toThrow('unit is missing a required field');
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
-      endTime: 3,
+      endMs: 3,
       text: 'ka',
     });
     expect(readFieldValue(db, optional.id, 'unit', unitId)).toBe('still');
@@ -507,8 +507,8 @@ describe('unit span', () => {
     const namesake = (
       callDesktopSession(session.sessionId, 'units.create', {
         layerId: layerOf(session.sessionId, unitId),
-        startTime: 3,
-        endTime: 4,
+        startMs: 3,
+        endMs: 4,
         text: '乙',
         fieldValues: { [field.id]: pointer },
       }) as { id: string }
@@ -543,33 +543,33 @@ describe('unit span', () => {
 describe('session unit span undo', () => {
   it('undoes only the newest split, and a text save replaces that record', () => {
     const session = open();
-    const unitId = seed(session.sessionId, 0, 2, '原句');
+    const unitId = seed(session.sessionId, 0, 2000, '原句');
     const first = callDesktopSession(session.sessionId, 'units.split', {
       unitId,
-      time: 1,
+      time: 1000,
     }) as { left: { id: string }; right: { id: string } };
     expect(() => callDesktopSession(session.sessionId, 'units.undoText', {})).toThrow(
       'unit text undo is empty',
     );
     const second = callDesktopSession(session.sessionId, 'units.split', {
       unitId: first.left.id,
-      time: 0.5,
+      time: 500,
     }) as { right: { id: string } };
     expect(callDesktopSession(session.sessionId, 'units.undo', {})).toMatchObject({
       id: first.left.id,
-      endTime: 1,
+      endMs: 1000,
     });
     expect(callDesktopSession(session.sessionId, 'units.get', { id: second.right.id })).toBeNull();
     expect(
       callDesktopSession(session.sessionId, 'units.get', { id: first.right.id }),
     ).toMatchObject({
-      startTime: 1,
+      startMs: 1000,
     });
     expect(() => callDesktopSession(session.sessionId, 'units.undo', {})).toThrow(
       'unit text undo is empty',
     );
 
-    callDesktopSession(session.sessionId, 'units.split', { unitId: first.left.id, time: 0.5 });
+    callDesktopSession(session.sessionId, 'units.split', { unitId: first.left.id, time: 500 });
     callDesktopSession(session.sessionId, 'units.updateText', {
       unitId: first.left.id,
       text: '改过',
@@ -585,26 +585,26 @@ describe('session unit span undo', () => {
   it('drops the record after a boundary move or a closed session', () => {
     const dir = folder();
     const session = openDesktopSession(dir, [dir]);
-    const unitId = seed(session.sessionId, 0, 2, '原句');
+    const unitId = seed(session.sessionId, 0, 2000, '原句');
     const split = callDesktopSession(session.sessionId, 'units.split', {
       unitId,
-      time: 1,
+      time: 1000,
     }) as { left: { id: string }; right: { id: string } };
     callDesktopSession(session.sessionId, 'units.updateBoundary', {
       leftId: split.left.id,
       rightId: split.right.id,
-      time: 1.2,
+      time: 1200,
     });
     expect(() => callDesktopSession(session.sessionId, 'units.undo', {})).toThrow(
       'unit text undo is empty',
     );
     expect(callDesktopSession(session.sessionId, 'units.get', { id: split.left.id })).toMatchObject(
       {
-        endTime: 1.2,
+        endMs: 1200,
       },
     );
 
-    callDesktopSession(session.sessionId, 'units.split', { unitId: split.right.id, time: 1.6 });
+    callDesktopSession(session.sessionId, 'units.split', { unitId: split.right.id, time: 1600 });
     closeDesktopSession(session.sessionId);
     const again = openDesktopSession(dir, [dir]);
     expect(() => callDesktopSession(again.sessionId, 'units.undo', {})).toThrow(
@@ -690,8 +690,8 @@ function seedUnit(
   return (
     callDesktopSession(sessionId, 'units.create', {
       layerId,
-      startTime: start,
-      endTime: end,
+      startMs: start,
+      endMs: end,
       text,
     }) as { id: string }
   ).id;

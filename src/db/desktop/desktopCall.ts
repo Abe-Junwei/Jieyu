@@ -121,8 +121,6 @@ import {
   previewManuscriptDelete,
   previewRecordingDelete,
   restoreManuscript,
-  rollbackManuscriptTimeMapping,
-  setManuscriptTimeMapping,
 } from './manuscripts';
 import {
   desktopSessionFolder,
@@ -840,18 +838,6 @@ const operationHandlers = {
   'manuscripts.purge': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['manuscripts.purge']['check']>) =>
       purgeManuscript(ctx.db, input.id),
-  },
-  'manuscripts.setTimeMapping': {
-    run: (
-      ctx: ContractCtx,
-      input: ReturnType<DesktopOperations['manuscripts.setTimeMapping']['check']>,
-    ) => setManuscriptTimeMapping(ctx.db, input),
-  },
-  'manuscripts.rollbackTimeMapping': {
-    run: (
-      ctx: ContractCtx,
-      input: ReturnType<DesktopOperations['manuscripts.rollbackTimeMapping']['check']>,
-    ) => rollbackManuscriptTimeMapping(ctx.db, input),
   },
 } satisfies ContractHandlers;
 

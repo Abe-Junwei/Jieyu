@@ -1,5 +1,6 @@
 import type { CorpusQueryHit, CorpusTextSpan } from '../app/desktopProjectReadPageAccess';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
+import { msToSec } from '../db/desktop/timeMs';
 import { t, tf, useLocale } from '../i18n';
 import { useDesktopCorpusQuery } from './useDesktopCorpusQuery';
 
@@ -58,7 +59,7 @@ export function DesktopCorpusQueryPanel(props: {
             >
               <LocatedText
                 label={tf(locale, 'app.desktopRead.queryLocate', {
-                  time: `${item.startTime.toFixed(1)}–${item.endTime.toFixed(1)}`,
+                  time: querySpan(item.startTime, item.endTime),
                   text: '\u0000',
                 })}
                 text={item.text}
@@ -108,6 +109,11 @@ function Highlighted(props: { text: string; spans: readonly CorpusTextSpan[] }) 
       <mark key={part.start}>{props.text.slice(part.start, part.end)}</mark>
     ),
   );
+}
+
+function querySpan(start: number | null, end: number | null): string {
+  if (start === null || end === null) return '—';
+  return `${msToSec(start).toFixed(1)}–${msToSec(end).toFixed(1)}`;
 }
 
 function hitLabel(hit: CorpusQueryHit): string {

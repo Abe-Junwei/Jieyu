@@ -51,8 +51,8 @@ describe('desktop call', () => {
     });
     const unit = await client.createUnit(session.sessionId, {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1.2,
+      startMs: 0,
+      endMs: 1200,
       text: '句子',
     });
     await client.reopen(session.sessionId);
@@ -67,6 +67,43 @@ describe('desktop call', () => {
     ]);
   });
 
+  it('stores a manuscript and a unit that have no recording and no time', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '无录音' },
+    }) as { id: string; mediaId: string | null };
+    expect(manuscript.mediaId).toBeNull();
+    const layer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'symbolic-association',
+      contentType: 'transcription',
+    }) as { id: string };
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: layer.id,
+      text: '无时间',
+    }) as { id: string; startMs: number | null; endMs: number | null };
+    expect(unit).toMatchObject({ startMs: null, endMs: null, text: '无时间' });
+    expect(() =>
+      callDesktopSession(session.sessionId, 'units.create', {
+        layerId: layer.id,
+        startMs: 0,
+        text: '半截',
+      }),
+    ).toThrow('unit time is invalid');
+    callDesktopSession(session.sessionId, 'reopen', {});
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
+      startMs: null,
+      endMs: null,
+      text: '无时间',
+    });
+    expect(callDesktopSession(session.sessionId, 'manuscripts.list', {})).toEqual([
+      expect.objectContaining({ id: manuscript.id, mediaId: null }),
+    ]);
+  });
+
   it('does not write when the session is expired or the method is unknown', () => {
     const firstDir = folder();
     const secondDir = folder();
@@ -75,8 +112,8 @@ describe('desktop call', () => {
     expect(() =>
       callDesktopSession(first.sessionId, 'units.create', {
         layerId: 'missing',
-        startTime: 0,
-        endTime: 1,
+        startMs: 0,
+        endMs: 1,
         text: 'nope',
       }),
     ).toThrow('project session expired');
@@ -84,8 +121,8 @@ describe('desktop call', () => {
     expect(() =>
       callDesktopSession('not-granted', 'units.create', {
         layerId: 'missing',
-        startTime: 0,
-        endTime: 1,
+        startMs: 0,
+        endMs: 1,
         text: 'nope',
       }),
     ).toThrow('project session expired');
@@ -109,7 +146,7 @@ describe('desktop call', () => {
       },
     });
     await expect(
-      client.createUnit('session', { layerId: 'layer', startTime: 0, endTime: 1, text: '句子' }),
+      client.createUnit('session', { layerId: 'layer', startMs: 0, endMs: 1, text: '句子' }),
     ).rejects.toThrow('response lost');
     expect(calls).toBe(1);
   });
@@ -183,14 +220,14 @@ describe('desktop call', () => {
     const speaker = requireDesktopSession(session.sessionId).speakers.create({ name: '甲' });
     const parentUnit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: '父',
     }) as { id: string };
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 1,
-      endTime: 2,
+      startMs: 1,
+      endMs: 2,
       text: '子',
       speakerId: speaker.id,
       parentUnitId: parentUnit.id,
@@ -215,8 +252,8 @@ describe('desktop call', () => {
     expect(() =>
       callDesktopSession(session.sessionId, 'units.create', {
         layerId: layer.id,
-        startTime: 2,
-        endTime: 3,
+        startMs: 2,
+        endMs: 3,
         text: '丢',
         note: 'nope',
       }),

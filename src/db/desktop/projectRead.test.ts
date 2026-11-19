@@ -60,8 +60,8 @@ describe('desktop project read', () => {
     });
     await client.createUnit(session.sessionId, {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1.2,
+      startMs: 0,
+      endMs: 1200,
       text: '句子',
     });
     await client.reopen(session.sessionId);
@@ -83,6 +83,82 @@ describe('desktop project read', () => {
     const token = model.audioUrl?.slice('jieyu-media://local/'.length) ?? '';
     expect(resolveDesktopMedia(token)?.endsWith('a.wav')).toBe(true);
     expect(calls).toEqual(['manuscripts.list', 'layers.list', 'units.list']);
+    expect(model.layers.map((item) => item.id)).toEqual([layer.id]);
+    expect(model.units[0]?.startMs).toBe(0);
+    expect(model.units[0]?.endMs).toBe(1200);
+  });
+
+  it('reads every layer and the parent-unit link after reopen', async () => {
+    const dir = folder();
+    writeFileSync(join(dir, 'a.wav'), '');
+    const session = openDesktopSession(dir, [dir]);
+    const client = createDesktopClient({
+      desktopCall: (sessionId, method, args) =>
+        Promise.resolve(callDesktopSession(sessionId, method, args)),
+    });
+    const media = await client.createMedia(session.sessionId, {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 2,
+    });
+    const manuscript = await client.createManuscript(session.sessionId, {
+      title: { zh: '文稿' },
+      mediaId: media.id,
+    });
+    const parentLayer = await client.createLayer(session.sessionId, {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+      sortOrder: 0,
+    });
+    const childLayer = await client.createLayer(session.sessionId, {
+      manuscriptId: manuscript.id,
+      key: 'tl',
+      name: { zh: '翻译' },
+      tierType: 'time-aligned',
+      contentType: 'translation',
+      parentId: parentLayer.id,
+      sortOrder: 1,
+    });
+    const parent = await client.createUnit(session.sessionId, {
+      layerId: parentLayer.id,
+      startMs: 0,
+      endMs: 1000,
+      text: '父段',
+    });
+    await client.createUnit(session.sessionId, {
+      layerId: childLayer.id,
+      startMs: 0,
+      endMs: 1000,
+      text: '子段',
+      parentUnitId: parent.id,
+    });
+    await client.reopen(session.sessionId);
+
+    const model = await loadDesktopProjectRead(
+      {
+        listManuscripts: (sessionId) => client.listManuscripts(sessionId),
+        listLayers: (sessionId, manuscriptId) => client.listLayers(sessionId, manuscriptId),
+        listUnits: (sessionId, layerId) => client.listUnits(sessionId, layerId),
+        mediaPlayUrl: async (sessionId, mediaId) => desktopMediaPlayUrl(sessionId, mediaId).url,
+      },
+      session.sessionId,
+      manuscript.id,
+      false,
+    );
+
+    expect(model.layerId).toBe(parentLayer.id);
+    expect(model.units.map((unit) => unit.text)).toEqual(['父段']);
+    expect(
+      model.layers.map((item) => [item.id, item.parentId, item.units.map((unit) => unit.text)]),
+    ).toEqual([
+      [parentLayer.id, null, ['父段']],
+      [childLayer.id, parentLayer.id, ['子段']],
+    ]);
+    expect(model.layers[1]?.units[0]?.parentUnitId).toBe(parent.id);
+    expect(model.audioUrl).toBeNull();
   });
 
   it('does not grant a url when the session is expired or the path escapes', () => {

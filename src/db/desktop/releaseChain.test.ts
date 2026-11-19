@@ -58,8 +58,8 @@ describe('single library release chain', () => {
     }) as { id: string };
     callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'kept sentence',
     });
     callDesktopSession(session.sessionId, 'lexicon.saveEntry', {
@@ -73,8 +73,8 @@ describe('single library release chain', () => {
       modelVersion: '1',
       manifestSha256: 'abc',
       params: { language: 'und' },
-      rangeStart: 0,
-      rangeEnd: 1,
+      rangeStartMs: 0,
+      rangeEndMs: 1,
     }) as { id: string };
     callDesktopSession(session.sessionId, 'modelRuns.finish', {
       runId: run.id,

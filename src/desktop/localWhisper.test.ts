@@ -84,7 +84,6 @@ it('uses verified private weights, accepts through the existing transaction and 
     segmentIndex: row.segmentIndex,
     mediaStart: row.mediaStart,
     mediaEnd: row.mediaEnd,
-    timeMappingRevision: result.timeMappingRevision,
     targetFingerprint: row.targetFingerprint,
     text: row.text,
   });

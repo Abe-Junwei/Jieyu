@@ -53,6 +53,37 @@ const purgeConfirm = /^(Confirm purge|确认清除)$/;
 const deletedClip = /Manuscript Clip|文稿 Clip/;
 const userDataOf = new WeakMap<ElectronApplication, string>();
 
+test('transcription workspace seeks a segment and space starts playback', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const app = await launch('tx-readonly');
+  try {
+    await stubFolderDialog(app, folder);
+    const page = await app.firstWindow();
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    await expect(page.getByRole('button', { name: /^(Play|播放)$/ })).toBeEnabled();
+    await waitForAudio(page);
+    const segment = page.locator('.desktop-tx-seg', { hasText: 'two' });
+    await segment.click();
+    await expect(segment).toHaveAttribute('aria-current', 'true');
+    const audio = page.locator('audio');
+    await expect
+      .poll(() => audio.evaluate((element) => (element as HTMLAudioElement).currentTime))
+      .toBeGreaterThan(0.3);
+    await expect
+      .poll(() => audio.evaluate((element) => (element as HTMLAudioElement).paused))
+      .toBe(true);
+    await page.keyboard.press('Space');
+    await expect
+      .poll(() => audio.evaluate((element) => (element as HTMLAudioElement).paused))
+      .toBe(false);
+  } finally {
+    await app.close();
+  }
+});
+
 test('the read page does not call the old storage port', () => {
   const sources = [
     'src/pages/DesktopProjectReadPage.tsx',

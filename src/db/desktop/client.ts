@@ -138,20 +138,6 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once(sessionId, 'customFields.previewPurge', { definitionId }),
     purgeCustomFieldDefinition: (sessionId: string, input: unknown) =>
       once(sessionId, 'customFields.purgeDefinition', input),
-    setTimeMapping: (
-      sessionId: string,
-      input: {
-        manuscriptId: string;
-        expectedRevision: number;
-        offsetSec: number;
-        scale: number;
-        sourceMediaId?: string;
-      },
-    ) => once(sessionId, 'manuscripts.setTimeMapping', input),
-    rollbackTimeMapping: (
-      sessionId: string,
-      input: { manuscriptId: string; expectedRevision: number },
-    ) => once(sessionId, 'manuscripts.rollbackTimeMapping', input),
     ensureProjectDefinition: (sessionId: string, input: LanguageEnsure) =>
       once(sessionId, 'catalog.ensureProjectDefinition', input),
     getLanguage: (sessionId: string, id: string) => once(sessionId, 'catalog.getLanguage', { id }),
@@ -357,7 +343,6 @@ export function createDesktopClient(bridge: DesktopBridge) {
         segmentIndex: number;
         mediaStart: number;
         mediaEnd: number;
-        timeMappingRevision: number;
         targetFingerprint: string;
         text: string;
       },

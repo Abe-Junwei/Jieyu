@@ -100,12 +100,9 @@ describe('foreign file import', () => {
       roles: join(source, 'roles.txt'),
     });
     const opened = openProject(project);
-    const row = opened.db.prepare('SELECT start_time, end_time FROM units').get() as {
-      start_time: number;
-      end_time: number;
-    };
+    const row = opened.db.prepare('SELECT time_ms FROM points').get() as { time_ms: number };
     opened.close();
-    expect(row).toEqual({ start_time: 0.5, end_time: 0.5 });
+    expect(row).toEqual({ time_ms: 500 });
   });
 
   it('refuses a folder that has no library', () => {

@@ -20,13 +20,15 @@ import { claimTextSave, finishTextSave, textSaveDigest } from './textSave';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
+export type UnitSelfCertainty = 'not_understood' | 'uncertain' | 'certain';
+
 export interface Unit {
   id: string;
   layerId: string;
   speakerId: string | null;
   parentUnitId: string | null;
-  startTime: number;
-  endTime: number;
+  startMs: number | null;
+  endMs: number | null;
   createdAt: string;
   updatedAt: string;
   text: string;
@@ -35,8 +37,8 @@ export interface Unit {
 
 export interface UnitCreate {
   layerId: string;
-  startTime: number;
-  endTime: number;
+  startMs: number | null;
+  endMs: number | null;
   text: string;
   speakerId?: string | null;
   parentUnitId?: string | null;
@@ -48,8 +50,8 @@ interface UnitRow {
   layer_id: string;
   speaker_id: string | null;
   parent_unit_id: string | null;
-  start_time: number;
-  end_time: number;
+  start_ms: number | null;
+  end_ms: number | null;
   created_at: string;
   updated_at: string;
   text: string;
@@ -58,7 +60,7 @@ interface UnitRow {
 
 const UNIT_SELECT = `
 SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id,
-       units.start_time, units.end_time, units.created_at, units.updated_at,
+       units.start_ms, units.end_ms, units.created_at, units.updated_at,
        unit_texts.id AS text_id, unit_texts.body AS text
 FROM units
 JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
@@ -80,10 +82,49 @@ export function assertUnitTextRoleFree(db: SqliteDatabase, unitId: string, role:
   if (row.n !== 0) throw new Error('unit text role is duplicated');
 }
 
-function assertUnitSpan(start: number, end: number): void {
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start) {
+function assertUnitSpan(start: number | null, end: number | null): void {
+  if (start === null && end === null) return;
+  if (
+    start === null ||
+    end === null ||
+    !Number.isInteger(start) ||
+    !Number.isInteger(end) ||
+    start < 0 ||
+    end <= start
+  ) {
     throw new Error('unit time is invalid');
   }
+}
+
+function nextSortOrder(db: SqliteDatabase, layerId: string): number {
+  const row = db
+    .prepare('SELECT COALESCE(MAX(sort_order), -1) AS sortOrder FROM units WHERE layer_id = ?')
+    .get(layerId) as { sortOrder: number };
+  return row.sortOrder + 1;
+}
+
+export function sortOrderForInsert(
+  db: SqliteDatabase,
+  layerId: string,
+  startMs: number | null,
+): number {
+  if (startMs === null) return nextSortOrder(db, layerId);
+  const next = db
+    .prepare(
+      `SELECT sort_order AS sortOrder FROM units
+       WHERE layer_id = ? AND start_ms IS NOT NULL AND start_ms > ?
+       ORDER BY sort_order LIMIT 1`,
+    )
+    .get(layerId, startMs) as { sortOrder: number } | undefined;
+  if (next === undefined) return nextSortOrder(db, layerId);
+  // ponytail: two-step shift avoids a unique collision. Breaks if one layer exceeds 1000000 units.
+  db.prepare(
+    'UPDATE units SET sort_order = sort_order + 1000000 WHERE layer_id = ? AND sort_order >= ?',
+  ).run(layerId, next.sortOrder);
+  db.prepare(
+    'UPDATE units SET sort_order = sort_order - 999999 WHERE layer_id = ? AND sort_order >= 1000000',
+  ).run(layerId);
+  return next.sortOrder;
 }
 
 export function createUnit(
@@ -91,21 +132,22 @@ export function createUnit(
   input: UnitCreate,
   afterUnitInsert?: () => void,
 ): Unit {
-  assertUnitSpan(input.startTime, input.endTime);
+  assertUnitSpan(input.startMs, input.endMs);
   const id = randomUUID();
   const now = new Date().toISOString();
   const write = db.transaction(() => {
     db.prepare(
       `INSERT INTO units (
-        id, layer_id, speaker_id, parent_unit_id, start_time, end_time, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, sort_order, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       id,
       input.layerId,
       input.speakerId ?? null,
       input.parentUnitId ?? null,
-      input.startTime,
-      input.endTime,
+      input.startMs,
+      input.endMs,
+      sortOrderForInsert(db, input.layerId, input.startMs),
       now,
       now,
     );
@@ -124,14 +166,14 @@ export function createUnit(
 
 const LIST = `
 SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id,
-       units.start_time, units.end_time, units.created_at, units.updated_at,
+       units.start_ms, units.end_ms, units.created_at, units.updated_at,
        unit_texts.id AS text_id, unit_texts.body AS text
 FROM units
 JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
 JOIN layers ON layers.id = units.layer_id
 JOIN manuscripts ON manuscripts.id = layers.manuscript_id
 WHERE units.layer_id = ? AND manuscripts.deleted_at IS NULL
-ORDER BY units.start_time, units.id
+ORDER BY units.sort_order, units.id
 `;
 
 /** Includes a unit whose manuscript is deleted. Writers use this so the delete trigger still reports. */
@@ -160,24 +202,28 @@ export function updateBoundary(
     const left = readStoredUnit(db, input.leftId);
     const right = readStoredUnit(db, input.rightId);
     if (!left || !right) throw new Error('boundary units are missing');
-    if (left.layerId !== right.layerId || left.endTime !== right.startTime) {
+    if (
+      left.layerId !== right.layerId ||
+      left.startMs === null ||
+      left.endMs === null ||
+      right.startMs === null ||
+      right.endMs === null ||
+      left.endMs !== right.startMs
+    ) {
       throw new Error('boundary units are not adjacent');
     }
-    if (input.time < left.startTime || input.time > right.endTime) {
+    if (!Number.isInteger(input.time) || input.time <= left.startMs || input.time >= right.endMs) {
       throw new Error('boundary is outside the pair');
     }
     const now = new Date().toISOString();
-    db.prepare('UPDATE units SET end_time = ?, updated_at = ? WHERE id = ?').run(
-      input.time,
-      now,
-      left.id,
-    );
+    const extend = input.time > left.endMs;
+    const setEnd = db.prepare('UPDATE units SET end_ms = ?, updated_at = ? WHERE id = ?');
+    const setStart = db.prepare('UPDATE units SET start_ms = ?, updated_at = ? WHERE id = ?');
+    if (extend) setStart.run(input.time, now, right.id);
+    else setEnd.run(input.time, now, left.id);
     afterLeftUpdate?.();
-    db.prepare('UPDATE units SET start_time = ?, updated_at = ? WHERE id = ?').run(
-      input.time,
-      now,
-      right.id,
-    );
+    if (extend) setEnd.run(input.time, now, left.id);
+    else setStart.run(input.time, now, right.id);
     const nextLeft = readStoredUnit(db, left.id);
     const nextRight = readStoredUnit(db, right.id);
     if (!nextLeft || !nextRight) throw new Error('boundary readback failed');
@@ -411,8 +457,8 @@ function mapUnit(row: UnitRow): Unit {
     layerId: row.layer_id,
     speakerId: row.speaker_id,
     parentUnitId: row.parent_unit_id,
-    startTime: row.start_time,
-    endTime: row.end_time,
+    startMs: row.start_ms,
+    endMs: row.end_ms,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     text: row.text,

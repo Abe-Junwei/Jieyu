@@ -35,8 +35,8 @@ it('uses host results as editable candidates and accepts one without saving the 
         modelVersion: '1',
         manifestSha256: 'fixture',
         params: {},
-        rangeStart: 0,
-        rangeEnd: 2,
+        rangeStartMs: 0,
+        rangeEndMs: 2000,
       }) as { id: string };
       callDesktopSession(s.sessionId, 'modelRuns.finish', {
         runId: run.id,
@@ -50,14 +50,12 @@ it('uses host results as editable candidates and accepts one without saving the 
           { chunkIndex: 1, segmentIndex: 0, mediaStart: 1, mediaEnd: 2 },
         ],
       }) as {
-        timeMappingRevision: number;
         candidates: import('../desktop/transcriptionTypes').ModelCandidate[];
       };
       return {
         runId: run.id,
         status: 'ok' as const,
         warnings: [],
-        timeMappingRevision: preview.timeMappingRevision,
         candidates: preview.candidates.map((row) => ({ ...row, text: 'mock candidate' })),
       };
     },

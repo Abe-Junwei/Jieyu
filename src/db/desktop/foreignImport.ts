@@ -30,6 +30,7 @@ import { openProject } from './openProject';
 import { assertZipBounded } from './zipBounds';
 import { createSpeaker } from './speakers';
 import { createUnit } from './units';
+import { secToMs } from './timeMs';
 
 const ROLE_WORD = {
   转写: 'transcription',
@@ -286,14 +287,16 @@ function writeTiers(
       unprojected.push({ name: tier.name, reason: 'layer is missing a required field' });
       return;
     }
+    const pointTier = tier.intervals.every((row) => row.start === row.end);
     const layer = createLayer(db, {
       manuscriptId: manuscript.id,
       key: `tier-${index}`,
       name: { und: tier.name },
       tierType: 'time-aligned',
-      contentType: tier.role,
+      contentType: pointTier ? 'point' : tier.role,
       sortOrder: index,
     });
+    const now = new Date().toISOString();
     for (const row of tier.intervals) {
       if (blocked(db, 'unit')) {
         unprojected.push({
@@ -302,11 +305,19 @@ function writeTiers(
         });
         continue;
       }
+      if (pointTier) {
+        db.prepare(
+          `INSERT INTO points (id, layer_id, time_ms, label, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+        ).run(randomUUID(), layer.id, secToMs(row.start), row.text, now, now);
+        written += 1;
+        continue;
+      }
       const speakerId = speakerFor(db, speakers, row.speaker, unprojected);
       const unit = createUnit(db, {
         layerId: layer.id,
-        startTime: row.start,
-        endTime: row.end,
+        startMs: secToMs(row.start),
+        endMs: secToMs(row.end),
         text: row.text,
         ...(speakerId === undefined ? {} : { speakerId }),
       });
@@ -1281,8 +1292,8 @@ function writeJybProject(
             }
             const createdUnit = createUnit(opened.db, {
               layerId: stored.id,
-              startTime: unit.start,
-              endTime: unit.end,
+              startMs: secToMs(unit.start),
+              endMs: secToMs(unit.end),
               text: unit.text,
             });
             stampUnit(opened.db, createdUnit.id, source);

@@ -114,8 +114,8 @@ describe('delete impact preview', () => {
       modelVersion: '1',
       manifestSha256: 'abc',
       params: {},
-      rangeStart: 0,
-      rangeEnd: 8,
+      rangeStartMs: 0,
+      rangeEndMs: 8,
     });
     expect(
       callDesktopSession(session.sessionId, 'manuscripts.previewDelete', {

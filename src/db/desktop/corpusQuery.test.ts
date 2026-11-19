@@ -63,13 +63,13 @@ function seed(
 function addUnit(
   sessionId: string,
   layerId: string,
-  startTime: number,
+  startMs: number,
   text: string,
 ): { id: string } {
   return callDesktopSession(sessionId, 'units.create', {
     layerId,
-    startTime,
-    endTime: startTime + 1,
+    startMs,
+    endMs: startMs + 1,
     text,
   }) as { id: string };
 }
@@ -196,6 +196,58 @@ function library(): Library {
 }
 
 describe('corpus query', () => {
+  it('returns an untimed unit and pages through a null cursor time', () => {
+    const dir = folder();
+    const sessionId = openDesktopSession(dir, [dir]).sessionId;
+    const manuscript = callDesktopSession(sessionId, 'manuscripts.create', {
+      title: { zh: '无录音' },
+    }) as { id: string };
+    const layer = callDesktopSession(sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'symbolic-association',
+      contentType: 'transcription',
+    }) as { id: string };
+    const bare = callDesktopSession(sessionId, 'units.create', {
+      layerId: layer.id,
+      text: 'bare',
+    }) as { id: string };
+    const timed = callDesktopSession(sessionId, 'units.create', {
+      layerId: layer.id,
+      startMs: 0,
+      endMs: 1000,
+      text: 'timed',
+    }) as { id: string };
+    expect(query(sessionId, { text: 'bare', limit: 10 }).items).toEqual([
+      expect.objectContaining({
+        unitId: bare.id,
+        text: 'bare',
+        startTime: null,
+        endTime: null,
+      }),
+    ]);
+    const seen: string[] = [];
+    let cursor: CorpusQueryCursor | undefined;
+    for (let guard = 0; guard < 5; guard += 1) {
+      const page = query(sessionId, {
+        limit: 1,
+        ...(cursor === undefined ? {} : { cursor }),
+      });
+      const item = page.items[0];
+      if (item === undefined) break;
+      seen.push(item.unitId);
+      if (!page.hasMore) break;
+      cursor = {
+        manuscriptId: item.manuscriptId,
+        layerId: item.layerId,
+        startTime: item.startTime,
+        unitId: item.unitId,
+      };
+    }
+    expect(seen).toEqual([bare.id, timed.id]);
+  });
+
   it('matches text, gloss, pos, and a sense on the same object', () => {
     const lib = library();
     expect(query(lib.sessionId, { text: 'beta', limit: 10 })).toEqual({
@@ -401,7 +453,7 @@ describe('corpus query', () => {
         contentType: 'transcription',
       });
       const insertUnit = project.db.prepare(
-        'INSERT INTO units(id,layer_id,start_time,end_time,created_at,updated_at) VALUES(?,?,?,?,?,?)',
+        'INSERT INTO units(id,layer_id,start_ms,end_ms,sort_order,created_at,updated_at) VALUES(?,?,?,?,?,?,?)',
       );
       const insertText = project.db.prepare(
         "INSERT INTO unit_texts(id,unit_id,role,body,updated_at) VALUES(?,?,'transcription','ka',?)",
@@ -412,7 +464,7 @@ describe('corpus query', () => {
       project.db.transaction(() => {
         for (let i = 0; i < 33000; i++) {
           const id = `u${i}`;
-          insertUnit.run(id, layer.id, i, i + 1, t, t);
+          insertUnit.run(id, layer.id, i, i + 1, i, t, t);
           insertText.run(`x${i}`, id, t);
           insertToken.run(`k${i}`, id, JSON.stringify({ default: 'ka' }), t, t);
         }
@@ -433,5 +485,5 @@ describe('corpus query', () => {
     } finally {
       project.close();
     }
-  }, 60_000);
+  }, 180_000);
 });

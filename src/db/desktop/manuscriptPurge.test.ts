@@ -86,8 +86,8 @@ describe('manuscript reminder and purge', () => {
       .run('sp', '甲', PAST, PAST);
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'keep',
       speakerId: 'sp',
     }) as { id: string };
@@ -113,8 +113,8 @@ describe('manuscript reminder and purge', () => {
     const other = seed(session.sessionId, '另一份', seeded.mediaId);
     const otherUnit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: other.layerId,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'stay',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'notes.create', {

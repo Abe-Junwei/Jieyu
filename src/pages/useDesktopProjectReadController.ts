@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { createDesktopClient } from '../app/desktopProjectReadPageAccess';
 import { emitAfterWrite } from '../desktop/desktopDomainEvents';
+import { registerImportedRecording } from '../desktop/importDesktopRecording';
 import { readOpenProjectSession, rememberOpenProjectSession } from '../desktop/openProjectSession';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
@@ -53,10 +54,25 @@ export function useDesktopProjectReadController(
       });
   };
 
-  const selectManuscript = (manuscriptId: string, layerId?: string) => {
-    if (host === null || sessionId === null) return;
+  const selectManuscript = (manuscriptId: string, layerId?: string, nextSessionId?: string) => {
+    if (host === null || (sessionId === null && nextSessionId === undefined)) return;
     setError('');
-    reads.selectManuscript(manuscriptId, layerId);
+    reads.selectManuscript(manuscriptId, layerId, nextSessionId);
+  };
+
+  const importRecording = () => {
+    if (host === null || host.importRecording === undefined) return;
+    setError('');
+    void registerImportedRecording({
+      host,
+      sessionId,
+      adopt: adoptOpenedSession,
+      select: selectManuscript,
+      durationOf: readRecordingDuration,
+    }).catch(() => {
+      if (shownSession.current !== sessionId && sessionId !== null) return;
+      setError(t(locale, 'app.desktopRead.loadFailed'));
+    });
   };
 
   const forgetDeletedManuscript = (manuscriptId: string) => {
@@ -185,32 +201,6 @@ export function useDesktopProjectReadController(
       });
   };
 
-  const saveMapping = (offsetSec: number, scale: number) => {
-    if (
-      host === null ||
-      sessionId === null ||
-      model?.manuscriptId === null ||
-      model?.manuscriptId === undefined
-    ) {
-      return;
-    }
-    const manuscriptId = model.manuscriptId;
-    setError('');
-    void createDesktopClient({ desktopCall: host.desktopCall })
-      .setTimeMapping(sessionId, {
-        manuscriptId,
-        expectedRevision:
-          model.manuscripts.find((item) => item.id === manuscriptId)?.timeMappingRevision ?? 0,
-        offsetSec,
-        scale,
-      })
-      .then(() => reload())
-      .catch(() => {
-        if (shownSession.current !== sessionId) return;
-        setError(t(locale, 'app.desktopRead.loadFailed'));
-      });
-  };
-
   const noteActions = createDesktopUnitNoteActions({
     host,
     sessionId,
@@ -229,6 +219,7 @@ export function useDesktopProjectReadController(
     projectTitle: reads.projectTitle,
     error,
     openFolder,
+    importRecording,
     selectManuscript,
     forgetDeletedManuscript,
     saveText,
@@ -248,7 +239,16 @@ export function useDesktopProjectReadController(
     splitUnit,
     mergeUnits,
     moveBoundary,
-    saveMapping,
     ...noteActions,
   };
+}
+
+function readRecordingDuration(url: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const audio = new Audio();
+    audio.preload = 'metadata';
+    audio.onloadedmetadata = () => resolve(audio.duration);
+    audio.onerror = () => reject(new Error('media file is missing'));
+    audio.src = url;
+  });
 }

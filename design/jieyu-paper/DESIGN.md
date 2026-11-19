@@ -342,7 +342,7 @@ components:
 
 ### 播放与时间轴编辑
 
-播放按钮是播放条上唯一的墨色实心按钮；循环、吸附等切换按钮用 `aria-pressed`，开着是 `--brand-tint` 浅底配 `--secondary` 图标；连续滑块（音量、缩放）已填充轨用 `--brand`。速度只给离散档 0.5–2×。时间码输入等宽，回车跳转、Esc 还原，格式错保留输入。全稿概览框出当前视窗（`--secondary` 边框 + 淡主题底），拖框平移。拖边界：原位置留虚线虚影，实时读新起止，吸附时出现 `--secondary` 虚线引导线并写明吸附到什么；到极限时手柄停住并就近说明，不弹窗。多选时焦点只在最后操作的一段，右键菜单切成批量项。点层用菱形，选中为 `--brand` 实心。跨轨重叠在两轨上叠斜线纹。语谱图默认墨色单色阶；设置里可切换为 viridis，不提供彩虹色阶。
+播放按钮是播放条上唯一的墨色实心按钮；循环、吸附等切换按钮用 `aria-pressed`，开着是 `--brand-tint` 浅底配 `--secondary` 图标；连续滑块（音量、缩放）已填充轨用 `--brand`。速度只给离散档 0.5–2×。时间码输入等宽，回车跳转、Esc 还原，格式错保留输入。全稿概览是时间尺底部那条 4px 视窗（[ADR-0125](../../docs/adr/0125-overview-is-the-time-ruler-strip.md)）：1px 轨道加 3px 胶囊，点或拖把播放头跳到该时刻。拖边界：原位置留虚线虚影，实时读新起止，吸附时出现 `--secondary` 虚线引导线并写明吸附到什么；到极限时手柄停住并就近说明，不弹窗。多选时焦点只在最后操作的一段，右键菜单切成批量项。点层用菱形，选中为 `--brand` 实心。跨轨重叠在两轨上叠斜线纹。语谱图默认墨色单色阶；设置里可切换为 viridis，不提供彩虹色阶。
 
 ### 嵌入媒体与文档视图
 
@@ -404,6 +404,6 @@ components:
 
 ## 10. 设计包与稿件位置
 
-设计系统包在 `design/jieyu-paper/`（[ADR-0106](../../docs/adr/0106-design-system-package-lives-in-repo.md)）：本文件是规则正文，`tokens.css` 由代码 token 生成。页面精稿在 Pixso 文件 `va44BZLBUSYRQ7KoiO3PJw`（[ADR-0118](../../docs/adr/0118-pixso-is-the-design-draft-workspace.md)）：组件在「组件」页，规范在「规范」页，转写精稿在「精稿」页。
+设计系统包在 `design/jieyu-paper/`（[ADR-0106](../../docs/adr/0106-design-system-package-lives-in-repo.md)）：本文件是规则正文，`tokens.css` 由代码 token 生成。页面精稿在 Pixso 文件 `va44BZLBUSYRQ7KoiO3PJw`（[ADR-0118](../../docs/adr/0118-pixso-is-the-design-draft-workspace.md)）：规范画板在「设计系统」页，组件在「组件」页，转写精稿在「精稿」页。三页的 pageId 只记在 ADR-0118，文件里没有名为「规范」的页。
 
 现有组件映射和后台工程规格后续单独制定。代码实现仍须遵守仓库既有约束；本文件不修改产品数据语义、冻结格式或发布范围。用户可见文案接入产品时统一经过字典。

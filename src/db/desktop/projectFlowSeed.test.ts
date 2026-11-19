@@ -34,14 +34,14 @@ describe.skipIf(outFile === undefined)('desktop project flow seed', () => {
       }) as { id: string };
       callDesktopSession(session.sessionId, 'units.create', {
         layerId: layer.id,
-        startTime: 0,
-        endTime: 0.4,
+        startMs: 0,
+        endMs: 0.4,
         text: 'one',
       });
       callDesktopSession(session.sessionId, 'units.create', {
         layerId: layer.id,
-        startTime: 0.4,
-        endTime: 0.8,
+        startMs: 0.4,
+        endMs: 0.8,
         text: 'two',
       });
       writeFileSync(join(folder, 'take.wav'), takeWav);
@@ -63,8 +63,8 @@ describe.skipIf(outFile === undefined)('desktop project flow seed', () => {
       }) as { id: string };
       callDesktopSession(session.sessionId, 'units.create', {
         layerId: takeLayer.id,
-        startTime: 0.3,
-        endTime: 0.6,
+        startMs: 0.3,
+        endMs: 0.6,
         text: 'three',
       });
       const manuscripts = callDesktopSession(session.sessionId, 'manuscripts.list', {}) as Array<{

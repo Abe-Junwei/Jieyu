@@ -92,9 +92,10 @@ export function useDesktopProjectReadQueries(
     notes: notes.data ?? [],
     projectTitle: project.data ?? '',
     loadFailed: read.isError || notes.isError || project.isError,
-    selectManuscript: (id: string, layerId?: string) => {
-      if (sessionId === null) return;
-      setPicked({ sessionId, locateKey, manuscriptId: id, layerId, fallback: true });
+    selectManuscript: (id: string, layerId: string | undefined, nextSessionId?: string) => {
+      const seen = nextSessionId ?? sessionId;
+      if (seen === null) return;
+      setPicked({ sessionId: seen, locateKey, manuscriptId: id, layerId, fallback: true });
     },
     /**
      * After deleting the explicitly selected manuscript, drop that id from the query key

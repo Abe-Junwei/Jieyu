@@ -96,8 +96,8 @@ function openFolder(): { folder: string; sessionId: string; unitId: string } {
   }) as { id: string };
   const unit = callDesktopSession(session.sessionId, 'units.create', {
     layerId: layer.id,
-    startTime: 0,
-    endTime: 1,
+    startMs: 0,
+    endMs: 1000,
     text: 'ka',
   }) as { id: string };
   return { folder, sessionId: session.sessionId, unitId: unit.id };

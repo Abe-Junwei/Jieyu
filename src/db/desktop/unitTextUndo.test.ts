@@ -57,8 +57,8 @@ describe('session unit text undo', () => {
     const unitId = seed(session.sessionId);
     const right = callDesktopSession(session.sessionId, 'units.create', {
       layerId: layerId(session.sessionId, unitId),
-      startTime: 1,
-      endTime: 2,
+      startMs: 1000,
+      endMs: 2000,
       text: '后',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'units.updateText', { unitId, text: 'ta' });
@@ -76,7 +76,7 @@ describe('session unit text undo', () => {
     callDesktopSession(session.sessionId, 'units.updateBoundary', {
       leftId: unitId,
       rightId: right.id,
-      time: 0.4,
+      time: 400,
     });
     expect(() => callDesktopSession(session.sessionId, 'units.undoText', {})).toThrow(
       'unit text undo is empty',
@@ -179,8 +179,8 @@ function seed(sessionId: string): string {
   return (
     callDesktopSession(sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1000,
       text: 'ka',
     }) as { id: string }
   ).id;

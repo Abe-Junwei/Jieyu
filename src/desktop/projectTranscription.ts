@@ -12,6 +12,7 @@ import {
   interruptUnfinishedRuns,
 } from '../db/desktop/modelRuns';
 import { requireDesktopSession, desktopSessionFolder } from '../db/desktop/projectSession';
+import { secToMs } from '../db/desktop/timeMs';
 import { loadModelDeclaration, runModelTranscribe, cancelModelTranscribe } from './modelHost';
 import { pcmWav } from './transcriptionAudio';
 import type {
@@ -111,8 +112,8 @@ export async function transcribeProject(
       modelVersion: manifest.version,
       manifestSha256: manifest.manifestSha256,
       params: {},
-      rangeStart: input.start,
-      rangeEnd: input.end,
+      rangeStartMs: secToMs(input.start),
+      rangeEndMs: secToMs(input.end),
     });
     return { run, target: modelRunTarget(db, run.id) };
   })();
@@ -200,7 +201,6 @@ export async function transcribeProject(
   const run = getModelRun(live, started.run.id);
   const empty = {
     runId: started.run.id,
-    timeMappingRevision: started.target.revision,
     warnings: [...warnings],
     candidates: [],
   };
@@ -208,9 +208,7 @@ export async function transcribeProject(
   let stale = false;
   try {
     const target = modelRunTarget(live, run.id);
-    stale =
-      target.revision !== started.target.revision ||
-      target.fingerprint !== started.target.fingerprint;
+    stale = target.fingerprint !== started.target.fingerprint;
   } catch {
     return { ...empty, status: 'interrupted' };
   }
@@ -228,7 +226,6 @@ export async function transcribeProject(
     return {
       ...empty,
       status: 'ok' as const,
-      timeMappingRevision: preview.timeMappingRevision,
       candidates: preview.candidates.map((candidate, index) => ({
         ...candidate,
         text: segments[index]!.text,

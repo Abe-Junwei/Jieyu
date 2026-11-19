@@ -183,6 +183,7 @@ type NavGroup = {
 const SIDE_PANE_COLLAPSED_KEY = 'jieyu-side-pane-collapsed';
 const SIDE_PANE_WIDTH_KEY = 'jieyu-side-pane-width';
 const SIDE_PANE_DEFAULT_WIDTH = 272;
+const DESKTOP_CONTEXT_PANE_WIDTH = 232;
 const SIDE_PANE_MIN_WIDTH = 240;
 const SIDE_PANE_MAX_WIDTH = 420;
 
@@ -752,14 +753,24 @@ export function App() {
     requestCollaborationCloudPanelOpen(window);
   }, [isTranscriptionRoute]);
 
+  const desktopContextPane =
+    isTranscriptionRoute &&
+    featureFlags.desktopTranscriptionWorkspaceEnabled &&
+    !showLegacyWebChrome;
+  const shownPaneWidth =
+    desktopContextPane && sidePaneWidth === SIDE_PANE_DEFAULT_WIDTH
+      ? DESKTOP_CONTEXT_PANE_WIDTH
+      : sidePaneWidth;
   const shellStyle = useMemo(
     () =>
       ({
         ['--side-pane-width' as '--side-pane-width']: isSidePaneCollapsed
-          ? '0px'
-          : `${sidePaneWidth}px`,
+          ? desktopContextPane
+            ? '32px'
+            : '0px'
+          : `${shownPaneWidth}px`,
       }) as CSSProperties,
-    [isSidePaneCollapsed, sidePaneWidth],
+    [desktopContextPane, isSidePaneCollapsed, shownPaneWidth],
   );
   const shellStyleProps = { style: shellStyle };
 
@@ -780,12 +791,12 @@ export function App() {
     usePanelResize({
       sidePane: {
         isCollapsed: isSidePaneCollapsed,
-        width: sidePaneWidth,
+        width: shownPaneWidth,
         setWidth: setSidePaneWidth,
         boundaryRef: shellBodyRef,
         dragCleanupRef: shellDragCleanupRef,
         side: 'left',
-        minWidth: SIDE_PANE_MIN_WIDTH,
+        minWidth: desktopContextPane ? DESKTOP_CONTEXT_PANE_WIDTH : SIDE_PANE_MIN_WIDTH,
         maxWidth: SIDE_PANE_MAX_WIDTH,
         maxWidthRatio: 0.45,
         defaultWidth: SIDE_PANE_DEFAULT_WIDTH,
@@ -797,7 +808,7 @@ export function App() {
       <LocaleProvider locale={locale}>
         <AppSidePaneProvider>
           <div
-            className={`app-shell ${location.pathname === '/' ? 'app-shell-home' : ''} ${isTranscriptionRoute ? 'app-shell-transcription' : ''} ${isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
+            className={`app-shell ${location.pathname === '/' ? 'app-shell-home' : ''} ${isTranscriptionRoute ? 'app-shell-transcription' : ''} ${isTranscriptionRoute && featureFlags.desktopTranscriptionWorkspaceEnabled && !showLegacyWebChrome ? 'app-shell-desktop-transcription' : ''} ${isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
             {...shellStyleProps}
           >
             <div role="region" aria-label={t(locale, 'app.shell.aria.notices')}>

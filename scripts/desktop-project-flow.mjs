@@ -72,7 +72,11 @@ try {
       {
         cwd: root,
         stdio: 'inherit',
-        env: { ...process.env, VITE_DESKTOP_MODEL_CANDIDATES_ENABLED: 'true' },
+        env: {
+          ...process.env,
+          VITE_DESKTOP_MODEL_CANDIDATES_ENABLED: 'true',
+          VITE_DESKTOP_TRANSCRIPTION_WORKSPACE_ENABLED: 'true',
+        },
       },
     );
     await waitForDevServer();

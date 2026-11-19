@@ -42,8 +42,8 @@ describe('segmentUnitWords', () => {
     });
     const unit = project.units.create({
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'alpha  beta',
     });
     project.close();
@@ -94,8 +94,8 @@ describe('segmentUnitWords', () => {
     });
     const unit = project.units.create({
       layerId: layer.id,
-      startTime: 0,
-      endTime: 1,
+      startMs: 0,
+      endMs: 1,
       text: 'ka-ra na',
     });
     project.close();
@@ -151,8 +151,8 @@ describe('segmentUnitWords', () => {
     }) as { id: string };
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: layer.id,
-      startTime: 0,
-      endTime: 2,
+      startMs: 0,
+      endMs: 2,
       text: 'word',
     }) as { id: string };
     requireDesktopSession(session.sessionId).db.exec(
