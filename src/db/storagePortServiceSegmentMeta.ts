@@ -142,6 +142,13 @@ function toDoc(seed: SegmentMetaSeed): SegmentMetaDocType {
 }
 
 export class SegmentMetaService {
+  /**
+   * The real service can answer `list_units` from a scoped cursor.
+   * Suites that replace this class omit the field, so a populated `localUnitIndex`
+   * stays on the mocked loader and does not open Dexie.
+   */
+  static readonly listUnitsPersistentProbe = true;
+
   static buildDocs(seeds: readonly SegmentMetaSeed[]): SegmentMetaDocType[] {
     return sortRows(seeds.map((seed) => toDoc(seed)));
   }

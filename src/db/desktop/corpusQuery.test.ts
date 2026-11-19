@@ -409,6 +409,14 @@ describe('corpus query', () => {
       const insertToken = project.db.prepare(
         "INSERT INTO tokens(id,unit_id,token_index,form_json,gloss_json,created_at,updated_at) VALUES(?,?,0,?, '{}',?,?)",
       );
+      const orderTrigger = project.db
+        .prepare(
+          "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'units_aligned_order_insert'",
+        )
+        .get() as { sql: string };
+      // Each aligned insert scans the whole layer. 33000 inserts are quadratic and pass 60s
+      // before the query runs. The statement-bind boundary is the query over those rows.
+      project.db.exec('DROP TRIGGER units_aligned_order_insert');
       project.db.transaction(() => {
         for (let i = 0; i < 33000; i++) {
           const id = `u${i}`;
@@ -417,19 +425,22 @@ describe('corpus query', () => {
           insertToken.run(`k${i}`, id, JSON.stringify({ default: 'ka' }), t, t);
         }
       })();
-      expect(() =>
-        queryCorpus(project.db, {
-          manuscriptId: null,
-          text: null,
-          form: 'ka',
-          gloss: null,
-          pos: null,
-          lexemeId: null,
-          senseId: null,
-          limit: 20,
-          cursor: null,
-        }),
-      ).not.toThrow();
+      project.db.exec(orderTrigger.sql);
+      const page = queryCorpus(project.db, {
+        manuscriptId: null,
+        text: null,
+        form: 'ka',
+        gloss: null,
+        pos: null,
+        lexemeId: null,
+        senseId: null,
+        limit: 20,
+        cursor: null,
+      });
+      expect(page.items).toHaveLength(20);
+      expect(page.hasMore).toBe(true);
+      expect(page.items[0]?.unitId).toBe('u0');
+      expect(page.items[19]?.unitId).toBe('u19');
     } finally {
       project.close();
     }

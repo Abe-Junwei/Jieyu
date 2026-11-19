@@ -21,12 +21,17 @@ import {
   sortNormalizedUnitRows,
   resolveProjectScopeTextId,
   resolveSegmentMetaScopeParams,
+  resolveSegmentReadQueryScope,
   type NormalizedUnitRow,
 } from './timelineExecutors';
+import { readPersistentListUnitsPage } from './segmentMetaListPage';
 import {
+  createListUnitsQueryHandle,
   createListUnitsSnapshot,
-  getListUnitsSnapshot,
+  getListUnitsHandle,
+  updateListUnitsQueryHandle,
   LIST_UNITS_SNAPSHOT_ROW_THRESHOLD,
+  type ListUnitsPersistentQuery,
   type ListUnitsSnapshotRow,
 } from '../localContextListUnitsSnapshotStore';
 import { SegmentMetaService } from '../../../services/SegmentMetaService';
@@ -190,28 +195,31 @@ function buildListUnitsPageResult(
     resultHandle?: string;
     snapshotPaging?: boolean;
     readModelSource?: AiLocalToolReadModelMeta['source'];
+    /** Rows are already one page. Do not clamp offset or slice again. */
+    prepaged?: { offset: number; total: number };
   },
 ): LocalContextToolResult {
   const limit = normalizeLimit(args.limit, 8);
+  const sort =
+    normalizeTextValue(args.sort).toLowerCase() === 'time_desc' ? 'time_desc' : 'time_asc';
   const offsetMax =
     opts.snapshotPaging || opts.resultHandle
       ? LIST_UNITS_SNAPSHOT_OFFSET_MAX
       : LIST_UNITS_DEFAULT_OFFSET_MAX;
-  const offset = normalizeOffset(args.offset, 0, offsetMax);
-  const sort =
-    normalizeTextValue(args.sort).toLowerCase() === 'time_desc' ? 'time_desc' : 'time_asc';
-  const normalized = sortNormalizedUnitRows(rowsUnsorted, sort);
-  const matches = normalized.slice(offset, offset + limit);
+  const offset = opts.prepaged ? opts.prepaged.offset : normalizeOffset(args.offset, 0, offsetMax);
+  const normalized = opts.prepaged ? rowsUnsorted : sortNormalizedUnitRows(rowsUnsorted, sort);
+  const matches = opts.prepaged ? normalized : normalized.slice(offset, offset + limit);
+  const total = opts.prepaged ? opts.prepaged.total : normalized.length;
   const expectedTotal = resolveExpectedTotalForScope(context, scope);
   if (
     typeof expectedTotal === 'number' &&
     Number.isFinite(expectedTotal) &&
-    normalized.length !== expectedTotal
+    total !== expectedTotal
   ) {
     if (import.meta.env.DEV) {
       log.warn('timeline unit count mismatch', {
         tool: 'list_units',
-        total: normalized.length,
+        total,
         expectedTotal,
       });
     }
@@ -221,7 +229,7 @@ function buildListUnitsPageResult(
       tags: createMetricTags('localContextTools', {
         source: 'list_units',
         scope,
-        total: normalized.length,
+        total,
         expectedTotal,
       }),
     });
@@ -230,7 +238,7 @@ function buildListUnitsPageResult(
   const result: Record<string, unknown> = {
     scope,
     count: matches.length,
-    total: normalized.length,
+    total,
     offset,
     limit,
     sort,
@@ -252,6 +260,66 @@ function buildListUnitsPageResult(
   };
 }
 
+function readListUnitsSort(args: Record<string, unknown>): 'time_asc' | 'time_desc' {
+  return normalizeTextValue(args.sort).toLowerCase() === 'time_desc' ? 'time_desc' : 'time_asc';
+}
+
+function readPersistentOffset(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return Math.max(0, Math.floor(value));
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return Math.max(0, Math.floor(parsed));
+  }
+  return 0;
+}
+
+function persistentListQuery(
+  context: AiPromptContext,
+  scope: LocalUnitScope,
+): ListUnitsPersistentQuery | null {
+  const resolved = resolveSegmentReadQueryScope(context, scope);
+  if (!resolved) return null;
+  // textId comes only from this resolver. #589 will start supplying workspaceTextId here;
+  // keep the field on the stored query and do not read workspaceTextId in this file.
+  return {
+    ...(resolved.textId ? { textId: resolved.textId } : {}),
+    ...(resolved.mediaId ? { mediaId: resolved.mediaId } : {}),
+    ...(resolved.layerId ? { layerId: resolved.layerId } : {}),
+  };
+}
+
+function persistentListUnitsResult(
+  context: AiPromptContext,
+  args: Record<string, unknown>,
+  scope: LocalUnitScope,
+  query: ListUnitsPersistentQuery,
+  page: Awaited<ReturnType<typeof readPersistentListUnitsPage>>,
+): LocalContextToolResult {
+  const epoch = listUnitsEpoch(context);
+  const sort = readListUnitsSort(args);
+  const resultHandle =
+    page.total > LIST_UNITS_SNAPSHOT_ROW_THRESHOLD
+      ? createListUnitsQueryHandle({
+          scope,
+          query,
+          sort,
+          after: page.endKey,
+          nextOffset: page.endOffset,
+          ...(epoch !== undefined ? { epoch } : {}),
+        })
+      : undefined;
+  return buildListUnitsPageResult(context, mapSegmentMetaRows(page.rows), args, scope, {
+    ...(resultHandle ? { resultHandle, snapshotPaging: true } : {}),
+    readModelSource: 'segment_meta',
+    prepaged: { offset: page.offset, total: page.total },
+  });
+}
+
+function listUnitsEpoch(context: AiPromptContext): number | undefined {
+  const epoch = context.shortTerm?.timelineReadModelEpoch;
+  return typeof epoch === 'number' && Number.isFinite(epoch) ? epoch : undefined;
+}
+
 export async function listUnits(
   context: AiPromptContext,
   args: Record<string, unknown>,
@@ -259,7 +327,7 @@ export async function listUnits(
   let scope = normalizeUnitScope(args.scope, 'project');
   const handleArg = normalizeTextValue(args.resultHandle);
   if (handleArg.length > 0) {
-    const entry = getListUnitsSnapshot(handleArg);
+    const entry = getListUnitsHandle(handleArg);
     if (!entry) {
       return { ok: false, name: 'list_units', result: null, error: 'invalid_or_expired_handle' };
     }
@@ -274,10 +342,60 @@ export async function listUnits(
     ) {
       return { ok: false, name: 'list_units', result: null, error: 'stale_list_handle' };
     }
-    return buildListUnitsPageResult(context, entry.rows as NormalizedUnitRow[], args, scope, {
-      resultHandle: handleArg,
-      snapshotPaging: true,
-    });
+    if (entry.kind === 'rows') {
+      return buildListUnitsPageResult(context, entry.rows as NormalizedUnitRow[], args, scope, {
+        resultHandle: handleArg,
+        snapshotPaging: true,
+      });
+    }
+    if (entry.kind !== 'query') {
+      const unreachable: never = entry;
+      return unreachable;
+    }
+    const sort = readListUnitsSort(args);
+    const limit = normalizeLimit(args.limit, 8);
+    const offset = readPersistentOffset(args.offset);
+    try {
+      const page = await readPersistentListUnitsPage(entry.query, {
+        sort,
+        offset,
+        limit,
+        hint: entry.sort === sort ? { after: entry.after, nextOffset: entry.nextOffset } : null,
+      });
+      updateListUnitsQueryHandle(handleArg, {
+        sort,
+        after: page.endKey,
+        nextOffset: page.endOffset,
+      });
+      return buildListUnitsPageResult(context, mapSegmentMetaRows(page.rows), args, scope, {
+        resultHandle: handleArg,
+        snapshotPaging: true,
+        readModelSource: 'segment_meta',
+        prepaged: { offset: page.offset, total: page.total },
+      });
+    } catch {
+      return { ok: false, name: 'list_units', result: null, error: 'data_loading' };
+    }
+  }
+
+  const query = persistentListQuery(context, scope);
+  const indexCount = loadNormalizedUnitRows(context).length;
+  // segment_meta wins whenever it has rows, including when localUnitIndex holds only
+  // 1..51 of them. An empty persistence table leaves the in-memory snapshot contract alone.
+  const probePersistedScope =
+    indexCount > 0 && SegmentMetaService.listUnitsPersistentProbe === true;
+  if (query && (indexCount === 0 || probePersistedScope)) {
+    try {
+      const sort = readListUnitsSort(args);
+      const limit = normalizeLimit(args.limit, 8);
+      const offset = normalizeOffset(args.offset, 0, LIST_UNITS_DEFAULT_OFFSET_MAX);
+      const page = await readPersistentListUnitsPage(query, { sort, offset, limit });
+      if (indexCount === 0 || page.total > 0) {
+        return persistentListUnitsResult(context, args, scope, query, page);
+      }
+    } catch {
+      // Dexie is unavailable in some unit tests; the legacy loader below still answers.
+    }
   }
 
   const scopedSegmentMetaRows = await loadScopedSegmentMetaRows(context, scope);

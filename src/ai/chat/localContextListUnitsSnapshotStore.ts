@@ -23,6 +23,7 @@ export interface ListUnitsSnapshotRow {
 }
 
 export interface ListUnitsSnapshotEntry {
+  kind: 'rows';
   /** Unsorted copy of rows at capture time; caller sorts per request (limit/offset/sort). */
   rows: ListUnitsSnapshotRow[];
   /** Captured scope for this snapshot page handle. */
@@ -32,7 +33,35 @@ export interface ListUnitsSnapshotEntry {
   createdAt: number;
 }
 
-const store = new Map<string, ListUnitsSnapshotEntry>();
+/** Scope captured for a persistent `list_units` page token. Not a copy of the rows. */
+export interface ListUnitsPersistentQuery {
+  textId?: string;
+  mediaId?: string;
+  layerId?: string;
+}
+
+/** Exclusive cursor in the list_units total order. One boundary row, not a page buffer. */
+export interface ListUnitsQueryCursorKey {
+  startTime: number;
+  endTime: number;
+  segmentId: string;
+  id: string;
+}
+
+export interface ListUnitsQueryHandleEntry {
+  kind: 'query';
+  scope: 'project' | 'current_track' | 'current_scope';
+  query: ListUnitsPersistentQuery;
+  sort: 'time_asc' | 'time_desc';
+  after: ListUnitsQueryCursorKey | null;
+  nextOffset: number;
+  epoch?: number;
+  createdAt: number;
+}
+
+export type ListUnitsHandleEntry = ListUnitsSnapshotEntry | ListUnitsQueryHandleEntry;
+
+const store = new Map<string, ListUnitsHandleEntry>();
 
 function newSnapshotId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -65,6 +94,7 @@ export function createListUnitsSnapshot(
   pruneExpiredAndCap();
   const id = newSnapshotId();
   store.set(id, {
+    kind: 'rows',
     rows: rows.map((row) => ({ ...row })),
     ...(scope ? { scope } : {}),
     ...(typeof epoch === 'number' && Number.isFinite(epoch) ? { epoch } : {}),
@@ -73,7 +103,47 @@ export function createListUnitsSnapshot(
   return id;
 }
 
-export function getListUnitsSnapshot(id: string): ListUnitsSnapshotEntry | null {
+export function createListUnitsQueryHandle(entry: {
+  scope: ListUnitsQueryHandleEntry['scope'];
+  query: ListUnitsPersistentQuery;
+  sort: ListUnitsQueryHandleEntry['sort'];
+  after: ListUnitsQueryCursorKey | null;
+  nextOffset: number;
+  epoch?: number;
+}): string {
+  pruneExpiredAndCap();
+  const id = newSnapshotId();
+  store.set(id, {
+    kind: 'query',
+    scope: entry.scope,
+    query: { ...entry.query },
+    sort: entry.sort,
+    after: entry.after ? { ...entry.after } : null,
+    nextOffset: entry.nextOffset,
+    ...(typeof entry.epoch === 'number' && Number.isFinite(entry.epoch)
+      ? { epoch: entry.epoch }
+      : {}),
+    createdAt: Date.now(),
+  });
+  return id;
+}
+
+export function updateListUnitsQueryHandle(
+  id: string,
+  patch: {
+    sort: ListUnitsQueryHandleEntry['sort'];
+    after: ListUnitsQueryCursorKey | null;
+    nextOffset: number;
+  },
+): void {
+  const entry = store.get(id.trim());
+  if (!entry || entry.kind !== 'query') return;
+  entry.sort = patch.sort;
+  entry.after = patch.after ? { ...patch.after } : null;
+  entry.nextOffset = patch.nextOffset;
+}
+
+function readLiveHandle(id: string): ListUnitsHandleEntry | null {
   pruneExpiredAndCap();
   const entry = store.get(id.trim());
   if (!entry) return null;
@@ -81,6 +151,16 @@ export function getListUnitsSnapshot(id: string): ListUnitsSnapshotEntry | null 
     store.delete(id.trim());
     return null;
   }
+  return entry;
+}
+
+export function getListUnitsHandle(id: string): ListUnitsHandleEntry | null {
+  return readLiveHandle(id);
+}
+
+export function getListUnitsSnapshot(id: string): ListUnitsSnapshotEntry | null {
+  const entry = readLiveHandle(id);
+  if (!entry || entry.kind !== 'rows') return null;
   return entry;
 }
 
