@@ -51,6 +51,7 @@ describe('transcription data caliber consistency', () => {
       },
       selectedUnitIds: [],
       selectedUnitCount: 0,
+      activeTextId: 'text-1',
       currentMediaUnits: unitIndex.currentMediaUnits,
       projectUnitsForTools: unitIndex.allUnits,
       unitIndexComplete: unitIndex.isComplete,

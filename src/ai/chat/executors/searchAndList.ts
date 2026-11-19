@@ -282,16 +282,25 @@ export async function listUnits(
 
   const scopedSegmentMetaRows = await loadScopedSegmentMetaRows(context, scope);
   if (scope === 'project') {
-    if (!resolveProjectScopeTextId(context) || !scopedSegmentMetaRows) {
+    const textId = resolveProjectScopeTextId(context);
+    if (!textId) {
       return { ok: false, name: 'list_units', result: null, error: 'data_loading' };
     }
+    const fromStorage = scopedSegmentMetaRows ? mapSegmentMetaRows(scopedSegmentMetaRows) : null;
+    const fromIndex = loadNormalizedUnitRows(context).filter(
+      (row) => normalizeTextValue(row.textId) === textId,
+    );
+    if (!fromStorage && fromIndex.length === 0) {
+      return { ok: false, name: 'list_units', result: null, error: 'data_loading' };
+    }
+    const seen = new Set((fromStorage ?? []).map((row) => row.id));
     return buildListUnitsPageResult(
       context,
-      mapSegmentMetaRows(scopedSegmentMetaRows),
+      [...(fromStorage ?? []), ...fromIndex.filter((row) => !seen.has(row.id))],
       args,
       scope,
       {
-        readModelSource: 'segment_meta',
+        readModelSource: fromStorage ? 'segment_meta' : 'timeline_index',
       },
     );
   }

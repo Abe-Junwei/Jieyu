@@ -95,7 +95,35 @@ export async function getUnitDetail(
   }
 
   if (scope === 'project') {
-    return { ok: false, name: 'get_unit_detail', result: null, error: `unit not found: ${unitId}` };
+    const textId = resolveProjectScopeTextId(context);
+    const proven = normalizedUnitRowsFromContext(context)?.find(
+      (row) => row.id === unitId && normalizeTextValue(row.textId) === textId,
+    );
+    if (!proven) {
+      return {
+        ok: false,
+        name: 'get_unit_detail',
+        result: null,
+        error: `unit not found: ${unitId}`,
+      };
+    }
+    return {
+      ok: true,
+      name: 'get_unit_detail',
+      result: {
+        scope,
+        id: proven.id,
+        kind: proven.kind,
+        layerId: proven.layerId,
+        ...(proven.textId ? { textId: proven.textId } : {}),
+        ...(proven.mediaId ? { mediaId: proven.mediaId } : {}),
+        startTime: proven.startTime,
+        endTime: proven.endTime,
+        ...(proven.speakerId ? { speakerId: proven.speakerId } : {}),
+        ...(proven.annotationStatus ? { annotationStatus: proven.annotationStatus } : {}),
+        transcription: proven.transcription,
+      },
+    };
   }
 
   const localRows = normalizedUnitRowsFromContext(context);
