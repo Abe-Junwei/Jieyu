@@ -120,7 +120,11 @@ export async function listSegmentSummaries(
   } else if (scope.mediaId) {
     rows = await SegmentMetaService.listByMediaId(scope.mediaId);
   } else {
-    rows = await SegmentMetaService.listAll();
+    const textId = scope.textId?.trim() ?? '';
+    rows =
+      textId.length > 0
+        ? await SegmentMetaService.listByTextId(textId)
+        : await SegmentMetaService.listAll();
   }
 
   rows = filterRowsByScope(rows, scope);
@@ -154,7 +158,11 @@ export async function getSegmentDetail(
   } else if (scope.mediaId) {
     rows = await SegmentMetaService.listByMediaId(scope.mediaId);
   } else {
-    rows = await SegmentMetaService.listAll();
+    const textId = scope.textId?.trim() ?? '';
+    rows =
+      textId.length > 0
+        ? await SegmentMetaService.listByTextId(textId)
+        : await SegmentMetaService.listAll();
   }
 
   rows = filterRowsByScope(rows, scope);

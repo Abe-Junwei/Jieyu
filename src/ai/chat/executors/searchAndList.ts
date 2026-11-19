@@ -19,6 +19,7 @@ import {
   mapSegmentMetaRows,
   resolveExpectedTotalForScope,
   sortNormalizedUnitRows,
+  resolveContextTextId,
   resolveSegmentMetaScopeParams,
   type NormalizedUnitRow,
 } from './timelineExecutors';
@@ -52,8 +53,13 @@ export async function searchUnits(
     speakerId || noteCategory || selfCertainty || annotationStatus || typeof hasText === 'boolean',
   );
 
+  const textId = resolveContextTextId(context);
   const segmentMetaScope = resolveSegmentMetaScopeParams(context, scope);
-  if (segmentMetaScope && (query.length > 0 || hasStructuredFilter)) {
+  if (
+    segmentMetaScope &&
+    (scope !== 'project' || Boolean(textId)) &&
+    (query.length > 0 || hasStructuredFilter)
+  ) {
     try {
       if (segmentMetaScope.kind === 'layer_media') {
         await SegmentMetaService.rebuildForLayerMedia(
@@ -62,6 +68,7 @@ export async function searchUnits(
         );
       }
       const allDocumentRows = await SegmentMetaService.searchSegmentMeta({
+        ...(textId ? { textId } : {}),
         ...(segmentMetaScope.kind === 'layer_media'
           ? { layerId: segmentMetaScope.layerId, mediaId: segmentMetaScope.mediaId }
           : {}),

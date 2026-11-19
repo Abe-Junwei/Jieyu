@@ -200,6 +200,16 @@ export class SegmentMetaService {
     return sortRows(rows);
   }
 
+  /** 按 textId 查询一个项目的语段元数据 | List segment meta for one project text */
+  static async listByTextId(textId: string): Promise<SegmentMetaDocType[]> {
+    const normalizedTextId = textId.trim();
+    if (normalizedTextId.length === 0) return [];
+
+    const db = await getDb();
+    const rows = await db.dexie.segment_meta.where('textId').equals(normalizedTextId).toArray();
+    return sortRows(rows);
+  }
+
   /** 按 mediaId 查询所有层的语段元数据 | List segment meta across all layers for a given media */
   static async listByMediaId(mediaId: string): Promise<SegmentMetaDocType[]> {
     const normalizedMediaId = mediaId.trim();
@@ -210,7 +220,7 @@ export class SegmentMetaService {
     return sortRows(rows);
   }
 
-  /** 查询全部语段元数据（项目级） | List all segment meta rows (project scope) */
+  /** 查询全部语段元数据（不按项目过滤） | List every segment meta row; not limited to one project */
   static async listAll(): Promise<SegmentMetaDocType[]> {
     const db = await getDb();
     const rows = await db.dexie.segment_meta.toArray();
@@ -335,6 +345,8 @@ export class SegmentMetaService {
         .toArray();
     } else if (options.layerId) {
       rows = await db.dexie.segment_meta.where('layerId').equals(options.layerId).toArray();
+    } else if (options.textId?.trim()) {
+      rows = await db.dexie.segment_meta.where('textId').equals(options.textId.trim()).toArray();
     } else if (options.speakerId) {
       rows = await db.dexie.segment_meta
         .where('effectiveSpeakerId')

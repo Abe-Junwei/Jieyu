@@ -11,6 +11,7 @@ const mockListUnitTextsByUnit = vi.fn();
 const mockSegmentMetaListByLayerMedia = vi.fn();
 const mockSegmentMetaListByMediaId = vi.fn();
 const mockSegmentMetaListAll = vi.fn();
+const mockSegmentMetaListByTextId = vi.fn();
 const mockSegmentMetaSearchSegmentMeta = vi.fn();
 const mockSegmentMetaRebuildForLayerMedia = vi.fn();
 const mockWorkspaceReadModelRebuildForText = vi.fn();
@@ -46,6 +47,7 @@ vi.mock('../../services/SegmentMetaService', () => ({
     listByLayerMedia: (...args: unknown[]) => mockSegmentMetaListByLayerMedia(...args),
     listByMediaId: (...args: unknown[]) => mockSegmentMetaListByMediaId(...args),
     listAll: (...args: unknown[]) => mockSegmentMetaListAll(...args),
+    listByTextId: (...args: unknown[]) => mockSegmentMetaListByTextId(...args),
     searchSegmentMeta: (...args: unknown[]) => mockSegmentMetaSearchSegmentMeta(...args),
     rebuildForLayerMedia: (...args: unknown[]) => mockSegmentMetaRebuildForLayerMedia(...args),
   },
@@ -218,6 +220,7 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     mockSegmentMetaListByLayerMedia.mockReset();
     mockSegmentMetaListByMediaId.mockReset();
     mockSegmentMetaListAll.mockReset();
+    mockSegmentMetaListByTextId.mockReset();
     mockSegmentMetaSearchSegmentMeta.mockReset();
     mockSegmentMetaRebuildForLayerMedia.mockReset();
     mockWorkspaceReadModelRebuildForText.mockReset();
@@ -230,6 +233,7 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     mockSegmentMetaListByLayerMedia.mockResolvedValue([]);
     mockSegmentMetaListByMediaId.mockResolvedValue([]);
     mockSegmentMetaListAll.mockResolvedValue([]);
+    mockSegmentMetaListByTextId.mockResolvedValue([]);
     mockSegmentMetaSearchSegmentMeta.mockResolvedValue([]);
     mockSegmentMetaRebuildForLayerMedia.mockResolvedValue([]);
     mockWorkspaceReadModelRebuildForText.mockResolvedValue({
@@ -1353,9 +1357,28 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     expect(payload._readModel.source).toBe('segment_meta');
   });
 
-  it('list_units with project scope uses segment_meta listAll', async () => {
+  it('list_units project scope without a text id does not read the library', async () => {
     const ref = { current: 0 };
-    mockSegmentMetaListAll.mockResolvedValue([
+    const context = {
+      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1', localUnitIndex: [] },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'list_units', arguments: { scope: 'project' } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('data_loading');
+    expect(mockSegmentMetaListAll).not.toHaveBeenCalled();
+    expect(mockSegmentMetaListByTextId).not.toHaveBeenCalled();
+  });
+
+  it('list_units project scope reads segment_meta for the workspace text only', async () => {
+    const ref = { current: 0 };
+    mockSegmentMetaListByTextId.mockResolvedValue([
       {
         id: 'l1::seg-1',
         segmentId: 'seg-1',
@@ -1386,9 +1409,29 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
         createdAt: '',
         updatedAt: '',
       },
+      {
+        id: 'l9::seg-other',
+        segmentId: 'seg-other',
+        unitKind: 'segment',
+        textId: 'text-2',
+        mediaId: 'm9',
+        layerId: 'layer-9',
+        startTime: 3,
+        endTime: 4,
+        text: 'other project',
+        normalizedText: 'other project',
+        hasText: true,
+        createdAt: '',
+        updatedAt: '',
+      },
     ]);
     const context = {
-      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
+      shortTerm: {
+        workspaceTextId: 'text-1',
+        currentMediaId: 'm1',
+        selectedLayerId: 'layer-1',
+        localUnitIndex: [],
+      },
       longTerm: {},
     };
 
@@ -1399,14 +1442,17 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     );
 
     expect(result.ok).toBe(true);
-    expect(mockSegmentMetaListAll).toHaveBeenCalled();
+    expect(mockSegmentMetaListAll).not.toHaveBeenCalled();
+    expect(mockSegmentMetaListByTextId).toHaveBeenCalledWith('text-1');
     const payload = result.result as {
       scope: string;
       total: number;
+      matches: Array<{ id: string }>;
       _readModel: { source: string };
     };
     expect(payload.scope).toBe('project');
     expect(payload.total).toBe(2);
+    expect(payload.matches.map((row) => row.id)).toEqual(['seg-1', 'seg-2']);
     expect(payload._readModel.source).toBe('segment_meta');
   });
 
@@ -1472,7 +1518,12 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       },
     ]);
     const context = {
-      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
+      shortTerm: {
+        workspaceTextId: 'text-1',
+        currentMediaId: 'm1',
+        selectedLayerId: 'layer-1',
+        localUnitIndex: [],
+      },
       longTerm: {},
     };
 
@@ -1484,7 +1535,7 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
 
     expect(result.ok).toBe(true);
     expect(mockSegmentMetaSearchSegmentMeta).toHaveBeenCalledWith(
-      expect.objectContaining({ query: 'hello' }),
+      expect.objectContaining({ query: 'hello', textId: 'text-1' }),
     );
     // project scope: 不应传 layerId/mediaId 给 searchSegmentMeta | should not pass layerId/mediaId
     const searchCall = mockSegmentMetaSearchSegmentMeta.mock.calls[0]![0] as Record<
@@ -1493,6 +1544,7 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     >;
     expect(searchCall.layerId).toBeUndefined();
     expect(searchCall.mediaId).toBeUndefined();
+    expect(searchCall.textId).toBe('text-1');
     const payload = result.result as {
       scope: string;
       count: number;
@@ -1528,7 +1580,12 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       (rows as Array<{ layerId: string }>).filter((item) => item.layerId !== 'layer-other-doc'),
     );
     const context = {
-      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
+      shortTerm: {
+        workspaceTextId: 'text-1',
+        currentMediaId: 'm1',
+        selectedLayerId: 'layer-1',
+        localUnitIndex: [],
+      },
       longTerm: {},
     };
 
@@ -1582,7 +1639,12 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       (rows as Array<{ layerId: string }>).filter((item) => item.layerId !== 'layer-other-doc'),
     );
     const context = {
-      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
+      shortTerm: {
+        workspaceTextId: 'text-1',
+        currentMediaId: 'm1',
+        selectedLayerId: 'layer-1',
+        localUnitIndex: [],
+      },
       longTerm: {},
     };
 
@@ -1598,9 +1660,9 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     expect(payload.count).toBe(2);
   });
 
-  it('get_unit_detail with project scope resolves from segment_meta listAll', async () => {
+  it('get_unit_detail with project scope reads the workspace text and not another project', async () => {
     const ref = { current: 0 };
-    mockSegmentMetaListAll.mockResolvedValue([
+    mockSegmentMetaListByTextId.mockResolvedValue([
       {
         id: 'l1::seg-1',
         segmentId: 'seg-1',
@@ -1618,9 +1680,29 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
         createdAt: '',
         updatedAt: '',
       },
+      {
+        id: 'l9::seg-other',
+        segmentId: 'seg-other',
+        unitKind: 'segment',
+        textId: 'text-2',
+        mediaId: 'm9',
+        layerId: 'layer-9',
+        startTime: 2,
+        endTime: 3,
+        text: 'other project',
+        normalizedText: 'other project',
+        hasText: true,
+        createdAt: '',
+        updatedAt: '',
+      },
     ]);
     const context = {
-      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
+      shortTerm: {
+        workspaceTextId: 'text-1',
+        currentMediaId: 'm1',
+        selectedLayerId: 'layer-1',
+        localUnitIndex: [],
+      },
       longTerm: {},
     };
 
@@ -1629,13 +1711,20 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       context,
       ref,
     );
+    const foreign = await executeLocalContextToolCall(
+      { name: 'get_unit_detail', arguments: { scope: 'project', unitId: 'seg-other' } },
+      context,
+      ref,
+    );
 
     expect(result.ok).toBe(true);
-    expect(mockSegmentMetaListAll).toHaveBeenCalled();
+    expect(mockSegmentMetaListAll).not.toHaveBeenCalled();
+    expect(mockSegmentMetaListByTextId).toHaveBeenCalledWith('text-1');
     const payload = result.result as { id: string; scope: string; _readModel: { source: string } };
     expect(payload.id).toBe('seg-1');
     expect(payload.scope).toBe('project');
     expect(payload._readModel.source).toBe('segment_meta');
+    expect(foreign.ok).toBe(false);
   });
 
   it('get_project_stats respects scoped speaker counts from localUnitIndex', async () => {

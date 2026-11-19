@@ -13,6 +13,7 @@ vi.mock('../../services/SegmentMetaService', () => ({
     rebuildForLayerMedia: vi.fn(),
     listByLayerMedia: vi.fn(),
     listByMediaId: vi.fn(),
+    listByTextId: vi.fn(),
     listAll: vi.fn(),
   },
 }));
@@ -97,6 +98,20 @@ describe('listSegmentSummaries', () => {
     expect(result.total).toBe(1);
     expect(mockedSegmentMeta.rebuildForLayerMedia).toHaveBeenCalledWith('layer-1', 'media-1');
     expect(mockedSegmentMeta.listByLayerMedia).toHaveBeenCalledWith('layer-1', 'media-1');
+  });
+
+  it('reads one project through listByTextId and drops other texts', async () => {
+    mockedSegmentMeta.listByTextId.mockResolvedValue([
+      makeSegmentMetaDoc({ segmentId: 'seg-a', layerId: 'layer-1', textId: 'text-a' }),
+      makeSegmentMetaDoc({ segmentId: 'seg-b', layerId: 'layer-1', textId: 'text-b' }),
+    ]);
+
+    const result = await listSegmentSummaries({ textId: 'text-a' }, 10, 0);
+
+    expect(mockedSegmentMeta.listAll).not.toHaveBeenCalled();
+    expect(mockedSegmentMeta.listByTextId).toHaveBeenCalledWith('text-a');
+    expect(result.total).toBe(1);
+    expect(result.segments.map((row) => row.id)).toEqual(['seg-a']);
   });
 
   it('clamps limit to [1, 100]', async () => {
