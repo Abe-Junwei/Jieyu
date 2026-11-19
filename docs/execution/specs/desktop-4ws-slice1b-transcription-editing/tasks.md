@@ -51,12 +51,12 @@ depends_on:
 
 ## Pre-merge gates（每片）
 
-- [ ] `npm run typecheck`
-- [ ] `npx vitest run src/db/desktop src/pages/DesktopTranscriptionWorkspacePage.test.tsx`（加本片新测试）
-- [ ] `npm run test:e2e:desktop-project`
-- [ ] 改旧组件 props 时：`npm run test:e2e:chromium`
-- [ ] `npm run check:architecture-guard`
-- [ ] `npm run check:docs-governance`
+- [x] `npm run typecheck`
+- [x] `npx vitest run src/db/desktop src/pages/DesktopTranscriptionWorkspacePage.test.tsx`（加本片新测试）
+- [x] `npm run test:e2e:desktop-project`
+- [x] 改旧组件 props 时：`npm run test:e2e:chromium`（122 通过，1 条 flaky 重试后通过）
+- [x] `npm run check:architecture-guard`
+- [x] `npm run check:docs-governance`
 - [x] 不适用：不触及 `src/ai/**`
 - [x] Flag `desktopTranscriptionWorkspaceEnabled` 默认开。`false` 才回到旧读页
 
