@@ -19,7 +19,7 @@ import {
   mapSegmentMetaRows,
   resolveExpectedTotalForScope,
   sortNormalizedUnitRows,
-  resolveContextTextId,
+  resolveProjectScopeTextId,
   resolveSegmentMetaScopeParams,
   type NormalizedUnitRow,
 } from './timelineExecutors';
@@ -53,13 +53,12 @@ export async function searchUnits(
     speakerId || noteCategory || selfCertainty || annotationStatus || typeof hasText === 'boolean',
   );
 
-  const textId = resolveContextTextId(context);
+  const projectTextId = scope === 'project' ? resolveProjectScopeTextId(context) : undefined;
+  if (scope === 'project' && !projectTextId) {
+    return { ok: false, name: 'search_units', result: null, error: 'data_loading' };
+  }
   const segmentMetaScope = resolveSegmentMetaScopeParams(context, scope);
-  if (
-    segmentMetaScope &&
-    (scope !== 'project' || Boolean(textId)) &&
-    (query.length > 0 || hasStructuredFilter)
-  ) {
+  if (segmentMetaScope && (query.length > 0 || hasStructuredFilter)) {
     try {
       if (segmentMetaScope.kind === 'layer_media') {
         await SegmentMetaService.rebuildForLayerMedia(
@@ -68,7 +67,7 @@ export async function searchUnits(
         );
       }
       const allDocumentRows = await SegmentMetaService.searchSegmentMeta({
-        ...(textId ? { textId } : {}),
+        ...(projectTextId ? { textId: projectTextId } : {}),
         ...(segmentMetaScope.kind === 'layer_media'
           ? { layerId: segmentMetaScope.layerId, mediaId: segmentMetaScope.mediaId }
           : {}),
@@ -85,7 +84,11 @@ export async function searchUnits(
       // already filters in memory, so dropping its limit reads no extra rows.
       const rows = (await keepCurrentDocumentSegmentMetaRows(allDocumentRows)).slice(0, limit);
       const matches = mapSegmentMetaRows(rows);
-      if (matches.length > 0 || loadNormalizedUnitRows(context).length === 0) {
+      if (
+        scope === 'project' ||
+        matches.length > 0 ||
+        loadNormalizedUnitRows(context).length === 0
+      ) {
         return {
           ok: true,
           name: 'search_units',
@@ -99,7 +102,9 @@ export async function searchUnits(
         };
       }
     } catch {
-      // fall through to timeline snapshot lookup
+      if (scope === 'project') {
+        return { ok: false, name: 'search_units', result: null, error: 'data_loading' };
+      }
     }
   }
 
@@ -276,6 +281,20 @@ export async function listUnits(
   }
 
   const scopedSegmentMetaRows = await loadScopedSegmentMetaRows(context, scope);
+  if (scope === 'project') {
+    if (!resolveProjectScopeTextId(context) || !scopedSegmentMetaRows) {
+      return { ok: false, name: 'list_units', result: null, error: 'data_loading' };
+    }
+    return buildListUnitsPageResult(
+      context,
+      mapSegmentMetaRows(scopedSegmentMetaRows),
+      args,
+      scope,
+      {
+        readModelSource: 'segment_meta',
+      },
+    );
+  }
   if (
     scopedSegmentMetaRows &&
     (scopedSegmentMetaRows.length > 0 || loadNormalizedUnitRows(context).length === 0)

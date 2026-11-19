@@ -296,7 +296,10 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     };
 
     const result = await executeLocalContextToolCall(
-      { name: 'list_units', arguments: { limit: 10, offset: 0, sort: 'time_asc' } },
+      {
+        name: 'list_units',
+        arguments: { limit: 10, offset: 0, sort: 'time_asc', scope: 'current_scope' },
+      },
       context,
       ref,
     );
@@ -779,7 +782,7 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     };
 
     const result = await executeLocalContextToolCall(
-      { name: 'search_units', arguments: { query: 'hello', limit: 5 } },
+      { name: 'search_units', arguments: { query: 'hello', limit: 5, scope: 'current_scope' } },
       context,
       ref,
     );
@@ -820,7 +823,10 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     };
 
     const result = await executeLocalContextToolCall(
-      { name: 'search_units', arguments: { query: 'tone consonant', limit: 5 } },
+      {
+        name: 'search_units',
+        arguments: { query: 'tone consonant', limit: 5, scope: 'current_scope' },
+      },
       context,
       ref,
     );
@@ -855,7 +861,7 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     };
 
     const result = await executeLocalContextToolCall(
-      { name: 'get_unit_detail', arguments: { unitId: 'x1' } },
+      { name: 'get_unit_detail', arguments: { unitId: 'x1', scope: 'current_scope' } },
       context,
       ref,
     );
@@ -2488,7 +2494,10 @@ describe('list_units snapshot paging', () => {
     const dispose = addMetricObserver((e) => events.push({ id: e.id }));
     try {
       const result = await executeLocalContextToolCall(
-        { name: 'list_units', arguments: { limit: 5, offset: 0, sort: 'time_asc' } },
+        {
+          name: 'list_units',
+          arguments: { limit: 5, offset: 0, sort: 'time_asc', scope: 'current_scope' },
+        },
         context,
         ref,
       );
@@ -2523,7 +2532,7 @@ describe('list_units snapshot paging', () => {
       longTerm: {},
     };
     const first = await executeLocalContextToolCall(
-      { name: 'list_units', arguments: { limit: 4, offset: 0 } },
+      { name: 'list_units', arguments: { limit: 4, offset: 0, scope: 'current_scope' } },
       context,
       ref,
     );
@@ -2582,7 +2591,7 @@ describe('list_units snapshot paging', () => {
       longTerm: {},
     };
     const first = await executeLocalContextToolCall(
-      { name: 'list_units', arguments: { limit: 3, offset: 0 } },
+      { name: 'list_units', arguments: { limit: 3, offset: 0, scope: 'current_scope' } },
       context,
       ref,
     );
@@ -2603,7 +2612,7 @@ describe('list_units snapshot paging', () => {
     const n = LIST_UNITS_SNAPSHOT_ROW_THRESHOLD + 1;
     const rows = makeLocalUnitIndexRows(n);
     const first = await executeLocalContextToolCall(
-      { name: 'list_units', arguments: { limit: 3, offset: 0 } },
+      { name: 'list_units', arguments: { limit: 3, offset: 0, scope: 'current_scope' } },
       {
         shortTerm: { timelineReadModelEpoch: 5, unitIndexComplete: true, localUnitIndex: rows },
         longTerm: {},

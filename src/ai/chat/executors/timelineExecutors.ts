@@ -42,12 +42,9 @@ export function filterRowsByScope(
   scope: LocalUnitScope,
 ): NormalizedUnitRow[] {
   if (scope === 'project') {
-    const textId = resolveContextTextId(context);
-    if (!textId) return rows;
-    return rows.filter((row) => {
-      const rowTextId = normalizeTextValue(row.textId);
-      return rowTextId.length === 0 || rowTextId === textId;
-    });
+    const textId = resolveProjectScopeTextId(context);
+    if (!textId) return [];
+    return rows.filter((row) => normalizeTextValue(row.textId) === textId);
   }
 
   let scoped = rows;
@@ -193,12 +190,20 @@ export function mapSegmentMetaRows(rows: readonly SegmentMetaDocType[]): Normali
   }));
 }
 
-export function resolveContextTextId(context: AiPromptContext): string | undefined {
+/** 当前项目只认工作区文本。索引行可以缺 textId（segmentToView 不写），不能用来提名项目。 */
+export function resolveProjectScopeTextId(context: AiPromptContext): string | undefined {
   const workspaceTextId = normalizeTextValue(context.shortTerm?.workspaceTextId);
-  if (workspaceTextId.length > 0) return workspaceTextId;
+  return workspaceTextId.length > 0 ? workspaceTextId : undefined;
+}
+
+function resolveIndexTextId(context: AiPromptContext): string | undefined {
   const directRows = loadNormalizedUnitRows(context);
   const directTextId = directRows.find((row) => normalizeTextValue(row.textId).length > 0)?.textId;
   return normalizeTextValue(directTextId) || undefined;
+}
+
+export function resolveContextTextId(context: AiPromptContext): string | undefined {
+  return resolveProjectScopeTextId(context) ?? resolveIndexTextId(context);
 }
 
 export function resolveSegmentReadQueryScope(
@@ -207,20 +212,15 @@ export function resolveSegmentReadQueryScope(
 ): SegmentReadQueryScope | null {
   const base = resolveSegmentMetaScopeParams(context, scope);
   if (!base) return null;
-  const textId = resolveContextTextId(context);
-  if (base.kind === 'layer_media') {
+  if (base.kind === 'layer_media' || base.kind === 'media') {
+    const indexTextId = resolveIndexTextId(context);
     return {
-      ...(textId ? { textId } : {}),
-      mediaId: base.mediaId,
-      layerId: base.layerId,
-    };
-  }
-  if (base.kind === 'media') {
-    return {
-      ...(textId ? { textId } : {}),
+      ...(indexTextId ? { textId: indexTextId } : {}),
+      ...(base.kind === 'layer_media' ? { layerId: base.layerId } : {}),
       mediaId: base.mediaId,
     };
   }
+  const textId = resolveProjectScopeTextId(context);
   if (!textId) return null;
   return { textId };
 }
@@ -298,7 +298,7 @@ async function loadScopedSegmentMetaRowsAllDocuments(
   context: AiPromptContext,
   scope: LocalUnitScope,
 ): Promise<SegmentMetaDocType[] | null> {
-  const textId = resolveContextTextId(context);
+  const textId = resolveProjectScopeTextId(context);
   if (scope === 'project' && !textId) return null;
 
   const queryScope = resolveSegmentReadQueryScope(context, scope);
@@ -330,8 +330,7 @@ async function loadScopedSegmentMetaRowsAllDocuments(
       }
     }
     if (resolution.kind === 'media') {
-      const rows = await SegmentMetaService.listByMediaId(resolution.mediaId);
-      return textId ? rows.filter((row) => row.textId === textId) : rows;
+      return await SegmentMetaService.listByMediaId(resolution.mediaId);
     }
     if (!textId) return null;
     return (await SegmentMetaService.listByTextId(textId)).filter((row) => row.textId === textId);

@@ -191,6 +191,8 @@ describe('project scope does not read other projects (#589)', () => {
           layerId: 'layer-b',
         }),
         indexRow({ id: 'seg-a1', text: 'alpha hello', textId: 'text-a' }),
+        // segmentToView omits textId, so this row has no project ownership.
+        indexRow({ id: 'seg-untagged', text: 'bravo hello', startTime: 4 }),
       ],
     });
     const ref = { current: 0 };
@@ -211,12 +213,13 @@ describe('project scope does not read other projects (#589)', () => {
 
     expect(listed.ok).toBe(true);
     expect(matchIds(listed)).not.toContain('seg-b1');
+    expect(matchIds(listed)).not.toContain('seg-untagged');
     expect(matchIds(listed)).toEqual(expect.arrayContaining(['seg-a1', 'seg-a2']));
     expect(searched.ok).toBe(true);
     expect(matchIds(searched)).toEqual(['seg-a1']);
   });
 
-  it('does not promote a foreign index row when the current project has no segment_meta rows', async () => {
+  it('drops unknown-ownership index rows when the current project has no segment_meta rows', async () => {
     await db.segment_meta.where('textId').equals('text-a').delete();
     const ctx = context({
       workspaceTextId: 'text-a',
@@ -244,14 +247,43 @@ describe('project scope does not read other projects (#589)', () => {
       ref,
     );
 
+    const searched = await executeLocalContextToolCall(
+      { name: 'search_units', arguments: { scope: 'project', query: 'unsaved', limit: 20 } },
+      ctx,
+      ref,
+    );
+    const detailUntagged = await executeLocalContextToolCall(
+      { name: 'get_unit_detail', arguments: { scope: 'project', unitId: 'seg-local' } },
+      ctx,
+      ref,
+    );
+
     expect(listed.ok).toBe(true);
-    expect(matchIds(listed)).toEqual(['seg-local']);
+    expect(matchIds(listed)).toEqual([]);
+    expect(searched.ok).toBe(true);
+    expect(matchIds(searched)).toEqual([]);
     expect(detail.ok).toBe(false);
+    expect(detailUntagged.ok).toBe(false);
+    expect(JSON.stringify(listed)).not.toContain('bravo hello');
+    expect(JSON.stringify(listed)).not.toContain('unsaved local');
+    expect(JSON.stringify(searched)).not.toContain('unsaved local');
     expect(JSON.stringify(detail)).not.toContain('bravo hello');
+    expect(JSON.stringify(detailUntagged)).not.toContain('unsaved local');
   });
 
   it('does not widen to the whole library when project context has no text id', async () => {
-    const ctx = context({ localUnitIndex: [] });
+    const ctx = context({
+      localUnitIndex: [
+        indexRow({
+          id: 'seg-b1',
+          text: 'bravo hello',
+          textId: 'text-b',
+          mediaId: 'media-b',
+          layerId: 'layer-b',
+        }),
+        indexRow({ id: 'seg-untagged', text: 'bravo hello', startTime: 4 }),
+      ],
+    });
     const ref = { current: 0 };
     const listAll = vi.spyOn(SegmentMetaService, 'listAll');
     const search = vi.spyOn(SegmentMetaService, 'searchSegmentMeta');
@@ -277,6 +309,7 @@ describe('project scope does not read other projects (#589)', () => {
     expect(searched.ok).toBe(false);
     expect(searched.error).toBe('data_loading');
     expect(detail.ok).toBe(false);
+    expect(detail.error).toBe('data_loading');
     expect(JSON.stringify(listed.result)).not.toContain('seg-b1');
     expect(JSON.stringify(searched.result)).not.toContain('bravo');
     expect(JSON.stringify(detail.result)).not.toContain('bravo');
@@ -309,7 +342,7 @@ describe('project scope does not read other projects (#589)', () => {
     expect(hits.map((row) => row.segmentId).sort()).toEqual(['seg-a1', 'seg-b1']);
   });
 
-  it('keeps current_track on the workspace when two projects share a media id', async () => {
+  it('does not change current_track when two projects share a media id', async () => {
     const ctx = context({
       workspaceTextId: 'text-a',
       localUnitIndex: [],
@@ -324,6 +357,6 @@ describe('project scope does not read other projects (#589)', () => {
     );
 
     expect(listed.ok).toBe(true);
-    expect(matchIds(listed)).toEqual(['seg-shared-a']);
+    expect(matchIds(listed)).toEqual(['seg-shared-a', 'seg-shared-b']);
   });
 });

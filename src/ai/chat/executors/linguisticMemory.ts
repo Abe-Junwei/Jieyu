@@ -11,6 +11,7 @@ import { normalizeUnitScope } from '../localContextToolScopeNormalize';
 import { buildReadModelMetaWithSource } from './readModelMeta';
 import { normalizeTextValue, normalizeBoolean } from './argNormalizers';
 import {
+  resolveProjectScopeTextId,
   resolveSegmentReadQueryScope,
   loadScopedSegmentMetaRows,
   normalizedUnitRowsFromContext,
@@ -30,6 +31,10 @@ export async function getUnitDetail(
       result: null,
       error: 'unitId is required',
     };
+  }
+
+  if (scope === 'project' && !resolveProjectScopeTextId(context)) {
+    return { ok: false, name: 'get_unit_detail', result: null, error: 'data_loading' };
   }
 
   const queryScope = resolveSegmentReadQueryScope(context, scope);
@@ -89,6 +94,10 @@ export async function getUnitDetail(
     }
   }
 
+  if (scope === 'project') {
+    return { ok: false, name: 'get_unit_detail', result: null, error: `unit not found: ${unitId}` };
+  }
+
   const localRows = normalizedUnitRowsFromContext(context);
   if (localRows) {
     const scopedRows = filterRowsByScope(context, localRows, scope);
@@ -112,7 +121,7 @@ export async function getUnitDetail(
         },
       };
     }
-    if (scope !== 'project' && localRows.some((row) => row.id === unitId)) {
+    if (localRows.some((row) => row.id === unitId)) {
       return {
         ok: false,
         name: 'get_unit_detail',
