@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEdgeSaveTimer } from './useEdgeSaveTimer';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import {
   sharedEdge,
@@ -24,8 +25,6 @@ import {
 } from './desktopTranscriptionEdgePointer';
 
 export type { ShownPreview };
-const IDLE_MS = 500;
-const CAP_MS = 5000;
 
 interface EdgeUi {
   preview: ShownPreview | null;
@@ -71,8 +70,7 @@ export function useDesktopTranscriptionEdgeController(input: {
   const uiRef = useRef(ui);
   uiRef.current = ui;
   const edited = useRef(false);
-  const idle = useRef<number | null>(null);
-  const cap = useRef<number | null>(null);
+  const timer = useEdgeSaveTimer();
 
   useEffect(
     () =>
@@ -201,18 +199,7 @@ export function useDesktopTranscriptionEdgeController(input: {
   }
 
   function schedule(edge: TimeEdge) {
-    if (idle.current !== null) window.clearTimeout(idle.current);
-    idle.current = window.setTimeout(() => {
-      idle.current = null;
-      void flush(edge);
-    }, IDLE_MS);
-    if (cap.current !== null) return;
-    cap.current = window.setTimeout(() => {
-      cap.current = null;
-      if (idle.current !== null) window.clearTimeout(idle.current);
-      idle.current = null;
-      void flush(edge);
-    }, CAP_MS);
+    timer.schedule(() => void flush(edge));
   }
 
   async function flush(edge: TimeEdge) {
@@ -276,8 +263,7 @@ export function useDesktopTranscriptionEdgeController(input: {
       schedule(edge);
     },
     flushTime(edge: TimeEdge) {
-      if (idle.current !== null) window.clearTimeout(idle.current);
-      idle.current = null;
+      timer.cancelIdle();
       void flush(edge);
     },
     askDelete,
