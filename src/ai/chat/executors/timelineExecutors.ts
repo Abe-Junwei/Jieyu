@@ -44,7 +44,11 @@ export function filterRowsByScope(
   if (scope === 'project') {
     const textId = resolveProjectScopeTextId(context);
     if (!textId) return [];
-    return rows.filter((row) => normalizeTextValue(row.textId) === textId);
+    // 笔记范围保留未写 textId 的时间轴行（#592）。list/search/detail 另有更严的项目过滤，不走这里。
+    return rows.filter((row) => {
+      const rowTextId = normalizeTextValue(row.textId);
+      return rowTextId.length === 0 || rowTextId === textId;
+    });
   }
 
   let scoped = rows;
