@@ -181,23 +181,28 @@ function DesktopTranscriptionWorkspace() {
   const speakerCount = new Set(
     (sourceUnits ?? []).map((unit) => unit.speakerId).filter((id) => id !== null),
   ).size;
+  const sideActions = useRef({ draft, read, selection });
+  sideActions.current = { draft, read, selection };
+  const playbackDuration = playback.duration;
+  const readModel = read.model;
+  const selectedUnitId = selection.selectedUnitId;
   const manuscriptList = useMemo(
     () => (
       <DesktopTranscriptionContextColumn
         locale={locale}
-        manuscripts={read.model?.manuscripts ?? []}
-        manuscriptId={read.model?.manuscriptId ?? null}
-        layerId={read.model?.layerId ?? null}
+        manuscripts={readModel?.manuscripts ?? []}
+        manuscriptId={readModel?.manuscriptId ?? null}
+        layerId={readModel?.layerId ?? null}
         units={units}
         durationLabel={
-          hasAudio && playback.duration > 0 ? formatManuscriptDuration(playback.duration) : null
+          hasAudio && playbackDuration > 0 ? formatManuscriptDuration(playbackDuration) : null
         }
         speakerCount={speakerCount}
-        selectedUnitId={selection.selectedUnitId}
+        selectedUnitId={selectedUnitId}
         onSelectManuscript={(manuscriptId) =>
-          draft.leave(() => {
-            selection.clearSelection();
-            read.selectManuscript(manuscriptId);
+          sideActions.current.draft.leave(() => {
+            sideActions.current.selection.clearSelection();
+            sideActions.current.read.selectManuscript(manuscriptId);
           })
         }
         onSelectUnit={(unitId) => {
@@ -206,7 +211,7 @@ function DesktopTranscriptionWorkspace() {
         }}
       />
     ),
-    [draft, hasAudio, locale, playback, read, selection, speakerCount, units],
+    [hasAudio, locale, playbackDuration, readModel, selectedUnitId, speakerCount, units],
   );
   useRegisterAppSidePane({ subtitle: '', content: manuscriptList });
 
