@@ -1,5 +1,6 @@
 import type {
   ChangeEventHandler,
+  CompositionEventHandler,
   CSSProperties,
   FocusEventHandler,
   KeyboardEventHandler,
@@ -30,8 +31,7 @@ interface TimelineDraftEditorSurfaceProps {
   saveStatus?: TimelineDraftSaveStatus;
   onRetry?: (() => void) | undefined;
   onResizeHandlePointerDown?:
-    | ((event: ReactPointerEvent<HTMLDivElement>, edge: SurfaceResizeEdge) => void)
-    | undefined;
+    ((event: ReactPointerEvent<HTMLDivElement>, edge: SurfaceResizeEdge) => void) | undefined;
   overlay?: ReactNode;
   tools?: ReactNode;
   toolsClassName?: string;
@@ -39,6 +39,8 @@ interface TimelineDraftEditorSurfaceProps {
   onDoubleClick?: MouseEventHandler<HTMLInputElement | HTMLTextAreaElement>;
   onFocus?: FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>;
   onChange: ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>;
+  onCompositionStart?: CompositionEventHandler<HTMLInputElement | HTMLTextAreaElement>;
+  onCompositionEnd?: CompositionEventHandler<HTMLInputElement | HTMLTextAreaElement>;
   onBlur: FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>;
   onClick?: MouseEventHandler<HTMLInputElement | HTMLTextAreaElement>;
   onContextMenu?: MouseEventHandler<HTMLInputElement | HTMLTextAreaElement>;
@@ -75,6 +77,8 @@ export function TimelineDraftEditorSurface({
   onDoubleClick,
   onFocus,
   onChange,
+  onCompositionStart,
+  onCompositionEnd,
   onBlur,
   onClick,
   onContextMenu,
@@ -147,6 +151,12 @@ export function TimelineDraftEditorSurface({
             {...inputStyleProps}
             onFocus={onFocus as FocusEventHandler<HTMLTextAreaElement> | undefined}
             onChange={onChange as ChangeEventHandler<HTMLTextAreaElement>}
+            onCompositionStart={
+              onCompositionStart as CompositionEventHandler<HTMLTextAreaElement> | undefined
+            }
+            onCompositionEnd={
+              onCompositionEnd as CompositionEventHandler<HTMLTextAreaElement> | undefined
+            }
             onBlur={onBlur as FocusEventHandler<HTMLTextAreaElement>}
             onClick={onClick as MouseEventHandler<HTMLTextAreaElement> | undefined}
             onDoubleClick={onDoubleClick as MouseEventHandler<HTMLTextAreaElement> | undefined}
@@ -170,6 +180,12 @@ export function TimelineDraftEditorSurface({
           {...inputStyleProps}
           onFocus={onFocus as FocusEventHandler<HTMLInputElement> | undefined}
           onChange={onChange as ChangeEventHandler<HTMLInputElement>}
+          onCompositionStart={
+            onCompositionStart as CompositionEventHandler<HTMLInputElement> | undefined
+          }
+          onCompositionEnd={
+            onCompositionEnd as CompositionEventHandler<HTMLInputElement> | undefined
+          }
           onBlur={onBlur as FocusEventHandler<HTMLInputElement>}
           onClick={onClick as MouseEventHandler<HTMLInputElement> | undefined}
           onDoubleClick={onDoubleClick as MouseEventHandler<HTMLInputElement> | undefined}

@@ -132,6 +132,8 @@ export function DesktopTranscriptionLane(props: {
                     onResizeStartPointerDown={(event) => edges.beginDrag(unit.id, 'start', event)}
                     onResizeEndPointerDown={(event) => edges.beginDrag(unit.id, 'end', event)}
                     onChange={(event) => editBody(props, unit, event)}
+                    onCompositionStart={() => props.onComposeBody(true)}
+                    onCompositionEnd={() => props.onComposeBody(false)}
                     onBlur={() => props.onCommitBody()}
                     onKeyDown={(event) => restoreBody(props, unit, event, () => setEditingId(null))}
                   />
@@ -228,14 +230,11 @@ function ignoreAnnotationEvent() {
 
 function editBody(
   props: {
-    onComposeBody: (composing: boolean) => void;
     onEditBody: (unitId: string, text: string, savedText: string) => void;
   },
   unit: DesktopPlaybackUnit,
   event: ChangeEvent<HTMLInputElement>,
 ) {
-  const native = event.nativeEvent;
-  props.onComposeBody('isComposing' in native && native.isComposing === true);
   props.onEditBody(unit.id, event.target.value, unit.text);
 }
 

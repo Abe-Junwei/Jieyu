@@ -63,6 +63,7 @@ export function useDesktopDraftGuard(
   const held = (current: DesktopTextDraft | null) => isSameTextDraft(heldDraft.current, current);
 
   const reset = (unitId: string | null) => {
+    composing.current = false;
     operationId.current = null;
     sent.current = null;
     used.current = null;

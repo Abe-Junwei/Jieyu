@@ -150,6 +150,26 @@ describe('useDesktopDraftGuard', () => {
     expect(saved).toEqual([]);
   });
 
+  it('saves the next edit after a composition is discarded', async () => {
+    const saved: DesktopTextDraft[] = [];
+    const view = mount((draft) => {
+      saved.push(draft);
+      return Promise.resolve(true);
+    });
+    act(() => {
+      view.guard().setComposing(true);
+      view.guard().edit('u1', 'ni', '旧');
+    });
+    act(() => {
+      view.guard().leave(() => undefined);
+    });
+    expect(view.guard().prompt).toEqual({ failed: false });
+    await act(() => view.guard().discard());
+    act(() => view.guard().edit('u1', 'done', '旧'));
+    expect(await act(() => view.guard().commit())).toBe(true);
+    expect(saved).toEqual([{ unitId: 'u1', text: 'done' }]);
+  });
+
   it('retries leave instead of navigating when the user edits during a deferred save', async () => {
     const resolvers: Array<(ok: boolean) => void> = [];
     const saved: DesktopTextDraft[] = [];

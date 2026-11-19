@@ -238,4 +238,22 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
       expect(saveText).toHaveBeenCalledWith('u-a', 'alpha beta', expect.any(String));
     });
   });
+
+  it('saves when an IME composition ends and holds the leave dialog while it is open', async () => {
+    renderWorkspace();
+    fireEvent.click(screen.getByText('alpha'));
+    fireEvent.click(screen.getByText('alpha'));
+    const input = bodyInput();
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: 'ni' }, isComposing: true });
+    fireEvent.click(screen.getByText('beta'));
+    expect(await screen.findByRole('dialog', { name: '正文还没保存' })).toBeTruthy();
+    expect(saveText).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '留在这里' }));
+    fireEvent.change(input, { target: { value: '你' }, isComposing: true });
+    fireEvent.compositionEnd(input);
+    await waitFor(() => {
+      expect(saveText).toHaveBeenCalledWith('u-a', '你', expect.any(String));
+    });
+  });
 });
