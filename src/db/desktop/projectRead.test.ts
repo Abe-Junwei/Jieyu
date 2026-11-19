@@ -159,6 +159,21 @@ describe('desktop project read', () => {
     ]);
     expect(model.layers[1]?.units[0]?.parentUnitId).toBe(parent.id);
     expect(model.audioUrl).toBeNull();
+
+    const located = await loadDesktopProjectRead(
+      {
+        listManuscripts: (sessionId) => client.listManuscripts(sessionId),
+        listLayers: (sessionId, manuscriptId) => client.listLayers(sessionId, manuscriptId),
+        listUnits: (sessionId, layerId) => client.listUnits(sessionId, layerId),
+        mediaPlayUrl: async (sessionId, mediaId) => desktopMediaPlayUrl(sessionId, mediaId).url,
+      },
+      session.sessionId,
+      manuscript.id,
+      false,
+      childLayer.id,
+    );
+    expect(located.layerId).toBe(childLayer.id);
+    expect(located.units.map((unit) => unit.text)).toEqual(['子段']);
   });
 
   it('does not grant a url when the session is expired or the path escapes', () => {

@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0127**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0128**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -71,6 +71,7 @@ source_of_truth: decision-index
 
 ## 本轮范围与生命周期
 
+- [0127：共享波形上的选区按钮和速度滑杆改用主题色实底](./0127-shared-waveform-region-controls-use-theme-paint.md)
 - [0126：v29 一次写入层外观、分轨锁定、口译附件与层软删](./0126-v29-lane-locks-oral-audio-and-layer-retention.md)
 - [0125：全稿概览是时间尺底部的视窗条](./0125-overview-is-the-time-ruler-strip.md)
 - [0124：左轨当前项以转写精稿标准帧为准](./0124-left-rail-current-item-matches-pixso-shell.md)

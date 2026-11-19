@@ -41,7 +41,11 @@ import {
 } from '../src/desktop/restoredProjectGrant';
 import { grantExchangePath } from '../src/desktop/exchangePathGrant';
 import { ensureBundledSample, SAMPLE_PROJECT_DIRNAME } from '../src/db/desktop/sampleProject';
-import { copyRecordingIntoProject } from '../src/db/desktop/importRecordingFile';
+import { projectLibraryHeaderMatches } from '../src/db/desktop/openProject';
+import {
+  copyRecordingIntoProject,
+  projectFolderForNewImport,
+} from '../src/db/desktop/importRecordingFile';
 import { desktopMediaPlayUrl } from '../src/db/desktop/mediaUrl';
 import {
   abandonDesktopSession,
@@ -374,13 +378,10 @@ function registerIpc(): void {
     let session = typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : null;
     let folder: string;
     if (session === null) {
-      folder = path.resolve(
-        app.getPath('documents'),
-        '解语',
-        path
-          .basename(file, path.extname(file))
-          .replace(/[/:]/g, '')
-          .trim() || '录音',
+      folder = projectFolderForNewImport(
+        path.resolve(app.getPath('documents'), '解语'),
+        path.basename(file, path.extname(file)),
+        projectLibraryHeaderMatches,
       );
       fs.mkdirSync(path.dirname(folder), { recursive: true });
       allowedProjectFolders.add(folder);

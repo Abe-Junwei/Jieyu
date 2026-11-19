@@ -1,3 +1,5 @@
+@import './timeline/timeline-annotation.css';
+
 .desktop-tx-workspace {
   display: flex;
   flex: 1 1 auto;
@@ -746,39 +748,28 @@
   height: 100%;
 }
 
-.desktop-tx-seg {
-  position: absolute;
+.desktop-tx-lane .timeline-annotation {
   top: 8px;
+  bottom: 8px;
   box-sizing: border-box;
-  height: 38px;
-  padding: 5px 8px;
-  border: 0;
   border-radius: 0;
-  appearance: none;
-  background: var(--theme-accent-tint);
-  color: var(--text-primary);
-  font-size: 16px;
-  line-height: 24px;
-  text-align: start;
-  overflow: visible;
-  white-space: nowrap;
 }
 
-.desktop-tx-seg__text {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* 拖柄留给 1b-2。本片只读，选中也不露出。 */
+.desktop-tx-lane .timeline-annotation-resize-handle {
+  display: none;
 }
 
-.desktop-tx-seg[aria-current='true'] {
+.desktop-tx-lane .timeline-annotation.timeline-annotation-selected,
+.desktop-tx-lane .timeline-annotation.timeline-annotation-selected:hover {
   background: var(--brand-tint);
   border: 1px solid var(--text-secondary);
   border-radius: var(--radius-md);
   box-shadow: 0 0 0 3px rgb(17 17 17 / 14%);
 }
 
-:root[data-theme='dark'] .desktop-tx-seg[aria-current='true'] {
+:root[data-theme='dark'] .desktop-tx-lane .timeline-annotation.timeline-annotation-selected,
+:root[data-theme='dark'] .desktop-tx-lane .timeline-annotation.timeline-annotation-selected:hover {
   box-shadow: 0 0 0 3px rgb(244 242 236 / 18%);
 }
 

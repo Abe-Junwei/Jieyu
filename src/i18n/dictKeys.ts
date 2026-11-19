@@ -48,6 +48,7 @@ export const DICT_KEYS = [
   'app.desktopTranscription.contextEmptyLayers',
   'app.desktopTranscription.contextEmptySegments',
   'app.desktopTranscription.contextLayerTranscription',
+  'app.desktopTranscription.contextSegmentOrdinal',
   'app.desktopTranscription.waveformPlaceholder',
   'app.desktopTranscription.noAudioTitle',
   'app.desktopTranscription.noAudioMessage',

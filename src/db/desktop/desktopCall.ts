@@ -81,6 +81,7 @@ import {
   replaceTokenLexemeLink,
 } from './lexemeLink';
 import { createMedia, listActiveMedia, listDeletedMedia } from './media';
+import { registerRecording } from './registerRecording';
 import { finishMediaCleanup, type MediaTrash } from './mediaCleanup';
 import { reregisterMedia, restoreRegisteredMedia } from './mediaReregister';
 import {
@@ -776,6 +777,10 @@ const operationHandlers = {
   'media.create': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['media.create']['check']>) =>
       createMedia(ctx.db, ctx.folder, input),
+  },
+  'recordings.register': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['recordings.register']['check']>) =>
+      registerRecording(ctx.db, ctx.folder, input),
   },
   'media.delete': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['media.delete']['check']>) =>

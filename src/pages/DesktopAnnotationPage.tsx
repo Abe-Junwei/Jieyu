@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ContentNoteCategory } from '../app/desktopProjectReadPageAccess';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
-import { msToSec } from '../db/desktop/timeMs';
+import { msToSec } from '../utils/timeMs';
 import { t, tf, useLocale } from '../i18n';
 import { useDesktopAnnotationLexemeLinks } from './useDesktopAnnotationLexemeLinks';
 import { useDesktopAnnotationWords } from './useDesktopAnnotationWords';

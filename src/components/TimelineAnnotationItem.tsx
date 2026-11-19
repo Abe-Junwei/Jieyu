@@ -19,8 +19,8 @@ import { TimelineBadges } from './TimelineBadges';
 // ── Types ────────────────────────────────────────────────────
 
 export interface TimelineAnnotationItemProps {
-  left: number;
-  width: number;
+  left: number | string;
+  width: number | string;
   isSelected: boolean;
   isLayerCurrent?: boolean;
   isActive: boolean;

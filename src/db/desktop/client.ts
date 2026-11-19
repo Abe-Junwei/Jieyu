@@ -3,6 +3,7 @@ import type { DesktopOperations } from './operationContract';
 import type { LayerCreate } from './layers';
 import type { LexemeLinkWrite, LexemeSave } from './lexicon';
 import type { MediaCreate } from './media';
+import type { RecordingRegistration } from './registerRecording';
 import type { ManuscriptCreate } from './manuscripts';
 import type { AnalysisCredentials } from './analysisRestore';
 import type { SourceCreate, SourcePatch } from './sourceFields';
@@ -28,6 +29,8 @@ export function createDesktopClient(bridge: DesktopBridge) {
   }
   return {
     createMedia: (sessionId: string, input: MediaCreate) => once(sessionId, 'media.create', input),
+    registerRecording: (sessionId: string, input: RecordingRegistration) =>
+      once(sessionId, 'recordings.register', input),
     createManuscript: (sessionId: string, input: ManuscriptCreate) =>
       once(sessionId, 'manuscripts.create', input),
     createLayer: (sessionId: string, input: LayerCreate) => once(sessionId, 'layers.create', input),

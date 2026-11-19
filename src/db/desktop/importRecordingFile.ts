@@ -30,6 +30,26 @@ export interface CopiedRecording {
   filename: string;
 }
 
+/**
+ * Folder for a recording imported with no project open.
+ * An existing library that is not the current format is left untouched; the next free name is used.
+ */
+export function projectFolderForNewImport(
+  root: string,
+  baseName: string,
+  headerMatches: (sqliteFile: string) => boolean,
+): string {
+  const trimmed = baseName.replace(/[/:]/g, '').trim();
+  const safe = trimmed.length > 0 ? trimmed : '录音';
+  const base = path.resolve(root, safe);
+  for (let n = 0; n < 100; n += 1) {
+    const folder = n === 0 ? base : `${base} ${n + 1}`;
+    const sqlite = path.join(folder, 'project.sqlite');
+    if (!existsSync(sqlite) || headerMatches(sqlite)) return folder;
+  }
+  throw new Error('project.sqlite is not a Jieyu project library');
+}
+
 /** Copy an audio file into `media/<sha256><ext>`. Same bytes are reused; a hash clash is refused. */
 export async function copyRecordingIntoProject(
   folder: string,

@@ -2,7 +2,7 @@ import { featureFlags } from '../ai/config/featureFlags';
 import { DesktopModelCandidates } from './DesktopModelCandidates';
 import { useEffect, useState } from 'react';
 import { createDesktopClient } from '../app/desktopProjectReadPageAccess';
-import { msToSec } from '../db/desktop/timeMs';
+import { msToSec } from '../utils/timeMs';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
 

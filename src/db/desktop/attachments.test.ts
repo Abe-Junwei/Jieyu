@@ -89,6 +89,59 @@ describe('lexeme attachments', () => {
     ).toThrow('attachment link is missing');
   });
 
+  it('keeps the file when a unit text still cites it', async () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { und: 'bare' },
+    }) as { id: string };
+    const layer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { und: 'Transcription' },
+      tierType: 'symbolic-association',
+      contentType: 'transcription',
+    }) as { id: string };
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: layer.id,
+      text: 'ka',
+    }) as { id: string };
+    const bytes = Buffer.from('oral');
+    entry(session.sessionId, 'one');
+    const published = publish(session.sessionId, 'one', bytes, 'op-1');
+    const db = requireDesktopSession(session.sessionId).db;
+    db.prepare('UPDATE unit_texts SET audio_file_id = ? WHERE unit_id = ?').run(
+      published.fileId,
+      unit.id,
+    );
+    const object = join(dir, 'attachments', 'objects', sha256(bytes));
+
+    const removed = callDesktopSession(session.sessionId, 'attachments.removeLink', {
+      linkId: published.linkId,
+    }) as { state: string };
+    expect(removed.state).toBe('ready');
+    expect(existsSync(object)).toBe(true);
+
+    db.prepare(`UPDATE attachment_files SET state = 'cleanup_pending' WHERE id = ?`).run(
+      published.fileId,
+    );
+    expect(
+      (
+        await finishAttachmentCleanup(db, dir, published.fileId, async () => {
+          throw new Error('trashed a cited file');
+        })
+      ).state,
+    ).toBe('ready');
+    expect(existsSync(object)).toBe(true);
+
+    db.prepare('UPDATE unit_texts SET audio_file_id = NULL WHERE unit_id = ?').run(unit.id);
+    db.prepare(`UPDATE attachment_files SET state = 'cleanup_pending' WHERE id = ?`).run(
+      published.fileId,
+    );
+    expect((await finishAttachmentCleanup(db, dir, published.fileId, moved)).state).toBe('removed');
+    expect(existsSync(object)).toBe(false);
+  });
+
   it('keeps the file when one link remains and returns it to ready if linked again', async () => {
     const dir = folder();
     const session = openDesktopSession(dir, [dir]);

@@ -56,6 +56,10 @@ afterEach(() => {
   delete (globalThis as { jieyuDesktop?: unknown }).jieyuDesktop;
 });
 
+function annotation(text: string): Element | null {
+  return screen.getByText(text).closest('.timeline-annotation');
+}
+
 function renderWorkspace(entry = '/transcription') {
   (globalThis as { jieyuDesktop?: unknown }).jieyuDesktop = {
     projectReadEnabled: true,
@@ -113,20 +117,21 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     expect(document.querySelector('.transcription-wave-toolbar')).toBeNull();
     expect(screen.getByRole('button', { name: '只播本段' }).hasAttribute('disabled')).toBe(true);
 
-    fireEvent.click(screen.getByRole('button', { name: 'alpha' }));
-    expect(screen.getByRole('button', { name: 'alpha' }).getAttribute('aria-current')).toBe('true');
+    fireEvent.click(screen.getByText('alpha'));
+    expect(annotation('alpha')?.classList.contains('timeline-annotation-selected')).toBe(true);
+    expect(screen.queryByRole('textbox')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'beta' }));
-    expect(screen.getByRole('button', { name: 'beta' }).getAttribute('aria-current')).toBe('true');
-    expect(screen.getByRole('button', { name: 'alpha' }).getAttribute('aria-current')).toBeNull();
+    fireEvent.click(screen.getByText('beta'));
+    expect(annotation('beta')?.classList.contains('timeline-annotation-selected')).toBe(true);
+    expect(annotation('alpha')?.classList.contains('timeline-annotation-selected')).toBe(false);
     expect(saveText).not.toHaveBeenCalled();
   });
 
   it('replaces a deep-linked unit when another unit is clicked', () => {
     renderWorkspace('/transcription?manuscriptId=ms-1&layerId=layer-1&unitId=u-b');
-    expect(screen.getByRole('button', { name: 'beta' }).getAttribute('aria-current')).toBe('true');
-    fireEvent.click(screen.getByRole('button', { name: 'alpha' }));
-    expect(screen.getByRole('button', { name: 'alpha' }).getAttribute('aria-current')).toBe('true');
-    expect(screen.getByRole('button', { name: 'beta' }).getAttribute('aria-current')).toBeNull();
+    expect(annotation('beta')?.classList.contains('timeline-annotation-selected')).toBe(true);
+    fireEvent.click(screen.getByText('alpha'));
+    expect(annotation('alpha')?.classList.contains('timeline-annotation-selected')).toBe(true);
+    expect(annotation('beta')?.classList.contains('timeline-annotation-selected')).toBe(false);
   });
 });

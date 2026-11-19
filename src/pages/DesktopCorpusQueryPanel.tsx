@@ -1,6 +1,6 @@
 import type { CorpusQueryHit, CorpusTextSpan } from '../app/desktopProjectReadPageAccess';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
-import { msToSec } from '../db/desktop/timeMs';
+import { msToSec } from '../utils/timeMs';
 import { t, tf, useLocale } from '../i18n';
 import { useDesktopCorpusQuery } from './useDesktopCorpusQuery';
 

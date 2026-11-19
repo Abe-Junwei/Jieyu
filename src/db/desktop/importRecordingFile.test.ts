@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -9,7 +9,7 @@ import {
 } from '../../desktop/skeleton/desktopMediaGrant';
 import { createDesktopClient } from './client';
 import { callDesktopSession } from './desktopCall';
-import { copyRecordingIntoProject } from './importRecordingFile';
+import { copyRecordingIntoProject, projectFolderForNewImport } from './importRecordingFile';
 import { desktopMediaPlayUrl } from './mediaUrl';
 import { loadDesktopProjectRead } from './projectRead';
 import { openDesktopSession, resetDesktopSessions } from './projectSession';
@@ -74,6 +74,16 @@ describe('copyRecordingIntoProject', () => {
     const token = model.audioUrl?.slice('jieyu-media://local/'.length) ?? '';
     expect(resolveDesktopMedia(token)?.endsWith(copied.relpath)).toBe(true);
     expect(readFileSync(resolveDesktopMedia(token) ?? '').toString()).toBe('wav-bytes');
+  });
+
+  it('leaves an older library untouched and picks the next folder', () => {
+    const root = folder();
+    const older = join(root, 'take');
+    mkdirSync(older);
+    writeFileSync(join(older, 'project.sqlite'), 'old');
+    expect(projectFolderForNewImport(root, 'take', () => false)).toBe(join(root, 'take 2'));
+    expect(readFileSync(join(older, 'project.sqlite')).toString()).toBe('old');
+    expect(projectFolderForNewImport(root, 'take', () => true)).toBe(older);
   });
 
   it('refuses a file that is not audio', async () => {

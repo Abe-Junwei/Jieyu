@@ -55,6 +55,7 @@ export const enUSDictionary = {
   'app.desktopTranscription.contextEmptyLayers': 'No layers yet',
   'app.desktopTranscription.contextEmptySegments': 'No segments yet',
   'app.desktopTranscription.contextLayerTranscription': 'Transcription',
+  'app.desktopTranscription.contextSegmentOrdinal': 'Segment {index}',
   'app.desktopTranscription.waveformPlaceholder':
     'Waveform and timeline reuse follows later slice-1 tasks',
   'app.desktopTranscription.noAudioTitle': 'No recording yet',

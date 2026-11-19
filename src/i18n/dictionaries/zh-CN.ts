@@ -51,6 +51,7 @@ export const zhCNDictionary = {
   'app.desktopTranscription.contextEmptyLayers': '还没有层',
   'app.desktopTranscription.contextEmptySegments': '还没有片段',
   'app.desktopTranscription.contextLayerTranscription': '转写',
+  'app.desktopTranscription.contextSegmentOrdinal': '第 {index} 段',
   'app.desktopTranscription.waveformPlaceholder': '波形与时间轴复用接线见切片 1 后续任务',
   'app.desktopTranscription.noAudioTitle': '还没有录音',
   'app.desktopTranscription.noAudioMessage': '导入一段录音后，这里会显示波形和句段。',

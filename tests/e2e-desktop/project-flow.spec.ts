@@ -32,10 +32,7 @@ const textLabel = /^(Text|正文|app\.desktopRead\.text)$/;
 const saveText = /^(Save text|保存正文|app\.desktopRead\.saveText)$/;
 const boundaryLabel = /^(Literature boundary|文献边界|app\.desktopRead\.boundary)$/;
 const moveBoundary = /^(Move boundary|移动边界|app\.desktopRead\.moveBoundary)$/;
-const offsetLabel = /^(Offset seconds|偏移秒|app\.desktopRead\.offset)$/;
-const saveMapping = /^(Save time mapping|保存时间映射|app\.desktopRead\.saveMapping)$/;
 const edited = '0.0–0.2 edited';
-const played = '1.0–1.2';
 const restoreAction = /^(Restore|恢复)$/;
 const confirmRestore = /^(Continue restore|继续恢复)$/;
 const cancelRestore = /^(Cancel|取消)$/;
@@ -65,9 +62,9 @@ test('transcription workspace seeks a segment and space starts playback', async 
     await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
     await expect(page.getByRole('button', { name: /^(Play|播放)$/ })).toBeEnabled();
     await waitForAudio(page);
-    const segment = page.locator('.desktop-tx-seg', { hasText: 'two' });
+    const segment = page.locator('.timeline-annotation', { hasText: 'two' });
     await segment.click();
-    await expect(segment).toHaveAttribute('aria-current', 'true');
+    await expect(segment).toHaveClass(/timeline-annotation-selected/);
     const audio = page.locator('audio');
     await expect
       .poll(() => audio.evaluate((element) => (element as HTMLAudioElement).currentTime))
@@ -322,7 +319,6 @@ test('opens, plays, edits, refuses a second process, and reads the edit back', a
     await again.getByRole('button', { name: openFolder }).click();
     await expect(again.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
     await expect(again.getByRole('button', { name: edited })).toBeVisible();
-    await expect(again.getByText(played)).toBeVisible();
   } finally {
     await second?.close();
     await third?.close();
@@ -607,14 +603,10 @@ async function editProject(app: ElectronApplication, projectFolder: string): Pro
   await page.getByRole('textbox', { name: boundaryLabel }).fill('0.2');
   await page.getByRole('button', { name: moveBoundary }).click();
   await expect(page.getByRole('button', { name: edited })).toBeVisible();
-  await page.getByRole('textbox', { name: offsetLabel }).fill('1');
-  await page.getByRole('button', { name: saveMapping }).click();
-  await expect(page.getByRole('button', { name: edited })).toBeVisible();
-  await expect(page.getByText(played)).toBeVisible();
   await page.getByRole('button', { name: edited }).click();
   await expect
     .poll(() => audio.evaluate((element) => (element as HTMLAudioElement).currentTime))
-    .toBeGreaterThan(0.9);
+    .toBeLessThan(0.05);
   return page;
 }
 

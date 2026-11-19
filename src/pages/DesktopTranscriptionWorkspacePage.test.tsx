@@ -57,6 +57,7 @@ describe('DesktopTranscriptionWorkspacePage', () => {
     expect(screen.getByTestId('desktop-no-audio')).toBeTruthy();
     expect(screen.getByText('还没有录音')).toBeTruthy();
     expect(screen.getByRole('button', { name: '导入录音…' })).toBeTruthy();
+    expect(screen.queryByText('转写')).toBeNull();
     expect(screen.queryByTestId('desktop-waveform')).toBeNull();
     expect(screen.queryByText('片段检查器')).toBeNull();
   });
@@ -117,14 +118,7 @@ describe('DesktopTranscriptionWorkspacePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '导入录音…' }));
     await waitFor(() => {
-      expect(calls).toEqual(
-        expect.arrayContaining([
-          'media.list',
-          'media.create',
-          'manuscripts.create',
-          'layers.create',
-        ]),
-      );
+      expect(calls).toEqual(['media.list', 'recordings.register']);
     });
   });
 
@@ -170,11 +164,9 @@ describe('DesktopTranscriptionWorkspacePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '导入录音…' }));
     await waitFor(() => {
-      expect(calls).toContain('manuscripts.list');
+      expect(calls).toEqual(['media.list', 'recordings.register']);
     });
     expect(calls).not.toContain('manuscripts.create');
-    expect(calls).not.toContain('layers.create');
-    expect(calls).not.toContain('media.create');
   });
 
   it('does not import Dexie or ReadyWorkspace orchestrator modules', () => {
@@ -184,5 +176,16 @@ describe('DesktopTranscriptionWorkspacePage', () => {
     );
     expect(source).not.toMatch(/from ['"].*dexie/i);
     expect(source).not.toMatch(/readyWorkspace/i);
+    const css = readFileSync(
+      join(process.cwd(), 'src/styles/pages/desktop-transcription-workspace.css'),
+      'utf8',
+    );
+    expect(css).toMatch(
+      /\.desktop-tx-lane \.timeline-annotation\.timeline-annotation-selected[\s\S]*var\(--brand-tint\)[\s\S]*var\(--text-secondary\)[\s\S]*var\(--radius-md\)[\s\S]*rgb\(17 17 17 \/ 14%\)/,
+    );
+    expect(css).toMatch(/data-theme='dark'[\s\S]*rgb\(244 242 236 \/ 18%\)/);
+    expect(css).toMatch(
+      /\.desktop-tx-lane \.timeline-annotation-resize-handle[\s\S]*display:\s*none/,
+    );
   });
 });

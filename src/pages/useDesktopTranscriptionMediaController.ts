@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useWaveSurfer, type UseWaveSurferOptions } from '../hooks/media/useWaveSurfer';
 import { useTimelineViewport } from '../hooks/transcription/useTimelineViewport';
-import { getEffectiveKeymap, matchKeyEvent } from '../services/KeybindingService';
+import { playbackKeyAction } from '../desktop/playbackKeys';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
@@ -119,11 +119,8 @@ export function useDesktopTranscriptionMediaController(input: {
 
   useEffect(() => {
     applyVolume(volume);
-  }, [applyVolume, volume]);
-
-  useEffect(() => {
     applyRate(playbackRate);
-  }, [applyRate, playbackRate]);
+  }, [applyVolume, applyRate, volume, playbackRate]);
 
   useEffect(() => {
     const el = player.waveformRef.current;
@@ -157,18 +154,11 @@ export function useDesktopTranscriptionMediaController(input: {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) {
         return;
       }
-      const keymap = getEffectiveKeymap();
-      const playPause = keymap.get('playPause');
-      if (playPause && matchKeyEvent(event, playPause)) {
-        event.preventDefault();
-        toggleRef.current();
-        return;
-      }
-      const playSegmentKey = keymap.get('playSegment');
-      if (playSegmentKey && matchKeyEvent(event, playSegmentKey)) {
-        event.preventDefault();
-        playSegment();
-      }
+      const action = playbackKeyAction(event);
+      if (action === null) return;
+      event.preventDefault();
+      if (action === 'playPause') toggleRef.current();
+      else playSegment();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);

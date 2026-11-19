@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
-import { msToSec, secToMs } from '../db/desktop/timeMs';
+import { msToSec, secToMs } from '../utils/timeMs';
 import { DesktopScopeNote } from './DesktopScopeNote';
 
 export interface DesktopProjectReadManuscript {

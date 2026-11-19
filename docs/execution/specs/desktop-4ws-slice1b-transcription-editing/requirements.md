@@ -50,7 +50,7 @@ source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 | --- | --- | --- |
 | 页面 | `src/pages/DesktopTranscriptionWorkspacePage.tsx` | 仅装配；去检查器 |
 | Controller | `src/pages/useDesktopTranscription*Controller.ts` | 新增（媒体、选择、句段编辑分开） |
-| Hook 复用 | `src/hooks/media/useWaveSurfer.ts`、`WaveformToolbar` | 复用，不改语义 |
+| Hook 复用 | `src/hooks/media/useWaveSurfer.ts`、`WaveformToolbar` | 复用，不改语义。选区按钮和速度滑杆的画法按 ADR-0127，旧页同一套类一起改 |
 | 组件复用 | `TranscriptionTimelineMediaTranscriptionLane`、`TimelineAnnotationItem` | 受控 props；不挂 `VerticalView`／`HorizontalMediaLanes` |
 | Schema / DB | `src/db/desktop/schema.ts`、`units.ts`、`unitSpan.ts`、新 `points.ts` | user_version 29；改写边界／拆分／合并 |
 | 宿主 | `operationContract.ts`、`desktopCall.ts`、`client.ts` | 新操作 |

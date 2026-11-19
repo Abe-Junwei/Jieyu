@@ -57,6 +57,7 @@ import type {
   RecordingDeletion,
 } from './manuscripts';
 import type { DeletedMedia, Media, MediaCreate } from './media';
+import type { RecordingRegistration, RegisteredRecording } from './registerRecording';
 import type { MediaCleanup } from './mediaCleanup';
 import type { MediaReregistration } from './mediaReregister';
 import type { ProjectIdentity } from './projectIdentity';
@@ -1409,6 +1410,31 @@ export const desktopOperations = {
     duration: requiredNumber(input.duration, 'duration'),
     ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   })),
+  'recordings.register': spec<'clear', RecordingRegistration, RegisteredRecording>(
+    'clear',
+    (input) => {
+      knownKeys(input, [
+        'relpath',
+        'sha256',
+        'duration',
+        'title',
+        'layerKey',
+        'layerName',
+        'tierType',
+        'contentType',
+      ]);
+      return {
+        relpath: requiredString(input.relpath, 'relpath'),
+        sha256: requiredString(input.sha256, 'sha256'),
+        duration: requiredNumber(input.duration, 'duration'),
+        title: stringMap(input.title, 'title'),
+        layerKey: requiredString(input.layerKey, 'layerKey'),
+        layerName: stringMap(input.layerName, 'layerName'),
+        tierType: requiredString(input.tierType, 'tierType'),
+        contentType: requiredString(input.contentType, 'contentType'),
+      };
+    },
+  ),
   'media.delete': spec<'clear', { id: string }, RecordingDeletion>('clear', (input) => {
     knownKeys(input, ['id']);
     return { id: requiredString(input.id, 'id') };

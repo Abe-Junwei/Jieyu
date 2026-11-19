@@ -31,7 +31,7 @@ depends_on:
 ## 小片
 
 - [x] 1b-0（[#560](https://github.com/Abe-Junwei/Jieyu/issues/560)）格式 v29，按 [ADR-0122](../../../adr/0122-integer-milliseconds-and-optional-media.md) 及 2026-11-19 全量建齐决定：`startMs`／`endMs`、点的 `timeMs`、转写范围 `rangeStartMs`／`rangeEndMs`；`timeMs.ts` 唯一换算（恰半毫秒向时间轴正方向取整）；删逻辑时长和文稿映射；`media_id` 可空、`sort_order`、时间可空且开始早于结束；点必须有时刻；拆合映射不设外键；`units` 补 `skip_processing`、`confidence`、`self_certainty`；`layers` 补软删三列（`deleted_at`／`retain_until`／`reminder_shown_at`）、`modality`、轨高与显示字体列；新增 `layer_lane_locks(layer_id, speaker_id, lane_index)` 子表；`unit_texts` 关联 `attachment_files(id)` 存口译短录音；`settings.ts` 放行合并分隔符键。桌面读路径改走毫秒并读整稿多层与句段链接。格式冻结记录与旧库拒绝 → 验证：`npx vitest run src/db/desktop`（写→关→重开读回、半毫秒取整）
-- [ ] 1b-1 收口（[#561](https://github.com/Abe-Junwei/Jieyu/issues/561)）只读语段换成 `TimelineAnnotationItem`（文本与选中；64px 层名；不显示拖柄、不开行内输入、不挂旧层头）。波形／播放／缩放／视图菜单已在页上，本片不扩 → 验证：页面 vitest + `test:e2e:desktop-project`
+- [x] 1b-1 收口（[#561](https://github.com/Abe-Junwei/Jieyu/issues/561)）只读语段换成 `TimelineAnnotationItem`（文本与选中；64px 层名；不显示拖柄、不开行内输入、不挂旧层头）。波形／播放／缩放／视图菜单已在页上，本片不扩 → 验证：页面 vitest + `test:e2e:desktop-project`
 - [ ] 播放与选区（[#602](https://github.com/Abe-Junwei/Jieyu/issues/602)）从这里播放、清除选区 → 验证：页面 vitest
 - [ ] 语段样态（[#596](https://github.com/Abe-Junwei/Jieyu/issues/596)）机器转写置信度下划线、跳过处理斜纹、标记为跳过处理／取消跳过（写→关→重开读回）、紧凑密度 → 验证：单库与页面 vitest
 - [ ] 多层视图（[#598](https://github.com/Abe-Junwei/Jieyu/issues/598)）时间轴第二层、折叠轨道、层级连接线（有链接才画；开关在层列表或视图菜单）。精稿补收起的层和两层之间的连线 → 验证：页面 vitest + 桌面流程

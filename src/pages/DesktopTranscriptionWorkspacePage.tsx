@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, type CSSProperties, type RefObject } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { TimeRuler } from '../components/TimeRuler';
+import { TimelineAnnotationItem } from '../components/TimelineAnnotationItem';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
 import { JieyuIcon } from '../components/ui/JieyuIcon';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
@@ -13,7 +14,7 @@ import {
   timelineZoomPercentFromSlider,
   timelineZoomSliderPosition,
 } from '../utils/timelineZoomPercent';
-import { msToSec } from '../db/desktop/timeMs';
+import { msToSec } from '../utils/timeMs';
 import { DesktopTranscriptionContextColumn } from './DesktopTranscriptionContextColumn';
 import { DesktopDraftLeaveDialog } from './DesktopDraftLeaveDialog';
 import { readDesktopCorpusLocate } from './desktopCorpusLocate';
@@ -348,44 +349,53 @@ export function DesktopTranscriptionWorkspacePage() {
               </button>
             </div>
           )}
-          <div
-            className="desktop-tx-lane"
-            data-testid="desktop-readonly-timeline"
-            hidden={!hasAudio}
-          >
-            <div className="desktop-tx-band-label">
-              {t(locale, 'app.desktopTranscription.contextLayerTranscription')}
-            </div>
-            <div ref={tierRef} className="desktop-tx-lane__body">
-              <div
-                className="desktop-tx-lane__track"
-                style={
-                  playback.zoomPxPerSec > 0
-                    ? { width: playback.duration * playback.zoomPxPerSec }
-                    : undefined
-                }
-              >
-                {units.map((unit, index) => (
-                  <button
-                    key={unit.id}
-                    type="button"
-                    className="desktop-tx-seg"
-                    aria-current={unit.id === selection.selectedUnitId ? 'true' : undefined}
-                    style={desktopSegmentFrame(
+          {hasAudio ? (
+            <div className="desktop-tx-lane" data-testid="desktop-readonly-timeline">
+              <div className="desktop-tx-band-label">
+                {t(locale, 'app.desktopTranscription.contextLayerTranscription')}
+              </div>
+              <div ref={tierRef} className="desktop-tx-lane__body">
+                <div
+                  className="desktop-tx-lane__track"
+                  style={
+                    playback.zoomPxPerSec > 0
+                      ? { width: playback.duration * playback.zoomPxPerSec }
+                      : undefined
+                  }
+                >
+                  {units.map((unit, index) => {
+                    const frame = desktopSegmentFrame(
                       unit,
                       playback.duration,
                       index,
                       units.length,
                       playback.zoomPxPerSec,
-                    )}
-                    onClick={() => selection.selectUnit(unit)}
-                  >
-                    <span className="desktop-tx-seg__text">{unit.text}</span>
-                  </button>
-                ))}
+                    );
+                    return (
+                      <TimelineAnnotationItem
+                        key={unit.id}
+                        left={frame.left ?? 0}
+                        width={frame.width ?? 0}
+                        isSelected={unit.id === selection.selectedUnitId}
+                        isActive={false}
+                        isCompact={false}
+                        title={unit.text}
+                        draft={unit.text}
+                        onClick={() => selection.selectUnit(unit)}
+                        onContextMenu={readOnlyAnnotationEvent}
+                        onDoubleClick={readOnlyAnnotationEvent}
+                        onResizeStartPointerDown={readOnlyAnnotationEvent}
+                        onResizeEndPointerDown={readOnlyAnnotationEvent}
+                        onChange={readOnlyAnnotationEvent}
+                        onBlur={readOnlyAnnotationEvent}
+                        onKeyDown={readOnlyAnnotationEvent}
+                      />
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
 
@@ -402,6 +412,10 @@ export function DesktopTranscriptionWorkspacePage() {
       )}
     </section>
   );
+}
+
+function readOnlyAnnotationEvent() {
+  return undefined;
 }
 
 export function desktopSegmentFrame(

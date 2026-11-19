@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
-import { msToSec } from '../db/desktop/timeMs';
+import { msToSec } from '../utils/timeMs';
 import { t, tf, useLocale } from '../i18n';
 import { useDesktopAnalysisReview } from './useDesktopAnalysisReview';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';

@@ -1,5 +1,4 @@
 import { createDesktopClient } from '../db/desktop/client';
-import type { Media } from '../db/desktop/media';
 import type { DesktopReadHost } from './projectReadHost';
 
 export interface ImportedRecordingFile {
@@ -21,36 +20,22 @@ export async function registerImportedRecording(input: {
   if (picked === undefined || 'cancelled' in picked) return;
   const sessionId = picked.sessionId;
   const client = createDesktopClient({ desktopCall: input.host.desktopCall });
-  const listed = (await input.host.desktopCall(sessionId, 'media.list', {})) as Media[];
+  const listed = await client.listMedia(sessionId);
   const existing = listed.find(
     (item) => item.relpath === picked.relpath && item.sha256 === picked.sha256,
   );
-  const media =
-    existing ??
-    (await client.createMedia(sessionId, {
-      relpath: picked.relpath,
-      sha256: picked.sha256,
-      duration: await recordingDuration(picked.url, input.durationOf),
-    }));
-  const hung = (await client.listManuscripts(sessionId)).find((item) => item.mediaId === media.id);
-  if (hung) {
-    input.adopt(sessionId);
-    input.select(hung.id, undefined, sessionId);
-    return;
-  }
-  const manuscript = await client.createManuscript(sessionId, {
+  const registered = await client.registerRecording(sessionId, {
+    relpath: picked.relpath,
+    sha256: picked.sha256,
+    duration: existing?.duration ?? (await recordingDuration(picked.url, input.durationOf)),
     title: { und: titleOf(picked.filename) },
-    mediaId: media.id,
-  });
-  await client.createLayer(sessionId, {
-    manuscriptId: manuscript.id,
-    key: 'tx',
-    name: { zh: '转写' },
+    layerKey: 'tx',
+    layerName: { zh: '转写' },
     tierType: 'time-aligned',
     contentType: 'transcription',
   });
   input.adopt(sessionId);
-  input.select(manuscript.id, undefined, sessionId);
+  input.select(registered.manuscriptId, undefined, sessionId);
 }
 
 async function recordingDuration(

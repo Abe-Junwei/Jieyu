@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { JieyuIcon } from '../components/ui/JieyuIcon';
-import { t, type Locale } from '../i18n';
+import { t, tf, type Locale } from '../i18n';
 import type { DesktopPlaybackUnit } from './useDesktopTranscriptionMediaController';
 
 interface ManuscriptItem {
@@ -81,17 +81,18 @@ export function DesktopTranscriptionContextColumn(props: {
     },
   ];
 
-  const summary =
-    currentTitle && props.selectedUnitId
-      ? `${Object.values(currentTitle)[0] ?? ''} · 第 ${
-          Math.max(
-            props.units.findIndex((unit) => unit.id === props.selectedUnitId),
-            0,
-          ) + 1
-        } 段`
-      : currentTitle
-        ? (Object.values(currentTitle)[0] ?? '')
-        : '';
+  const title = currentTitle ? (Object.values(currentTitle)[0] ?? '') : '';
+  const segmentOrdinal =
+    props.selectedUnitId === null
+      ? ''
+      : tf(props.locale, 'app.desktopTranscription.contextSegmentOrdinal', {
+          index:
+            Math.max(
+              props.units.findIndex((unit) => unit.id === props.selectedUnitId),
+              0,
+            ) + 1,
+        });
+  const summary = [title, segmentOrdinal].filter((part) => part.length > 0).join(' · ');
 
   return (
     <>
