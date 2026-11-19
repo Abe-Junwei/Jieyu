@@ -6,7 +6,11 @@ import {
   clearListUnitsSnapshotsForTests,
   getListUnitsHandle,
 } from '../localContextListUnitsSnapshotStore';
-import { createBoundedPageSelector } from './segmentMetaListPage';
+import {
+  createBoundedPageSelector,
+  readPersistentListPageScanStats,
+  resetPersistentListPageScanStats,
+} from './segmentMetaListPage';
 import { db } from '../../../db/engine';
 import { SegmentMetaService } from '../../../services/SegmentMetaService';
 import type { SegmentMetaDocType } from '../../../db/types';
@@ -135,7 +139,16 @@ interface ListPayload {
   _readModel?: { source: string };
 }
 
-const perfSamples: Array<Record<string, number | string>> = [];
+interface PageSample {
+  offset: number;
+  elapsedMs: number;
+  cursorWalks: number;
+  rowsVisited: number;
+  ownershipReads: number;
+  maxRetained: number;
+}
+
+const perfSamples: Array<Record<string, unknown>> = [];
 
 function indexContext(count: number): AiPromptContext {
   return {
@@ -160,15 +173,17 @@ function indexContext(count: number): AiPromptContext {
 async function walkAsc(ctx: AiPromptContext = context()): Promise<{
   handle: string;
   elapsedMs: number;
-  pages: number;
+  pages: PageSample[];
 }> {
   const ref = { current: 0 };
   const started = performance.now();
   const seen: string[] = [];
+  const pages: PageSample[] = [];
   let handle: string | undefined;
   let offset = 0;
-  let pages = 0;
   while (seen.length < ascIds.length) {
+    resetPersistentListPageScanStats();
+    const pageStarted = performance.now();
     const result = await listUnits(
       ref,
       {
@@ -180,6 +195,15 @@ async function walkAsc(ctx: AiPromptContext = context()): Promise<{
       },
       ctx,
     );
+    const scan = readPersistentListPageScanStats();
+    pages.push({
+      offset,
+      elapsedMs: Math.round(performance.now() - pageStarted),
+      cursorWalks: scan.cursorWalks,
+      rowsVisited: scan.rowsVisited,
+      ownershipReads: scan.ownershipReads,
+      maxRetained: scan.maxRetained,
+    });
     expect(result.ok, result.error).toBe(true);
     const payload = payloadOf(result);
     if (!handle) {
@@ -189,10 +213,11 @@ async function walkAsc(ctx: AiPromptContext = context()): Promise<{
     expect(payload.total).toBe(COUNT);
     expect(payload.offset).toBe(offset);
     expect(payload.matches.map((row) => row.id)).toEqual(ascIds.slice(offset, offset + PAGE));
+    expect(scan.cursorWalks).toBe(1);
+    expect(scan.maxRetained).toBeLessThanOrEqual(PAGE);
     if (payload.matches.length === 0) break;
     seen.push(...payload.matches.map((row) => row.id));
     offset += payload.matches.length;
-    pages += 1;
   }
   expect(seen).toEqual(ascIds);
   expect(new Set(seen).size).toBe(COUNT);
@@ -267,58 +292,50 @@ describe('persistent list_units paging past the default offset cap', () => {
     vi.restoreAllMocks();
   });
 
+  // fake-indexeddb: 27 pages of 530 rows took 1449ms, slowest page 64ms, selector CPU 2ms.
+  // 15s leaves CI cursor overhead without treating a multi-second page as success.
   it('walks every in-scope row once, in stable order, across pages past offset 500', async () => {
     const listAll = vi.spyOn(SegmentMetaService, 'listAll');
     const listByMediaId = vi.spyOn(SegmentMetaService, 'listByMediaId');
-    const started = performance.now();
-    const ref = { current: 0 };
-    const seen: string[] = [];
-    let handle: string | undefined;
-    let offset = 0;
-
-    while (seen.length < ascIds.length) {
-      const result = await listUnits(ref, {
-        scope: 'current_track',
-        limit: PAGE,
-        offset,
+    const cpuStarted = performance.now();
+    for (let page = 0; page < Math.ceil(COUNT / PAGE); page += 1) {
+      const selector = createBoundedPageSelector<SeedRow>({
         sort: 'time_asc',
-        ...(handle ? { resultHandle: handle } : {}),
+        after: null,
+        limit: PAGE,
       });
-      expect(result.ok, result.error).toBe(true);
-      const payload = payloadOf(result);
-      if (!handle) {
-        expect(typeof payload.resultHandle).toBe('string');
-        expect(payload.snapshotPaging).toBe(true);
-        expect(payload._readModel?.source).toBe('segment_meta');
-        handle = payload.resultHandle;
-      }
-      expect(payload.scope).toBe('current_track');
-      expect(payload.total).toBe(COUNT);
-      expect(payload.offset).toBe(offset);
-      expect(payload.limit).toBe(PAGE);
-      expect(payload.matches.map((row) => row.id)).toEqual(ascIds.slice(offset, offset + PAGE));
-      expect(payload.matches.every((row) => !row.id.startsWith('other-'))).toBe(true);
-      if (payload.matches.length === 0) break;
-      seen.push(...payload.matches.map((row) => row.id));
-      offset += payload.matches.length;
+      for (const row of seed.inScope) selector.offer(row);
+      selector.finish();
     }
-
-    expect(seen).toEqual(ascIds);
-    expect(new Set(seen).size).toBe(COUNT);
-    const elapsedMs = performance.now() - started;
+    const cpuMs = Math.round(performance.now() - cpuStarted);
+    const walked = await walkAsc();
     perfSamples.push({
-      case: 'empty-index',
+      case: 'empty-index-time-asc',
       rows: COUNT,
-      pages: Math.ceil(COUNT / PAGE),
-      elapsedMs: Math.round(elapsedMs),
-      msPerPage: Math.round(elapsedMs / Math.ceil(COUNT / PAGE)),
+      elapsedMs: Math.round(walked.elapsedMs),
+      cpuOnlyMsForSamePageCount: cpuMs,
+      cursorWalks: walked.pages.reduce((sum, page) => sum + page.cursorWalks, 0),
+      rowsVisited: walked.pages.reduce((sum, page) => sum + page.rowsVisited, 0),
+      ownershipReads: walked.pages.reduce((sum, page) => sum + page.ownershipReads, 0),
+      maxRetained: Math.max(...walked.pages.map((page) => page.maxRetained)),
+      pages: walked.pages,
     });
+    const ref = { current: 0 };
+    const first = await listUnits(ref, {
+      scope: 'current_track',
+      limit: PAGE,
+      offset: 0,
+      sort: 'time_asc',
+      resultHandle: walked.handle,
+    });
+    expect(payloadOf(first).snapshotPaging).toBe(true);
+    expect(payloadOf(first)._readModel?.source).toBe('segment_meta');
     const trailing = await listUnits(ref, {
       scope: 'current_track',
       limit: PAGE,
       offset: COUNT,
       sort: 'time_asc',
-      resultHandle: handle,
+      resultHandle: walked.handle,
     });
     expect(trailing.ok).toBe(true);
     expect(payloadOf(trailing).matches).toEqual([]);
@@ -326,14 +343,14 @@ describe('persistent list_units paging past the default offset cap', () => {
     expect(listAll).not.toHaveBeenCalled();
     expect(listByMediaId).not.toHaveBeenCalled();
     expect(segmentMetaToArray).toBe(0);
-    const stored = getListUnitsHandle(handle ?? '');
+    const stored = getListUnitsHandle(walked.handle);
     expect(stored?.kind).toBe('query');
     if (stored?.kind === 'query') {
       expect(stored).not.toHaveProperty('rows');
       const mentioned = ascIds.filter((id) => JSON.stringify(stored).includes(id));
       expect(mentioned.length).toBeLessThanOrEqual(1);
     }
-  }, 60_000);
+  }, 15_000);
 
   it('walks time_desc without dropping tied start times', async () => {
     const ref = { current: 0 };
@@ -366,7 +383,7 @@ describe('persistent list_units paging past the default offset cap', () => {
     }
     expect(seen).toEqual(descIds);
     expect(new Set(seen).size).toBe(COUNT);
-  }, 60_000);
+  }, 15_000);
 
   it('keeps the no-handle offset cap and reaches past it only with the captured scope handle', async () => {
     const ref = { current: 0 };
@@ -412,7 +429,7 @@ describe('persistent list_units paging past the default offset cap', () => {
     const switched = payloadOf(switchedMedia);
     expect(switched.scope).toBe('current_track');
     expect(switched.matches.map((row) => row.id)).toEqual(ascIds.slice(0, 3));
-  }, 60_000);
+  }, 15_000);
 
   it('rejects an oversized page limit', async () => {
     const ref = { current: 0 };
@@ -512,9 +529,13 @@ describe('persistent list_units paging past the default offset cap', () => {
         case: `partial-index-${indexCount}`,
         rows: COUNT,
         indexRows: indexCount,
-        pages: walked.pages,
         elapsedMs: Math.round(walked.elapsedMs),
-        msPerPage: Math.round(walked.elapsedMs / walked.pages),
+        cursorWalks: walked.pages.reduce((sum, page) => sum + page.cursorWalks, 0),
+        rowsVisited: walked.pages.reduce((sum, page) => sum + page.rowsVisited, 0),
+        ownershipReads: walked.pages.reduce((sum, page) => sum + page.ownershipReads, 0),
+        maxRetained: Math.max(...walked.pages.map((page) => page.maxRetained)),
+        pageCount: walked.pages.length,
+        slowestPageMs: Math.max(...walked.pages.map((page) => page.elapsedMs)),
       });
       const stored = getListUnitsHandle(walked.handle);
       expect(stored?.kind).toBe('query');
@@ -542,18 +563,28 @@ describe('persistent list_units paging past the default offset cap', () => {
     expect(stickyPayload.matches.map((row) => row.id)).toEqual(ascIds.slice(0, 3));
     expect(stickyPayload.matches.some((row) => row.id.startsWith('foreign-'))).toBe(false);
     expect(stickyPayload.matches.some((row) => row.id.startsWith('idx-'))).toBe(false);
+    resetPersistentListPageScanStats();
+    const clampStarted = performance.now();
     const clamped = await listUnits(
       { current: 0 },
       { scope: 'current_track', limit: 3, offset: 520, sort: 'time_asc' },
       indexContext(1),
     );
+    const clampScan = readPersistentListPageScanStats();
+    perfSamples.push({
+      case: 'cold-offset-520-clamped-to-500',
+      elapsedMs: Math.round(performance.now() - clampStarted),
+      ...clampScan,
+    });
+    expect(clampScan.cursorWalks).toBe(1);
+    expect(clampScan.maxRetained).toBe(503);
     expect(clamped.ok).toBe(true);
     expect(payloadOf(clamped).offset).toBe(500);
     expect(payloadOf(clamped).matches.map((row) => row.id)).toEqual(ascIds.slice(500, 503));
     expect(listAll).not.toHaveBeenCalled();
     expect(listByMediaId).not.toHaveBeenCalled();
     expect(segmentMetaToArray).toBe(0);
-  }, 120_000);
+  }, 30_000);
 
   it('keeps the in-memory row snapshot when segment_meta is empty', async () => {
     await db.segment_meta.clear();
@@ -591,7 +622,7 @@ describe('persistent list_units paging past the default offset cap', () => {
   afterAll(() => {
     const payload = {
       engine: 'fake-indexeddb',
-      note: 'Each page scans the resolved segment_meta scope. startTime is not an index; no schema change.',
+      note: 'fake-indexeddb wall time includes cursor overhead. cpuOnlyMsForSamePageCount is the selector alone. Sequential pages are one cursor walk; a cold offset inside the 500 cap is one walk that retains the window, then returns limit rows. startTime is not indexed.',
       samples: perfSamples,
     };
     try {

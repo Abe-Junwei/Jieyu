@@ -12,7 +12,7 @@ import type {
   ListUnitsPersistentQuery,
   ListUnitsQueryCursorKey,
 } from '../localContextListUnitsSnapshotStore';
-import { normalizeLimit } from './argNormalizers';
+import { LIST_UNITS_DEFAULT_OFFSET_MAX, normalizeLimit } from './argNormalizers';
 
 export type ListUnitSort = 'time_asc' | 'time_desc';
 
@@ -98,6 +98,35 @@ function matchesQuery(row: SegmentMetaDocType, query: ListUnitsPersistentQuery):
   return true;
 }
 
+export interface PersistentListPageScanStats {
+  /** Dexie cursor walks of the resolved segment_meta scope. */
+  cursorWalks: number;
+  /** Rows the cursor yielded, including rows outside the page. */
+  rowsVisited: number;
+  /** Calls that resolve which layers belong to another annotation document. */
+  ownershipReads: number;
+  /** Largest page buffer retained during the reads since the last reset. */
+  maxRetained: number;
+}
+
+const scanStats: PersistentListPageScanStats = {
+  cursorWalks: 0,
+  rowsVisited: 0,
+  ownershipReads: 0,
+  maxRetained: 0,
+};
+
+export function resetPersistentListPageScanStats(): void {
+  scanStats.cursorWalks = 0;
+  scanStats.rowsVisited = 0;
+  scanStats.ownershipReads = 0;
+  scanStats.maxRetained = 0;
+}
+
+export function readPersistentListPageScanStats(): PersistentListPageScanStats {
+  return { ...scanStats };
+}
+
 async function forEachSegmentMeta(
   query: ListUnitsPersistentQuery,
   visit: (row: SegmentMetaDocType) => void,
@@ -112,20 +141,19 @@ async function forEachSegmentMeta(
         : query.textId
           ? table.where('textId').equals(query.textId)
           : table.toCollection();
+  scanStats.cursorWalks += 1;
   await collection.each((row) => {
+    scanStats.rowsVisited += 1;
     visit(row);
   });
 }
 
-async function excludedLayerIds(query: ListUnitsPersistentQuery): Promise<Set<string>> {
-  const textIds = new Set<string>();
-  await forEachSegmentMeta(query, (row) => {
-    if (!matchesQuery(row, query)) return;
-    if (row.textId) textIds.add(row.textId);
-  });
+async function excludedLayerIdsFor(textIds: ReadonlySet<string>): Promise<Set<string>> {
   const excluded = new Set<string>();
+  if (textIds.size === 0) return excluded;
   const database = await getDb();
   for (const textId of textIds) {
+    scanStats.ownershipReads += 1;
     try {
       for (const layerId of await readOtherDocumentLayerIds(database, textId)) {
         excluded.add(layerId);
@@ -139,24 +167,31 @@ async function excludedLayerIds(query: ListUnitsPersistentQuery): Promise<Set<st
 
 async function scanPage(
   query: ListUnitsPersistentQuery,
-  excluded: ReadonlySet<string>,
+  excluded: ReadonlySet<string> | null,
   sort: ListUnitSort,
   after: ListUnitsQueryCursorKey | null,
   limit: number,
-): Promise<{ page: SegmentMetaDocType[]; total: number }> {
+): Promise<{ page: SegmentMetaDocType[]; total: number; textIds: Set<string> }> {
+  const textIds = new Set<string>();
   const selector = createBoundedPageSelector<SegmentMetaDocType>({ sort, after, limit });
   await forEachSegmentMeta(query, (row) => {
     if (!matchesQuery(row, query)) return;
-    if (excluded.has(row.layerId)) return;
+    if (row.textId) textIds.add(row.textId);
+    if (excluded?.has(row.layerId)) return;
     selector.offer(row);
   });
   const finished = selector.finish();
-  return { page: finished.page, total: finished.total };
+  if (finished.maxRetained > scanStats.maxRetained) scanStats.maxRetained = finished.maxRetained;
+  return { page: finished.page, total: finished.total, textIds };
 }
 
+const SINGLE_PASS_WINDOW_MAX = LIST_UNITS_DEFAULT_OFFSET_MAX + 20;
+
 /**
- * Each page walks the resolved scope with a cursor. `startTime` is not indexed;
- * this fix does not add one. Tests record wall time for that full-scope scan.
+ * One sequential page is one scope cursor walk: `startTime` is not indexed, so the
+ * next `limit` rows cannot be chosen without seeing the scope. A second walk happens
+ * only when a layer actually belongs to another document. A cold offset inside the
+ * no-handle cap is one walk that keeps that window, then returns `limit` rows.
  */
 export async function readPersistentListUnitsPage(
   query: ListUnitsPersistentQuery,
@@ -181,7 +216,6 @@ export async function readPersistentListUnitsPage(
     }
   }
 
-  const excluded = await excludedLayerIds(query);
   const sort = options.sort;
   const limit = normalizeLimit(options.limit, 8);
   const offset = Number.isFinite(options.offset) ? Math.max(0, Math.floor(options.offset)) : 0;
@@ -192,6 +226,10 @@ export async function readPersistentListUnitsPage(
     rank = options.hint.nextOffset;
   }
 
+  let excluded: Set<string> | null = query.textId
+    ? await excludedLayerIdsFor(new Set([query.textId]))
+    : null;
+
   const emptyAt = (total: number) => ({
     rows: [] as SegmentMetaDocType[],
     total,
@@ -200,43 +238,65 @@ export async function readPersistentListUnitsPage(
     endOffset: rank,
   });
 
-  if (offset === rank) {
-    const page = await scanPage(query, excluded, sort, after, limit);
-    if (offset >= page.total || page.page.length === 0) return emptyAt(page.total);
-    const last = page.page[page.page.length - 1]!;
+  const pageFrom = (
+    rows: SegmentMetaDocType[],
+    total: number,
+    pageStart: number,
+  ): {
+    rows: SegmentMetaDocType[];
+    total: number;
+    offset: number;
+    endKey: ListUnitsQueryCursorKey | null;
+    endOffset: number;
+  } => {
+    if (rows.length === 0) return emptyAt(total);
+    const last = rows[rows.length - 1]!;
     return {
-      rows: page.page,
-      total: page.total,
+      rows,
+      total,
       offset,
       endKey: cursorKey(last),
-      endOffset: rank + page.page.length,
+      endOffset: pageStart + rows.length,
     };
+  };
+
+  async function scan(take: number, cursor: ListUnitsQueryCursorKey | null) {
+    const first = await scanPage(query, excluded, sort, cursor, take);
+    if (excluded) return first;
+    excluded = await excludedLayerIdsFor(first.textIds);
+    if (excluded.size === 0) return first;
+    return scanPage(query, excluded, sort, cursor, take);
   }
 
-  const counted = await scanPage(query, excluded, sort, after, 0);
-  if (offset >= counted.total) return emptyAt(counted.total);
+  if (offset === rank) {
+    const page = await scan(limit, after);
+    if (offset >= page.total || page.page.length === 0) return emptyAt(page.total);
+    return pageFrom(page.page, page.total, rank);
+  }
 
+  const window = offset - rank + limit;
+  if (window <= SINGLE_PASS_WINDOW_MAX) {
+    const selected = await scan(window, after);
+    if (offset >= selected.total) return emptyAt(selected.total);
+    const start = offset - rank;
+    return pageFrom(selected.page.slice(start, start + limit), selected.total, offset);
+  }
+
+  const counted = await scan(0, after);
+  if (offset >= counted.total) return emptyAt(counted.total);
   const skipChunk = normalizeLimit(20, 20);
   let guard = 0;
   while (rank < offset) {
     guard += 1;
     if (guard > counted.total) return emptyAt(counted.total);
     const step = Math.min(skipChunk, offset - rank);
-    const skipped = await scanPage(query, excluded, sort, after, step);
+    const skipped = await scan(step, after);
     if (skipped.page.length === 0) return emptyAt(skipped.total);
     after = cursorKey(skipped.page[skipped.page.length - 1]!);
     rank += skipped.page.length;
     if (skipped.page.length < step) return emptyAt(skipped.total);
   }
-
-  const page = await scanPage(query, excluded, sort, after, limit);
+  const page = await scan(limit, after);
   if (page.page.length === 0) return emptyAt(page.total);
-  const last = page.page[page.page.length - 1]!;
-  return {
-    rows: page.page,
-    total: page.total,
-    offset,
-    endKey: cursorKey(last),
-    endOffset: rank + page.page.length,
-  };
+  return pageFrom(page.page, page.total, rank);
 }
