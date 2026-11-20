@@ -3,6 +3,8 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, fireEvent, act } from '@testing-library/react';
 import { ToastProvider, useToast, type ToastVariant } from './ToastContext';
+import { AppGlobalToastHost } from '../components/AppGlobalToastHost';
+import { dispatchAppGlobalToast } from '../utils/appGlobalToast';
 import { t } from '../i18n';
 import { renderWithLocale } from '../test/localeTestUtils';
 
@@ -116,12 +118,12 @@ describe('ToastContext', () => {
       });
       expect(screen.getByRole('status').textContent).toBe('auto');
       act(() => {
-        vi.advanceTimersByTime(3500);
+        vi.advanceTimersByTime(6500);
       });
       expect(screen.queryByRole('status')).toBeNull();
     });
 
-    it('auto-dismisses after error delay for error toast', () => {
+    it('does NOT auto-dismiss error toasts (ADR-0116)', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
       renderInProvider(
@@ -135,13 +137,9 @@ describe('ToastContext', () => {
         ctx!.showToast('error', 'error');
       });
       act(() => {
-        vi.advanceTimersByTime(1739);
+        vi.advanceTimersByTime(60000);
       });
-      expect(screen.queryByRole('status')).not.toBeNull(); // not yet
-      act(() => {
-        vi.advanceTimersByTime(TOAST_FADE_OUT_MS + 1);
-      });
-      expect(screen.queryByRole('status')).toBeNull();
+      expect(screen.getByRole('status').textContent).toBe('error');
     });
 
     it('does NOT auto-dismiss for recording variant (persistent)', () => {
@@ -219,7 +217,7 @@ describe('ToastContext', () => {
       });
       expect(screen.queryByRole('status')).not.toBeNull();
       act(() => {
-        vi.advanceTimersByTime(2);
+        vi.advanceTimersByTime(2 + TOAST_FADE_OUT_MS);
       });
       expect(screen.queryByRole('status')).toBeNull();
     });
@@ -245,7 +243,7 @@ describe('ToastContext', () => {
         ctx!.showToast('dedupe', 'info');
       });
       act(() => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(4600 + TOAST_FADE_OUT_MS);
       });
 
       expect(screen.queryByRole('status')).toBeNull();
@@ -272,7 +270,73 @@ describe('ToastContext', () => {
         ctx!.showToast('dedupe-window', 'info');
       });
 
-      expect(screen.getByRole('status').textContent).toBe('dedupe-window');
+      expect(document.querySelectorAll('.transcription-toast')).toHaveLength(2);
+    });
+  });
+
+  describe('shell host and nested provider', () => {
+    it('shares one stack between shell events and a nested page provider', () => {
+      renderWithLocale(
+        <ToastProvider>
+          <AppGlobalToastHost />
+          <ToastProvider>
+            <TestConsumer />
+          </ToastProvider>
+        </ToastProvider>,
+        'zh-CN',
+      );
+      act(() => {
+        dispatchAppGlobalToast({ message: 'shell one', variant: 'error' });
+      });
+      expect(document.querySelectorAll('.transcription-toast-container')).toHaveLength(1);
+      expect(screen.getByText('shell one')).toBeTruthy();
+    });
+  });
+
+  describe('stack and pause (ADR-0116)', () => {
+    function setup() {
+      vi.useFakeTimers();
+      let ctx: ReturnType<typeof useToast>;
+      renderInProvider(
+        <TestConsumer
+          onMount={(c) => {
+            ctx = c;
+          }}
+        />,
+      );
+      return () => ctx!;
+    }
+    const texts = () =>
+      Array.from(document.querySelectorAll('.transcription-toast-text')).map((n) => n.textContent);
+
+    it('keeps at most 3 toasts and evicts results before items needing attention', () => {
+      const get = setup();
+      act(() => {
+        get().showToast('boom', 'error');
+        get().showToast('r1', 'success');
+        get().showToast('r2', 'success');
+        get().showToast('r3', 'success');
+      });
+      expect(texts()).toEqual(['boom', 'r2', 'r3']);
+    });
+
+    it('pauses the timer while hovered and resumes afterwards', () => {
+      const get = setup();
+      act(() => {
+        get().showToast('hover me', 'info');
+      });
+      const container = document.querySelector('.transcription-toast-container')!;
+      act(() => {
+        vi.advanceTimersByTime(5000);
+        fireEvent.mouseEnter(container);
+        vi.advanceTimersByTime(30000);
+      });
+      expect(texts()).toEqual(['hover me']);
+      act(() => {
+        fireEvent.mouseLeave(container);
+        vi.advanceTimersByTime(1000 + TOAST_FADE_OUT_MS);
+      });
+      expect(texts()).toEqual([]);
     });
   });
 
@@ -341,7 +405,7 @@ describe('ToastContext', () => {
       expect(screen.queryByRole('status')).toBeNull();
     });
 
-    it('still dismisses an error toast on the short timer', () => {
+    it('keeps a save error toast until dismissed', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
       renderInProvider(
@@ -356,9 +420,9 @@ describe('ToastContext', () => {
       });
       expect(document.querySelector('.toast-error')).not.toBeNull();
       act(() => {
-        vi.advanceTimersByTime(2100);
+        vi.advanceTimersByTime(60000);
       });
-      expect(screen.queryByRole('status')).toBeNull();
+      expect(document.querySelector('.toast-error')).not.toBeNull();
     });
 
     it('renders error toast with custom message', () => {
@@ -387,9 +451,9 @@ describe('ToastContext', () => {
         />,
       );
       act(() => {
-        ctx!.showToast('some toast', 'info');
+        ctx!.showSaveState({ kind: 'saving' });
       });
-      expect(screen.getByRole('status').textContent).toBe('some toast');
+      expect(document.querySelectorAll('.transcription-toast')).toHaveLength(1);
       act(() => {
         ctx!.showSaveState({ kind: 'idle' });
       });
@@ -439,7 +503,7 @@ describe('ToastContext', () => {
       expect(screen.getByRole('status').textContent).toBe('保存完成 A');
 
       act(() => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(4500 + TOAST_FADE_OUT_MS);
       });
       expect(screen.queryByRole('status')).toBeNull();
     });
@@ -459,7 +523,7 @@ describe('ToastContext', () => {
         ctx!.showSaveState({ kind: 'done', message: '保存完成 A' });
       });
       act(() => {
-        vi.advanceTimersByTime(6100);
+        vi.advanceTimersByTime(6100 + TOAST_FADE_OUT_MS);
       });
       act(() => {
         ctx!.showSaveState({ kind: 'done', message: '保存完成 B' });

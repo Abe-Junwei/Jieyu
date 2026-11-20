@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-20T13:09:18.964Z",
-  "aggregate": "42a8992291df04f8412726dedb28b3f8cf273d283b502c6c2305ef4ab2d1849c",
+  "generatedAt": "2026-11-20T22:48:05.505Z",
+  "aggregate": "b271863ba635fd82d2249148b1971d5b864425c6244be854323e23b6fb8480c9",
   "fileHashes": {
     "src/styles/ai-hub.css": "537be68d401399d5c7be152205f71c4c4f6949f861c9e34d22499005846034c7",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -12,7 +12,7 @@
     "src/styles/foundation/context-menu.css": "c09a0dd95f259d50d9d7ea483976069e9f13f890f0aea98264b3b88637bada30",
     "src/styles/foundation/control-primitives.css": "9ac18ed9f61cbb69f2f3e301de0e75c0970969b520e7fb6cc7fc6f5a3eb90bf0",
     "src/styles/foundation/dialog-shell.css": "f2d9c57d5aaef826c573851700c45988bc5338080709c52ffd5c1103e05ffda7",
-    "src/styles/foundation/global-toast.css": "b756bd6aaa368a254ed635493657b00120b4e6f191662d86476cd13a19a1d812",
+    "src/styles/foundation/global-toast.css": "af53a8828f0faaaba0c0e2fefa1e29589305e65c6990e041b51080c22ef4d71d",
     "src/styles/foundation/jieyu-icon.css": "4f3b7c56b2cb37b81233607bca04755922da5e6c5c936932a1e4e258674c846b",
     "src/styles/foundation/language-asset-section-contract.css": "0a55099469b806e59c9ac92a4395aff1c69a48c20e935241f30e6ba18b0f0ee8",
     "src/styles/foundation/media-controls.css": "b02373b1d053080492a5c88cbdb2290d4111768b7c46d61b41553b308823f048",
@@ -24,7 +24,7 @@
     "src/styles/pages/ai-sidebar-shell.css": "2d56d94491ad22b5617d1409fa8c84e67e3dfad980be26f6e9530370db5cc069",
     "src/styles/pages/analysis-workspace.css": "b5f642234a4dedce82b42241ad12b9f1b2785db0380b94740b37e7973a0dc96f",
     "src/styles/pages/annotation-workspace.css": "8be15a6272632bc3c876611ae92a74bdfd54a99c658f408f04988cbd4e5d4947",
-    "src/styles/pages/app-shell-layout.css": "fa1c343fd6a784afa39daeb434338baec88b3edb9ef2823583e16a2001fde869",
+    "src/styles/pages/app-shell-layout.css": "5519984e2a3b1040ca5d6fb4419b3e5214d6711146336c1191989a70bac3307d",
     "src/styles/pages/corpus-library-workspace.css": "c0e6c0eb4768333aa39fc2c97418c70769d1b00465f539e2b88085d9120313cf",
     "src/styles/pages/desktop-project-read.css": "3cccf8f60a1aac19eec9c014df395b3f73caea57031c4418d7714f2be86d7e79",
     "src/styles/pages/desktop-transcription-workspace.css": "bd46c572e5c119cce498df0b0384721b7233191fbeca1ee1ef01574b6454059d",
