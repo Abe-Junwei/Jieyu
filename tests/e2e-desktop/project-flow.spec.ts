@@ -297,6 +297,62 @@ test('a subdivision card takes arrow keys and the time box, and a parent drag sh
   }
 });
 
+test('waveform handles resize a segment edge and the grip moves it with its children, then undo', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-wave-edge-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  const app = await launch('tx-wave-edge');
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const { clip, words, parent, left } = await seedWords(page, sessionId);
+    const read = async (layerId: string, id: string) =>
+      (await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId })).find(
+        (unit) => unit.id === id,
+      );
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    await waitForAudio(page);
+    const seg = page.locator(`[data-wave-unit="${parent.id}"]`);
+    await expect(seg).toBeVisible();
+
+    const end = seg.getByTestId('desktop-wave-handle-end');
+    const at = await end.boundingBox();
+    if (at === null) throw new Error('wave end handle missing');
+    await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(at.x - 30, at.y + at.height / 2, { steps: 6 });
+    await page.mouse.up();
+    await expect
+      .poll(async () => (await read(clip.layerId, parent.id))?.endMs ?? Infinity)
+      .toBeLessThan(parent.endMs);
+    expect((await read(clip.layerId, parent.id))?.startMs).toBe(parent.startMs);
+
+    const now = await read(clip.layerId, parent.id);
+    const grip = seg.getByTestId('desktop-wave-grip');
+    const gb = await grip.boundingBox();
+    if (gb === null || now?.endMs == null) throw new Error('wave grip missing');
+    await page.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(gb.x + gb.width / 2 + 15, gb.y + gb.height / 2, { steps: 8 });
+    await page.mouse.up();
+    await expect
+      .poll(async () => (await read(clip.layerId, parent.id))?.startMs ?? 0)
+      .not.toBe(parent.startMs);
+    const moved = await read(clip.layerId, parent.id);
+    const child = await read(words.id, left.id);
+    expect((child?.startMs ?? 0) - parent.startMs).toBe((moved?.startMs ?? 0) - parent.startMs);
+  } finally {
+    await app.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
+
 test('does not create a sample project on startup', async () => {
   const app = await launch('no-sample');
   try {

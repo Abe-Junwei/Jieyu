@@ -108,7 +108,7 @@ export function followTip(
   layers: readonly FollowRow[],
   preview: ShownPreview | null,
 ): { count: number; edge: 'start' | 'end'; timeMs: number } | null {
-  if (preview?.unitId == null) return null;
+  if (preview?.unitId == null || preview.moving) return null;
   let count = 0;
   let startMoves = false;
   for (const layer of layers) {

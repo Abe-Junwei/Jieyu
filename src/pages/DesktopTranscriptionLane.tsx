@@ -16,6 +16,7 @@ import {
 import { buildLayerTree, type LayerTreeRow } from './desktopTranscriptionLayerTree';
 import type { DesktopLayerView } from './useDesktopLayerView';
 import { DesktopTranscriptionCreatePreview } from './DesktopTranscriptionCreatePreview';
+import { DesktopWaveformEdges } from './DesktopWaveformEdges';
 import { TimelineAnnotationItem } from '../components/TimelineAnnotationItem';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, tf, type Locale } from '../i18n';
@@ -227,6 +228,28 @@ export function DesktopTranscriptionLane(props: {
           props.waveStage,
         )
       : null;
+  const pickUnit = (unitId: string) => {
+    const hit = props.units.find((unit) => unit.id === unitId);
+    if (hit) props.onSelectUnit(hit);
+  };
+  const waveEdges =
+    props.waveStage && props.hasAudio && props.zoomPxPerSec > 0
+      ? createPortal(
+          <DesktopWaveformEdges
+            units={timedUnits}
+            preview={edges.ui.preview}
+            zoomPxPerSec={props.zoomPxPerSec}
+            scrollLeftPx={props.scrollLeftPx}
+            selectedUnitId={props.selectedUnitId}
+            onEdge={(unitId, edge, event) => {
+              pickUnit(unitId);
+              edges.beginDrag(unitId, edge, event);
+            }}
+            onMove={(unitId, event) => edges.beginMove(unitId, event, () => pickUnit(unitId))}
+          />,
+          props.waveStage,
+        )
+      : null;
   const seconds = seamSeconds(edges.ui.edge, edges.ui.preview, props.units);
   const tree = useMemo(
     () => buildLayerTree(props.layers ?? [], props.links ?? [], props.view.fold),
@@ -406,6 +429,7 @@ export function DesktopTranscriptionLane(props: {
   return (
     <>
       {wavePreview}
+      {waveEdges}
       {props.hasAudio || props.units.length > 0 ? (
         <DesktopTranscriptionLayerRows
           locale={props.locale}

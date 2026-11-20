@@ -3,11 +3,13 @@ import { undoUnitText } from './analysisRestore';
 import { assignSpeaker, undoAssignSpeaker, type SpeakerAssignUndo } from './speakerAssign';
 import {
   moveSharedBoundary,
+  moveUnitSpan,
   moveUnitEdge,
   restoreRemovedUnit,
   treeStillMatches,
   type EdgeMove,
   type SharedBoundaryMove,
+  type UnitSpanMove,
 } from './unitEdges';
 import {
   deleteUnitTree,
@@ -31,6 +33,7 @@ export type SessionEdit =
   | { kind: 'assign'; undo: SpeakerAssignUndo }
   | { kind: 'edge'; undo: EdgeMove }
   | { kind: 'boundary'; undo: SharedBoundaryMove }
+  | { kind: 'span'; undo: UnitSpanMove }
   | { kind: 'create'; undo: { manuscriptId: string; tree: RemovedUnit } }
   | { kind: 'delete'; undo: { manuscriptId: string; tree: RemovedUnit } }
   | { kind: 'retime'; undo: RetimeUndo; offsetMs: number; scale: number };
@@ -62,6 +65,7 @@ function manuscriptOf(edit: SessionEdit): string {
     case 'assign':
     case 'edge':
     case 'boundary':
+    case 'span':
     case 'create':
     case 'delete':
       return edit.undo.manuscriptId;
@@ -207,6 +211,7 @@ function stampGeneration(db: SqliteDatabase, edit: SessionEdit, generation: numb
     case 'assign':
     case 'edge':
     case 'boundary':
+    case 'span':
     case 'create':
     case 'delete':
       return;
@@ -234,6 +239,8 @@ function applyUndo(db: SqliteDatabase, edit: SessionEdit): Unit | Unit[] {
       return undoEdge(db, edit.undo);
     case 'boundary':
       return undoBoundary(db, edit.undo);
+    case 'span':
+      return undoSpan(db, edit.undo);
     case 'create':
       return undoCreate(db, edit.undo.tree);
     case 'delete':
@@ -265,6 +272,8 @@ function applyRedo(
       return redoEdge(db, edit.undo);
     case 'boundary':
       return redoBoundary(db, edit.undo);
+    case 'span':
+      return redoSpan(db, edit.undo);
     case 'create': {
       try {
         const unit = restoreRemovedUnit(db, edit.undo.tree);
@@ -373,6 +382,20 @@ function redoBoundary(
   });
   if (!moved.move) throw new Error('boundary redo is stale');
   return { value: [moved.left, moved.right], edit: { kind: 'boundary', undo: moved.move } };
+}
+
+function undoSpan(db: SqliteDatabase, undo: UnitSpanMove): Unit {
+  const unit = readStoredUnit(db, undo.unitId);
+  if (!unit || unit.startMs !== undo.fromStart + undo.delta) throw new Error('edge undo is stale');
+  return moveUnitSpan(db, { unitId: undo.unitId, delta: -undo.delta }).unit;
+}
+
+function redoSpan(db: SqliteDatabase, undo: UnitSpanMove): { value: Unit; edit: SessionEdit } {
+  const unit = readStoredUnit(db, undo.unitId);
+  if (!unit || unit.startMs !== undo.fromStart) throw new Error('edge redo is stale');
+  const moved = moveUnitSpan(db, { unitId: undo.unitId, delta: undo.delta });
+  if (!moved.move) throw new Error('edge redo is stale');
+  return { value: moved.unit, edit: { kind: 'span', undo: moved.move } };
 }
 
 function undoCreate(db: SqliteDatabase, tree: RemovedUnit): Unit {

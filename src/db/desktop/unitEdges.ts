@@ -34,6 +34,14 @@ export interface EdgeMove {
   followers?: FollowerMove[];
 }
 
+/** A whole-segment move: the unit and every timed descendant shift by `delta`. */
+export interface UnitSpanMove {
+  unitId: string;
+  delta: number;
+  fromStart: number;
+  manuscriptId: string;
+}
+
 export interface SharedBoundaryMove {
   leftId: string;
   rightId: string;
@@ -340,6 +348,84 @@ export function restoreRemovedUnit(db: SqliteDatabase, tree: RemovedUnit): Unit 
   } catch (error) {
     if (error instanceof Error && error.message.includes('same speaker intervals overlap')) {
       throw new Error('unit delete undo is stale');
+    }
+    throw error;
+  }
+}
+
+export function timedDescendants(
+  db: SqliteDatabase,
+  unitId: string,
+): { id: string; startMs: number }[] {
+  const found: { id: string; startMs: number }[] = [];
+  let frontier = [unitId];
+  while (frontier.length > 0) {
+    const next: string[] = [];
+    for (const parentId of frontier) {
+      const rows = db
+        .prepare(
+          `SELECT id, start_ms AS startMs FROM units
+           WHERE parent_unit_id = ? AND start_ms IS NOT NULL AND end_ms IS NOT NULL`,
+        )
+        .all(parentId) as { id: string; startMs: number }[];
+      found.push(...rows);
+      next.push(...rows.map((row) => row.id));
+    }
+    frontier = next;
+  }
+  return found;
+}
+
+/**
+ * Moves a whole segment by `delta` ms. Its time-subdivision descendants move with it, so they
+ * keep their place inside it; the receipt and the undo step are one.
+ */
+export function moveUnitSpan(
+  db: SqliteDatabase,
+  input: { unitId: string; delta: number },
+): { unit: Unit; move: UnitSpanMove | null } {
+  const write = db.transaction(() => {
+    const unit = readStoredUnit(db, input.unitId);
+    if (!unit || unit.startMs === null || unit.endMs === null)
+      throw new Error('unit time is missing');
+    if (!Number.isInteger(input.delta)) throw new Error('edge time is invalid');
+    if (input.delta === 0) return { unit, move: null };
+    const start = unit.startMs + input.delta;
+    const end = unit.endMs + input.delta;
+    assertInsideMedia(db, unit.id, start, end);
+    assertInsideParent(db, unit, start, end);
+    const now = new Date().toISOString();
+    // Moving the far side first keeps siblings from overlapping halfway through.
+    const ids = [{ id: unit.id, startMs: unit.startMs }, ...timedDescendants(db, unit.id)].sort(
+      (a, b) => (input.delta > 0 ? b.startMs - a.startMs : a.startMs - b.startMs),
+    );
+    for (const { id } of ids) {
+      db.prepare(
+        'UPDATE units SET start_ms = start_ms + ?, end_ms = end_ms + ?, updated_at = ? WHERE id = ?',
+      ).run(input.delta, input.delta, now, id);
+    }
+    const next = readStoredUnit(db, unit.id);
+    if (!next || next.startMs !== start || next.endMs !== end) {
+      throw new Error('edge readback failed');
+    }
+    return {
+      unit: next,
+      move: {
+        unitId: unit.id,
+        delta: input.delta,
+        fromStart: unit.startMs,
+        manuscriptId: manuscriptIdOf(db, unit.id),
+      },
+    };
+  });
+  try {
+    return write();
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('same speaker intervals overlap')) {
+      throw new Error('same speaker intervals overlap');
+    }
+    if (error instanceof Error && error.message.includes('timed units are out of sort order')) {
+      throw new Error('timed units are out of sort order');
     }
     throw error;
   }

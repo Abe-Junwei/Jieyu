@@ -13,6 +13,7 @@ import {
   applyNudge,
   commitSharedEdge,
   commitUnitEdge,
+  commitUnitMove,
   dropEdgeStack,
   edgeFailureMessage,
   flushTypedEdge,
@@ -23,7 +24,12 @@ import {
   type StoredTimes,
 } from './desktopTranscriptionEdgeSession';
 import { formatPlaybackTime } from './useDesktopTranscriptionMediaController';
-import { startCreate, startEdgeDrag, type ShownPreview } from './desktopTranscriptionEdgePointer';
+import {
+  startCreate,
+  startEdgeDrag,
+  startMoveDrag,
+  type ShownPreview,
+} from './desktopTranscriptionEdgePointer';
 import {
   CREATE_MIN_MS,
   routeCreate,
@@ -385,6 +391,26 @@ export function createEdgeActions(ctx: {
             : commitUnitEdge(session, unitId, edge, time);
           void afterWrite(() => work, unitId, time);
         },
+      });
+    },
+    /** Waveform segment grip: drag the whole segment (children shift too); a plain press selects. */
+    beginMove(unitId: string, event: ReactPointerEvent<HTMLElement>, onClick: () => void) {
+      startMoveDrag({
+        unitId,
+        event,
+        units: rowOf(unitId),
+        readZoom: () => live.current.zoomPxPerSec,
+        playheadMs: () => live.current.playheadMs(),
+        snapMessage: (kind, time) => live.current.snapMessage(kind, time),
+        setPreview,
+        commit: (delta) => {
+          const session = call();
+          if (!session) return;
+          const unit = rowOf(unitId).find((item) => item.id === unitId);
+          const time = (unit?.startMs ?? 0) + delta;
+          void afterWrite(() => commitUnitMove(session, unitId, delta), unitId, time);
+        },
+        onClick,
       });
     },
     /** Lane track: only a press on the empty track itself; `speakerId` is that lane's speaker. */

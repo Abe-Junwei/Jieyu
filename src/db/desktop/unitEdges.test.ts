@@ -274,6 +274,82 @@ describe('desktop unit edges', () => {
     callDesktopSession(id, 'units.updateText', { unitId: host, textLayerId: tl, text: '' });
     expect(linked()).toBe(0);
   });
+  it('moves a whole segment with its subdivision children as one undoable step', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const id = session.sessionId;
+    const tx = layer(id, true);
+    const manuscriptId = (
+      requireDesktopSession(id)
+        .db.prepare('SELECT manuscript_id AS manuscriptId FROM layers WHERE id = ?')
+        .get(tx) as { manuscriptId: string }
+    ).manuscriptId;
+    const sub = (
+      callDesktopSession(id, 'layers.create', {
+        manuscriptId,
+        key: 'sub',
+        name: { zh: '细分' },
+        tierType: 'time-subdivision',
+        contentType: 'transcription',
+        hosts: [{ hostLayerId: tx }],
+      }) as { id: string }
+    ).id;
+    const parent = unit(id, tx, 0, 1500, '父');
+    const next = unit(id, tx, 2000, 2800, '后');
+    const child = (startMs: number, endMs: number) =>
+      (
+        callDesktopSession(id, 'units.create', {
+          layerId: sub,
+          parentUnitId: parent,
+          startMs,
+          endMs,
+          text: '',
+        }) as { id: string }
+      ).id;
+    const a = child(100, 700);
+    const b = child(800, 1400);
+    const get = (unitId: string) =>
+      callDesktopSession(id, 'units.get', { id: unitId }) as { startMs: number; endMs: number };
+    const move = (delta: number, operationId?: string) =>
+      callDesktopSession(id, 'units.moveUnit', {
+        unitId: parent,
+        delta,
+        ...(operationId === undefined ? {} : { operationId }),
+      });
+    expect(() => move(-100)).toThrow('edge is outside the media');
+    expect(() => move(700)).toThrow('same speaker intervals overlap');
+    expect(get(parent)).toMatchObject({ startMs: 0, endMs: 1500 });
+    expect(get(a)).toMatchObject({ startMs: 100, endMs: 700 });
+    expect(() => callDesktopSession(id, 'units.moveUnit', { unitId: b, delta: 200 })).toThrow(
+      'time subdivision is outside its parent',
+    );
+    const operationId = globalThis.crypto.randomUUID();
+    move(400, operationId);
+    expect(move(400, operationId)).toMatchObject({ startMs: 400, endMs: 1900 });
+    expect(get(a)).toMatchObject({ startMs: 500, endMs: 1100 });
+    expect(get(b)).toMatchObject({ startMs: 1200, endMs: 1800 });
+    expect(get(next)).toMatchObject({ startMs: 2000 });
+    closeDesktopSession(id);
+    const again = openDesktopSession(dir, [dir]);
+    expect(callDesktopSession(again.sessionId, 'units.get', { id: b })).toMatchObject({
+      startMs: 1200,
+      endMs: 1800,
+    });
+    callDesktopSession(again.sessionId, 'units.moveUnit', { unitId: parent, delta: -400 });
+    callDesktopSession(again.sessionId, 'units.undo', {});
+    expect(callDesktopSession(again.sessionId, 'units.get', { id: a })).toMatchObject({
+      startMs: 500,
+    });
+    callDesktopSession(again.sessionId, 'units.redo', {});
+    expect(callDesktopSession(again.sessionId, 'units.get', { id: a })).toMatchObject({
+      startMs: 100,
+    });
+    callDesktopSession(again.sessionId, 'units.undo', {});
+    expect(callDesktopSession(again.sessionId, 'units.get', { id: parent })).toMatchObject({
+      startMs: 400,
+    });
+  });
+
   it('keeps a subdivision child inside its parent and pushes children with a parent edge', () => {
     const dir = folder();
     const session = openDesktopSession(dir, [dir]);

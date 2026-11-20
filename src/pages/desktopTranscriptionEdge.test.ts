@@ -6,6 +6,7 @@ import {
   edgeRejectKind,
   neighborTargets,
   parseTimecode,
+  previewMove,
   selectedPair,
   snapEdgeMs,
   touchingPair,
@@ -100,5 +101,27 @@ describe('keyboard edge cycling', () => {
       leftId: 'b',
       rightId: 'c',
     });
+  });
+});
+
+describe('whole-segment move preview', () => {
+  const base = { zoomPxPerSec: 100, units, playheadMs: null };
+  const unit = { id: 'c', startMs: 2500, endMs: 3000 };
+
+  it('keeps the width, snaps a nearby edge, and lets Alt turn snapping off', () => {
+    expect(previewMove({ ...base, unit, deltaPx: -45, alt: false })).toMatchObject({
+      startMs: 2000,
+      endMs: 2500,
+      kind: 'neighbor',
+    });
+    expect(previewMove({ ...base, unit, deltaPx: -45, alt: true })).toMatchObject({
+      startMs: 2050,
+      endMs: 2550,
+      kind: null,
+    });
+  });
+
+  it('never starts before zero', () => {
+    expect(previewMove({ ...base, unit: units[0]!, deltaPx: -500, alt: true }).startMs).toBe(0);
   });
 });

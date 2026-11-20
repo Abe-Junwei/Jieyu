@@ -1239,3 +1239,64 @@
   margin: 0 0 8px;
   color: var(--text-secondary);
 }
+
+/* Waveform segment handles: edges resize, the top grip moves the whole segment. */
+.desktop-tx-wave-edges {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-header-float);
+}
+
+.desktop-tx-wave-seg,
+.desktop-tx-wave-ghost {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--wave-left);
+  width: var(--wave-w);
+}
+
+.desktop-tx-wave-ghost {
+  height: 100%;
+  pointer-events: none;
+}
+
+.desktop-tx-wave-grip {
+  position: absolute;
+  top: 0;
+  left: min(6px, calc(var(--wave-w) / 3));
+  right: min(6px, calc(var(--wave-w) / 3));
+  height: 14px;
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.desktop-tx-wave-grip:hover,
+.desktop-tx-wave-grip:focus-visible,
+.desktop-tx-wave-seg.is-selected .desktop-tx-wave-grip {
+  background: var(--brand-tint);
+}
+
+.desktop-tx-wave-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: min(6px, calc(var(--wave-w) / 3));
+  cursor: col-resize;
+  pointer-events: auto;
+}
+
+.desktop-tx-wave-handle.is-start {
+  left: 0;
+}
+
+.desktop-tx-wave-handle.is-end {
+  right: 0;
+}
+
+.desktop-tx-wave-handle:hover,
+.desktop-tx-wave-handle:focus-visible,
+.desktop-tx-wave-seg.is-selected .desktop-tx-wave-handle {
+  background: var(--brand-tint);
+}
