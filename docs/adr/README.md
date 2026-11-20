@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0131**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0132**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -71,7 +71,7 @@ source_of_truth: decision-index
 
 ## 本轮范围与生命周期
 
-- [0130：桌面渲染层单独入口与构建，旧网页靠门禁隔离](./0130-desktop-renderer-build-isolated-from-legacy-web.md)
+- [0131：桌面渲染层单独入口与构建，旧网页靠门禁隔离](./0131-desktop-renderer-build-isolated-from-legacy-web.md)
 - [0129：编辑回执、撤销阻断与时间码草稿冲突](./0129-edit-receipts-and-undo-guard.md)
 - [0128：时间码草稿进项目库，边界编辑按稿件撤销](./0128-time-drafts-and-edge-undo.md)
 - [0127：共享波形上的选区按钮和速度滑杆改用主题色实底](./0127-shared-waveform-region-controls-use-theme-paint.md)
