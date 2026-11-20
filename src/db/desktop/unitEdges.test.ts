@@ -244,6 +244,36 @@ describe('desktop unit edges', () => {
       text: '句',
     });
   });
+  it('counts only non-empty texts of linked layers in the delete preview', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const id = session.sessionId;
+    const tx = layer(id, true);
+    const manuscriptId = (
+      requireDesktopSession(id)
+        .db.prepare('SELECT manuscript_id AS manuscriptId FROM layers WHERE id = ?')
+        .get(tx) as { manuscriptId: string }
+    ).manuscriptId;
+    const tl = (
+      callDesktopSession(id, 'layers.create', {
+        manuscriptId,
+        key: 'tl',
+        name: { zh: '翻译' },
+        tierType: 'time-aligned',
+        contentType: 'translation',
+        hosts: [{ hostLayerId: tx }],
+      }) as { id: string }
+    ).id;
+    const host = unit(id, tx, 0, 1000, '句');
+    const linked = () =>
+      (callDesktopSession(id, 'units.deletePreview', { unitId: host }) as { linkedTexts: number })
+        .linkedTexts;
+    expect(linked()).toBe(0);
+    callDesktopSession(id, 'units.updateText', { unitId: host, textLayerId: tl, text: 'gloss' });
+    expect(linked()).toBe(1);
+    callDesktopSession(id, 'units.updateText', { unitId: host, textLayerId: tl, text: '' });
+    expect(linked()).toBe(0);
+  });
   it('keeps a subdivision child inside its parent and pushes children with a parent edge', () => {
     const dir = folder();
     const session = openDesktopSession(dir, [dir]);

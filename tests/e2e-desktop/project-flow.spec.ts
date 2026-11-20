@@ -204,39 +204,7 @@ test('a subdivision card becomes the edge target and its menu deletes only that 
     await page.getByRole('button', { name: openFolder }).click();
     await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
     const sessionId = await chosenSessionId(app);
-    const clip = await clipLayer(page, sessionId);
-    const manuscripts = await desktopCall<{ id: string; title: Record<string, string> }[]>(
-      page,
-      sessionId,
-      'manuscripts.list',
-      {},
-    );
-    const manuscriptId = manuscripts.find((item) => item.title.und === 'Clip')?.id;
-    const words = await desktopCall<{ id: string }>(page, sessionId, 'layers.create', {
-      manuscriptId,
-      key: 'words',
-      name: { und: 'Words' },
-      tierType: 'time-subdivision',
-      contentType: 'transcription',
-      sortOrder: 1,
-      hosts: [{ hostLayerId: clip.layerId }],
-    });
-    const hostUnits = await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', {
-      layerId: clip.layerId,
-    });
-    const parent = hostUnits.find((unit) => unit.startMs !== null && unit.endMs !== null);
-    if (parent?.startMs == null || parent.endMs == null) throw new Error('host unit missing');
-    const mid = Math.round((parent.startMs + parent.endMs) / 2);
-    const make = (startMs: number, endMs: number) =>
-      desktopCall<{ id: string }>(page, sessionId, 'units.create', {
-        layerId: words.id,
-        parentUnitId: parent.id,
-        startMs,
-        endMs,
-        text: '',
-      });
-    const left = await make(parent.startMs, mid);
-    await make(mid, parent.endMs);
+    const { clip, words, parent, left } = await seedWords(page, sessionId);
     await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
     await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
     const row = page.locator(`[data-layer-id="${words.id}"]`);
@@ -260,6 +228,69 @@ test('a subdivision card becomes the edge target and its menu deletes only that 
       startMs: parent.startMs,
       endMs: parent.endMs,
     });
+  } finally {
+    await app.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
+
+test('a subdivision card takes arrow keys and the time box, and a parent drag shows the follow tip', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-subdiv-edge-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  const app = await launch('tx-subdiv-edge');
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const { clip, words, parent, left, right, mid } = await seedWords(page, sessionId);
+    const read = async (layerId: string, id: string) =>
+      (await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId })).find(
+        (unit) => unit.id === id,
+      );
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    const row = page.locator(`[data-layer-id="${words.id}"]`);
+    await expect(row.locator('.timeline-annotation')).toHaveCount(2);
+
+    await row.locator('.timeline-annotation').first().click();
+    await page.keyboard.press('e');
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByTestId('desktop-edge-focus')).toContainText(/start|起点/i);
+    await expect
+      .poll(async () => (await read(words.id, left.id))?.startMs)
+      .toBe(parent.startMs + 10);
+    expect((await read(words.id, left.id))?.endMs).toBe(mid);
+    expect((await read(clip.layerId, parent.id))?.startMs).toBe(parent.startMs);
+
+    const stamp = (ms: number) => `00:00:00.${String(ms).padStart(3, '0')}`;
+    const end = page.getByRole('textbox', { name: /^(End time|结束时间)$/ });
+    await end.fill(stamp(mid - 50));
+    await end.blur();
+    await expect.poll(async () => (await read(words.id, left.id))?.endMs).toBe(mid - 50);
+    await end.fill('00:00:09.000');
+    await end.blur();
+    await page.waitForTimeout(300);
+    expect((await read(words.id, left.id))?.endMs).toBe(mid - 50);
+
+    const main = page.locator('.desktop-tx-lane__track').first();
+    await main.locator('.timeline-annotation').first().click();
+    const handle = main.locator('.timeline-annotation-resize-handle-end').first();
+    const at = await handle.boundingBox();
+    if (at === null) throw new Error('parent handle missing');
+    await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(at.x - 40, at.y + at.height / 2, { steps: 8 });
+    await expect(page.locator('.desktop-tx-snap')).toContainText(/Children follow|子段跟随/);
+    await page.mouse.up();
+    await expect
+      .poll(async () => (await read(words.id, right.id))?.endMs ?? Infinity)
+      .toBeLessThan(parent.endMs);
+    expect((await read(clip.layerId, parent.id))?.endMs).toBeLessThan(parent.endMs);
   } finally {
     await app.close();
     rmSync(copy, { recursive: true, force: true });
@@ -970,6 +1001,50 @@ function chosenSessionId(app: ElectronApplication): Promise<string> {
     }
     return opened.sessionId;
   });
+}
+
+async function seedWords(page: Page, sessionId: string) {
+  const clip = await clipLayer(page, sessionId);
+  const manuscripts = await desktopCall<{ id: string; title: Record<string, string> }[]>(
+    page,
+    sessionId,
+    'manuscripts.list',
+    {},
+  );
+  const manuscriptId = manuscripts.find((item) => item.title.und === 'Clip')?.id;
+  const words = await desktopCall<{ id: string }>(page, sessionId, 'layers.create', {
+    manuscriptId,
+    key: 'words',
+    name: { und: 'Words' },
+    tierType: 'time-subdivision',
+    contentType: 'transcription',
+    sortOrder: 1,
+    hosts: [{ hostLayerId: clip.layerId }],
+  });
+  const hostUnits = await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', {
+    layerId: clip.layerId,
+  });
+  const parent = hostUnits.find((unit) => unit.startMs !== null && unit.endMs !== null);
+  if (parent?.startMs == null || parent.endMs == null) throw new Error('host unit missing');
+  const mid = Math.round((parent.startMs + parent.endMs) / 2);
+  const make = (startMs: number, endMs: number) =>
+    desktopCall<{ id: string }>(page, sessionId, 'units.create', {
+      layerId: words.id,
+      parentUnitId: parent.id,
+      startMs,
+      endMs,
+      text: '',
+    });
+  const left = await make(parent.startMs, mid);
+  const right = await make(mid, parent.endMs);
+  return {
+    clip,
+    words,
+    parent: { ...parent, startMs: parent.startMs, endMs: parent.endMs },
+    left,
+    right,
+    mid,
+  };
 }
 
 async function clipLayer(page: Page, sessionId: string): Promise<{ layerId: string }> {
