@@ -625,7 +625,7 @@
   transform: translateX(-1px) rotate(-135deg);
 }
 
-/* 层树：缩进表从属，线表关系，点表节点；多宿主层的点加环，悬停列出其他宿主。 */
+/* 层树：缩进表从属，线表关系，点表节点；其他宿主走最左侧虚线走线槽，宿主端加环；悬停节点显示层名与依附关系。 */
 .desktop-tx-layer-label {
   --tree-line: var(--border-strong);
   --dot-x: 30px;
@@ -675,6 +675,36 @@
   bottom: 50%;
   border-bottom: 1px solid var(--tree-line);
   background: none;
+}
+
+.lane-run,
+.lane-stub {
+  --dash-v: repeating-linear-gradient(to bottom, var(--tree-line) 0 3px, transparent 3px 6px);
+  --dash-h: repeating-linear-gradient(to right, var(--tree-line) 0 3px, transparent 3px 6px);
+}
+
+.lane-run {
+  left: var(--x);
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--dash-v);
+}
+
+.lane-run.is-first {
+  top: 50%;
+}
+
+.lane-run.is-last {
+  bottom: 50%;
+}
+
+.lane-stub {
+  left: var(--x);
+  top: 50%;
+  width: var(--w);
+  height: 1px;
+  background: var(--dash-h);
 }
 
 .desktop-tx-layer-label.is-side-host .desktop-tx-layer-dot {
@@ -754,8 +784,36 @@
   height: 28px;
 }
 
-.desktop-tx-layer-strip__spacer {
-  background: transparent;
+.desktop-tx-layer-strip__label {
+  border-bottom: 0;
+}
+
+/* 节点悬停提示：外观同设计系统「提示 / Tooltip」（墨底白字、4px 圆角、12/18）。 */
+.desktop-tx-layer-dot::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+}
+
+.desktop-tx-layer-tip {
+  position: fixed;
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  max-width: 240px;
+  padding: 5px 8px;
+  border-radius: var(--radius-xs);
+  background: var(--text-primary);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--text-primary) 8%, transparent);
+  color: var(--surface-panel);
+  font-size: 12px;
+  line-height: 18px;
+  pointer-events: none;
+  translate: -50% 0;
+}
+
+.desktop-tx-layer-tip__name {
+  font-weight: 600;
 }
 
 .desktop-tx-layer-strip__body {

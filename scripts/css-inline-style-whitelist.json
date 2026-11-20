@@ -150,7 +150,7 @@
     },
     {
       "file": "src/pages/DesktopTranscriptionLayerLabel.tsx",
-      "reason": "Tree guide and elbow offsets derive from each row's runtime depth; the context menu follows the live pointer.",
+      "reason": "Tree guide, elbow and side-lane offsets derive from each row's runtime depth and lane index; the context menu follows the live pointer and the node tooltip follows the node's on-screen box.",
       "reviewer": "Copilot App",
       "reviewedAt": "2026-11-20",
       "snippets": [
@@ -167,12 +167,28 @@
           "reviewedSha256": "2d665ad274b26b337b17689b043c92a68f8a49138a8098a4254837566fb58edf"
         },
         {
-          "anchor": "'--dot-x'",
+          "anchor": "left: menu.x, top: menu.y",
+          "reviewedSha256": "0022b7ff6223889daac1da9d2249bbe069dd72469f20eb5f4b7da08f16452669"
+        },
+        {
+          "anchor": "'--x': px(x) })",
+          "reviewedSha256": "15909ff1b540de9c0b1ae3bb47a095bb2145809eb71e96957d3e6adbc8e6e2ff"
+        },
+        {
+          "anchor": "'--w': px(dotX - (lane.role",
+          "reviewedSha256": "1ec3d03256d5f3cd36b3816c0149231bd69cb29072854126edd2f278bcca7e21"
+        },
+        {
+          "anchor": "'--dot-x': px(levelX(row.depth))",
           "reviewedSha256": "b10ef18d3f08a5325289dd1e006aee5bd44ef8a8d4cf43792821b2513970c909"
         },
         {
-          "anchor": "left: menu.x, top: menu.y",
-          "reviewedSha256": "0022b7ff6223889daac1da9d2249bbe069dd72469f20eb5f4b7da08f16452669"
+          "anchor": "'--dot-x': px(levelX(props.row.depth))",
+          "reviewedSha256": "5f78cf263e0f851eefcb29f24b7e4446e8d54b1a2a4edcb082d977ff2ba849f1"
+        },
+        {
+          "anchor": "left: box.left",
+          "reviewedSha256": "2dbde1a15ddddddc99dad61df537dc5863b50e6fbc57353f135229139ff5973b"
         }
       ]
     },

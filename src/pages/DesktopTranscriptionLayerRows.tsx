@@ -74,8 +74,14 @@ export function DesktopTranscriptionLayerRows(props: {
     groupCollapsed: false,
     folded: false,
     guides: [],
+    lanes: [],
+    moreHosts: 0,
     otherHostIds: [],
   };
+  const hostNames = (row: LayerTreeRow) =>
+    [...(row.hostId ? [row.hostId] : []), ...row.otherHostIds].map((id) =>
+      layerLabel(props.layers.find((item) => item.id === id)?.name, props.locale, ''),
+    );
   const rows = props.tree.flatMap((row) => {
     const layer = props.layers.find((item) => item.id === row.layerId);
     return layer ? [{ row, layer }] : [];
@@ -108,6 +114,8 @@ export function DesktopTranscriptionLayerRows(props: {
           layerId={layer.id}
           locale={props.locale}
           name={name}
+          row={row}
+          hostNames={hostNames(row)}
           segmentCount={layer.units.length}
           onExpand={() => props.onExpand(layer.id)}
         />
@@ -119,9 +127,7 @@ export function DesktopTranscriptionLayerRows(props: {
           locale={props.locale}
           name={name}
           row={row}
-          otherHosts={row.otherHostIds.map((id) =>
-            layerLabel(props.layers.find((item) => item.id === id)?.name, props.locale, ''),
-          )}
+          hostNames={hostNames(row)}
           focused={props.focus?.layerId === layer.id}
           onToggleGroup={() => props.onToggleGroup(layer.id)}
           onCollapse={() => props.onCollapse(layer.id)}

@@ -1,23 +1,27 @@
 import {
   useEffect,
+  useRef,
   useState,
   type CSSProperties,
   type KeyboardEvent,
   type MouseEvent,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { t, tf, type Locale } from '../i18n';
 import type { LayerTreeRow } from './desktopTranscriptionLayerTree';
 
 const INDENT_BASE = 30;
 const INDENT_STEP = 16;
 const INDENT_LEVELS = 3;
+const LANE_BASE = 6;
+const LANE_STEP = 4;
 
 /** Dot centre for a depth; deeper than three levels only lengthens the guides. */
 const levelX = (depth: number) => INDENT_BASE + INDENT_STEP * Math.min(depth, INDENT_LEVELS);
 const px = (value: number) => `${value}px`;
 const cssVars = (vars: Record<string, string>) => vars as CSSProperties;
 
-/** Tree guides; drawn only, hidden from assistive tech. */
+/** Tree guides and the side-lane runs; drawn only, hidden from assistive tech. */
 function TreeLines(props: { row: LayerTreeRow }) {
   const { row } = props;
   const dotX = levelX(row.depth);
@@ -44,7 +48,71 @@ function TreeLines(props: { row: LayerTreeRow }) {
       {row.childCount > 0 && !row.groupCollapsed ? (
         <i className="tree-guide is-own" style={cssVars({ '--x': px(dotX) })} />
       ) : null}
+      {row.lanes.map((lane) => {
+        const x = LANE_BASE + LANE_STEP * lane.lane;
+        return (
+          <span key={`${lane.lane}`}>
+            <i className={`lane-run is-${lane.span}`} style={cssVars({ '--x': px(x) })} />
+            {lane.role === 'through' ? null : (
+              <i
+                className={`lane-stub is-${lane.role}`}
+                style={cssVars({
+                  '--x': px(x),
+                  '--w': px(dotX - (lane.role === 'host' ? 6 : 4) - x),
+                })}
+              />
+            )}
+          </span>
+        );
+      })}
     </span>
+  );
+}
+
+/**
+ * The layer's node: hovering it, or focusing the label, shows the name and what the layer hangs
+ * on. Portalled so the clipped label column cannot cut the bubble.
+ */
+function LayerNode(props: {
+  locale: Locale;
+  row: LayerTreeRow;
+  name: string;
+  hostNames: readonly string[];
+  shown: boolean;
+  onShow: (shown: boolean) => void;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const box = props.shown ? ref.current?.getBoundingClientRect() : undefined;
+  const note =
+    props.hostNames.length > 0
+      ? tf(props.locale, 'app.desktopTranscription.layerHostsNote', {
+          names: new Intl.ListFormat(props.locale, { type: 'conjunction' }).format(props.hostNames),
+        })
+      : t(props.locale, 'app.desktopTranscription.layerRootNote');
+  return (
+    <>
+      <TreeLines row={props.row} />
+      <span
+        ref={ref}
+        aria-hidden
+        className="desktop-tx-layer-dot"
+        onPointerEnter={() => props.onShow(true)}
+        onPointerLeave={() => props.onShow(false)}
+      />
+      {box
+        ? createPortal(
+            <span
+              role="tooltip"
+              className="desktop-tx-layer-tip"
+              style={{ left: box.left + box.width / 2, top: box.bottom + 6 }}
+            >
+              <span className="desktop-tx-layer-tip__name">{props.name}</span>
+              <span>{note}</span>
+            </span>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 
@@ -56,14 +124,15 @@ export function DesktopTranscriptionLayerLabel(props: {
   locale: Locale;
   name: string;
   row: LayerTreeRow;
-  /** Names of the hosts beyond the preferred one, for the marker's hover text. */
-  otherHosts?: readonly string[];
+  /** Host names, preferred first, for the node's hover note. */
+  hostNames: readonly string[];
   focused: boolean;
   onToggleGroup: () => void;
   onCollapse: () => void;
 }) {
   const { row, locale } = props;
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const [tip, setTip] = useState(false);
   useEffect(() => {
     if (menu === null) return undefined;
     const close = () => setMenu(null);
@@ -87,13 +156,6 @@ export function DesktopTranscriptionLayerLabel(props: {
     const box = event.currentTarget.getBoundingClientRect();
     setMenu({ x: box.left + 8, y: box.bottom });
   };
-  const otherHosts = props.otherHosts ?? [];
-  const sideNote =
-    otherHosts.length > 0
-      ? tf(locale, 'app.desktopTranscription.layerOtherHosts', {
-          names: new Intl.ListFormat(locale, { type: 'conjunction' }).format(otherHosts),
-        })
-      : undefined;
   const groupLabel = tf(
     locale,
     row.groupCollapsed
@@ -103,21 +165,33 @@ export function DesktopTranscriptionLayerLabel(props: {
   );
   return (
     <div
-      className={`desktop-tx-band-label desktop-tx-layer-label${otherHosts.length > 0 ? ' is-side-host' : ''}${
+      className={`desktop-tx-band-label desktop-tx-layer-label${row.lanes.some((lane) => lane.role === 'host') ? ' is-side-host' : ''}${
         props.focused ? ' is-focused' : ''
       }`}
       style={cssVars({ '--dot-x': px(levelX(row.depth)) })}
       tabIndex={0}
-      title={sideNote ? `${props.name}\n${sideNote}` : props.name}
+      onFocus={(event) => setTip(event.target === event.currentTarget)}
+      onBlur={() => setTip(false)}
       onContextMenu={open}
       onKeyDown={onKeyDown}
     >
-      <TreeLines row={row} />
-      <span aria-hidden className="desktop-tx-layer-dot" />
+      <LayerNode
+        locale={locale}
+        row={row}
+        name={props.name}
+        hostNames={props.hostNames}
+        shown={tip}
+        onShow={setTip}
+      />
       <span className="desktop-tx-layer-name">{props.name}</span>
       {row.groupCollapsed ? (
         <span className="desktop-tx-layer-more">
           {tf(locale, 'app.desktopTranscription.layerGroupMore', { count: row.childCount })}
+        </span>
+      ) : null}
+      {row.moreHosts > 0 ? (
+        <span aria-hidden className="desktop-tx-layer-more">
+          +{row.moreHosts}
         </span>
       ) : null}
       {row.childCount > 0 ? (
@@ -156,17 +230,35 @@ export function DesktopTranscriptionLayerLabel(props: {
   );
 }
 
-/** A squeezed layer: a 28px strip with the way back, the name and the segment count. */
+/**
+ * A squeezed layer: a 28px strip with the way back, the name and the segment count. Its label cell
+ * drops the name but keeps the node and the lines, so the tree reads through it.
+ */
 export function DesktopTranscriptionFoldedStrip(props: {
   layerId: string;
   locale: Locale;
   name: string;
+  row: LayerTreeRow;
+  hostNames: readonly string[];
   segmentCount: number;
   onExpand: () => void;
 }) {
+  const [tip, setTip] = useState(false);
   return (
     <div className="desktop-tx-layer-strip" data-layer-id={props.layerId}>
-      <div className="desktop-tx-band-label desktop-tx-layer-strip__spacer" />
+      <div
+        className="desktop-tx-band-label desktop-tx-layer-label desktop-tx-layer-strip__label"
+        style={cssVars({ '--dot-x': px(levelX(props.row.depth)) })}
+      >
+        <LayerNode
+          locale={props.locale}
+          row={props.row}
+          name={props.name}
+          hostNames={props.hostNames}
+          shown={tip}
+          onShow={setTip}
+        />
+      </div>
       <button type="button" className="desktop-tx-layer-strip__body" onClick={props.onExpand}>
         <span className="desktop-tx-layer-strip__expand">
           {t(props.locale, 'app.desktopTranscription.layerExpand')}

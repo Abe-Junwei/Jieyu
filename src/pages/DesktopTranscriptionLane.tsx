@@ -244,8 +244,8 @@ export function DesktopTranscriptionLane(props: {
     props.locale,
     t(props.locale, 'app.desktopTranscription.contextLayerTranscription'),
   );
-  const otherHostNames = (row: LayerTreeRow) =>
-    row.otherHostIds.map((id) =>
+  const hostNames = (row: LayerTreeRow) =>
+    [...(row.hostId ? [row.hostId] : []), ...row.otherHostIds].map((id) =>
       layerLabel(props.layers?.find((layer) => layer.id === id)?.name, props.locale, ''),
     );
   const renderMain = (row: LayerTreeRow) =>
@@ -256,6 +256,8 @@ export function DesktopTranscriptionLane(props: {
             layerId={row.layerId}
             locale={props.locale}
             name={mainName}
+            row={row}
+            hostNames={hostNames(row)}
             segmentCount={props.units.length}
             onExpand={() => props.view.toggleRow(row.layerId)}
           />
@@ -269,7 +271,7 @@ export function DesktopTranscriptionLane(props: {
             locale={props.locale}
             name={mainName}
             row={row}
-            otherHosts={otherHostNames(row)}
+            hostNames={hostNames(row)}
             focused={focus === null}
             onToggleGroup={() => toggleGroup(row.layerId)}
             onCollapse={() => collapseLayer(row.layerId)}

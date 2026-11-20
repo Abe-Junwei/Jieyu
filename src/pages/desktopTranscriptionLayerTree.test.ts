@@ -31,6 +31,55 @@ describe('buildLayerTree', () => {
     expect(rows[0]).toMatchObject({ groupCollapsed: true, childCount: 2 });
   });
 
+  it('runs other hosts through side lanes docking a hidden end to its visible ancestor and keeping squeezed rows', () => {
+    const links = [link('c', 'a', true), link('c', 'b', false)];
+    const rows = buildLayerTree(layers, links, emptyFold());
+    expect(rows.map((row) => row.layerId)).toEqual(['a', 'c', 'b', 'd']);
+    expect(rows[1]?.lanes).toEqual([{ lane: 0, role: 'child', span: 'first' }]);
+    expect(rows[2]?.lanes).toEqual([{ lane: 0, role: 'host', span: 'last' }]);
+    expect(rows[3]?.lanes).toEqual([]);
+    const hidden = buildLayerTree(layers, links, { groups: ['a'], rows: [] });
+    expect(hidden.map((row) => [row.layerId, row.lanes.map((lane) => lane.role)])).toEqual([
+      ['a', ['child']],
+      ['b', ['host']],
+      ['d', []],
+    ]);
+    const folded = buildLayerTree(layers, links, { groups: [], rows: ['b'] });
+    expect(folded.map((row) => row.lanes.map((lane) => lane.role))).toEqual([
+      [],
+      ['child'],
+      ['host'],
+      [],
+    ]);
+  });
+
+  it('reuses a lane once its run ended and counts runs beyond the lane cap', () => {
+    const many = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((id, index) => ({
+      id,
+      sortOrder: index,
+    }));
+    const overlapping = buildLayerTree(
+      many,
+      [
+        link('g', 'a', true),
+        link('g', 'b', false),
+        link('g', 'c', false),
+        link('g', 'd', false),
+        link('g', 'e', false),
+      ],
+      emptyFold(),
+    );
+    const g = overlapping.find((row) => row.layerId === 'g');
+    expect(g?.lanes.map((lane) => lane.lane)).toEqual([0, 1, 2]);
+    expect(g?.moreHosts).toBe(1);
+    const sequential = buildLayerTree(
+      many,
+      [link('b', 'a', true), link('b', 'c', false), link('e', 'd', true), link('e', 'f', false)],
+      emptyFold(),
+    );
+    expect(sequential.flatMap((row) => row.lanes.map((lane) => lane.lane))).toEqual([0, 0, 0, 0]);
+  });
+
   it('lists hosts beyond the preferred one without moving the layer', () => {
     const rows = buildLayerTree(
       layers,
