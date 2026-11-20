@@ -630,7 +630,7 @@ function DesktopZoomControls(props: {
 }) {
   const { locale, zoomPercent, fitPxPerSec, maxZoomPercent, canFitSelection } = props;
   const percent = Math.round(zoomPercent);
-  const sliderPos = timelineZoomSliderPosition(zoomPercent, fitPxPerSec, maxZoomPercent);
+  const sliderPos = timelineZoomSliderPosition(zoomPercent, fitPxPerSec, maxZoomPercent, 100);
   return (
     <div className="desktop-tx-zoom" data-testid="desktop-zoom">
       <button
@@ -670,7 +670,12 @@ function DesktopZoomControls(props: {
         aria-label={tf(locale, 'transcription.zoom.scaleAria', { percent })}
         onChange={(event) => {
           props.onZoomPercent(
-            timelineZoomPercentFromSlider(Number(event.target.value), fitPxPerSec, maxZoomPercent),
+            timelineZoomPercentFromSlider(
+              Number(event.target.value),
+              fitPxPerSec,
+              maxZoomPercent,
+              100,
+            ),
           );
         }}
       />
