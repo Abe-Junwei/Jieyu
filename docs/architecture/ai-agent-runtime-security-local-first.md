@@ -11,7 +11,7 @@ depends_on:
 
 # AI Agent 运行时安全 — 本地优先策略
 
-> **排期真源**：[解语主路线图 §3 A6–A14、B11–B15](../execution/plans/解语-主路线图-master-roadmap-2026-06-01.md)  
+> **排期真源**：[解语主路线图](../execution/plans/解语-主路线图-master-roadmap-2026-06-01.md)唯一执行队列；A6–A14、B11–B15 的历史状态见[历史快照 §3](../history/解语-主路线图-历史-2026-06-01至2026-11-20.md)  
 > **提交点**：`src/ai/runtime/commitToolEffects.ts`。不引入 Google ADK。
 
 ## 1. 定位与边界

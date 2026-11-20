@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { join } from 'node:path';
 // @ts-expect-error — .mjs guard script without type declarations
-import { adrRecordFailures, codeDriftWarnings, codePathFailures, docLocationFailures, localLinkFailures, requiresCitation, specTasksFailures, uncitedDocFailures } from './check-docs-governance.mjs';
+import { adrRecordFailures, codeDriftWarnings, codePathFailures, docLocationFailures, historyDocFailures, localLinkFailures, requiresCitation, specTasksFailures, uncitedDocFailures, unlinkedHistoryFailures } from './check-docs-governance.mjs';
 
 const adrPath = join(process.cwd(), 'docs/adr/0001-example.md');
 
@@ -101,5 +101,35 @@ describe('codeDriftWarnings', () => {
     const docs = [{ relativePath: 'docs/architecture/x.md', source: 'Uses `src/a.ts` and `docs/y.md`.' }];
     expect(codeDriftWarnings(new Set(['src/a.ts', 'docs/y.md']), docs)).toEqual(['docs/architecture/x.md names src/a.ts']);
     expect(codeDriftWarnings(new Set(['src/a.ts', 'docs/architecture/x.md']), docs)).toEqual([]);
+  });
+});
+
+describe('history snapshots', () => {
+  const snapshot = 'docs/history/路线图-历史.md';
+
+  it('accepts docs/history/ only with doc_type history and an existing live plan split_from', () => {
+    expect(docLocationFailures(snapshot)).toEqual([]);
+    const ok = '---\ndoc_type: history\nsplit_from: docs/execution/plans/p.md\n---\n';
+    expect(historyDocFailures(snapshot, ok, () => true)).toEqual([]);
+    expect(historyDocFailures(snapshot, ok, () => false)[0]).toContain('does not exist');
+    expect(
+      historyDocFailures(snapshot, '---\ndoc_type: history\nsplit_from: docs/adr/0051.md\n---\n', () => true)[0],
+    ).toContain('must be a plan');
+    expect(
+      historyDocFailures(snapshot, '---\ndoc_type: history\nsplit_from: docs/execution/plans/README.md\n---\n', () => true)[0],
+    ).toContain('must be a plan');
+    expect(historyDocFailures(snapshot, '---\ndoc_type: plan\n---\n', () => true)).toHaveLength(2);
+  });
+
+  it('asks to delete a snapshot no live file links to, ignoring ADRs and sibling snapshots', () => {
+    const sources = new Map([
+      [snapshot, `self [x](./${'路线图-历史.md'})`],
+      ['docs/adr/0135.md', 'mentions `docs/history/路线图-历史.md`'],
+      ['docs/history/other.md', 'mentions 路线图-历史.md'],
+      ['docs/execution/plans/p.md', 'see [h](../../history/%E8%B7%AF%E7%BA%BF%E5%9B%BE-%E5%8E%86%E5%8F%B2.md)'],
+    ]);
+    expect(unlinkedHistoryFailures([snapshot], sources)).toEqual([]);
+    sources.delete('docs/execution/plans/p.md');
+    expect(unlinkedHistoryFailures([snapshot], sources)[0]).toContain('delete it');
   });
 });

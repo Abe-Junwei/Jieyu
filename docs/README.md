@@ -57,7 +57,7 @@ source_of_truth: navigation-only
 - 仍要执行的方案写在 `docs/execution/plans/`。做完、被替换或明确不做的长文从工作区删除，需要时看 git 历史。
 - 不要新建 `docs/execution/archive/`。
 - 使用者站点放在仓库根目录的 `user-guide/`（VitePress，GitHub Pages）。`docs/` 保持工程师文档。
-- 每类文档何时更新、何时删除见 [ADR-0051](./adr/0051-every-doc-type-has-an-end.md)；`npm run check:docs-governance` 会拦。
+- 每类文档何时更新、何时删除见 [ADR-0051](./adr/0051-every-doc-type-has-an-end.md)（仍在用计划剥出的 `docs/history/` 只读快照见 [ADR-0135](./adr/0135-history-snapshots-split-from-live-plans.md)）；`npm run check:docs-governance` 会拦。
 - 当某项设计具有长期复用价值且决策分歧较大时，再新增 ADR。
 
 ## 治理命令
