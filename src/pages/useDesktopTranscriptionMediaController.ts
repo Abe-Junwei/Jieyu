@@ -100,6 +100,7 @@ export function useDesktopTranscriptionMediaController(input: {
     setZoomMode,
     fitPxPerSec,
     maxZoomPercent,
+    minZoomPercent: 100,
     zoomPxPerSec,
     documentSpanSec: player.duration,
     onLogicalTimelineScrollSync: setScrollLeftPx,

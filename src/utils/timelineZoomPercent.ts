@@ -8,18 +8,19 @@ export function resolveOneToOneZoomPercent(fitPxPerSec: number): number {
  * Fit-all (100) is the widest view, except when 100 px/s is coarser than that.
  * The slider and 1:1 can then sit below 100 so they are not clamped back to fit-all.
  */
-export function resolveTimelineZoomPercentMin(fitPxPerSec: number): number {
+export function resolveTimelineZoomPercentMin(fitPxPerSec: number, floorPercent = 0): number {
   const oneToOne = resolveOneToOneZoomPercent(fitPxPerSec);
   if (!Number.isFinite(oneToOne) || oneToOne >= 100) return 100;
-  return Math.max(1, oneToOne);
+  return Math.max(1, oneToOne, Math.min(100, floorPercent));
 }
 
 export function clampTimelineZoomPercent(
   percent: number,
   fitPxPerSec: number,
   maxZoomPercent: number,
+  floorPercent = 0,
 ): number {
-  const minZoomPercent = resolveTimelineZoomPercentMin(fitPxPerSec);
+  const minZoomPercent = resolveTimelineZoomPercentMin(fitPxPerSec, floorPercent);
   const maxZoom = Math.max(minZoomPercent, maxZoomPercent);
   return Math.max(minZoomPercent, Math.min(maxZoom, Math.round(percent)));
 }
@@ -28,13 +29,14 @@ export function timelineZoomSliderPosition(
   zoomPercent: number,
   fitPxPerSec: number,
   maxZoomPercent: number,
+  floorPercent = 0,
 ): number {
-  const minZoomPercent = resolveTimelineZoomPercentMin(fitPxPerSec);
+  const minZoomPercent = resolveTimelineZoomPercentMin(fitPxPerSec, floorPercent);
   const maxZoom = Math.max(minZoomPercent, maxZoomPercent);
   if (maxZoom <= minZoomPercent) return 0;
   const span = Math.log(maxZoom / minZoomPercent);
   if (!(span > 0)) return 0;
-  const clamped = clampTimelineZoomPercent(zoomPercent, fitPxPerSec, maxZoom);
+  const clamped = clampTimelineZoomPercent(zoomPercent, fitPxPerSec, maxZoom, floorPercent);
   const ratio = Math.log(clamped / minZoomPercent) / span;
   if (!Number.isFinite(ratio)) return 0;
   return Math.round(Math.min(1, Math.max(0, ratio)) * 1000);
@@ -44,11 +46,12 @@ export function timelineZoomPercentFromSlider(
   position: number,
   fitPxPerSec: number,
   maxZoomPercent: number,
+  floorPercent = 0,
 ): number {
-  const minZoomPercent = resolveTimelineZoomPercentMin(fitPxPerSec);
+  const minZoomPercent = resolveTimelineZoomPercentMin(fitPxPerSec, floorPercent);
   const maxZoom = Math.max(minZoomPercent, maxZoomPercent);
   const t = Math.min(1000, Math.max(0, position)) / 1000;
   if (maxZoom <= minZoomPercent) return minZoomPercent;
   const percent = minZoomPercent * Math.pow(maxZoom / minZoomPercent, t);
-  return clampTimelineZoomPercent(percent, fitPxPerSec, maxZoom);
+  return clampTimelineZoomPercent(percent, fitPxPerSec, maxZoom, floorPercent);
 }
