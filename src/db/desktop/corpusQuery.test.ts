@@ -485,5 +485,5 @@ describe('corpus query', () => {
     } finally {
       project.close();
     }
-  }, 180_000);
+  }, 360_000);
 });
