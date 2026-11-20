@@ -25,6 +25,7 @@ import { DesktopTranscriptionEdgeChrome } from './DesktopTranscriptionEdgeChrome
 import {
   desktopSegmentFrame,
   edgeNotice,
+  followTip,
   playbackWithPreview,
   seamLeft,
   seamSeconds,
@@ -88,12 +89,16 @@ export function DesktopTranscriptionLane(props: {
   const [focus, setFocus] = useState<LayerCardRef | null>(null);
   const [createLayerId, setCreateLayerId] = useState<string | null>(null);
   const [waveDrag, setWaveDrag] = useState(false);
+  const [childId, setChildId] = useState<string | null>(null);
   const selectedId = props.selectedUnitId;
   useEffect(() => {
     const keep = (card: LayerCardRef | null) => (card?.unitId === selectedId ? card : null);
     setEditing(keep);
     setFocus(keep);
+    setChildId(null);
   }, [selectedId]);
+  const childRow = childId === null ? undefined : subdivisionRow(props.layers, childId);
+  const child = childRow?.units.find((unit) => unit.id === childId);
   const timedUnits = (props.sourceUnits ?? []).flatMap((unit) =>
     unit.startMs === null || unit.endMs === null
       ? []
@@ -110,7 +115,7 @@ export function DesktopTranscriptionLane(props: {
       .map((layer) => layer.units.flatMap(timedOf)),
     hasMedia: props.hasAudio,
     zoomPxPerSec: props.zoomPxPerSec,
-    selectedUnitId: props.selectedUnitId,
+    selectedUnitId: child?.id ?? props.selectedUnitId,
     playheadMs: () => {
       const sec = getTranscriptionPlaybackClockSnapshot();
       return Number.isFinite(sec) ? Math.round(sec * 1000) : null;
@@ -180,7 +185,28 @@ export function DesktopTranscriptionLane(props: {
           props.zoomPxPerSec,
         )
       : null;
-  const selected = props.units.find((unit) => unit.id === props.selectedUnitId) ?? null;
+  const follow = followTip(props.layers ?? [], edges.ui.preview);
+  const followedTip =
+    edges.ui.preview === null
+      ? null
+      : follow !== null
+        ? {
+            text: tf(
+              props.locale,
+              follow.edge === 'start'
+                ? 'app.desktopTranscription.edgeFollowStart'
+                : 'app.desktopTranscription.edgeFollowEnd',
+              { count: follow.count, time: formatPlaybackTime(follow.timeMs / 1000) },
+            ),
+            x: edges.ui.preview.x,
+            y: edges.ui.preview.y,
+          }
+        : edges.ui.preview.tip
+          ? { text: edges.ui.preview.tip, x: edges.ui.preview.x, y: edges.ui.preview.y }
+          : null;
+  const mainSelected = props.units.find((unit) => unit.id === props.selectedUnitId) ?? null;
+  const selected: DesktopPlaybackUnit | null = child ?? mainSelected;
+  const edgeRow = childRow?.timed ?? timedUnits;
   const wavePreview =
     waveDrag && props.waveStage && edges.ui.preview?.unitId === null && props.zoomPxPerSec > 0
       ? createPortal(
@@ -326,6 +352,7 @@ export function DesktopTranscriptionLane(props: {
                         props.onLeave(() => {
                           setFocus(null);
                           setEditing(null);
+                          setChildId(null);
                         });
                         return;
                       }
@@ -400,7 +427,7 @@ export function DesktopTranscriptionLane(props: {
           preview={edges.ui.preview}
           onRowMenu={(card, name, event) => {
             const linked = props.units.some((unit) => unit.id === card.unitId);
-            edges.openMenu(card.unitId, event, linked ? card.layerId : undefined, name);
+            edges.openMenu(card.unitId, event, card.layerId, name, !linked);
           }}
           onRowResize={(unitId, edge, event) => edges.beginDrag(unitId, edge, event)}
           onPick={(card, unit) => {
@@ -412,6 +439,7 @@ export function DesktopTranscriptionLane(props: {
             props.onLeave(() => {
               setFocus(card);
               setEditing(null);
+              setChildId(hit ? null : card.unitId);
               if (hit && hit.id !== selectedId) props.onSelectUnit(hit);
             });
           }}
@@ -432,8 +460,8 @@ export function DesktopTranscriptionLane(props: {
           selected === null
             ? null
             : {
-                index: props.units.findIndex((unit) => unit.id === selected.id) + 1,
-                total: props.units.length,
+                index: edgeRow.findIndex((unit) => unit.id === selected.id) + 1,
+                total: edgeRow.length,
               }
         }
         start={edges.ui.raw.start ?? (selected ? formatPlaybackTime(selected.startTime) : '')}
@@ -451,15 +479,11 @@ export function DesktopTranscriptionLane(props: {
             ? edges.ui.reason.message
             : null
         }
-        tip={
-          edges.ui.preview?.tip
-            ? { text: edges.ui.preview.tip, x: edges.ui.preview.x, y: edges.ui.preview.y }
-            : null
-        }
+        tip={followedTip}
         edgeFocus={
           edges.ui.edge !== null &&
           (edges.ui.edge.unitId === selected?.id || edges.ui.edge.otherId === selected?.id)
-            ? edgeFocusKind(timedUnits, edges.ui.edge)
+            ? edgeFocusKind(edgeRow, edges.ui.edge)
             : null
         }
         conflicts={edges.ui.raw.unitId === selected?.id ? edges.ui.raw.conflicts : NO_CONFLICTS}
@@ -504,4 +528,23 @@ function editBody(
   event: ChangeEvent<HTMLInputElement>,
 ) {
   props.onEditBody(key, event.target.value, unit.text);
+}
+
+/** The non-linked row that holds `unitId`, with its units shaped for the edge controller. */
+function subdivisionRow(layers: readonly LayerRowLayer[] | undefined, unitId: string) {
+  const layer = layers?.find((item) => item.units.some((unit) => unit.id === unitId));
+  if (!layer) return undefined;
+  const units = layer.units.flatMap((unit) =>
+    unit.startMs === null || unit.endMs === null
+      ? []
+      : [
+          {
+            id: unit.id,
+            startTime: unit.startMs / 1000,
+            endTime: unit.endMs / 1000,
+            text: unit.text,
+          },
+        ],
+  );
+  return { units, timed: layer.units.flatMap(timedOf) };
 }

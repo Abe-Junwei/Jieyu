@@ -88,7 +88,15 @@ export interface EdgeUi {
   preview: ShownPreview | null;
   edge: EdgeSelection | null;
   reason: { unitId: string; message: string } | null;
-  menu: { unitId: string; x: number; y: number; layerId?: string; layerName?: string } | null;
+  menu: {
+    unitId: string;
+    x: number;
+    y: number;
+    layerId?: string;
+    layerName?: string;
+    /** A time-subdivision card: deleting removes only that child. */
+    sub?: true;
+  } | null;
   deletePrompt: { unitId: string; counts: UnitDeletePreview } | null;
   raw: { unitId: string } & StoredTimes;
   /** An undo/redo step that later edits made stale; it stays until dropped (ADR-0129 E04). */
@@ -397,7 +405,13 @@ export function createEdgeActions(ctx: {
       create(event, msAt, layerId == null ? {} : { layerId });
     },
     /** `layerId` is set on a linked row: its menu may clear only that layer's body text. */
-    openMenu(unitId: string, event: MenuEvent, layerId?: string, layerName?: string) {
+    openMenu(
+      unitId: string,
+      event: MenuEvent,
+      layerId?: string,
+      layerName?: string,
+      sub?: boolean,
+    ) {
       event.preventDefault();
       setUi((current) => ({
         ...current,
@@ -406,6 +420,7 @@ export function createEdgeActions(ctx: {
           x: event.clientX,
           y: event.clientY,
           ...(layerId === undefined ? {} : { layerId, layerName: layerName ?? '' }),
+          ...(sub === true ? { sub: true as const } : {}),
         },
       }));
     },

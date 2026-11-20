@@ -24,7 +24,13 @@ export interface LayerRowLayer {
   id: string;
   name: Record<string, string>;
   sortOrder?: number;
-  units: readonly { id: string; startMs: number | null; endMs: number | null; text: string }[];
+  units: readonly {
+    id: string;
+    startMs: number | null;
+    endMs: number | null;
+    text: string;
+    parentUnitId?: string | null;
+  }[];
 }
 
 /** A card in some layer row: `layerId` + the unit id that row lists. */
@@ -108,6 +114,7 @@ export function DesktopTranscriptionLayerRows(props: {
               startTime: unit.startMs / 1000,
               endTime: unit.endMs / 1000,
               text: unit.text,
+              parentUnitId: unit.parentUnitId ?? null,
             },
           ],
     );
@@ -156,7 +163,7 @@ export function DesktopTranscriptionLayerRows(props: {
             onPointerDown={(event) => props.onCreate(event, layer.id, timed)}
           >
             {units.map((rowUnit, index) => {
-              const unit = playbackWithPreview(rowUnit, props.preview);
+              const unit = playbackWithPreview(rowUnit, props.preview, rowUnit.parentUnitId);
               const frame = desktopSegmentFrame(
                 unit,
                 props.duration,

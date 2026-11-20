@@ -298,8 +298,16 @@ describe('desktop unit edges', () => {
     expect(get(b)).toMatchObject({ startMs: 900, endMs: 1900 });
     callDesktopSession(id, 'units.redo', {});
     expect(get(b)).toMatchObject({ endMs: 1500 });
+    callDesktopSession(id, 'units.delete', { unitId: a });
+    expect(callDesktopSession(id, 'units.get', { id: a })).toBeNull();
+    expect(get(parent)).toMatchObject({ startMs: 0, endMs: 1500 });
+    expect(get(b)).toMatchObject({ endMs: 1500 });
+    callDesktopSession(id, 'units.undo', {});
+    expect(get(a)).toMatchObject({ startMs: 100, endMs: 800 });
+    callDesktopSession(id, 'units.redo', {});
     closeDesktopSession(id);
     const again = openDesktopSession(dir, [dir]);
+    expect(callDesktopSession(again.sessionId, 'units.get', { id: a })).toBeNull();
     expect(
       callDesktopSession(again.sessionId, 'units.get', { id: b }) as { endMs: number },
     ).toMatchObject({ endMs: 1500 });

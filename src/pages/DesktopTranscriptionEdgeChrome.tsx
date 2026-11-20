@@ -35,7 +35,7 @@ export function DesktopTranscriptionEdgeChrome(props: {
   edgeFocus: ReturnType<typeof edgeFocusKind> | null;
   conflicts: Record<TimeEdge, TimeConflict | null>;
   stale: { action: 'undo' | 'redo' } | null;
-  menu: { x: number; y: number; layerName?: string } | null;
+  menu: { x: number; y: number; layerName?: string; sub?: true } | null;
   deletePrompt: UnitDeletePreview | null;
   onRebase: (edge: TimeEdge) => void;
   onDiscardDraft: (edge: TimeEdge) => void;
@@ -162,9 +162,11 @@ export function DesktopTranscriptionEdgeChrome(props: {
             <button type="button" role="menuitem" onClick={props.onAskDelete}>
               {t(
                 locale,
-                props.menu.layerName === undefined
-                  ? 'app.desktopTranscription.deleteSegment'
-                  : 'app.desktopTranscription.deleteSegmentAllLayers',
+                props.menu.sub === true
+                  ? 'app.desktopTranscription.deleteSubSegment'
+                  : props.menu.layerName === undefined
+                    ? 'app.desktopTranscription.deleteSegment'
+                    : 'app.desktopTranscription.deleteSegmentAllLayers',
               )}
             </button>
           </div>

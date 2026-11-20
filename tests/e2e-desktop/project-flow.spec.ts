@@ -191,6 +191,81 @@ test('drags create on the waveform and on a linked layer row, and texts stay per
   }
 });
 
+test('a subdivision card becomes the edge target and its menu deletes only that child', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-subdiv-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  const app = await launch('tx-subdiv');
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const clip = await clipLayer(page, sessionId);
+    const manuscripts = await desktopCall<{ id: string; title: Record<string, string> }[]>(
+      page,
+      sessionId,
+      'manuscripts.list',
+      {},
+    );
+    const manuscriptId = manuscripts.find((item) => item.title.und === 'Clip')?.id;
+    const words = await desktopCall<{ id: string }>(page, sessionId, 'layers.create', {
+      manuscriptId,
+      key: 'words',
+      name: { und: 'Words' },
+      tierType: 'time-subdivision',
+      contentType: 'transcription',
+      sortOrder: 1,
+      hosts: [{ hostLayerId: clip.layerId }],
+    });
+    const hostUnits = await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', {
+      layerId: clip.layerId,
+    });
+    const parent = hostUnits.find((unit) => unit.startMs !== null && unit.endMs !== null);
+    if (parent?.startMs == null || parent.endMs == null) throw new Error('host unit missing');
+    const mid = Math.round((parent.startMs + parent.endMs) / 2);
+    const make = (startMs: number, endMs: number) =>
+      desktopCall<{ id: string }>(page, sessionId, 'units.create', {
+        layerId: words.id,
+        parentUnitId: parent.id,
+        startMs,
+        endMs,
+        text: '',
+      });
+    const left = await make(parent.startMs, mid);
+    await make(mid, parent.endMs);
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    const row = page.locator(`[data-layer-id="${words.id}"]`);
+    await expect(row.locator('.timeline-annotation')).toHaveCount(2);
+    const card = row.locator('.timeline-annotation').first();
+    await card.click({ button: 'right' });
+    await page.getByRole('menuitem', { name: /联动共用边界|Link the shared boundary/ }).waitFor();
+    await page.getByRole('menuitem', { name: /删除本子段|Delete this sub-segment/ }).click();
+    await page.getByRole('button', { name: /^(Delete segment|删除句段)$/ }).click();
+    await expect
+      .poll(async () =>
+        (await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId: words.id })).map(
+          (unit) => unit.id,
+        ),
+      )
+      .not.toContain(left.id);
+    const after = await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', {
+      layerId: clip.layerId,
+    });
+    expect(after.find((unit) => unit.id === parent.id)).toMatchObject({
+      startMs: parent.startMs,
+      endMs: parent.endMs,
+    });
+  } finally {
+    await app.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
+
 test('does not create a sample project on startup', async () => {
   const app = await launch('no-sample');
   try {

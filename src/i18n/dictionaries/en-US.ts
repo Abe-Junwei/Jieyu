@@ -76,6 +76,11 @@ export const enUSDictionary = {
   'app.desktopTranscription.edgeOverlap': 'Cannot overlap a neighboring segment',
   'app.desktopTranscription.edgeOutside': 'Outside the recording',
   'app.desktopTranscription.edgeOutsideParent': 'Cannot leave the parent segment',
+  'app.desktopTranscription.deleteSubSegment': 'Delete this sub-segment',
+  'app.desktopTranscription.edgeFollowStart':
+    'Children follow · {count} child start(s) synced to {time}',
+  'app.desktopTranscription.edgeFollowEnd':
+    'Children follow · {count} child end(s) synced to {time}',
   'app.desktopTranscription.edgeHasChildren':
     'Delete its subdivision segments first, then delete this segment',
   'app.desktopTranscription.edgeShort': 'Needs at least 10 milliseconds',
