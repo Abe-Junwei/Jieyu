@@ -17,7 +17,7 @@ depends_on:
 ## Implementation tasks
 
 - [x] S0 决策落档：ADR-0131 和本规格 → 验证：`npm run check:docs-governance`
-- [ ] S0b 在主路线图「唯一执行队列」下登记本工程轨：S1–S8 不替换 1b–7。S8 前，未迁走的 Chromium 用例仍是合并门槛，用 `dev:legacy` / `build:legacy` / `preview:legacy`。不改形态段，不改带日期的记录，不改 ADR-0063 正文 → 验证：`npm run check:docs-governance`
+- [x] S0b 在主路线图「唯一执行队列」下登记本工程轨：S1–S8 不替换 1b–7。S8 前，未迁走的 Chromium 用例仍是合并门槛，用 `dev:legacy` / `build:legacy` / `preview:legacy`。不改形态段，不改带日期的记录，不改 ADR-0063 正文 → 验证：`npm run check:docs-governance`
 - [ ] S1a 把 `parseLiftXml` 挪到 `src/utils/lexiconLiftParse.ts`，`foreignImport.ts` 改从这里导入 → 验证：LIFT 相关 vitest；重新实测 `src/db/desktop/**` 不再到达 `engine`
 - [ ] S1b 新增 `src/db/storagePortErrors.ts`（`sqliteStoragePort.ts` 改从这里导入错误类型）和 `src/db/dexieStoragePort.ts`（Dexie 实现）。`storagePort.ts` 只留安装槽，不导入 `engine`，未安装时抛错。`src/main.tsx` 先安装 `dexieStoragePort`，再调用 `installSqliteIpcPortIfEnabled`，开关打开时 SQLite 覆盖 Dexie。vitest setup 只安装 `dexieStoragePort` → 验证：`npm run typecheck`、`npm run test:vitest`、`npm run test:e2e:chromium`；重新实测目录全量为根时不到达 `engine`
 - [ ] S2 源码门禁：新增 `scripts/check-desktop-boundary.mjs`（含单测）和 `scripts/legacy-zone.json`。旧区根只列 `dexie`、`src/db/engine.ts`、`src/main.tsx`、`src/App.tsx`、10 个旧路由页面、`src/db/migration/e2eMigrationHarness.ts`。门禁以桌面页面入口和三个桌面目录为根；实测为 0 才接进 `check:all` → 验证：单测（样例导入 `db/engine` 应失败）、`npm run check:desktop-boundary`
