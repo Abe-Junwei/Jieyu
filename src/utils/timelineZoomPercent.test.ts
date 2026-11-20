@@ -20,4 +20,9 @@ describe('timeline zoom percent', () => {
     expect(timelineZoomPercentFromSlider(0, 200, 1600)).toBe(50);
     expect(timelineZoomPercentFromSlider(0, 40, 1600)).toBe(100);
   });
+
+  it('holds a media timeline at fit-all even when the span is denser than 100 px/s', () => {
+    expect(resolveTimelineZoomPercentMin(770, 100)).toBe(100);
+    expect(timelineZoomPercentFromSlider(0, 770, 1600, 100)).toBe(100);
+  });
 });
