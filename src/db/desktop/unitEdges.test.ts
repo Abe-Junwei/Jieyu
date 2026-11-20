@@ -222,6 +222,7 @@ describe('desktop unit edges', () => {
       endMs: 1600,
     });
     expect(callDesktopSession(session.sessionId, 'units.deletePreview', { unitId: id })).toEqual({
+      linkedTexts: 0,
       tokens: 0,
       morphemes: 0,
       notes: 0,

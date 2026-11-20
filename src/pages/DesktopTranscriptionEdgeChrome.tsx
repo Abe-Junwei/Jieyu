@@ -13,6 +13,7 @@ const EDGE_FOCUS: Record<ReturnType<typeof edgeFocusKind>, DictKey> = {
 };
 
 const DELETE_COUNTS: Record<keyof UnitDeletePreview, DictKey> = {
+  linkedTexts: 'app.desktopTranscription.deleteCount.linkedTexts',
   tokens: 'app.desktopTranscription.deleteCount.tokens',
   morphemes: 'app.desktopTranscription.deleteCount.morphemes',
   notes: 'app.desktopTranscription.deleteCount.notes',
@@ -161,16 +162,16 @@ export function DesktopTranscriptionEdgeChrome(props: {
                 })}
               </button>
             )}
-            <button type="button" role="menuitem" onClick={props.onAskDelete}>
-              {t(
-                locale,
-                props.menu.sub === true
-                  ? 'app.desktopTranscription.deleteSubSegment'
-                  : props.menu.layerName === undefined
-                    ? 'app.desktopTranscription.deleteSegment'
-                    : 'app.desktopTranscription.deleteSegmentAllLayers',
-              )}
-            </button>
+            {props.menu.layerName !== undefined && props.menu.sub !== true ? null : (
+              <button type="button" role="menuitem" onClick={props.onAskDelete}>
+                {t(
+                  locale,
+                  props.menu.sub === true
+                    ? 'app.desktopTranscription.deleteSubSegment'
+                    : 'app.desktopTranscription.deleteSegment',
+                )}
+              </button>
+            )}
           </div>
         </>
       )}

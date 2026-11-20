@@ -235,6 +235,7 @@ export function moveSharedBoundary(
 }
 
 export interface UnitDeletePreview {
+  linkedTexts: number;
   tokens: number;
   morphemes: number;
   notes: number;
@@ -255,6 +256,13 @@ export function previewUnitDeletion(db: SqliteDatabase, unitId: string): UnitDel
       { analysis_graph_json: string | null } | undefined;
     const nodeIds = nodeIdsOf(graph?.analysis_graph_json ?? null);
     return {
+      linkedTexts: count(
+        `SELECT COUNT(*) AS n FROM unit_texts
+         WHERE unit_id = ? AND body <> ''
+           AND layer_id <> (SELECT layer_id FROM units WHERE id = ?)`,
+        unitId,
+        unitId,
+      ),
       tokens: count('SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?', unitId),
       morphemes: count(
         `SELECT COUNT(*) AS n FROM morphemes

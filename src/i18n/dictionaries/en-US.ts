@@ -95,7 +95,6 @@ export const enUSDictionary = {
   'app.desktopTranscription.noMediaLinked': 'No recording linked',
   'app.desktopTranscription.linkBoundary': 'Link the shared boundary',
   'app.desktopTranscription.clearLayerText': 'Clear “{layer}” text',
-  'app.desktopTranscription.deleteSegmentAllLayers': 'Delete segment (all layers)',
   'app.desktopTranscription.deleteSegment': 'Delete segment',
   'app.desktopTranscription.deleteBody':
     'This deletes the segment and the children below. Undo keeps the same identity.',
@@ -121,6 +120,7 @@ export const enUSDictionary = {
   'app.desktopTranscription.edgeFocusEnd': 'Current edge: end',
   'app.desktopTranscription.edgeFocusSharedNext': 'Current edge: shared with next segment',
   'app.desktopTranscription.edgeFocusSharedPrev': 'Current edge: shared with previous segment',
+  'app.desktopTranscription.deleteCount.linkedTexts': '{count} linked-layer texts',
   'app.desktopTranscription.deleteCount.tokens': '{count} word notes',
   'app.desktopTranscription.deleteCount.morphemes': '{count} morphemes',
   'app.desktopTranscription.deleteCount.notes': '{count} notes',
