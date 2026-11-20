@@ -31,7 +31,6 @@ export function DesktopTranscriptionEdgeChrome(props: {
   end: string;
   saved: boolean;
   hasMedia: boolean;
-  reason: string | null;
   tip: { text: string; x: number; y: number } | null;
   edgeFocus: ReturnType<typeof edgeFocusKind> | null;
   conflicts: Record<TimeEdge, TimeConflict | null>;
@@ -79,9 +78,6 @@ export function DesktopTranscriptionEdgeChrome(props: {
             <span className="desktop-tx-status__focus" data-testid="desktop-edge-focus">
               {t(locale, EDGE_FOCUS[props.edgeFocus])}
             </span>
-          )}
-          {props.reason === null ? null : (
-            <span className="desktop-tx-status__reason">{props.reason}</span>
           )}
           {(['start', 'end'] as const).map((edge) => {
             const conflict = props.conflicts[edge];

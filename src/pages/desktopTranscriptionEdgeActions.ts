@@ -93,7 +93,6 @@ export interface EdgeControllerInput {
 export interface EdgeUi {
   preview: ShownPreview | null;
   edge: EdgeSelection | null;
-  reason: { unitId: string; message: string } | null;
   menu: {
     unitId: string;
     x: number;
@@ -114,7 +113,6 @@ export interface EdgeUi {
 export const EMPTY_EDGE_UI: EdgeUi = {
   preview: null,
   edge: null,
-  reason: null,
   menu: null,
   deletePrompt: null,
   raw: { unitId: '', start: null, end: null, saved: false, conflicts: NO_CONFLICTS },
@@ -144,25 +142,24 @@ export function createEdgeActions(ctx: {
     );
   };
 
-  function reject(unitId: string, error: unknown, timeMs: number) {
+  function reject(error: unknown, timeMs: number) {
     const message = edgeFailureMessage(error, timeMs, live.current.message);
-    setUi((current) => ({ ...current, preview: null, reason: { unitId, message } }));
+    setUi((current) => ({ ...current, preview: null }));
     live.current.notify(message);
   }
 
-  async function afterWrite(work: () => Promise<void>, unitId: string, timeMs: number) {
+  async function afterWrite(work: () => Promise<void>, timeMs: number) {
     try {
       await work();
       edited.current = false;
       setUi((current) => ({
         ...current,
         preview: null,
-        reason: null,
         raw: { ...EMPTY_EDGE_UI.raw, unitId: current.raw.unitId },
       }));
       await live.current.reload();
     } catch (error) {
-      reject(unitId, error, timeMs);
+      reject(error, timeMs);
     }
   }
 
@@ -175,8 +172,8 @@ export function createEdgeActions(ctx: {
       selected,
       delta,
     });
-    if (result?.failed) reject(selected.unitId, result.error, result.time);
-    else if (result) await afterWrite(async () => undefined, selected.unitId, 0);
+    if (result?.failed) reject(result.error, result.time);
+    else if (result) await afterWrite(async () => undefined, 0);
   }
 
   async function runStack(action: 'undo' | 'redo') {
@@ -283,7 +280,7 @@ export function createEdgeActions(ctx: {
             parentUnitId: route.parentUnitId,
           })
           .then(() => live.current.reload())
-          .catch((error: unknown) => reject(route.layerId, error, endMs));
+          .catch((error: unknown) => reject(error, endMs));
       },
     });
   }
@@ -307,9 +304,9 @@ export function createEdgeActions(ctx: {
           live.current.notify(live.current.draftSavedMessage, 'info');
         },
       });
-      if (result === 'commit') await afterWrite(async () => undefined, unit.id, 0);
+      if (result === 'commit') await afterWrite(async () => undefined, 0);
     } catch (error) {
-      reject(unit.id, error, edge === 'start' ? unit.startMs : unit.endMs);
+      reject(error, edge === 'start' ? unit.startMs : unit.endMs);
     }
   }
 
@@ -324,14 +321,14 @@ export function createEdgeActions(ctx: {
     try {
       const result = await rebaseTimeDraft({ call: session, unit, edge, raw: conflict.rawInput });
       if (result.committed) {
-        await afterWrite(async () => undefined, unit.id, 0);
+        await afterWrite(async () => undefined, 0);
         return;
       }
       setUi((state) => ({
         ...state,
         raw: { ...state.raw, saved: true, conflicts: { ...state.raw.conflicts, [edge]: null } },
       }));
-      reject(unit.id, result.error, result.time);
+      reject(result.error, result.time);
     } catch {
       failed();
     }
@@ -389,7 +386,7 @@ export function createEdgeActions(ctx: {
           const work = shared
             ? commitSharedEdge(session, shared.leftId, shared.rightId, time)
             : commitUnitEdge(session, unitId, edge, time);
-          void afterWrite(() => work, unitId, time);
+          void afterWrite(() => work, time);
         },
       });
     },
@@ -408,7 +405,7 @@ export function createEdgeActions(ctx: {
           if (!session) return;
           const unit = rowOf(unitId).find((item) => item.id === unitId);
           const time = (unit?.startMs ?? 0) + delta;
-          void afterWrite(() => commitUnitMove(session, unitId, delta), unitId, time);
+          void afterWrite(() => commitUnitMove(session, unitId, delta), time);
         },
         onClick,
       });
@@ -477,7 +474,7 @@ export function createEdgeActions(ctx: {
       const next = sharedEdge(rowOf(menu.unitId), menu.unitId);
       if (!next) {
         const message = live.current.message('apart', '');
-        setUi((current) => ({ ...current, menu: null, reason: { unitId: menu.unitId, message } }));
+        setUi((current) => ({ ...current, menu: null }));
         live.current.notify(message);
         return;
       }

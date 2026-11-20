@@ -1,105 +1,118 @@
-/* 全局 Toast 组件样式 | Global toast component styles */
+/* 全局 Toast：墨色壳 + 色点，见 DESIGN.md「提示条」与 ADR-0116 | Global toast: ink shell + dot */
 .transcription-toast-container {
   position: fixed;
   display: flex;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
   left: 50%;
   transform: translateX(-50%);
-  z-index: calc(var(--z-context-menu) + 2);
-  background: transparent;
+  z-index: var(--z-toast);
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   pointer-events: none;
-  box-shadow: none;
 }
 
 .transcription-toast {
-  padding: 8px 18px;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  font-weight: 600;
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--shadow-color) 12%, transparent);
+  --toast-dot: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-width: 280px;
+  max-width: 420px;
+  min-height: 40px;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid var(--toast-border);
+  border-radius: 8px;
+  background: var(--toast-bg);
+  color: var(--toast-fg);
+  font-size: 13px;
+  line-height: 20px;
+  box-shadow: var(--shadow-popover);
   pointer-events: auto;
   animation: toastSlideIn 0.25s ease-out;
   opacity: 1;
   transform: translateY(0);
   transition:
     opacity 0.26s ease,
-    transform 0.26s ease,
-    filter 0.26s ease;
+    transform 0.26s ease;
 }
 
-.transcription-toast-with-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
+.transcription-toast-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--toast-dot);
 }
 
-.transcription-toast-action {
-  border: 0;
-  padding: 0;
+.transcription-toast-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.transcription-toast-action,
+.transcription-toast-close {
+  flex: none;
+  height: 24px;
+  border: 1px solid color-mix(in srgb, var(--toast-fg) 40%, transparent);
+  border-radius: 4px;
   background: transparent;
   color: inherit;
   font: inherit;
-  font-weight: 700;
-  text-decoration: underline;
+  font-size: 12px;
+  line-height: 22px;
   cursor: pointer;
+}
+
+.transcription-toast-action {
+  padding: 0 8px;
+}
+
+.transcription-toast-close {
+  width: 24px;
+  border-color: transparent;
+  padding: 0;
+  font-size: 16px;
+}
+
+.transcription-toast-close::before {
+  content: '\00d7';
+}
+
+.transcription-toast-action:hover,
+.transcription-toast-action:focus-visible,
+.transcription-toast-close:hover,
+.transcription-toast-close:focus-visible {
+  background: color-mix(in srgb, var(--toast-fg) 14%, transparent);
 }
 
 .transcription-toast-exiting {
   opacity: 0;
-  transform: translateY(8px) scale(0.98);
-  filter: saturate(0.92);
-}
-
-.toast-info {
-  background: var(--state-info-bg);
-  color: var(--state-info-text);
-  border: 1px solid var(--state-info-border);
+  transform: translateY(8px);
 }
 
 .toast-success {
-  background: var(--state-success-bg);
-  color: var(--state-success-text);
-  border: 1px solid var(--state-success-border);
+  --toast-dot: var(--state-success-solid);
 }
 
 .toast-error {
-  background: var(--state-danger-bg);
-  color: var(--state-danger-text);
-  border: 1px solid var(--state-danger-border);
+  --toast-dot: var(--state-danger-solid);
 }
 
 .toast-warning,
 .toast-recording,
-.toast-ai-thinking {
-  background: var(--state-warning-bg);
-  color: var(--state-warning-text);
-  border: 1px solid var(--state-warning-border);
+.toast-ai-thinking,
+.toast-executing {
+  --toast-dot: var(--state-warning-solid);
 }
 
 .toast-listening {
-  background: var(--state-info-bg);
-  color: var(--state-info-solid);
-  border: 1px solid var(--state-info-border);
+  --toast-dot: var(--state-warning-solid);
   animation:
     toastSlideIn 0.25s ease-out,
     toastAttentionPulse 1.4s ease-in-out infinite;
-}
-
-.toast-routing {
-  background: var(--surface-elevated);
-  color: var(--state-info-solid);
-  border: 1px solid var(--state-info-border);
-  animation: toastSlideIn 0.25s ease-out;
-}
-
-.toast-executing {
-  background: var(--state-warning-bg);
-  color: var(--state-warning-text);
-  border: 1px solid var(--state-warning-border);
-  animation: toastSlideIn 0.25s ease-out;
 }
 
 @keyframes toastSlideIn {

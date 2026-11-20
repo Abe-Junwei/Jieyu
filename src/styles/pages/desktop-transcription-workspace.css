@@ -1136,10 +1136,6 @@
   outline-offset: 2px;
 }
 
-.desktop-tx-status__reason {
-  color: var(--state-danger-text);
-}
-
 .desktop-tx-status__focus {
   color: var(--text-primary);
   font-weight: 600;
@@ -1255,6 +1251,10 @@
   bottom: 0;
   left: var(--wave-left);
   width: var(--wave-w);
+}
+
+.desktop-tx-wave-seg.is-also {
+  background: color-mix(in srgb, var(--brand-solid) 10%, transparent);
 }
 
 .desktop-tx-wave-ghost {

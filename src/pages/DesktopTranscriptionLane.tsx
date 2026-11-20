@@ -506,11 +506,6 @@ export function DesktopTranscriptionLane(props: {
             props.bodyDraft.text !== selected.text)
         }
         hasMedia={props.hasAudio}
-        reason={
-          edges.ui.reason !== null && edges.ui.reason.unitId === selected?.id
-            ? edges.ui.reason.message
-            : null
-        }
         tip={followedTip}
         edgeFocus={
           edges.ui.edge !== null &&
