@@ -126,12 +126,18 @@ function DesktopTranscriptionWorkspace() {
     }
     draft.leave(() => selection.selectUnit(unit));
   };
+  const selectPlaybackUnits = (picked: readonly DesktopPlaybackUnit[]) => {
+    const [first] = picked;
+    if (!first) return;
+    draft.leave(() => selection.selectUnits(picked));
+  };
   const selectPlaybackUnitRef = useRef(selectPlaybackUnit);
   selectPlaybackUnitRef.current = selectPlaybackUnit;
   const playback = useDesktopTranscriptionMediaController({
     mediaUrl: read.model?.audioUrl ?? null,
     units,
     selectedUnitId: selection.selectedUnitId,
+    selectedUnitIds: selection.selectedUnitIds,
     tierContainerRef: tierRef,
     waveformWheelCaptureRootRef: waveHostRef,
     onSelectUnit: (unitId) => {
@@ -446,11 +452,14 @@ function DesktopTranscriptionWorkspace() {
             duration={playback.duration}
             zoomPxPerSec={playback.zoomPxPerSec}
             selectedUnitId={selection.selectedUnitId}
+            selectedUnitIds={selection.selectedUnitIds}
             bodyDraft={draft.draft}
             onEditBody={draft.edit}
             onComposeBody={draft.setComposing}
             onCommitBody={() => void draft.commit()}
             onSelectUnit={selectPlaybackUnit}
+            onSelectUnits={selectPlaybackUnits}
+            onSeek={playback.seekTo}
             reload={() => read.refresh()}
             tierRef={tierRef}
             scrollLeftPx={playback.scrollLeftPx}

@@ -13,6 +13,7 @@ const EDGE_FOCUS: Record<ReturnType<typeof edgeFocusKind>, DictKey> = {
 };
 
 const DELETE_COUNTS: Record<keyof UnitDeletePreview, DictKey> = {
+  linkedTexts: 'app.desktopTranscription.deleteCount.linkedTexts',
   tokens: 'app.desktopTranscription.deleteCount.tokens',
   morphemes: 'app.desktopTranscription.deleteCount.morphemes',
   notes: 'app.desktopTranscription.deleteCount.notes',
@@ -30,12 +31,11 @@ export function DesktopTranscriptionEdgeChrome(props: {
   end: string;
   saved: boolean;
   hasMedia: boolean;
-  reason: string | null;
   tip: { text: string; x: number; y: number } | null;
   edgeFocus: ReturnType<typeof edgeFocusKind> | null;
   conflicts: Record<TimeEdge, TimeConflict | null>;
   stale: { action: 'undo' | 'redo' } | null;
-  menu: { x: number; y: number } | null;
+  menu: { x: number; y: number; layerName?: string; sub?: true; canLink: boolean } | null;
   deletePrompt: UnitDeletePreview | null;
   onRebase: (edge: TimeEdge) => void;
   onDiscardDraft: (edge: TimeEdge) => void;
@@ -44,6 +44,7 @@ export function DesktopTranscriptionEdgeChrome(props: {
   onFlush: (edge: TimeEdge) => void;
   onCloseMenu: () => void;
   onLink: () => void;
+  onClearText: () => void;
   onAskDelete: () => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
@@ -77,9 +78,6 @@ export function DesktopTranscriptionEdgeChrome(props: {
             <span className="desktop-tx-status__focus" data-testid="desktop-edge-focus">
               {t(locale, EDGE_FOCUS[props.edgeFocus])}
             </span>
-          )}
-          {props.reason === null ? null : (
-            <span className="desktop-tx-status__reason">{props.reason}</span>
           )}
           {(['start', 'end'] as const).map((edge) => {
             const conflict = props.conflicts[edge];
@@ -148,12 +146,28 @@ export function DesktopTranscriptionEdgeChrome(props: {
             style={{ left: props.menu.x, top: props.menu.y }}
             role="menu"
           >
-            <button type="button" role="menuitem" onClick={props.onLink}>
-              {t(locale, 'app.desktopTranscription.linkBoundary')}
-            </button>
-            <button type="button" role="menuitem" onClick={props.onAskDelete}>
-              {t(locale, 'app.desktopTranscription.deleteSegment')}
-            </button>
+            {props.menu.canLink ? (
+              <button type="button" role="menuitem" onClick={props.onLink}>
+                {t(locale, 'app.desktopTranscription.linkBoundary')}
+              </button>
+            ) : null}
+            {props.menu.layerName === undefined ? null : (
+              <button type="button" role="menuitem" onClick={props.onClearText}>
+                {tf(locale, 'app.desktopTranscription.clearLayerText', {
+                  layer: props.menu.layerName,
+                })}
+              </button>
+            )}
+            {props.menu.layerName !== undefined && props.menu.sub !== true ? null : (
+              <button type="button" role="menuitem" onClick={props.onAskDelete}>
+                {t(
+                  locale,
+                  props.menu.sub === true
+                    ? 'app.desktopTranscription.deleteSubSegment'
+                    : 'app.desktopTranscription.deleteSegment',
+                )}
+              </button>
+            )}
           </div>
         </>
       )}

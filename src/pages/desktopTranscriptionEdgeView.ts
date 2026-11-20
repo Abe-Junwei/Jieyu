@@ -6,9 +6,11 @@ import type { ShownPreview } from './desktopTranscriptionEdgePointer';
 const EDGE_REASON = {
   overlap: 'app.desktopTranscription.edgeOverlap',
   outside: 'app.desktopTranscription.edgeOutside',
+  outsideParent: 'app.desktopTranscription.edgeOutsideParent',
   short: 'app.desktopTranscription.edgeShort',
   createShort: 'app.desktopTranscription.createShort',
   noParent: 'app.desktopTranscription.createNoParent',
+  hasChildren: 'app.desktopTranscription.edgeHasChildren',
   noLayer: 'app.desktopTranscription.createNoLayer',
   apart: 'app.desktopTranscription.edgeNotTouching',
   order: 'app.desktopTranscription.edgeOrder',
@@ -23,10 +25,19 @@ export function edgeNotice(locale: Locale, kind: keyof typeof EDGE_REASON, time:
   return tf(locale, 'app.desktopTranscription.edgeRejected', { reason, time });
 }
 
+/** A subdivision child of the dragged unit is shown clamped to the unit's previewed range. */
 export function playbackWithPreview(
   unit: DesktopPlaybackUnit,
   preview: ShownPreview | null,
+  parentUnitId?: string | null,
 ): DesktopPlaybackUnit {
+  if (preview?.unitId != null && parentUnitId === preview.unitId) {
+    const startTime = Math.max(unit.startTime, preview.startMs / 1000);
+    const endTime = Math.min(unit.endTime, preview.endMs / 1000);
+    return startTime === unit.startTime && endTime === unit.endTime
+      ? unit
+      : { ...unit, startTime, endTime };
+  }
   if (preview?.unitId === unit.id) {
     return { ...unit, startTime: preview.startMs / 1000, endTime: preview.endMs / 1000 };
   }
@@ -82,4 +93,36 @@ export function seamLeft(seconds: number, duration: number, zoomPxPerSec: number
   if (zoomPxPerSec > 0) return seconds * zoomPxPerSec;
   if (duration > 0) return `${(seconds / duration) * 100}%`;
   return 0;
+}
+
+interface FollowRow {
+  units: readonly {
+    parentUnitId?: string | null;
+    startMs: number | null;
+    endMs: number | null;
+  }[];
+}
+
+/** The children a parent-edge drag would clamp, and the edge time they follow to. */
+export function followTip(
+  layers: readonly FollowRow[],
+  preview: ShownPreview | null,
+): { count: number; edge: 'start' | 'end'; timeMs: number } | null {
+  if (preview?.unitId == null || preview.moving) return null;
+  let count = 0;
+  let startMoves = false;
+  for (const layer of layers) {
+    for (const unit of layer.units) {
+      if (unit.parentUnitId !== preview.unitId || unit.startMs === null || unit.endMs === null) {
+        continue;
+      }
+      const early = unit.startMs < preview.startMs;
+      if (early || unit.endMs > preview.endMs) count += 1;
+      if (early) startMoves = true;
+    }
+  }
+  if (count === 0) return null;
+  return startMoves
+    ? { count, edge: 'start', timeMs: preview.startMs }
+    : { count, edge: 'end', timeMs: preview.endMs };
 }

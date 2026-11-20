@@ -63,8 +63,15 @@ export function AppGlobalToastHost(): React.ReactNode {
       role="status"
       aria-live="polite"
     >
-      <div className={`transcription-toast toast-${variant}`} onClick={dismiss} title="Dismiss">
-        {message}
+      <div className={`transcription-toast toast-${variant}`}>
+        <span className="transcription-toast-dot" aria-hidden="true" />
+        <span className="transcription-toast-text">{message}</span>
+        <button
+          type="button"
+          className="transcription-toast-close"
+          aria-label="Dismiss"
+          onClick={dismiss}
+        />
       </div>
     </div>
   );

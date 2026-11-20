@@ -92,9 +92,8 @@ describe('ToastContext', () => {
       act(() => {
         ctx!.showToast('click me', 'info');
       });
-      // Click the inner toast div (which has onClick={dismiss}), not the container
       act(() => {
-        fireEvent.click(screen.getByText('click me'));
+        fireEvent.click(document.querySelector('.transcription-toast-close')!);
       });
       act(() => {
         vi.advanceTimersByTime(TOAST_FADE_OUT_MS);
@@ -335,7 +334,7 @@ describe('ToastContext', () => {
       fireEvent.click(screen.getByRole('button', { name: '重新刷新' }));
       expect(onAction).toHaveBeenCalledOnce();
       expect(screen.getByRole('status')).toBeTruthy();
-      fireEvent.click(document.querySelector('.transcription-toast')!);
+      fireEvent.click(document.querySelector('.transcription-toast-close')!);
       act(() => {
         vi.advanceTimersByTime(TOAST_FADE_OUT_MS);
       });
@@ -838,7 +837,7 @@ describe('ToastContext', () => {
       expect(screen.queryByRole('status')).toBeNull();
     });
 
-    it('uses locale-aware dismiss title when locale is en-US', () => {
+    it('uses locale-aware dismiss label when locale is en-US', () => {
       let ctx: ReturnType<typeof useToast>;
       renderInProvider(
         <TestConsumer
@@ -851,7 +850,7 @@ describe('ToastContext', () => {
       act(() => {
         ctx!.showToast('dismiss me', 'info');
       });
-      expect(screen.getByText('dismiss me').getAttribute('title')).toBe('Dismiss toast');
+      expect(screen.getByRole('button', { name: 'Dismiss toast' })).toBeTruthy();
     });
   });
 

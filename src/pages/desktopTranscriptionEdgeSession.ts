@@ -86,6 +86,10 @@ export async function commitUnitEdge(call: EdgeCall, unitId: string, edge: TimeE
   await call.api.moveUnitEdge(call.sessionId, { unitId, edge, time });
 }
 
+export async function commitUnitMove(call: EdgeCall, unitId: string, delta: number) {
+  await call.api.moveUnit(call.sessionId, { unitId, delta });
+}
+
 export async function commitSharedEdge(
   call: EdgeCall,
   leftId: string,

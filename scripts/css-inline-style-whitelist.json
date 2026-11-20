@@ -229,6 +229,22 @@
       ]
     },
     {
+      "file": "src/pages/DesktopWaveformEdges.tsx",
+      "reason": "Waveform segment handles and drag ghosts take their left and width from live zoom, scroll and drag time through CSS variables.",
+      "reviewer": "Copilot App",
+      "reviewedAt": "2026-11-20",
+      "snippets": [
+        {
+          "anchor": "style={frame(px(startMs)",
+          "reviewedSha256": "777582e132152419497e9540147cc4b44c6f06241918b45dfab268cfd2fe82dc"
+        },
+        {
+          "anchor": "style={frame(px(unit.startMs)",
+          "reviewedSha256": "7e609f39c97b8caa568e372981fbbe4143ed9e2b4e5d31ff5c175b4b37d8cc60"
+        }
+      ]
+    },
+    {
       "file": "src/pages/DesktopTranscriptionEdgeChrome.tsx",
       "reason": "Snap tip and edge menu follow live pointer coordinates.",
       "reviewer": "Cursor + junwei",
