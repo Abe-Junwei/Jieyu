@@ -104,6 +104,10 @@ export function createDesktopClient(bridge: DesktopBridge) {
     listDueReminders: (sessionId: string) => once(sessionId, 'deletion.listDue', {}),
     showManuscriptReminder: (sessionId: string, id: string) =>
       once(sessionId, 'manuscripts.showReminder', { id }),
+    retimeManuscript: (
+      sessionId: string,
+      input: { manuscriptId: string; offsetMs: number; scale: number },
+    ) => once(sessionId, 'manuscripts.retime', input),
     showRecordingReminder: (sessionId: string, id: string) =>
       once(sessionId, 'media.showReminder', { id }),
     listLayers: (sessionId: string, manuscriptId: string) =>
@@ -458,6 +462,9 @@ export function createDesktopClient(bridge: DesktopBridge) {
   };
 }
 
-function layerScoped(unitId: string, textLayerId?: string): { unitId: string; textLayerId?: string } {
+function layerScoped(
+  unitId: string,
+  textLayerId?: string,
+): { unitId: string; textLayerId?: string } {
   return textLayerId === undefined ? { unitId } : { unitId, textLayerId };
 }

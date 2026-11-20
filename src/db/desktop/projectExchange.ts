@@ -245,7 +245,7 @@ function keepRow(name: string, row: Row, scope: Scope): boolean {
   }
   if (name === 'custom_field_values') return keepCustomValue(row, scope);
   if (name === 'local_id_map') return scope.batchIds.has(String(row.batch_id));
-  // ponytail: a link with both ids already gone has no manuscript column, so a single-manuscript export omits it.
+  // ponytail: a span map with both ids already gone has no manuscript column, so a single-manuscript export omits it.
   if (name === 'unit_span_maps') {
     return scope.unitIds.has(String(row.old_id)) || scope.unitIds.has(String(row.new_id));
   }
@@ -452,7 +452,11 @@ function insertPayload(db: SqliteDatabase, tables: Record<string, Row[]>): void 
           const unitId = storing.unit_id;
           const layerId = storing.layer_id;
           const role = storing.role;
-          if (typeof unitId !== 'string' || typeof layerId !== 'string' || typeof role !== 'string') {
+          if (
+            typeof unitId !== 'string' ||
+            typeof layerId !== 'string' ||
+            typeof role !== 'string'
+          ) {
             throw new Error('desktop package is unreadable');
           }
           const existing = db

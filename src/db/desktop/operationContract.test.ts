@@ -69,6 +69,7 @@ describe('desktop operation contract', () => {
       'layers.listLinks',
       'attachments.finishCleanup',
       'attachments.read',
+      'manuscripts.retime',
       'media.listDeleted',
       'sources.create',
       'units.discardTextDraft',

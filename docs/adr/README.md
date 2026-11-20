@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: accepted
 owner: repo
-last_reviewed: 2026-11-19
+last_reviewed: 2026-11-20
 source_of_truth: decision-index
 ---
 
@@ -71,6 +71,7 @@ source_of_truth: decision-index
 
 ## 本轮范围与生命周期
 
+- [0131：桌面渲染层单独入口与构建，旧网页靠门禁隔离](./0131-desktop-renderer-build-isolated-from-legacy-web.md)
 - [0129：编辑回执、撤销阻断与时间码草稿冲突](./0129-edit-receipts-and-undo-guard.md)
 - [0128：时间码草稿进项目库，边界编辑按稿件撤销](./0128-time-drafts-and-edge-undo.md)
 - [0127：共享波形上的选区按钮和速度滑杆改用主题色实底](./0127-shared-waveform-region-controls-use-theme-paint.md)

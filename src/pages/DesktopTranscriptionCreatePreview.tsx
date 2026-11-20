@@ -14,23 +14,20 @@ export function DesktopTranscriptionCreatePreview(props: {
   const radius = props.radius ?? 0;
   return (
     <svg
-      className={props.className}
-      style={{ background: 'none', overflow: 'hidden', ...props.style }}
+      className={['desktop-tx-create-preview', props.className].filter(Boolean).join(' ')}
+      style={props.style}
       aria-hidden="true"
       data-testid="desktop-tx-create-preview"
     >
       {/* Centered 3px stroke clipped by the svg box leaves a 1.5px inside edge. */}
       <rect
+        className="desktop-tx-create-preview__stroke"
         x={0}
         y={0}
         width="100%"
         height="100%"
         rx={radius}
         ry={radius}
-        style={{
-          fill: 'color-mix(in srgb, var(--brand-solid) 6%, transparent)',
-          stroke: 'var(--brand-solid)',
-        }}
         strokeWidth={3}
         strokeDasharray="4 4"
       >

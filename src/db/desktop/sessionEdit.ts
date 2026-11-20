@@ -19,6 +19,7 @@ import {
   type UnitMergeUndo,
   type UnitSplitUndo,
 } from './unitSpan';
+import { retimeManuscript, undoRetime, type RetimeUndo } from './manuscripts';
 import { readStoredUnit, updateUnitText, type Unit, type UnitTextUndo } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -31,7 +32,8 @@ export type SessionEdit =
   | { kind: 'edge'; undo: EdgeMove }
   | { kind: 'boundary'; undo: SharedBoundaryMove }
   | { kind: 'create'; undo: { manuscriptId: string; tree: RemovedUnit } }
-  | { kind: 'delete'; undo: { manuscriptId: string; tree: RemovedUnit } };
+  | { kind: 'delete'; undo: { manuscriptId: string; tree: RemovedUnit } }
+  | { kind: 'retime'; undo: RetimeUndo; offsetMs: number; scale: number };
 
 type Frame = { edit: SessionEdit };
 type Book = { undo: Frame[]; redo: Frame[] };
@@ -62,6 +64,8 @@ function manuscriptOf(edit: SessionEdit): string {
     case 'boundary':
     case 'create':
     case 'delete':
+      return edit.undo.manuscriptId;
+    case 'retime':
       return edit.undo.manuscriptId;
     default: {
       const unreachable: never = edit;
@@ -206,6 +210,9 @@ function stampGeneration(db: SqliteDatabase, edit: SessionEdit, generation: numb
     case 'create':
     case 'delete':
       return;
+    case 'retime':
+      edit.undo.manuscriptGeneration = generation;
+      return;
     default: {
       const unreachable: never = edit;
       return unreachable;
@@ -231,6 +238,9 @@ function applyUndo(db: SqliteDatabase, edit: SessionEdit): Unit | Unit[] {
       return undoCreate(db, edit.undo.tree);
     case 'delete':
       return restoreRemovedUnit(db, edit.undo.tree);
+    case 'retime':
+      undoRetime(db, edit.undo);
+      return [];
     default: {
       const unreachable: never = edit;
       return unreachable;
@@ -272,6 +282,22 @@ function applyRedo(
       const ghost = readStoredUnit(db, edit.undo.tree.unit.id);
       if (ghost) throw new Error('unit delete redo is stale');
       return { value: unitFromTree(edit.undo.tree), edit };
+    }
+    case 'retime': {
+      const retimed = retimeManuscript(db, {
+        manuscriptId: edit.undo.manuscriptId,
+        offsetMs: edit.offsetMs,
+        scale: edit.scale,
+      });
+      return {
+        value: [],
+        edit: {
+          kind: 'retime',
+          undo: retimed.undo,
+          offsetMs: edit.offsetMs,
+          scale: edit.scale,
+        },
+      };
     }
     default: {
       const unreachable: never = edit;

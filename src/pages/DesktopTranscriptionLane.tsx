@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -8,6 +9,12 @@ import {
   type RefObject,
 } from 'react';
 import { createPortal } from 'react-dom';
+import {
+  DesktopTranscriptionFoldedStrip,
+  DesktopTranscriptionLayerLabel,
+} from './DesktopTranscriptionLayerLabel';
+import { buildLayerTree, type LayerTreeRow } from './desktopTranscriptionLayerTree';
+import type { DesktopLayerView } from './useDesktopLayerView';
 import { DesktopTranscriptionCreatePreview } from './DesktopTranscriptionCreatePreview';
 import { TimelineAnnotationItem } from '../components/TimelineAnnotationItem';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
@@ -52,6 +59,7 @@ export function DesktopTranscriptionLane(props: {
   layerId: string | null;
   layers: readonly (RouteLayer & LayerRowLayer)[] | undefined;
   links: readonly RouteLink[] | undefined;
+  view: DesktopLayerView;
   desktopCall: DesktopReadHost['desktopCall'] | undefined;
   sourceUnits: readonly { id: string; startMs: number | null; endMs: number | null }[] | undefined;
   units: readonly DesktopPlaybackUnit[];
@@ -191,18 +199,83 @@ export function DesktopTranscriptionLane(props: {
         )
       : null;
   const seconds = seamSeconds(edges.ui.edge, edges.ui.preview, props.units);
-  return (
-    <>
-      {wavePreview}
-      {props.hasAudio || props.units.length > 0 ? (
-        <div className="desktop-tx-lane" data-testid="desktop-readonly-timeline">
-          <div className="desktop-tx-band-label">
-            {layerLabel(
-              props.layers?.find((layer) => layer.id === props.layerId)?.name,
-              props.locale,
-              t(props.locale, 'app.desktopTranscription.contextLayerTranscription'),
-            )}
-          </div>
+  const tree = useMemo(
+    () => buildLayerTree(props.layers ?? [], props.links ?? [], props.view.fold),
+    [props.layers, props.links, props.view.fold],
+  );
+  const mainId = props.layerId ?? '';
+  // A fold that hides the focused layer hands focus to its host and saves the draft first.
+  const handOff = (hiddenIds: readonly string[], hostId: string | null, apply: () => void) => {
+    const affects =
+      (focus !== null && hiddenIds.includes(focus.layerId)) ||
+      (editing !== null && hiddenIds.includes(editing.layerId));
+    if (!affects) {
+      apply();
+      return;
+    }
+    props.onLeave(() => {
+      setEditing(null);
+      setFocus(
+        hostId === null || hostId === mainId || selectedId === null
+          ? null
+          : { layerId: hostId, unitId: selectedId },
+      );
+      apply();
+    });
+  };
+  const toggleGroup = (layerId: string) => {
+    const hidden: string[] = [];
+    const family = new Set([layerId]);
+    for (const row of tree) {
+      if (row.hostId !== null && family.has(row.hostId)) {
+        family.add(row.layerId);
+        hidden.push(row.layerId);
+      }
+    }
+    if (props.view.fold.groups.includes(layerId)) props.view.toggleGroup(layerId);
+    else handOff(hidden, layerId, () => props.view.toggleGroup(layerId));
+  };
+  const collapseLayer = (layerId: string) =>
+    handOff([layerId], tree.find((row) => row.layerId === layerId)?.hostId ?? null, () =>
+      props.view.toggleRow(layerId),
+    );
+  const mainName = layerLabel(
+    props.layers?.find((layer) => layer.id === props.layerId)?.name,
+    props.locale,
+    t(props.locale, 'app.desktopTranscription.contextLayerTranscription'),
+  );
+  const hostNames = (row: LayerTreeRow) =>
+    [...(row.hostId ? [row.hostId] : []), ...row.otherHostIds].map((id) =>
+      layerLabel(props.layers?.find((layer) => layer.id === id)?.name, props.locale, ''),
+    );
+  const renderMain = (row: LayerTreeRow) =>
+    props.hasAudio || props.units.length > 0 ? (
+      <>
+        {row.folded ? (
+          <DesktopTranscriptionFoldedStrip
+            layerId={row.layerId}
+            locale={props.locale}
+            name={mainName}
+            row={row}
+            hostNames={hostNames(row)}
+            segmentCount={props.units.length}
+            onExpand={() => props.view.toggleRow(row.layerId)}
+          />
+        ) : null}
+
+        <div
+          className={`desktop-tx-lane${row.folded ? ' is-folded' : ''}`}
+          data-testid="desktop-readonly-timeline"
+        >
+          <DesktopTranscriptionLayerLabel
+            locale={props.locale}
+            name={mainName}
+            row={row}
+            hostNames={hostNames(row)}
+            focused={focus === null}
+            onToggleGroup={() => toggleGroup(row.layerId)}
+            onCollapse={() => collapseLayer(row.layerId)}
+          />
           <div ref={props.tierRef} className="desktop-tx-lane__body">
             <div
               className="desktop-tx-lane__track"
@@ -298,12 +371,21 @@ export function DesktopTranscriptionLane(props: {
             </div>
           </div>
         </div>
-      ) : null}
+      </>
+    ) : null;
+  return (
+    <>
+      {wavePreview}
       {props.hasAudio || props.units.length > 0 ? (
         <DesktopTranscriptionLayerRows
           locale={props.locale}
           layers={props.layers ?? []}
+          tree={tree}
           mainLayerId={props.layerId}
+          renderMain={renderMain}
+          onToggleGroup={toggleGroup}
+          onCollapse={collapseLayer}
+          onExpand={props.view.toggleRow}
           duration={props.duration}
           zoomPxPerSec={props.zoomPxPerSec}
           scrollLeftPx={props.scrollLeftPx}

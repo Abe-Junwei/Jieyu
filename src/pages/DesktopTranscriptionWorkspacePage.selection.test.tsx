@@ -369,6 +369,37 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     expect(annotation('gloss-a')?.classList.contains(selectedClass)).toBe(false);
   });
 
+  it('squeezes a layer to a strip from its menu and hands focus back to the main layer', async () => {
+    window.localStorage.clear();
+    readState.model = {
+      ...readState.base(),
+      layerId: 'layer-1',
+      layers: [
+        { id: 'layer-1', name: { zh: '转写' }, units: [] },
+        {
+          id: 'layer-tl',
+          name: { zh: '翻译' },
+          sortOrder: 1,
+          units: [{ id: 'u-a', startMs: 0, endMs: 1000, text: 'gloss-a' }],
+        },
+      ],
+    };
+    renderWorkspace();
+    fireEvent.click(screen.getByText('gloss-a'));
+    const label = document.querySelector('[data-layer-id="layer-tl"] .desktop-tx-layer-label');
+    fireEvent.contextMenu(label as Element);
+    fireEvent.click(screen.getByRole('menuitem', { name: '收起该层' }));
+    await waitFor(() => {
+      expect(
+        document.querySelector('.desktop-tx-layer-strip[data-layer-id="layer-tl"]'),
+      ).toBeTruthy();
+    });
+    expect(screen.queryByText('gloss-a')).toBeNull();
+    expect(annotation('alpha')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /展开/ }));
+    expect(screen.getByText('gloss-a')).toBeTruthy();
+  });
+
   it('keeps the side pane content identical while typing a body', () => {
     renderWorkspace();
     fireEvent.click(screen.getByText('alpha'));

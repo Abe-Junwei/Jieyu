@@ -1495,7 +1495,13 @@ export const desktopOperations = {
   'units.readTextDraft': spec<
     'keep',
     { unitId: string; textLayerId?: string },
-    { unitId: string; textLayerId: string; rawInput: string; baseBody: string; updatedAt: string } | null
+    {
+      unitId: string;
+      textLayerId: string;
+      rawInput: string;
+      baseBody: string;
+      updatedAt: string;
+    } | null
   >('keep', (input) => {
     knownKeys(input, ['unitId', 'textLayerId']);
     return {
@@ -1508,7 +1514,13 @@ export const desktopOperations = {
   'units.putTextDraft': spec<
     'keep',
     { unitId: string; textLayerId?: string; rawInput: string; baseBody: string },
-    { unitId: string; textLayerId: string; rawInput: string; baseBody: string; updatedAt: string } | null
+    {
+      unitId: string;
+      textLayerId: string;
+      rawInput: string;
+      baseBody: string;
+      updatedAt: string;
+    } | null
   >('keep', (input) => {
     knownKeys(input, ['unitId', 'textLayerId', 'rawInput', 'baseBody']);
     if (typeof input.rawInput !== 'string') {
@@ -1542,19 +1554,18 @@ export const desktopOperations = {
       text: input.text,
     };
   }),
-  'units.discardTextDraft': spec<
+  'units.discardTextDraft': spec<'keep', { unitId: string; textLayerId?: string }, null>(
     'keep',
-    { unitId: string; textLayerId?: string },
-    null
-  >('keep', (input) => {
-    knownKeys(input, ['unitId', 'textLayerId']);
-    return {
-      unitId: requiredString(input.unitId, 'unitId'),
-      ...(input.textLayerId === undefined
-        ? {}
-        : { textLayerId: requiredString(input.textLayerId, 'textLayerId') }),
-    };
-  }),
+    (input) => {
+      knownKeys(input, ['unitId', 'textLayerId']);
+      return {
+        unitId: requiredString(input.unitId, 'unitId'),
+        ...(input.textLayerId === undefined
+          ? {}
+          : { textLayerId: requiredString(input.textLayerId, 'textLayerId') }),
+      };
+    },
+  ),
   'media.finishCleanup': spec<'clear', { id: string; operationId: string }, MediaCleanup>(
     'clear',
     (input) => {
@@ -1664,6 +1675,18 @@ export const desktopOperations = {
   'manuscripts.showReminder': spec<'clear', { id: string }, DeletionReminder>('clear', (input) => {
     knownKeys(input, ['id']);
     return { id: requiredString(input.id, 'id') };
+  }),
+  'manuscripts.retime': spec<
+    'clear',
+    { manuscriptId: string; offsetMs: number; scale: number },
+    { count: number }
+  >('clear', (input) => {
+    knownKeys(input, ['manuscriptId', 'offsetMs', 'scale']);
+    return {
+      manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
+      offsetMs: requiredNumber(input.offsetMs, 'offsetMs'),
+      scale: requiredNumber(input.scale, 'scale'),
+    };
   }),
   'manuscripts.purge': spec<'clear', { id: string }, { id: string }>('clear', (input) => {
     knownKeys(input, ['id']);

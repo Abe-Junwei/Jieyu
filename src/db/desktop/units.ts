@@ -150,17 +150,19 @@ function subdivisionSpeaker(db: SqliteDatabase, input: UnitCreate): string | nul
     .prepare('SELECT tier_type AS tierType FROM layers WHERE id = ?')
     .get(input.layerId) as { tierType: string } | undefined;
   if (layer?.tierType !== 'time-subdivision') return input.speakerId;
-  const parent = input.parentUnitId
-    ? (db
-        .prepare(
-          `SELECT units.speaker_id AS speakerId, units.start_ms AS startMs, units.end_ms AS endMs
+  const parentId = input.parentUnitId;
+  const parent =
+    parentId != null && parentId.length > 0
+      ? (db
+          .prepare(
+            `SELECT units.speaker_id AS speakerId, units.start_ms AS startMs, units.end_ms AS endMs
            FROM units
            JOIN layer_links ON layer_links.host_layer_id = units.layer_id AND layer_links.layer_id = ?
            WHERE units.id = ?`,
-        )
-        .get(input.layerId, input.parentUnitId) as
-        { speakerId: string | null; startMs: number | null; endMs: number | null } | undefined)
-    : undefined;
+          )
+          .get(input.layerId, parentId) as
+          { speakerId: string | null; startMs: number | null; endMs: number | null } | undefined)
+      : undefined;
   if (!parent) throw new Error('time subdivision needs a parent on its host layer');
   if (
     input.startMs === null ||

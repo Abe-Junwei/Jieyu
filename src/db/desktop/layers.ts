@@ -138,7 +138,8 @@ function insertHostLinks(
   if (hosts.length === 0) return;
   const preferredCount = hosts.filter((host) => host.preferred === true).length;
   if (preferredCount > 1) throw new Error('layer has more than one preferred host');
-  const preferredIndex = preferredCount === 0 ? 0 : hosts.findIndex((host) => host.preferred);
+  const preferredIndex =
+    preferredCount === 0 ? 0 : hosts.findIndex((host) => host.preferred === true);
   const insert = db.prepare(
     `INSERT INTO layer_links (
       id, manuscript_id, layer_id, host_layer_id, link_type, is_preferred, sort_order, created_at

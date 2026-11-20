@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-20T02:00:20.860Z",
-  "aggregate": "411c39fd60d690b1fc114a3fc85ce71b0842c04ba7c2e1a354e00b59efaa389c",
+  "generatedAt": "2026-11-20T08:34:17.577Z",
+  "aggregate": "768b13519e101d3582e5b7980d8413cb6dd990e3a21ebb4feba97bd8d4832432",
   "fileHashes": {
     "src/styles/ai-hub.css": "537be68d401399d5c7be152205f71c4c4f6949f861c9e34d22499005846034c7",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -27,7 +27,7 @@
     "src/styles/pages/app-shell-layout.css": "fa1c343fd6a784afa39daeb434338baec88b3edb9ef2823583e16a2001fde869",
     "src/styles/pages/corpus-library-workspace.css": "c0e6c0eb4768333aa39fc2c97418c70769d1b00465f539e2b88085d9120313cf",
     "src/styles/pages/desktop-project-read.css": "3cccf8f60a1aac19eec9c014df395b3f73caea57031c4418d7714f2be86d7e79",
-    "src/styles/pages/desktop-transcription-workspace.css": "6a876e162f7bc03f01ef64cf823304eaf8e662b0d1479fa04d9222399106278c",
+    "src/styles/pages/desktop-transcription-workspace.css": "424de79fa9a85cf2cd922c4e146560b09c3a9a9b9bc9dabf3b15f80ff0bd448e",
     "src/styles/pages/feature-availability.css": "0b1b70d72e9e53b4db43165630b58d3b7c5e44b8440a4d04b4f088327a69463a",
     "src/styles/pages/home-page.css": "c793e6c1c814df8d8ada7e7f3fe45c86c6430a26b1980b1d74fc0f57c6db0f5b",
     "src/styles/pages/language-metadata-workspace.css": "920a61a590082eeb16c266158d43ed4fb01039e831553bd3d40e6b55547b93ec",
@@ -74,7 +74,7 @@
     "src/styles/panels/shortcuts-panel.css": "2f0a934354c42aa37e8677c8d0d245022cda6161fdd200da2aa6e725eb5f857b",
     "src/styles/panels/undo-history.css": "6649f307ffd35d5bbbda45272e15b73a0b6168fbf2fab8ca59045574a32a5a8d",
     "src/styles/panels/voice-agent.css": "15e942852c49eb7c8b3672b5249c12216235577e7f727ec21a60e7bfddda119b",
-    "src/styles/tokens.css": "88f33f888e4ae6b76093cdb6f56fcb6c673c861fa43be803ec1ac5f27b0794a9",
+    "src/styles/tokens.css": "de49dd9bac925eeb2d9369c8b7fd27b65e11c680b5453baabe0d4416ce59bcba",
     "src/styles/transcription-entry.css": "58cb5cf806e8359ee550ed1bb4e6da9a334391e19c43dcd81184924d75c5003b",
     "src/styles/transcription-timeline.css": "15b57584ca039026d664457c51b69a6e5449bd6e75a6b6c9a7fcdffa0c9eae9e"
   }

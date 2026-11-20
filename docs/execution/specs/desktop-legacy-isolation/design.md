@@ -1,0 +1,87 @@
+---
+title: desktop-legacy-isolation design
+doc_type: execution-spec-design
+status: draft
+owner: repo
+last_reviewed: 2026-11-20
+source_of_truth: desktop-legacy-isolation-spec
+depends_on:
+  - ./requirements.md
+  - ../../../adr/0131-desktop-renderer-build-isolated-from-legacy-web.md
+  - ../../../adr/0123-dev-server-shows-the-desktop-shell.md
+---
+
+# Design — desktop-legacy-isolation
+
+## 1. 成熟方案扫描 / Research
+
+- 仓库既有最相似的模式：`scripts/check-direct-db-imports.mjs`（导入门禁）、`scripts/check-old-path-exit.mjs` + `old-path-exit.record.json`（#438 台账）、`scripts/desktop-project-flow.mjs`（Electron E2E）、`src/db/desktop/operationContract.test.ts`。
+- 同类产品 / 标杆实现：VS Code 的 desktop 与 web 入口各自构建；Electron renderer 单独打包；Strangler Fig 迁移中新系统先有自己的入口。
+- 业内 best practice：dependency-cruiser、eslint-plugin-boundaries、Nx module boundaries 都是按区禁止导入；源码检查配合产物检查（rolldown `generateBundle` 读取模块列表）。
+- 公认不可行 / 反模式：只靠运行时分支；长期 allowlist；先拆壳再切入口；拆仓库。
+- 潜在的坑：type-only 导入不计；`import.meta.glob` 和副作用导入只能靠产物门禁兜底；共享 Vite 配置如果带上 `VitePWA`，桌面包就会有 service worker；`navigator.webdriver` 分支会把迁移探针装进渲染层；同一根目录下的第二份 HTML 不会被 `/` 使用，`vite preview` 的子路由回落到 `index.html`；wasm 复制若写死 `dist/`，旧网页构建会进桌面安装包。
+- 决定：**适配**。门禁用 TypeScript 编译器 API 实现，不新增依赖；台账在现有记录上扩展；构建沿用 Vite。
+
+## 2. 架构选择
+
+- **门禁根**：用桌面渲染入口的可达集，不用目录全量。`src/desktop/skeleton/sqliteStorageHost.ts` 由 `electron/vite.config.ts` 打进主进程，不属于渲染层；但它同样经由 `storagePort` 到达 Dexie，所以先拆边，再把目录全量加为根。
+- **旧区**：`scripts/legacy-zone.json` 列出的根，以及所有导入这些根的模块。S2 只写入已经点名的根：`dexie`、`src/db/engine.ts`、`src/main.tsx`、`src/App.tsx`、10 个旧路由页面、`src/db/migration/e2eMigrationHarness.ts`。S3a 标为「不要」、且路径不在这份名单里的文件，由 S3b 补进该文件。写在 `App.tsx` 内部的不另列根。
+- **方案 A**：桌面占用默认名，旧网页改名。**方案 B**：旧网页保留默认名，桌面另起名。选 A：Electron 三个加载点（`JIEYU_VITE_DEV_SERVER`、`dist/index.html`、`jieyu-app://` 所读的 `dist/`）路径不变，`npm run dev` 自然符合 ADR-0123，S8 只删不改名。旧网页用独立根目录 `legacy/`，入口是 `legacy/index.html`。`vite.legacy.config.ts` 设置 `root: 'legacy'`、`publicDir` 为仓库的 `public`（绝对路径；否则 Vite 去找不存在的 `legacy/public`，`favicon.svg`、`models/`、`data/`、`_headers` 和 PWA 的 `includeAssets` 都会丢）、`build.outDir` 为仓库下的 `dist-legacy`（产物是 `dist-legacy/index.html`）、`server.fs.allow` 包含仓库根。`vite.shared.ts` 里指向 `index.html` 的项改成参数，包括现在 `vite.config.ts` 里 `rollupOptions.input.main`（`resolve(repoRoot, 'index.html')`）。桌面传入仓库根的 `index.html`，旧网页传入 `legacy/index.html`。`VitePWA` 的 `navigateFallback` 和 `globPatterns` 只留在旧网页配置，继续写 `index.html`。`legacy/index.html` 的模块脚本用 `../src/main.tsx`，不用 `/src/main.tsx`。它复制 `<template id="jieyu-csp">` 和插入该模板的启动脚本；两份各留一份，S3b 用脚本比较两份 template 和这段启动脚本的文本，不一致则失败。`dev:legacy`、`build:legacy`、`preview:legacy` 都带 `--config vite.legacy.config.ts`。`preview:legacy` 用这份配置的 `outDir`，`/` 和子路由都落到 `index.html`。Playwright 的 webServer、session-sidecar、`e2e-pr.yml` 改为先 `build:legacy` 再 `preview:legacy`，不再调用 `npm run preview`。
+- **拆边**：
+  1. `parseLiftXml` 挪进只做解析的 `src/utils/lexiconLiftParse.ts`；`lexiconLiftImport.ts` 改为从这里导入，并保留 Dexie 写入。
+  2. `RecordingRemovalBlockedError` 等错误类型挪进 `src/db/storagePortErrors.ts`，`sqliteStoragePort.ts` 改从这里导入。Dexie 实现挪进 `src/db/dexieStoragePort.ts` 并导出 `dexieStoragePort`。`storagePort.ts` 只留安装槽，不导入 `engine`，未安装时抛错。`src/main.tsx` 先安装 `dexieStoragePort`，再调用 `installSqliteIpcPortIfEnabled`，开关打开时 SQLite 覆盖 Dexie。vitest setup 只安装 `dexieStoragePort`。
+- **桌面入口的存储**：`src/main.desktop.tsx` 不安装 Dexie，也不无条件安装 IPC。沿用 ADR-0079：只有 `sqliteStoragePortFlagEnabled` 为真时才调用 `installSqliteIpcPortIfEnabled`。开关默认关，仓库没有打开它。当前桌面页面到不了 `storagePort`，未安装时抛错打不到这些页面。
+- **构建输出**：`vite.shared.ts` 的 onnx wasm 复制步骤接收输出目录参数。桌面传入 `dist`，旧网页传入 `dist-legacy`。不写死 `dist/onnx-wasm`。`electron-builder.yml` 打包 `dist/**`，旧网页产物不得写进 `dist/`。
+- **Vitest**：`vite.config.ts` 里的 `test` 块留在原处。Vitest 默认读这份配置。`vite.legacy.config.ts` 不含 `test`。
+
+## UI 精稿对照
+
+不适用：不新增或改动界面。桌面入口在没有桥接时，沿用 ADR-0123 现有的 `unavailable` 界面和文案。
+
+## 3. 落位清单
+
+| 文件 | 职责 | 复杂度估计 |
+| --- | --- | --- |
+| `src/utils/lexiconLiftParse.ts` | LIFT XML 解析，不碰存储 | 从现文件搬出 |
+| `src/db/storagePortErrors.ts` | 存储操作的错误类型 | < 80 行 |
+| `src/db/dexieStoragePort.ts` | Dexie 实现，导出 `dexieStoragePort` | 从 `storagePort.ts` 搬出 |
+| `scripts/check-desktop-boundary.mjs` | 建导入图、计算传染集、报出导入链 | < 200 行 |
+| `src/main.desktop.tsx` | i18n、observability、错误边界、路由；不安装 Dexie，IPC 仅在 ADR-0079 开关打开时安装；不装载 `e2eMigrationHarness` | < 120 行 |
+| `src/DesktopApp.tsx` | 只装配桌面路由和桌面实际用到的壳组件 | < 300 行 / < 12 hooks |
+| `legacy/index.html` | 旧网页入口。脚本为 `../src/main.tsx`；复制 `#jieyu-csp` 与启动脚本 | 入口文件 |
+| `vite.shared.ts`、`vite.legacy.config.ts` | 共同配置接收 HTML 入口和 wasm 输出目录。旧网页配置加 `root: 'legacy'`、`publicDir` 指向仓库 `public`、`VitePWA`、`dist-legacy/` | < 120 行 |
+| `scripts/check-legacy-html-csp.mjs` | 比较两份 `#jieyu-csp` 和启动脚本的文本 | < 40 行 |
+| `scripts/vite-plugin-desktop-bundle-guard.ts` | `generateBundle` 检查模块列表 | < 80 行 |
+
+约束自查：
+- [x] 不引入 `src/features/…`
+- [x] `DesktopApp` 只做装配
+- [ ] 实现 S3 时复核 hook 行数和 hook 数量
+
+## 4. ADR 引用
+
+- [ADR-0131](../../../adr/0131-desktop-renderer-build-isolated-from-legacy-web.md)；沿用 ADR-0123；依赖 ADR-0063、0064、0079、0086。
+
+## 5. Feature flag
+
+不启用 flag。回滚方式是回退整个 S3 PR：入口切换和拆壳在同一个 PR 里。
+
+## 6. 失败模式 / 兼容性
+
+- 桌面壳漏搬组件：S3a 先列出 `App.tsx` 在桌面下实际渲染的组件和 effect，逐项决定处理方式。
+- vitest 依赖默认 Dexie：S1b 在 setup 里显式安装，全量 vitest 通过后才合并。
+- 旧网页构建漏设变量：Playwright 的 webServer、`e2e-pr.yml`、session-sidecar 都改为 `build:legacy` 然后 `preview:legacy`，由 `vite.legacy.config.ts` 固定 `VITE_LEGACY_WEB_SURFACE=true`。
+- 旧浏览器数据：不迁移（ADR-0064；#326 已取消）。
+
+## 7. 验证矩阵
+
+| 验证类型 | 命令 | 期望结果 |
+| --- | --- | --- |
+| typecheck | `npm run typecheck` | 0 errors |
+| 单元测试 | `npm run test:vitest`（S1b 需要全量） | all pass |
+| 源码门禁 | `npm run check:desktop-boundary` | 0 违规 |
+| 产物门禁 | `npm run build` | 成功，模块清单中没有旧区模块。打包后的 `dist/`（含 `loadFile` 与 `jieyu-app://`）只由这道门禁检查 |
+| Electron 入口 | `npm run test:e2e:desktop-project` | Ubuntu CI 与本机 macOS green。这条命令加载开发服务器。`desktop:smoke` 在三平台加载临时空白页，不进入渲染层，不验证入口切换 |
+| IndexedDB | 同上，在开发服务器里断言 `indexedDB.databases()` 为空、界面形态为 `desktop` | 不覆盖打包后的 `dist/` |
+| Chromium（S8 前） | `npm run build:legacy` 然后 `npm run preview:legacy`，再 `npm run test:e2e:chromium` | green |
+| 结构守卫 / 文档 | `npm run check:architecture-guard`、`npm run check:docs-governance` | OK |
