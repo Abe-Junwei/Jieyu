@@ -3,7 +3,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { callDesktopSession } from './desktopCall';
-import { closeDesktopSession, openDesktopSession, resetDesktopSessions } from './projectSession';
+import {
+  closeDesktopSession,
+  openDesktopSession,
+  requireDesktopSession,
+  resetDesktopSessions,
+} from './projectSession';
 
 const roots: string[] = [];
 
@@ -237,5 +242,62 @@ describe('desktop unit edges', () => {
       id,
       text: '句',
     });
+  });
+  it('keeps a subdivision child inside its parent and pushes children with a parent edge', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const id = session.sessionId;
+    const tx = layer(id, true);
+    const manuscriptId = (
+      requireDesktopSession(id)
+        .db.prepare('SELECT manuscript_id AS manuscriptId FROM layers WHERE id = ?')
+        .get(tx) as { manuscriptId: string }
+    ).manuscriptId;
+    const sub = (
+      callDesktopSession(id, 'layers.create', {
+        manuscriptId,
+        key: 'sub',
+        name: { zh: '细分' },
+        tierType: 'time-subdivision',
+        contentType: 'transcription',
+        hosts: [{ hostLayerId: tx }],
+      }) as { id: string }
+    ).id;
+    const parent = unit(id, tx, 0, 2000, '父');
+    const child = (startMs: number, endMs: number) =>
+      (
+        callDesktopSession(id, 'units.create', {
+          layerId: sub,
+          parentUnitId: parent,
+          startMs,
+          endMs,
+          text: '',
+        }) as { id: string }
+      ).id;
+    const a = child(100, 800);
+    const b = child(900, 1900);
+    const get = (unitId: string) =>
+      callDesktopSession(id, 'units.get', { id: unitId }) as { startMs: number; endMs: number };
+    expect(() =>
+      callDesktopSession(id, 'units.moveEdge', { unitId: b, edge: 'end', time: 2100 }),
+    ).toThrow('time subdivision is outside its parent');
+    expect(() =>
+      callDesktopSession(id, 'units.moveEdge', { unitId: parent, edge: 'start', time: 850 }),
+    ).toThrow('edge span is under 10ms');
+    callDesktopSession(id, 'units.moveEdge', { unitId: parent, edge: 'end', time: 1500 });
+    expect(get(b)).toMatchObject({ startMs: 900, endMs: 1500 });
+    callDesktopSession(id, 'units.moveEdge', { unitId: parent, edge: 'start', time: 300 });
+    expect(get(a)).toMatchObject({ startMs: 300, endMs: 800 });
+    callDesktopSession(id, 'units.undo', {});
+    expect(get(a)).toMatchObject({ startMs: 100, endMs: 800 });
+    callDesktopSession(id, 'units.undo', {});
+    expect(get(b)).toMatchObject({ startMs: 900, endMs: 1900 });
+    callDesktopSession(id, 'units.redo', {});
+    expect(get(b)).toMatchObject({ endMs: 1500 });
+    closeDesktopSession(id);
+    const again = openDesktopSession(dir, [dir]);
+    expect(
+      callDesktopSession(again.sessionId, 'units.get', { id: b }) as { endMs: number },
+    ).toMatchObject({ endMs: 1500 });
   });
 });

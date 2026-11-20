@@ -16,12 +16,22 @@ const UI_MIN_SPAN_MS = 10;
 
 export type TimeEdge = 'start' | 'end';
 
+/** A time-subdivision child whose edges were pushed by its parent's edge move. */
+export interface FollowerMove {
+  unitId: string;
+  fromStart: number;
+  fromEnd: number;
+  toStart: number;
+  toEnd: number;
+}
+
 export interface EdgeMove {
   unitId: string;
   edge: TimeEdge;
   from: number;
   to: number;
   manuscriptId: string;
+  followers?: FollowerMove[];
 }
 
 export interface SharedBoundaryMove {
@@ -73,9 +83,67 @@ function assertSpan(start: number, end: number): void {
   }
 }
 
+function assertInsideParent(db: SqliteDatabase, unit: Unit, start: number, end: number): void {
+  if (unit.parentUnitId === null) return;
+  const parent = readStoredUnit(db, unit.parentUnitId);
+  if (!parent || parent.startMs === null || parent.endMs === null) return;
+  if (start < parent.startMs || end > parent.endMs) {
+    throw new Error('time subdivision is outside its parent');
+  }
+}
+
+/** Children that stick out of the parent's new range are clamped to it; one that would vanish rejects the move. */
+function pushChildren(
+  db: SqliteDatabase,
+  parentId: string,
+  start: number,
+  end: number,
+  restore: readonly FollowerMove[] | undefined,
+  direction: 'to' | 'from',
+): FollowerMove[] {
+  const plan: FollowerMove[] =
+    (restore === undefined ? undefined : [...restore]) ??
+    (
+      db
+        .prepare(
+          `SELECT id, start_ms AS startMs, end_ms AS endMs FROM units
+           WHERE parent_unit_id = ? AND start_ms IS NOT NULL AND end_ms IS NOT NULL
+           ORDER BY sort_order`,
+        )
+        .all(parentId) as { id: string; startMs: number; endMs: number }[]
+    ).flatMap((child) => {
+      const toStart = Math.max(child.startMs, start);
+      const toEnd = Math.min(child.endMs, end);
+      if (toStart === child.startMs && toEnd === child.endMs) return [];
+      assertSpan(toStart, toEnd);
+      return [{ unitId: child.id, fromStart: child.startMs, fromEnd: child.endMs, toStart, toEnd }];
+    });
+  const now = new Date().toISOString();
+  for (const move of plan) {
+    const nextStart = direction === 'to' ? move.toStart : move.fromStart;
+    const nextEnd = direction === 'to' ? move.toEnd : move.fromEnd;
+    db.prepare('UPDATE units SET start_ms = ?, end_ms = ?, updated_at = ? WHERE id = ?').run(
+      nextStart,
+      nextEnd,
+      now,
+      move.unitId,
+    );
+    const child = readStoredUnit(db, move.unitId);
+    if (!child || child.startMs !== nextStart || child.endMs !== nextEnd) {
+      throw new Error('edge readback failed');
+    }
+  }
+  return [...plan];
+}
+
+/**
+ * Moves one edge. A time-subdivision child stays inside its parent; a parent's edge pushes its
+ * children along (`followers` replays exactly those pushes for undo and redo).
+ */
 export function moveUnitEdge(
   db: SqliteDatabase,
-  input: { unitId: string; edge: TimeEdge; time: number },
+  input: { unitId: string; edge: TimeEdge; time: number; followers?: readonly FollowerMove[] },
+  direction: 'to' | 'from' = 'to',
 ): { unit: Unit; move: EdgeMove | null } {
   const write = db.transaction(() => {
     const unit = readStoredUnit(db, input.unitId);
@@ -87,6 +155,7 @@ export function moveUnitEdge(
     const end = input.edge === 'end' ? input.time : unit.endMs;
     assertSpan(start, end);
     assertInsideMedia(db, unit.id, start, end);
+    assertInsideParent(db, unit, start, end);
     if (from === input.time) return { unit, move: null };
     const now = new Date().toISOString();
     const column = input.edge === 'start' ? 'start_ms' : 'end_ms';
@@ -95,6 +164,7 @@ export function moveUnitEdge(
       now,
       unit.id,
     );
+    const followers = pushChildren(db, unit.id, start, end, input.followers, direction);
     const next = readStoredUnit(db, unit.id);
     if (!next || (input.edge === 'start' ? next.startMs : next.endMs) !== input.time) {
       throw new Error('edge readback failed');
@@ -107,6 +177,7 @@ export function moveUnitEdge(
         from,
         to: input.time,
         manuscriptId: manuscriptIdOf(db, unit.id),
+        ...(followers.length > 0 ? { followers } : {}),
       },
     };
   });

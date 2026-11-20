@@ -530,6 +530,9 @@ const operationHandlers = {
           if (moved.move) {
             rememberSessionEdit(ctx.sessionId, { kind: 'edge', undo: moved.move });
             discardUnitTimeDraft(ctx.db, move.unitId, move.edge);
+            for (const follower of moved.move.followers ?? []) {
+              discardUnitTimeDraft(ctx.db, follower.unitId);
+            }
           }
           return moved.unit;
         },

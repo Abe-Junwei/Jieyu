@@ -46,6 +46,7 @@ export interface CreateTarget {
 export type EdgeNoticeKind =
   | 'overlap'
   | 'outside'
+  | 'outsideParent'
   | 'short'
   | 'createShort'
   | 'noParent'
@@ -62,6 +63,8 @@ export interface EdgeControllerInput {
   layerId: string | null;
   desktopCall: DesktopReadHost['desktopCall'] | undefined;
   units: readonly TimedEdgeUnit[];
+  /** The other rows' timed units (a subdivision layer keeps its own segments); linked text rows reuse `units`. */
+  otherRowUnits?: readonly (readonly TimedEdgeUnit[])[];
   hasMedia: boolean;
   zoomPxPerSec: number;
   selectedUnitId: string | null;
@@ -83,7 +86,7 @@ export interface EdgeUi {
   preview: ShownPreview | null;
   edge: EdgeSelection | null;
   reason: { unitId: string; message: string } | null;
-  menu: { unitId: string; x: number; y: number } | null;
+  menu: { unitId: string; x: number; y: number; layerId?: string; layerName?: string } | null;
   deletePrompt: { unitId: string; counts: UnitDeletePreview } | null;
   raw: { unitId: string } & StoredTimes;
   /** An undo/redo step that later edits made stale; it stays until dropped (ADR-0129 E04). */
@@ -114,6 +117,14 @@ export function createEdgeActions(ctx: {
   const failed = () => live.current.notify(live.current.message('failed', ''));
   const setPreview = (preview: ShownPreview | null) =>
     setUi((current) => ({ ...current, preview }));
+  /** The row a unit sits in: neighbors, snapping and shared edges all come from that row. */
+  const rowOf = (unitId: string): readonly TimedEdgeUnit[] => {
+    const input = live.current;
+    if (input.units.some((unit) => unit.id === unitId)) return input.units;
+    return (
+      input.otherRowUnits?.find((row) => row.some((unit) => unit.id === unitId)) ?? input.units
+    );
+  };
 
   function reject(unitId: string, error: unknown, timeMs: number) {
     const message = edgeFailureMessage(error, timeMs, live.current.message);
@@ -140,7 +151,12 @@ export function createEdgeActions(ctx: {
   async function nudge(selected: EdgeSelection, delta: number) {
     const current = call();
     if (!current) return;
-    const result = await applyNudge({ call: current, units: live.current.units, selected, delta });
+    const result = await applyNudge({
+      call: current,
+      units: rowOf(selected.unitId),
+      selected,
+      delta,
+    });
     if (result?.failed) reject(selected.unitId, result.error, result.time);
     else if (result) await afterWrite(async () => undefined, selected.unitId, 0);
   }
@@ -256,7 +272,9 @@ export function createEdgeActions(ctx: {
 
   async function flush(edge: TimeEdge) {
     const current = live.current;
-    const unit = current.units.find((item) => item.id === current.selectedUnitId);
+    const unit = rowOf(current.selectedUnitId ?? '').find(
+      (item) => item.id === current.selectedUnitId,
+    );
     const raw = edge === 'start' ? uiRef.current.raw.start : uiRef.current.raw.end;
     const session = call();
     if (!unit || raw === null || !session) return;
@@ -279,7 +297,9 @@ export function createEdgeActions(ctx: {
 
   async function rebaseDraft(edge: TimeEdge) {
     const current = live.current;
-    const unit = current.units.find((item) => item.id === current.selectedUnitId);
+    const unit = rowOf(current.selectedUnitId ?? '').find(
+      (item) => item.id === current.selectedUnitId,
+    );
     const conflict = uiRef.current.raw.conflicts[edge];
     const session = call();
     if (!unit || !conflict || !session) return;
@@ -328,7 +348,7 @@ export function createEdgeActions(ctx: {
     rebaseDraft,
     discardDraft,
     cycle(unitId: string) {
-      const next = cycleEdge(live.current.units, unitId, uiRef.current.edge);
+      const next = cycleEdge(rowOf(unitId), unitId, uiRef.current.edge);
       if (next) setUi((current) => ({ ...current, edge: next }));
     },
     beginDrag(unitId: string, edge: TimeEdge, event: ReactPointerEvent<HTMLElement>) {
@@ -336,7 +356,7 @@ export function createEdgeActions(ctx: {
         unitId,
         edge,
         event,
-        units: live.current.units,
+        units: rowOf(unitId),
         readZoom: () => live.current.zoomPxPerSec,
         playheadMs: () => live.current.playheadMs(),
         snapMessage: (kind, time) => live.current.snapMessage(kind, time),
@@ -374,9 +394,33 @@ export function createEdgeActions(ctx: {
     ) {
       create(event, msAt, layerId == null ? {} : { layerId });
     },
-    openMenu(unitId: string, event: MenuEvent) {
+    /** `layerId` is set on a linked row: its menu may clear only that layer's body text. */
+    openMenu(unitId: string, event: MenuEvent, layerId?: string, layerName?: string) {
       event.preventDefault();
-      setUi((current) => ({ ...current, menu: { unitId, x: event.clientX, y: event.clientY } }));
+      setUi((current) => ({
+        ...current,
+        menu: {
+          unitId,
+          x: event.clientX,
+          y: event.clientY,
+          ...(layerId === undefined ? {} : { layerId, layerName: layerName ?? '' }),
+        },
+      }));
+    },
+    clearLayerText() {
+      const menu = uiRef.current.menu;
+      const session = call();
+      setUi((current) => ({ ...current, menu: null }));
+      if (!menu?.layerId || !session) return;
+      void session.api
+        .updateUnitText(session.sessionId, {
+          unitId: menu.unitId,
+          textLayerId: menu.layerId,
+          text: '',
+          operationId: globalThis.crypto.randomUUID(),
+        })
+        .then(() => live.current.reload())
+        .catch(() => failed());
     },
     closeMenu() {
       setUi((current) => ({ ...current, menu: null }));
@@ -384,7 +428,7 @@ export function createEdgeActions(ctx: {
     linkShared() {
       const menu = uiRef.current.menu;
       if (!menu) return;
-      const next = sharedEdge(live.current.units, menu.unitId);
+      const next = sharedEdge(rowOf(menu.unitId), menu.unitId);
       if (!next) {
         const message = live.current.message('apart', '');
         setUi((current) => ({ ...current, menu: null, reason: { unitId: menu.unitId, message } }));

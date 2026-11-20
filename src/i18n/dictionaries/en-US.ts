@@ -75,6 +75,7 @@ export const enUSDictionary = {
   'app.desktopTranscription.playSegment': 'Play this segment',
   'app.desktopTranscription.edgeOverlap': 'Cannot overlap a neighboring segment',
   'app.desktopTranscription.edgeOutside': 'Outside the recording',
+  'app.desktopTranscription.edgeOutsideParent': 'Cannot leave the parent segment',
   'app.desktopTranscription.edgeShort': 'Needs at least 10 milliseconds',
   'app.desktopTranscription.createShort': 'A new segment needs at least 50 milliseconds',
   'app.desktopTranscription.createNoParent': 'Must sit entirely inside a parent segment',
@@ -86,6 +87,8 @@ export const enUSDictionary = {
   'app.desktopTranscription.draftSaved': 'Draft saved. It is not applied yet.',
   'app.desktopTranscription.noMediaLinked': 'No recording linked',
   'app.desktopTranscription.linkBoundary': 'Link the shared boundary',
+  'app.desktopTranscription.clearLayerText': 'Clear “{layer}” text',
+  'app.desktopTranscription.deleteSegmentAllLayers': 'Delete segment (all layers)',
   'app.desktopTranscription.deleteSegment': 'Delete segment',
   'app.desktopTranscription.deleteBody':
     'This deletes the segment and the children below. Undo keeps the same identity.',

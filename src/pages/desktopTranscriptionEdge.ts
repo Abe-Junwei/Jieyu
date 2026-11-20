@@ -225,6 +225,7 @@ export function edgeRejectKind(
 ):
   | 'overlap'
   | 'outside'
+  | 'outsideParent'
   | 'short'
   | 'createShort'
   | 'noParent'
@@ -236,6 +237,7 @@ export function edgeRejectKind(
   if (message.includes('same speaker intervals overlap')) return 'overlap';
   if (message.includes('edge is outside the media')) return 'outside';
   if (message.includes('edge span is under 10ms')) return 'short';
+  if (message.includes('time subdivision is outside its parent')) return 'outsideParent';
   if (message.includes('time subdivision')) return 'noParent';
   if (message.includes('boundary units are not adjacent')) return 'apart';
   if (message.includes('timed units are out of sort order')) return 'order';

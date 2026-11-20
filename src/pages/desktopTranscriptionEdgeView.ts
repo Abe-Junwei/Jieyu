@@ -6,6 +6,7 @@ import type { ShownPreview } from './desktopTranscriptionEdgePointer';
 const EDGE_REASON = {
   overlap: 'app.desktopTranscription.edgeOverlap',
   outside: 'app.desktopTranscription.edgeOutside',
+  outsideParent: 'app.desktopTranscription.edgeOutsideParent',
   short: 'app.desktopTranscription.edgeShort',
   createShort: 'app.desktopTranscription.createShort',
   noParent: 'app.desktopTranscription.createNoParent',

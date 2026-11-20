@@ -310,14 +310,28 @@ function undoEdge(db: SqliteDatabase, undo: EdgeMove): Unit {
   const unit = readStoredUnit(db, undo.unitId);
   const current = undo.edge === 'start' ? unit?.startMs : unit?.endMs;
   if (!unit || current !== undo.to) throw new Error('edge undo is stale');
-  return moveUnitEdge(db, { unitId: undo.unitId, edge: undo.edge, time: undo.from }).unit;
+  return moveUnitEdge(
+    db,
+    {
+      unitId: undo.unitId,
+      edge: undo.edge,
+      time: undo.from,
+      ...(undo.followers ? { followers: undo.followers } : {}),
+    },
+    'from',
+  ).unit;
 }
 
 function redoEdge(db: SqliteDatabase, undo: EdgeMove): { value: Unit; edit: SessionEdit } {
   const unit = readStoredUnit(db, undo.unitId);
   const current = undo.edge === 'start' ? unit?.startMs : unit?.endMs;
   if (!unit || current !== undo.from) throw new Error('edge redo is stale');
-  const moved = moveUnitEdge(db, { unitId: undo.unitId, edge: undo.edge, time: undo.to });
+  const moved = moveUnitEdge(db, {
+    unitId: undo.unitId,
+    edge: undo.edge,
+    time: undo.to,
+    ...(undo.followers ? { followers: undo.followers } : {}),
+  });
   if (!moved.move) throw new Error('edge redo is stale');
   return { value: moved.unit, edit: { kind: 'edge', undo: moved.move } };
 }

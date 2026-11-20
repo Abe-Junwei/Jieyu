@@ -105,6 +105,9 @@ export function DesktopTranscriptionLane(props: {
     layerId: props.layerId,
     desktopCall: props.desktopCall,
     units: timedUnits,
+    otherRowUnits: (props.layers ?? [])
+      .filter((layer) => layer.id !== props.layerId)
+      .map((layer) => layer.units.flatMap(timedOf)),
     hasMedia: props.hasAudio,
     zoomPxPerSec: props.zoomPxPerSec,
     selectedUnitId: props.selectedUnitId,
@@ -394,6 +397,12 @@ export function DesktopTranscriptionLane(props: {
           createLayerId={createLayerId}
           createFrame={previewFrame}
           bodyDraft={props.bodyDraft}
+          preview={edges.ui.preview}
+          onRowMenu={(card, name, event) => {
+            const linked = props.units.some((unit) => unit.id === card.unitId);
+            edges.openMenu(card.unitId, event, linked ? card.layerId : undefined, name);
+          }}
+          onRowResize={(unitId, edge, event) => edges.beginDrag(unitId, edge, event)}
           onPick={(card, unit) => {
             if (sameCard(focus, card)) {
               openEdit(card, unit.text);
@@ -464,6 +473,7 @@ export function DesktopTranscriptionLane(props: {
         onFlush={edges.flushTime}
         onCloseMenu={edges.closeMenu}
         onLink={edges.linkShared}
+        onClearText={edges.clearLayerText}
         onAskDelete={() => {
           const unitId = edges.ui.menu?.unitId;
           if (unitId) void edges.askDelete(unitId);
@@ -473,6 +483,12 @@ export function DesktopTranscriptionLane(props: {
       />
     </>
   );
+}
+
+function timedOf(unit: { id: string; startMs: number | null; endMs: number | null }) {
+  return unit.startMs === null || unit.endMs === null
+    ? []
+    : [{ id: unit.id, startMs: unit.startMs, endMs: unit.endMs }];
 }
 
 function ignoreAnnotationEvent() {

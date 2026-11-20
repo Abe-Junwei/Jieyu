@@ -2,6 +2,7 @@ import {
   Fragment,
   type CSSProperties,
   type KeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
@@ -14,7 +15,8 @@ import {
 } from './DesktopTranscriptionLayerLabel';
 import type { LayerTreeRow } from './desktopTranscriptionLayerTree';
 import type { TimedEdgeUnit } from './desktopTranscriptionEdge';
-import { desktopSegmentFrame } from './desktopTranscriptionEdgeView';
+import { desktopSegmentFrame, playbackWithPreview } from './desktopTranscriptionEdgeView';
+import type { ShownPreview } from './desktopTranscriptionEdgePointer';
 import { textKey } from './desktopTranscriptionTextKey';
 import type { DesktopPlaybackUnit } from './useDesktopTranscriptionMediaController';
 
@@ -53,6 +55,14 @@ export function DesktopTranscriptionLayerRows(props: {
   createLayerId: string | null;
   createFrame: CSSProperties | null;
   bodyDraft: { unitId: string; text: string } | null;
+  /** Live drag preview of an edge; rows shift the matching card with it. */
+  preview: ShownPreview | null;
+  onRowMenu: (card: LayerCardRef, name: string, event: ReactMouseEvent<Element>) => void;
+  onRowResize: (
+    unitId: string,
+    edge: 'start' | 'end',
+    event: ReactPointerEvent<HTMLElement>,
+  ) => void;
   onPick: (card: LayerCardRef, unit: DesktopPlaybackUnit) => void;
   onEditBody: (unitId: string, text: string, savedText: string) => void;
   onComposeBody: (composing: boolean) => void;
@@ -145,7 +155,8 @@ export function DesktopTranscriptionLayerRows(props: {
             }
             onPointerDown={(event) => props.onCreate(event, layer.id, timed)}
           >
-            {units.map((unit, index) => {
+            {units.map((rowUnit, index) => {
+              const unit = playbackWithPreview(rowUnit, props.preview);
               const frame = desktopSegmentFrame(
                 unit,
                 props.duration,
@@ -168,10 +179,10 @@ export function DesktopTranscriptionLayerRows(props: {
                   title={unit.text}
                   draft={props.bodyDraft?.unitId === key ? props.bodyDraft.text : unit.text}
                   onClick={() => props.onPick(card, unit)}
-                  onContextMenu={ignore}
+                  onContextMenu={(event) => props.onRowMenu(card, name, event)}
                   onDoubleClick={ignore}
-                  onResizeStartPointerDown={ignore}
-                  onResizeEndPointerDown={ignore}
+                  onResizeStartPointerDown={(event) => props.onRowResize(unit.id, 'start', event)}
+                  onResizeEndPointerDown={(event) => props.onRowResize(unit.id, 'end', event)}
                   onChange={(event) => props.onEditBody(key, event.target.value, unit.text)}
                   onCompositionStart={() => props.onComposeBody(true)}
                   onCompositionEnd={() => props.onComposeBody(false)}

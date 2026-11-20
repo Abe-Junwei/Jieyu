@@ -162,6 +162,29 @@ test('drags create on the waveform and on a linked layer row, and texts stay per
       .toContain('gloss one');
     expect((await listed()).map((unit) => unit.text)).toContain('one');
     expect((await listed()).map((unit) => unit.text)).not.toContain('gloss one');
+
+    await first.click({ button: 'right' });
+    await page.getByRole('menuitem', { name: /Gloss/ }).click();
+    await expect
+      .poll(async () =>
+        (await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId: tl.id })).map(
+          (unit) => unit.text,
+        ),
+      )
+      .not.toContain('gloss one');
+    expect((await listed()).map((unit) => unit.text)).toContain('one');
+
+    const before = (await listed()).find((unit) => unit.text === 'one');
+    const handle = row.locator('.timeline-annotation-resize-handle-end').first();
+    const at = await handle.boundingBox();
+    if (at === null || before?.endMs == null) throw new Error('row handle missing');
+    await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(at.x - 12, at.y + at.height / 2, { steps: 6 });
+    await page.mouse.up();
+    await expect
+      .poll(async () => (await listed()).find((unit) => unit.id === before.id)?.endMs ?? 0)
+      .toBeLessThan(before.endMs);
   } finally {
     await app.close();
     rmSync(copy, { recursive: true, force: true });

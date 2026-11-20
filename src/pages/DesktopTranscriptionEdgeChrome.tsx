@@ -35,7 +35,7 @@ export function DesktopTranscriptionEdgeChrome(props: {
   edgeFocus: ReturnType<typeof edgeFocusKind> | null;
   conflicts: Record<TimeEdge, TimeConflict | null>;
   stale: { action: 'undo' | 'redo' } | null;
-  menu: { x: number; y: number } | null;
+  menu: { x: number; y: number; layerName?: string } | null;
   deletePrompt: UnitDeletePreview | null;
   onRebase: (edge: TimeEdge) => void;
   onDiscardDraft: (edge: TimeEdge) => void;
@@ -44,6 +44,7 @@ export function DesktopTranscriptionEdgeChrome(props: {
   onFlush: (edge: TimeEdge) => void;
   onCloseMenu: () => void;
   onLink: () => void;
+  onClearText: () => void;
   onAskDelete: () => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
@@ -151,8 +152,20 @@ export function DesktopTranscriptionEdgeChrome(props: {
             <button type="button" role="menuitem" onClick={props.onLink}>
               {t(locale, 'app.desktopTranscription.linkBoundary')}
             </button>
+            {props.menu.layerName === undefined ? null : (
+              <button type="button" role="menuitem" onClick={props.onClearText}>
+                {tf(locale, 'app.desktopTranscription.clearLayerText', {
+                  layer: props.menu.layerName,
+                })}
+              </button>
+            )}
             <button type="button" role="menuitem" onClick={props.onAskDelete}>
-              {t(locale, 'app.desktopTranscription.deleteSegment')}
+              {t(
+                locale,
+                props.menu.layerName === undefined
+                  ? 'app.desktopTranscription.deleteSegment'
+                  : 'app.desktopTranscription.deleteSegmentAllLayers',
+              )}
             </button>
           </div>
         </>
