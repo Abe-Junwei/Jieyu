@@ -103,6 +103,11 @@
   background: var(--overlay-hover-soft);
 }
 
+.desktop-tx-context__toggle:focus-visible {
+  outline: 1px solid var(--text-primary);
+  outline-offset: -1px;
+}
+
 .desktop-tx-context__chevron {
   width: 16px;
   height: 16px;
@@ -187,53 +192,6 @@
   font-family: var(--font-mono);
   font-size: 12px;
   line-height: 18px;
-}
-
-.desktop-tx-manuscripts {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.desktop-tx-manuscripts li,
-.desktop-tx-manuscripts button {
-  max-width: 100%;
-  min-width: 0;
-}
-
-.desktop-tx-manuscripts button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  min-height: 36px;
-  padding: 8px 8px 8px 12px;
-  overflow: hidden;
-  appearance: none;
-  border: 0;
-  border-radius: 4px;
-  outline: none;
-  box-shadow: none;
-  color: var(--text-primary);
-  text-align: start;
-  background: transparent;
-}
-
-.desktop-tx-manuscripts button:focus-visible {
-  outline: 1px solid var(--text-primary);
-  outline-offset: -1px;
-}
-
-.desktop-tx-manuscripts button span:first-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.desktop-tx-manuscripts button[aria-current='true'] {
-  background: var(--timeline-selection-bg);
 }
 
 .desktop-tx-workspace__main {
@@ -465,15 +423,6 @@
   min-width: 0;
   min-height: 0;
   height: 100%;
-}
-
-.desktop-tx-wave-create {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  background: var(--brand-tint);
-  border: 1px solid var(--mark-secondary);
-  pointer-events: none;
 }
 
 .desktop-tx-wave {
