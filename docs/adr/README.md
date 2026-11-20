@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0134**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0136**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -71,6 +71,7 @@ source_of_truth: decision-index
 
 ## 本轮范围与生命周期
 
+- [0135：仍在用的计划可把历史段剥到 docs/history/ 只读快照](./0135-history-snapshots-split-from-live-plans.md)
 - [0134：旧网页功能缺口逐项归属，首发白名单补入 AI 助手、1c、3b](./0134-legacy-feature-gaps-assigned-to-slices.md)
 - [0131：桌面渲染层单独入口与构建，旧网页靠门禁隔离](./0131-desktop-renderer-build-isolated-from-legacy-web.md)
 - [0129：编辑回执、撤销阻断与时间码草稿冲突](./0129-edit-receipts-and-undo-guard.md)
