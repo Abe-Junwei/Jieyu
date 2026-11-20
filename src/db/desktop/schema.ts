@@ -425,7 +425,7 @@ BEGIN
   );
 END;
 
-CREATE TRIGGER units_time_follows_sort_insert
+CREATE TRIGGER units_aligned_order_insert
 BEFORE INSERT ON units
 WHEN NEW.start_ms IS NOT NULL
 BEGIN
@@ -464,7 +464,7 @@ CREATE TABLE points (
   id TEXT PRIMARY KEY,
   layer_id TEXT NOT NULL REFERENCES layers(id),
   time_ms INTEGER NOT NULL CHECK (typeof(time_ms) = 'integer' AND time_ms >= 0),
-  label TEXT NOT NULL,
+  label TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   UNIQUE (layer_id, time_ms)

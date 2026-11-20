@@ -1606,6 +1606,18 @@ export const desktopOperations = {
     knownKeys(input, ['id']);
     return { id: requiredString(input.id, 'id') };
   }),
+  'manuscripts.retime': spec<
+    'clear',
+    { manuscriptId: string; offsetMs: number; scale: number },
+    { count: number }
+  >('clear', (input) => {
+    knownKeys(input, ['manuscriptId', 'offsetMs', 'scale']);
+    return {
+      manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
+      offsetMs: requiredNumber(input.offsetMs, 'offsetMs'),
+      scale: requiredNumber(input.scale, 'scale'),
+    };
+  }),
   'manuscripts.purge': spec<'clear', { id: string }, { id: string }>('clear', (input) => {
     knownKeys(input, ['id']);
     return { id: requiredString(input.id, 'id') };
