@@ -787,6 +787,16 @@
   pointer-events: none;
 }
 
+.desktop-tx-create-preview {
+  background: none;
+  overflow: hidden;
+}
+
+.desktop-tx-create-preview__stroke {
+  fill: color-mix(in srgb, var(--brand-solid) 6%, transparent);
+  stroke: var(--brand-solid);
+}
+
 .desktop-tx-status {
   display: flex;
   align-items: center;
