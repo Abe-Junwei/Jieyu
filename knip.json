@@ -5,7 +5,8 @@
     "src/App.tsx",
     "src/db/index.ts",
 
-    "src/services/LinguisticService.ts"
+    "src/services/LinguisticService.ts",
+    "vite.shared.ts"
   ],
   "project": ["src/**/*.{ts,tsx}"],
   "ignore": [
