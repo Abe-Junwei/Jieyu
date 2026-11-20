@@ -1,4 +1,5 @@
 import { createDesktopClient } from '../db/desktop/client';
+import { zhCNDictionary } from '../i18n/dictionaries/zh-CN';
 import type { DesktopReadHost } from './projectReadHost';
 
 export interface ImportedRecordingFile {
@@ -30,7 +31,7 @@ export async function registerImportedRecording(input: {
     duration: existing?.duration ?? (await recordingDuration(picked.url, input.durationOf)),
     title: { und: titleOf(picked.filename) },
     layerKey: 'tx',
-    layerName: { zh: '转写' },
+    layerName: { zh: zhCNDictionary['app.desktopTranscription.contextLayerTranscription'] },
     tierType: 'time-aligned',
     contentType: 'transcription',
   });

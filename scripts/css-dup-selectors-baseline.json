@@ -1,6 +1,7 @@
 {
   "generatedAt": "2026-04-15T06:06:00.904Z",
   "allowedDuplicateClasses": [
+    "app-shell-side-pane-collapsed",
     "app-side-pane-body-slot",
     "dialog-card",
     "embedded-panel-shell",

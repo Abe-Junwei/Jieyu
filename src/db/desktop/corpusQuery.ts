@@ -6,7 +6,7 @@ type SqliteDatabase = InstanceType<typeof Database>;
 export interface CorpusQueryCursor {
   manuscriptId: string;
   layerId: string;
-  startMs: number;
+  startTime: number | null;
   unitId: string;
 }
 
@@ -29,8 +29,8 @@ export interface CorpusQueryItem {
   manuscriptId: string;
   layerId: string;
   unitId: string;
-  startMs: number;
-  endMs: number;
+  startTime: number | null;
+  endTime: number | null;
   text: string;
   textSpans: CorpusTextSpan[];
   hits: CorpusQueryHit[];
@@ -76,8 +76,8 @@ interface UnitRow {
   manuscript_id: string;
   layer_id: string;
   unit_id: string;
-  start_ms: number;
-  end_ms: number;
+  start_ms: number | null;
+  end_ms: number | null;
   text: string;
 }
 
@@ -113,8 +113,8 @@ export function queryCorpus(db: SqliteDatabase, input: CorpusQuery): CorpusQuery
       manuscriptId: row.manuscript_id,
       layerId: row.layer_id,
       unitId: row.unit_id,
-      startMs: row.start_ms,
-      endMs: row.end_ms,
+      startTime: row.start_ms,
+      endTime: row.end_ms,
       text: row.text,
       textSpans: spansIn(row.text, text),
       hits: hitsByUnit?.get(row.unit_id) ?? [],
@@ -296,8 +296,22 @@ function selectUnits(
     where.push(`(
       manuscripts.id > ?
       OR (manuscripts.id = ? AND layers.id > ?)
-      OR (manuscripts.id = ? AND layers.id = ? AND units.start_ms > ?)
-      OR (manuscripts.id = ? AND layers.id = ? AND units.start_ms = ? AND units.id > ?)
+      OR (
+        manuscripts.id = ? AND layers.id = ? AND (
+          (
+            ? IS NULL AND (
+              (units.start_ms IS NULL AND units.id > ?)
+              OR units.start_ms IS NOT NULL
+            )
+          )
+          OR (
+            ? IS NOT NULL AND (
+              units.start_ms > ?
+              OR (units.start_ms = ? AND units.id > ?)
+            )
+          )
+        )
+      )
     )`);
     params.push(
       cursor.manuscriptId,
@@ -305,10 +319,11 @@ function selectUnits(
       cursor.layerId,
       cursor.manuscriptId,
       cursor.layerId,
-      cursor.startMs,
-      cursor.manuscriptId,
-      cursor.layerId,
-      cursor.startMs,
+      cursor.startTime,
+      cursor.unitId,
+      cursor.startTime,
+      cursor.startTime,
+      cursor.startTime,
       cursor.unitId,
     );
   }

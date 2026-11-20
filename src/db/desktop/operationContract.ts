@@ -590,12 +590,13 @@ function requiredLimit(value: unknown): number {
 function corpusCursor(value: unknown): CorpusQueryCursor | null {
   if (value === undefined || value === null) return null;
   const cursor = objectArg(value);
-  knownKeys(cursor, ['manuscriptId', 'layerId', 'startMs', 'unitId']);
-  if (!('startMs' in cursor)) throw new Error('desktop call startMs must be a whole millisecond');
+  knownKeys(cursor, ['manuscriptId', 'layerId', 'startTime', 'unitId']);
+  if (!('startTime' in cursor))
+    throw new Error('desktop call startTime must be a whole millisecond');
   return {
     manuscriptId: requiredString(cursor.manuscriptId, 'manuscriptId'),
     layerId: requiredString(cursor.layerId, 'layerId'),
-    startMs: requiredMs(cursor.startMs, 'startMs'),
+    startTime: optionalMs(cursor.startTime, 'startTime'),
     unitId: requiredString(cursor.unitId, 'unitId'),
   };
 }

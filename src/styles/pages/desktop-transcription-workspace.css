@@ -103,6 +103,11 @@
   background: var(--overlay-hover-soft);
 }
 
+.desktop-tx-context__toggle:focus-visible {
+  outline: 1.5px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
 .desktop-tx-context__chevron {
   width: 16px;
   height: 16px;
@@ -189,53 +194,6 @@
   line-height: 18px;
 }
 
-.desktop-tx-manuscripts {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.desktop-tx-manuscripts li,
-.desktop-tx-manuscripts button {
-  max-width: 100%;
-  min-width: 0;
-}
-
-.desktop-tx-manuscripts button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  min-height: 36px;
-  padding: 8px 8px 8px 12px;
-  overflow: hidden;
-  appearance: none;
-  border: 0;
-  border-radius: 4px;
-  outline: none;
-  box-shadow: none;
-  color: var(--text-primary);
-  text-align: start;
-  background: transparent;
-}
-
-.desktop-tx-manuscripts button:focus-visible {
-  outline: 1px solid var(--text-primary);
-  outline-offset: -1px;
-}
-
-.desktop-tx-manuscripts button span:first-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.desktop-tx-manuscripts button[aria-current='true'] {
-  background: var(--timeline-selection-bg);
-}
-
 .desktop-tx-workspace__main {
   flex: 1;
   min-width: 0;
@@ -265,7 +223,7 @@
   flex: none;
   border: 0;
   border-radius: 4px;
-  color: var(--brand-on, #fff);
+  color: var(--brand-on);
   background: var(--text-primary);
 }
 
@@ -422,6 +380,10 @@
   color: var(--text-primary);
 }
 
+.desktop-tx-readout__total {
+  color: var(--text-tertiary);
+}
+
 .desktop-tx-waveband {
   display: flex;
   height: 168px;
@@ -462,7 +424,7 @@
 .desktop-tx-wave {
   height: 100%;
   overflow: hidden;
-  background: #fafaf8;
+  background: var(--surface-bg);
 }
 
 .desktop-tx-spectrogram {
@@ -925,15 +887,7 @@
   background: var(--brand-tint);
   border: 1px solid var(--text-secondary);
   border-radius: var(--radius-md);
-  box-shadow: 0 0 0 3px rgb(17 17 17 / 14%);
-}
-
-:root[data-theme='dark'] .desktop-tx-lane .timeline-annotation.timeline-annotation-selected,
-:root[data-theme='dark'] .desktop-tx-lane .timeline-annotation.timeline-annotation-selected:hover,
-:root[data-theme='dark']
-  .desktop-tx-lane
-  .timeline-annotation.timeline-annotation-selected:focus-within {
-  box-shadow: 0 0 0 3px rgb(244 242 236 / 18%);
+  box-shadow: 0 0 0 3px var(--focus-ring-soft);
 }
 
 .desktop-tx-no-audio {

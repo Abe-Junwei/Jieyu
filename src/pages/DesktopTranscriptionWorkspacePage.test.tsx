@@ -184,9 +184,9 @@ describe('DesktopTranscriptionWorkspacePage', () => {
       'utf8',
     );
     expect(css).toMatch(
-      /\.desktop-tx-lane \.timeline-annotation\.timeline-annotation-selected[\s\S]*var\(--brand-tint\)[\s\S]*var\(--text-secondary\)[\s\S]*var\(--radius-md\)[\s\S]*rgb\(17 17 17 \/ 14%\)/,
+      /\.desktop-tx-lane \.timeline-annotation\.timeline-annotation-selected[\s\S]*var\(--brand-tint\)[\s\S]*var\(--text-secondary\)[\s\S]*var\(--radius-md\)[\s\S]*var\(--focus-ring-soft\)/,
     );
-    expect(css).toMatch(/data-theme='dark'[\s\S]*rgb\(244 242 236 \/ 18%\)/);
+    expect(css).not.toMatch(/\.desktop-tx-lane[^{]*timeline-annotation-selected[^{]*\{[^}]*rgb\(/);
     expect(css).toMatch(
       /\.desktop-tx-lane \.timeline-annotation-resize-handle[\s\S]*display:\s*none/,
     );
