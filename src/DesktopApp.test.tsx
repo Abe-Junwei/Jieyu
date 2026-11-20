@@ -107,6 +107,37 @@ describe('DesktopApp', () => {
     );
   });
 
+  it('leaves out the left side pane on the desktop home page only', async () => {
+    installDesktopHost(() => Promise.resolve([]));
+    const { container, unmount } = render(
+      <MemoryRouter initialEntries={['/']}>
+        <DesktopApp />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId('desktop-folder-page')).toBeTruthy();
+    expect(container.querySelector('.app-side-pane')).toBeNull();
+    expect(
+      (container.querySelector('.app-shell') as HTMLElement).style.getPropertyValue(
+        '--side-pane-width',
+      ),
+    ).toBe('0px');
+    unmount();
+
+    const lexicon = render(
+      <MemoryRouter initialEntries={['/lexicon']}>
+        <DesktopApp />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByTestId('desktop-lexicon-page')).toBeTruthy();
+    expect(lexicon.container.querySelector('.app-side-pane')).not.toBeNull();
+    expect(
+      (lexicon.container.querySelector('.app-shell') as HTMLElement).style.getPropertyValue(
+        '--side-pane-width',
+      ),
+    ).toBe('272px');
+  });
+
   it('does not keep Home highlighted on the folder page', async () => {
     installDesktopHost(() => Promise.resolve([]));
     render(

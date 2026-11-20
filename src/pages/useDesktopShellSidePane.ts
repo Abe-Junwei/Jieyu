@@ -32,6 +32,7 @@ function readPersistedSidePaneWidth(): number {
 
 export function useDesktopShellSidePane() {
   const location = useLocation();
+  const hideSidePane = location.pathname === '/';
   const isTranscriptionRoute = isTranscriptionWorkspacePathname(location.pathname);
   const desktopContextPane =
     isTranscriptionRoute && featureFlags.desktopTranscriptionWorkspaceEnabled;
@@ -72,13 +73,15 @@ export function useDesktopShellSidePane() {
   const shellStyle = useMemo(
     () =>
       ({
-        ['--side-pane-width' as '--side-pane-width']: isSidePaneCollapsed
-          ? desktopContextPane
-            ? '32px'
-            : '0px'
-          : `${shownPaneWidth}px`,
+        ['--side-pane-width' as '--side-pane-width']: hideSidePane
+          ? '0px'
+          : isSidePaneCollapsed
+            ? desktopContextPane
+              ? '32px'
+              : '0px'
+            : `${shownPaneWidth}px`,
       }) as CSSProperties,
-    [desktopContextPane, isSidePaneCollapsed, shownPaneWidth],
+    [desktopContextPane, hideSidePane, isSidePaneCollapsed, shownPaneWidth],
   );
 
   usePanelAutoCollapse({
@@ -109,6 +112,7 @@ export function useDesktopShellSidePane() {
 
   return {
     location,
+    hideSidePane,
     isTranscriptionRoute,
     desktopContextPane,
     shellBodyRef,

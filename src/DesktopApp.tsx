@@ -127,19 +127,21 @@ export function DesktopApp() {
                   </button>
                 </div>
               </aside>
-              <DesktopShellSidePane
-                locale={prefs.locale}
-                activeNavItem={activeNavItem}
-                isTranscriptionRoute={pane.isTranscriptionRoute}
-                isSidePaneCollapsed={pane.isSidePaneCollapsed}
-                sidePaneWidth={pane.sidePaneWidth}
-                minWidth={pane.minWidth}
-                maxWidth={pane.maxWidth}
-                handleSidePaneResizeStart={pane.handleSidePaneResizeStart}
-                handleSidePaneResizeKeyDown={pane.handleSidePaneResizeKeyDown}
-                handleSidePaneResizeReset={pane.handleSidePaneResizeReset}
-                handleSidePaneToggle={handleSidePaneToggle}
-              />
+              {pane.hideSidePane ? null : (
+                <DesktopShellSidePane
+                  locale={prefs.locale}
+                  activeNavItem={activeNavItem}
+                  isTranscriptionRoute={pane.isTranscriptionRoute}
+                  isSidePaneCollapsed={pane.isSidePaneCollapsed}
+                  sidePaneWidth={pane.sidePaneWidth}
+                  minWidth={pane.minWidth}
+                  maxWidth={pane.maxWidth}
+                  handleSidePaneResizeStart={pane.handleSidePaneResizeStart}
+                  handleSidePaneResizeKeyDown={pane.handleSidePaneResizeKeyDown}
+                  handleSidePaneResizeReset={pane.handleSidePaneResizeReset}
+                  handleSidePaneToggle={handleSidePaneToggle}
+                />
+              )}
               <main
                 className={`app-main ${pane.isTranscriptionRoute ? 'app-main-transcription' : ''}`}
               >
