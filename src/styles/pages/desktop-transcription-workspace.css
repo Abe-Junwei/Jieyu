@@ -1273,9 +1273,8 @@
 }
 
 .desktop-tx-wave-grip:hover,
-.desktop-tx-wave-grip:focus-visible,
-.desktop-tx-wave-seg.is-selected .desktop-tx-wave-grip {
-  background: var(--brand-tint);
+.desktop-tx-wave-grip:focus-visible {
+  box-shadow: inset 0 2px 0 var(--brand-solid);
 }
 
 .desktop-tx-wave-handle {
@@ -1295,8 +1294,12 @@
   right: 0;
 }
 
-.desktop-tx-wave-handle:hover,
-.desktop-tx-wave-handle:focus-visible,
-.desktop-tx-wave-seg.is-selected .desktop-tx-wave-handle {
-  background: var(--brand-tint);
+.desktop-tx-wave-handle.is-start:hover,
+.desktop-tx-wave-handle.is-start:focus-visible {
+  box-shadow: inset 2px 0 0 var(--brand-solid);
+}
+
+.desktop-tx-wave-handle.is-end:hover,
+.desktop-tx-wave-handle.is-end:focus-visible {
+  box-shadow: inset -2px 0 0 var(--brand-solid);
 }
