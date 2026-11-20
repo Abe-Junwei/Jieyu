@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import { mergeConfig } from 'vite';
 import os from 'node:os';
+import { desktopBundleGuard } from './scripts/vite-plugin-desktop-bundle-guard.ts';
 import { createJieyuViteConfig } from './vite.shared.ts';
 
 /** Vitest worker 数：默认取 CPU−1（上限 4）；OOM 时设 `VITEST_MAX_WORKERS=1` | Tune via env for speed vs RAM */
@@ -29,6 +30,7 @@ export default mergeConfig(
     pwa: false,
   }),
   {
+    plugins: [desktopBundleGuard()],
     test: {
       /* Playwright 规格放在 tests/e2e 与 tests/e2e-desktop；勿让 Vitest 收集 | E2E specs run via Playwright only */
       exclude: [
