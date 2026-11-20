@@ -754,8 +754,8 @@ describe('SidePaneSidebarSegmentList', () => {
     ) as HTMLElement;
     const panelScope = within(filterPanel);
     expect(panelScope.getByRole('button', { name: '内容状态' })).toBeTruthy();
-    expect(panelScope.getByRole('button', { name: '标注状态' })).toBeTruthy();
-    expect(panelScope.getByRole('button', { name: '来源' })).toBeTruthy();
+    expect(await panelScope.findByRole('button', { name: '标注状态' })).toBeTruthy();
+    expect(await panelScope.findByRole('button', { name: '来源' })).toBeTruthy();
 
     fireEvent.click(panelScope.getByRole('button', { name: '内容状态' }));
     fireEvent.click(panelScope.getByRole('button', { name: /有内容/ }));

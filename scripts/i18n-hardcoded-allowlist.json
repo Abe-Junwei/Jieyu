@@ -98,6 +98,8 @@
     { "pathPrefix": "src/i18n/appDataResilienceMessages.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/i18n/dictionaries/", "reason": "data-dictionary" },
     { "pathPrefix": "src/services/LinguisticService.timeMapping.ts", "reason": "validation-and-guard-message" },
-    { "pathPrefix": "src/db/desktop/foreignImport.ts", "reason": "data-dictionary" }
+    { "pathPrefix": "src/db/desktop/foreignImport.ts", "reason": "data-dictionary" },
+    { "pathPrefix": "src/db/desktop/importRecordingFile.ts", "reason": "data-dictionary" },
+    { "pathPrefix": "src/desktop/importDesktopRecording.ts", "reason": "data-dictionary" }
   ]
 }

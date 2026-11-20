@@ -203,6 +203,8 @@
 }
 
 .desktop-tx-bar {
+  position: relative;
+  z-index: calc(var(--z-header-float) + 1);
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -211,6 +213,8 @@
   height: 49px;
   padding: 0 12px;
   box-sizing: border-box;
+  background: var(--surface-panel);
+  border-bottom: 1px solid var(--divider-base);
 }
 
 .desktop-tx-bar > * {
