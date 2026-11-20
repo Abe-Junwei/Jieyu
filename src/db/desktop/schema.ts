@@ -2,8 +2,8 @@
 
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
-/** SQLite header offset 60. ADR-0121 moved this to 28. A later table change needs a new decision and a new freeze record. */
-export const DESKTOP_PROJECT_USER_VERSION = 29;
+/** SQLite header offset 60. ADR-0129 moved this to 31. A later table change needs a new decision and a new freeze record. */
+export const DESKTOP_PROJECT_USER_VERSION = 31;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -292,20 +292,30 @@ CREATE TABLE layers (
   key TEXT NOT NULL,
   name_json TEXT NOT NULL,
   tier_type TEXT NOT NULL CHECK (tier_type IN (
-    'time-aligned', 'time-subdivision', 'symbolic-subdivision', 'symbolic-association', 'point'
+    'time-aligned', 'time-subdivision', 'symbolic-subdivision', 'symbolic-association'
   )),
   content_type TEXT NOT NULL CHECK (content_type IN (
-    'transcription', 'translation', 'gloss', 'pos', 'note', 'custom'
+    'transcription', 'translation', 'gloss', 'pos', 'note', 'custom', 'point'
   )),
   language_id TEXT REFERENCES languages(id),
   orthography_id TEXT REFERENCES orthographies(id),
   parent_id TEXT,
   sort_order INTEGER NOT NULL,
+  modality TEXT NOT NULL DEFAULT 'text' CHECK (modality IN ('text', 'audio', 'mixed')),
+  lane_height INTEGER CHECK (
+    lane_height IS NULL OR (lane_height > 0 AND lane_height = CAST(lane_height AS INTEGER))
+  ),
+  display_font TEXT CHECK (display_font IS NULL OR length(display_font) > 0),
+  deleted_at TEXT CHECK (deleted_at IS NULL OR length(deleted_at) > 0),
+  retain_until TEXT CHECK (retain_until IS NULL OR length(retain_until) > 0),
+  reminder_shown_at TEXT CHECK (reminder_shown_at IS NULL OR length(reminder_shown_at) > 0),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   UNIQUE (manuscript_id, key),
   UNIQUE (id, manuscript_id),
-  FOREIGN KEY (parent_id, manuscript_id) REFERENCES layers (id, manuscript_id)
+  FOREIGN KEY (parent_id, manuscript_id) REFERENCES layers (id, manuscript_id),
+  CHECK ((retain_until IS NULL) = (deleted_at IS NULL)),
+  CHECK (reminder_shown_at IS NULL OR deleted_at IS NOT NULL)
 );
 
 CREATE TABLE units (
@@ -313,9 +323,16 @@ CREATE TABLE units (
   layer_id TEXT NOT NULL REFERENCES layers(id),
   speaker_id TEXT REFERENCES speakers(id),
   parent_unit_id TEXT,
-  sort_order INTEGER NOT NULL,
   start_ms INTEGER,
   end_ms INTEGER,
+  sort_order INTEGER NOT NULL CHECK (
+    sort_order >= 0 AND sort_order = CAST(sort_order AS INTEGER)
+  ),
+  skip_processing INTEGER NOT NULL DEFAULT 0 CHECK (skip_processing IN (0, 1)),
+  confidence REAL CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 1)),
+  self_certainty TEXT CHECK (
+    self_certainty IS NULL OR self_certainty IN ('not_understood', 'uncertain', 'certain')
+  ),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   analysis_graph_json TEXT CHECK (
@@ -331,8 +348,14 @@ CREATE TABLE units (
     (analysis_graph_json IS NULL AND graph_fingerprint = '') OR
     (analysis_graph_json IS NOT NULL AND length(graph_fingerprint) = 64)
   ),
-  CHECK ((start_ms IS NULL) = (end_ms IS NULL)),
-  CHECK (start_ms IS NULL OR (start_ms >= 0 AND start_ms < end_ms))
+  CHECK (
+    (start_ms IS NULL AND end_ms IS NULL) OR (
+      start_ms IS NOT NULL AND end_ms IS NOT NULL
+      AND typeof(start_ms) = 'integer' AND typeof(end_ms) = 'integer'
+      AND start_ms >= 0 AND end_ms > start_ms
+    )
+  ),
+  UNIQUE (layer_id, sort_order)
 );
 
 CREATE TRIGGER units_parent_same_manuscript_insert
@@ -365,11 +388,48 @@ BEGIN
   );
 END;
 
+CREATE TRIGGER units_same_speaker_no_overlap_insert
+BEFORE INSERT ON units
+WHEN NEW.start_ms IS NOT NULL
+BEGIN
+  SELECT RAISE(ABORT, 'same speaker intervals overlap')
+  WHERE EXISTS (
+    SELECT 1 FROM units
+    WHERE units.layer_id = NEW.layer_id
+      AND units.start_ms IS NOT NULL
+      AND (
+        (units.speaker_id IS NULL AND NEW.speaker_id IS NULL)
+        OR units.speaker_id = NEW.speaker_id
+      )
+      AND units.start_ms < NEW.end_ms
+      AND NEW.start_ms < units.end_ms
+  );
+END;
+
+CREATE TRIGGER units_same_speaker_no_overlap_update
+BEFORE UPDATE OF start_ms, end_ms, speaker_id, layer_id ON units
+WHEN NEW.start_ms IS NOT NULL
+BEGIN
+  SELECT RAISE(ABORT, 'same speaker intervals overlap')
+  WHERE EXISTS (
+    SELECT 1 FROM units
+    WHERE units.layer_id = NEW.layer_id
+      AND units.id <> NEW.id
+      AND units.start_ms IS NOT NULL
+      AND (
+        (units.speaker_id IS NULL AND NEW.speaker_id IS NULL)
+        OR units.speaker_id = NEW.speaker_id
+      )
+      AND units.start_ms < NEW.end_ms
+      AND NEW.start_ms < units.end_ms
+  );
+END;
+
 CREATE TRIGGER units_aligned_order_insert
 BEFORE INSERT ON units
 WHEN NEW.start_ms IS NOT NULL
 BEGIN
-  SELECT RAISE(ABORT, 'aligned unit time is out of order')
+  SELECT RAISE(ABORT, 'timed units are out of sort order')
   WHERE EXISTS (
     SELECT 1 FROM units
     WHERE units.layer_id = NEW.layer_id
@@ -381,15 +441,15 @@ BEGIN
   );
 END;
 
-CREATE TRIGGER units_aligned_order_update
-BEFORE UPDATE OF sort_order, start_ms, end_ms, layer_id ON units
+CREATE TRIGGER units_time_follows_sort_update
+BEFORE UPDATE OF start_ms, end_ms, layer_id ON units
 WHEN NEW.start_ms IS NOT NULL
 BEGIN
-  SELECT RAISE(ABORT, 'aligned unit time is out of order')
+  SELECT RAISE(ABORT, 'timed units are out of sort order')
   WHERE EXISTS (
     SELECT 1 FROM units
-    WHERE units.id <> NEW.id
-      AND units.layer_id = NEW.layer_id
+    WHERE units.layer_id = NEW.layer_id
+      AND units.id <> NEW.id
       AND units.start_ms IS NOT NULL
       AND (
         (units.sort_order < NEW.sort_order AND units.start_ms > NEW.start_ms)
@@ -398,13 +458,7 @@ BEGIN
   );
 END;
 
-CREATE TRIGGER layers_point_needs_media_insert
-BEFORE INSERT ON layers
-WHEN NEW.tier_type = 'point'
-BEGIN
-  SELECT RAISE(ABORT, 'a point layer needs a recording')
-  WHERE (SELECT media_id FROM manuscripts WHERE id = NEW.manuscript_id) IS NULL;
-END;
+CREATE INDEX units_layer_start ON units(layer_id, start_ms);
 
 CREATE TABLE points (
   id TEXT PRIMARY KEY,
@@ -416,20 +470,38 @@ CREATE TABLE points (
   UNIQUE (layer_id, time_ms)
 );
 
-CREATE TRIGGER points_need_point_layer_insert
+CREATE TRIGGER points_layer_is_point_insert
 BEFORE INSERT ON points
 BEGIN
-  SELECT RAISE(ABORT, 'a point belongs on a point layer')
-  WHERE (SELECT tier_type FROM layers WHERE id = NEW.layer_id) IS NOT 'point';
+  SELECT RAISE(ABORT, 'point layer is required')
+  WHERE (SELECT content_type FROM layers WHERE id = NEW.layer_id) IS NOT 'point';
 END;
 
-CREATE TABLE unit_identity_links (
-  id TEXT PRIMARY KEY,
-  operation_id TEXT NOT NULL,
+CREATE TRIGGER layers_point_needs_media_insert
+BEFORE INSERT ON layers
+WHEN NEW.content_type = 'point'
+BEGIN
+  SELECT RAISE(ABORT, 'point layer needs a recording')
+  WHERE (SELECT media_id FROM manuscripts WHERE id = NEW.manuscript_id) IS NULL;
+END;
+
+CREATE TABLE layer_lane_locks (
+  layer_id TEXT NOT NULL REFERENCES layers(id),
+  speaker_id TEXT NOT NULL REFERENCES speakers(id),
+  lane_index INTEGER NOT NULL CHECK (
+    lane_index >= 0 AND lane_index = CAST(lane_index AS INTEGER)
+  ),
+  PRIMARY KEY (layer_id, speaker_id),
+  UNIQUE (layer_id, lane_index)
+);
+
+CREATE TABLE unit_span_maps (
+  operation_id TEXT NOT NULL CHECK (length(operation_id) > 0),
   kind TEXT NOT NULL CHECK (kind IN ('split', 'merge')),
-  old_unit_id TEXT NOT NULL,
-  new_unit_id TEXT NOT NULL,
-  created_at TEXT NOT NULL
+  old_id TEXT NOT NULL CHECK (length(old_id) > 0),
+  new_id TEXT NOT NULL CHECK (length(new_id) > 0),
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (operation_id, old_id, new_id)
 );
 
 CREATE TABLE unit_texts (
@@ -437,6 +509,7 @@ CREATE TABLE unit_texts (
   unit_id TEXT NOT NULL REFERENCES units(id),
   role TEXT NOT NULL,
   body TEXT NOT NULL,
+  audio_file_id TEXT CHECK (audio_file_id IS NULL OR length(audio_file_id) > 0),
   provenance_json TEXT CHECK (
     provenance_json IS NULL OR (
       json_valid(provenance_json) AND json_type(provenance_json) = 'object'
@@ -525,6 +598,22 @@ CREATE TABLE attachment_files (
   state TEXT NOT NULL CHECK (state IN ('ready', 'cleanup_pending', 'cleanup_unknown')),
   created_at TEXT NOT NULL
 );
+
+CREATE TRIGGER unit_texts_audio_file_insert
+BEFORE INSERT ON unit_texts
+WHEN NEW.audio_file_id IS NOT NULL
+BEGIN
+  SELECT RAISE(ABORT, 'audio file is missing')
+  WHERE NOT EXISTS (SELECT 1 FROM attachment_files WHERE id = NEW.audio_file_id);
+END;
+
+CREATE TRIGGER unit_texts_audio_file_update
+BEFORE UPDATE OF audio_file_id ON unit_texts
+WHEN NEW.audio_file_id IS NOT NULL
+BEGIN
+  SELECT RAISE(ABORT, 'audio file is missing')
+  WHERE NOT EXISTS (SELECT 1 FROM attachment_files WHERE id = NEW.audio_file_id);
+END;
 
 CREATE TABLE attachment_links (
   id TEXT PRIMARY KEY,
@@ -822,7 +911,10 @@ CREATE TABLE model_runs (
   capability TEXT NOT NULL CHECK (capability = 'transcribe'),
   params_json TEXT NOT NULL CHECK (json_valid(params_json) AND json_type(params_json) = 'object'),
   range_start_ms INTEGER NOT NULL,
-  range_end_ms INTEGER NOT NULL CHECK (range_end_ms >= range_start_ms),
+  range_end_ms INTEGER NOT NULL CHECK (
+    typeof(range_start_ms) = 'integer' AND typeof(range_end_ms) = 'integer'
+    AND range_end_ms >= range_start_ms
+  ),
   started_at TEXT NOT NULL,
   finished_at TEXT,
   status TEXT NOT NULL CHECK (status IN ('running', 'ok', 'error', 'cancelled', 'interrupted')),
@@ -1225,6 +1317,25 @@ CREATE TABLE unit_text_drafts (
   base_body TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   CHECK (raw_input <> base_body)
+);
+
+CREATE TABLE unit_time_drafts (
+  unit_id TEXT NOT NULL REFERENCES units(id),
+  edge TEXT NOT NULL CHECK (edge IN ('start', 'end')),
+  raw_input TEXT NOT NULL,
+  base_ms INTEGER NOT NULL CHECK (typeof(base_ms) = 'integer' AND base_ms >= 0),
+  issue TEXT CHECK (issue IS NULL OR length(issue) > 0),
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (unit_id, edge)
+);
+
+CREATE TABLE edit_receipts (
+  operation_id TEXT PRIMARY KEY CHECK (length(operation_id) > 0),
+  kind TEXT NOT NULL CHECK (length(kind) > 0),
+  digest TEXT NOT NULL CHECK (length(digest) = 64),
+  manuscript_id TEXT NOT NULL CHECK (length(manuscript_id) > 0),
+  result_json TEXT NOT NULL CHECK (json_valid(result_json)),
+  committed_at TEXT NOT NULL
 );
 
 CREATE TRIGGER local_id_map_reject_deleted_manuscript_insert

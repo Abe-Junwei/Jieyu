@@ -40,7 +40,11 @@ import {
   readRestoredProjectGrant,
 } from '../src/desktop/restoredProjectGrant';
 import { grantExchangePath } from '../src/desktop/exchangePathGrant';
-import { ensureBundledSample, SAMPLE_PROJECT_DIRNAME } from '../src/db/desktop/sampleProject';
+import { projectLibraryHeaderMatches } from '../src/db/desktop/openProject';
+import {
+  copyRecordingIntoProject,
+  projectFolderForNewImport,
+} from '../src/db/desktop/importRecordingFile';
 import { desktopMediaPlayUrl } from '../src/db/desktop/mediaUrl';
 import {
   abandonDesktopSession,
@@ -356,6 +360,43 @@ function registerIpc(): void {
       if (!alreadyAllowed) allowedProjectFolders.delete(resolved);
       throw error;
     }
+  });
+
+  handle('desktop:import-recording', async (sessionId: unknown) => {
+    const picked = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [
+        {
+          name: 'Audio',
+          extensions: ['wav', 'mp3', 'm4a', 'aac', 'flac', 'ogg', 'aiff', 'aif', 'caf', 'mp4'],
+        },
+      ],
+    });
+    const file = picked.filePaths[0];
+    if (file === undefined) return { cancelled: true };
+    let session = typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : null;
+    let folder: string;
+    if (session === null) {
+      folder = projectFolderForNewImport(
+        path.resolve(app.getPath('documents'), '解语'),
+        path.basename(file, path.extname(file)),
+        projectLibraryHeaderMatches,
+      );
+      fs.mkdirSync(path.dirname(folder), { recursive: true });
+      allowedProjectFolders.add(folder);
+      const opened = openUserProjectSession(folder);
+      bindDesktopMediaSession(opened.sessionId);
+      session = opened.sessionId;
+    } else {
+      folder = desktopSessionFolder(session);
+    }
+    const copied = await copyRecordingIntoProject(folder, file);
+    const absolute = path.resolve(folder, copied.relpath);
+    return {
+      ...copied,
+      sessionId: session,
+      url: `jieyu-media://local/${grantDesktopMedia(session, absolute)}`,
+    };
   });
 
   handle('desktop:choose-folder', async () => {
@@ -875,11 +916,6 @@ app
     if (process.argv.includes('--smoke')) {
       await runSmoke(win);
       return;
-    }
-    try {
-      ensureBundledSample(path.join(app.getPath('userData'), SAMPLE_PROJECT_DIRNAME));
-    } catch (error) {
-      console.error(error);
     }
     ipcMain.handle('skeleton:choose-project', () => chooseProject());
     app.on('activate', () => {

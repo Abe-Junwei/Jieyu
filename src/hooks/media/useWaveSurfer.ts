@@ -101,6 +101,20 @@ export interface UseWaveSurferOptions {
   waveformDisplayMode?: WaveformDisplayMode;
   /** 波形视觉样式 | Waveform visual style */
   waveformVisualStyle?: WaveformVisualStyle;
+  /** 播放头宽度。缺省 0，沿用旧转写页不画光标。 */
+  cursorWidth?: number;
+  /** 覆盖预设波峰色。缺省沿用视觉样式。 */
+  waveColor?: string;
+  /** 覆盖已播放波峰色。缺省沿用视觉样式。 */
+  progressColor?: string;
+  /** 覆盖预设播放头色。缺省沿用视觉样式。 */
+  cursorColor?: string;
+  /** 当前句段在波形上的选区底色。缺省沿用旧转写页的状态色。 */
+  primaryRegionColor?: string;
+  /** 当前句段选区的左右边。缺省不画。 */
+  primaryRegionEdgeColor?: string;
+  /** 缺省可拖可拉。只读时间轴传 false。 */
+  regionsInteractive?: boolean;
 }
 
 export function useWaveSurfer(options: UseWaveSurferOptions) {
@@ -272,11 +286,11 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       const waveformWaveColor =
         currentOptions.waveformDisplayMode === 'spectrogram'
           ? 'transparent'
-          : visualStylePreset.waveColor;
+          : (currentOptions.waveColor ?? visualStylePreset.waveColor);
       const waveformProgressColor =
         currentOptions.waveformDisplayMode === 'spectrogram'
           ? 'transparent'
-          : visualStylePreset.progressColor;
+          : (currentOptions.progressColor ?? visualStylePreset.progressColor);
 
       if (disposed) return;
 
@@ -284,8 +298,8 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
         container: liveContainer,
         waveColor: waveformWaveColor,
         progressColor: waveformProgressColor,
-        cursorColor: visualStylePreset.cursorColor,
-        cursorWidth: 0,
+        cursorColor: currentOptions.cursorColor ?? visualStylePreset.cursorColor,
+        cursorWidth: currentOptions.cursorWidth ?? 0,
         height: effectiveWaveformHeight,
         normalize: true,
         dragToSeek: false,
@@ -579,11 +593,14 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
 
       const focused = waveformFocused !== false;
       const isSkipped = region.skipProcessing === true;
+      const primaryColor = cbRef.current.primaryRegionColor;
       const defaultBaseColor =
         region.id === primaryRegionIdRef.current
-          ? focused
-            ? 'color-mix(in srgb, var(--state-warning-solid) 22%, transparent)'
-            : 'color-mix(in srgb, var(--state-success-solid) 18%, transparent)'
+          ? primaryColor
+            ? primaryColor
+            : focused
+              ? 'color-mix(in srgb, var(--state-warning-solid) 22%, transparent)'
+              : 'color-mix(in srgb, var(--state-success-solid) 18%, transparent)'
           : activeRegionIdsRef.current?.has(region.id)
             ? 'color-mix(in srgb, var(--state-info-solid) 22%, transparent)'
             : 'color-mix(in srgb, var(--state-info-solid) 6%, transparent)';
@@ -604,12 +621,16 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       el.style.borderBottom = isSkipped
         ? '1px dashed color-mix(in srgb, var(--header-accent) 38%, transparent)'
         : 'none';
+      const edge = cbRef.current.primaryRegionEdgeColor;
+      const isPrimary = region.id === primaryRegionIdRef.current;
+      el.style.borderLeft = isPrimary && edge ? `1px solid ${edge}` : 'none';
+      el.style.borderRight = isPrimary && edge ? `1px solid ${edge}` : 'none';
       el.style.boxShadow = isSkipped
         ? 'inset 0 0 0 1px color-mix(in srgb, var(--header-accent) 10%, transparent)'
         : 'none';
       el.classList.toggle('jieyu-waveform-region-skipped', isSkipped);
     },
-    [waveformFocused, activeRegionIdsRef, primaryRegionIdRef],
+    [waveformFocused, activeRegionIdsRef, primaryRegionIdRef, cbRef],
   );
 
   // 阶段 D：空区拖建/框选由 useLasso + segmentRangeGestureWriter 统一预览；不启用 RegionsPlugin 平行拖选。
@@ -635,11 +656,12 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
         id: r.id,
         start: r.start,
         end: r.end,
-        drag: true,
-        resize: true,
+        drag: cbRef.current.regionsInteractive !== false,
+        resize: cbRef.current.regionsInteractive !== false,
         color:
           r.id === primaryRegionIdRef.current
-            ? 'color-mix(in srgb, var(--state-warning-solid) 22%, transparent)'
+            ? (cbRef.current.primaryRegionColor ??
+              'color-mix(in srgb, var(--state-warning-solid) 22%, transparent)')
             : activeRegionIdsRef.current?.has(r.id)
               ? 'color-mix(in srgb, var(--state-info-solid) 22%, transparent)'
               : 'color-mix(in srgb, var(--state-info-solid) 6%, transparent)',
@@ -879,7 +901,13 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
         ...(regionRow?.skipProcessing === true ? { skipProcessing: true } : {}),
       });
     });
-  }, [applyRegionPresentation, regions]);
+  }, [
+    applyRegionPresentation,
+    options.primaryRegionColor,
+    options.primaryRegionEdgeColor,
+    options.primaryRegionId,
+    regions,
+  ]);
 
   // Toggle cursor to hair-line on region elements when Alt is held.
   useEffect(() => {
@@ -1039,21 +1067,31 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     if (!isReady) return;
     const visualStylePreset = getWaveformVisualStylePreset(options.waveformVisualStyle);
     const waveformWaveColor =
-      options.waveformDisplayMode === 'spectrogram' ? 'transparent' : visualStylePreset.waveColor;
+      options.waveformDisplayMode === 'spectrogram'
+        ? 'transparent'
+        : (options.waveColor ?? visualStylePreset.waveColor);
     const waveformProgressColor =
       options.waveformDisplayMode === 'spectrogram'
         ? 'transparent'
-        : visualStylePreset.progressColor;
+        : (options.progressColor ?? visualStylePreset.progressColor);
     instanceRef.current?.setOptions({
       waveColor: waveformWaveColor,
       progressColor: waveformProgressColor,
-      cursorColor: visualStylePreset.cursorColor,
-      cursorWidth: 0,
+      cursorColor: options.cursorColor ?? visualStylePreset.cursorColor,
+      cursorWidth: options.cursorWidth ?? 0,
       barWidth: visualStylePreset.barWidth,
       barGap: visualStylePreset.barGap,
       barRadius: visualStylePreset.barRadius,
     });
-  }, [isReady, options.waveformDisplayMode, options.waveformVisualStyle]);
+  }, [
+    isReady,
+    options.cursorColor,
+    options.cursorWidth,
+    options.progressColor,
+    options.waveColor,
+    options.waveformDisplayMode,
+    options.waveformVisualStyle,
+  ]);
 
   // Toggle playback auto-scroll behavior (used by zoom-to-fit mode).
   useEffect(() => {

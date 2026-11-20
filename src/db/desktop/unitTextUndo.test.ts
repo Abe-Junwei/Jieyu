@@ -35,7 +35,37 @@ function textOf(sessionId: string, unitId: string): string {
 }
 
 describe('session unit text undo', () => {
-  it('undoes only the latest text write, then forgets it', () => {
+  it('retimes a manuscript and supports undo and redo', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const unitId = seed(session.sessionId);
+
+    expect(
+      callDesktopSession(session.sessionId, 'manuscripts.retime', {
+        manuscriptId: manuscriptId(session.sessionId, unitId),
+        offsetMs: 100,
+        scale: 2,
+      }),
+    ).toEqual({ count: 1 });
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
+      startMs: 100,
+      endMs: 2100,
+    });
+
+    callDesktopSession(session.sessionId, 'units.undo', {});
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
+      startMs: 0,
+      endMs: 1000,
+    });
+
+    callDesktopSession(session.sessionId, 'units.redo', {});
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
+      startMs: 100,
+      endMs: 2100,
+    });
+  });
+
+  it('undoes each text write, then the create, until the stack is empty', () => {
     const dir = folder();
     const session = openDesktopSession(dir, [dir]);
     const unitId = seed(session.sessionId);
@@ -44,11 +74,14 @@ describe('session unit text undo', () => {
     expect(callDesktopSession(session.sessionId, 'units.undoText', {})).toMatchObject({
       text: 'ta',
     });
-    expect(() => callDesktopSession(session.sessionId, 'units.undoText', {})).toThrow(
+    expect(callDesktopSession(session.sessionId, 'units.undoText', {})).toMatchObject({
+      text: 'ka',
+    });
+    expect(callDesktopSession(session.sessionId, 'units.undo', {})).toMatchObject({ id: unitId });
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toBeNull();
+    expect(() => callDesktopSession(session.sessionId, 'units.undo', {})).toThrow(
       'unit text undo is empty',
     );
-    callDesktopSession(session.sessionId, 'reopen', {});
-    expect(textOf(session.sessionId, unitId)).toBe('ta');
   });
 
   it('keeps the record across a reread and drops it after another write, a closed session, or a stale row', () => {
@@ -57,8 +90,8 @@ describe('session unit text undo', () => {
     const unitId = seed(session.sessionId);
     const right = callDesktopSession(session.sessionId, 'units.create', {
       layerId: layerId(session.sessionId, unitId),
-      startMs: 1,
-      endMs: 2,
+      startMs: 1000,
+      endMs: 2000,
       text: '后',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'units.updateText', { unitId, text: 'ta' });
@@ -76,7 +109,7 @@ describe('session unit text undo', () => {
     callDesktopSession(session.sessionId, 'units.updateBoundary', {
       leftId: unitId,
       rightId: right.id,
-      time: 1,
+      time: 400,
     });
     expect(() => callDesktopSession(session.sessionId, 'units.undoText', {})).toThrow(
       'unit text undo is empty',
@@ -88,6 +121,13 @@ describe('session unit text undo', () => {
     expect(() => callDesktopSession(session.sessionId, 'units.undoText', {})).toThrow(
       'unit text undo is stale',
     );
+    expect(textOf(session.sessionId, unitId)).toBe('qi');
+    expect(() => callDesktopSession(session.sessionId, 'units.undoText', {})).toThrow(
+      'unit text undo is stale',
+    );
+    expect(callDesktopSession(session.sessionId, 'units.dropUndo', {})).toEqual({
+      dropped: true,
+    });
     expect(textOf(session.sessionId, unitId)).toBe('qi');
     expect(() => callDesktopSession(session.sessionId, 'units.undoText', {})).toThrow(
       'unit text undo is empty',
@@ -180,7 +220,7 @@ function seed(sessionId: string): string {
     callDesktopSession(sessionId, 'units.create', {
       layerId: layer.id,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'ka',
     }) as { id: string }
   ).id;
@@ -206,6 +246,20 @@ function manuscriptGeneration(sessionId: string, unitId: string): number {
       )
       .get(unitId) as { generation: number }
   ).generation;
+}
+
+function manuscriptId(sessionId: string, unitId: string): string {
+  return (
+    requireDesktopSession(sessionId)
+      .db.prepare(
+        `SELECT manuscripts.id AS id
+         FROM units
+         JOIN layers ON layers.id = units.layer_id
+         JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+         WHERE units.id = ?`,
+      )
+      .get(unitId) as { id: string }
+  ).id;
 }
 
 function layerId(sessionId: string, unitId: string): string {

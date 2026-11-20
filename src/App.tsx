@@ -63,7 +63,7 @@ import { isTranscriptionWorkspacePathname } from './utils/transcriptionWorkspace
 import { JIEYU_ICON_NAV, type LeftRailNavIconName } from './utils/jieyuIcon';
 import { CatalogProjectGate } from './components/CatalogProjectGate';
 import { DesktopRoute } from './components/DesktopRoute';
-import { electronDesktopPresent } from './desktop/desktopSurface';
+import { electronDesktopPresent, legacyWebSurfaceEnabled } from './desktop/desktopSurface';
 import { featureFlags } from './ai/config/featureFlags';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
@@ -183,6 +183,7 @@ type NavGroup = {
 const SIDE_PANE_COLLAPSED_KEY = 'jieyu-side-pane-collapsed';
 const SIDE_PANE_WIDTH_KEY = 'jieyu-side-pane-width';
 const SIDE_PANE_DEFAULT_WIDTH = 272;
+const DESKTOP_CONTEXT_PANE_WIDTH = 232;
 const SIDE_PANE_MIN_WIDTH = 240;
 const SIDE_PANE_MAX_WIDTH = 420;
 
@@ -369,6 +370,7 @@ export function App() {
   );
   const isTranscriptionRoute = isTranscriptionWorkspacePathname(location.pathname);
   const desktopBuild = electronDesktopPresent();
+  const showLegacyWebChrome = !desktopBuild && legacyWebSurfaceEnabled();
   const [openAssetPanel, setOpenAssetPanel] = useState<LanguageAssetPanel>('none');
   const panelSearchRestoreRef = useRef<string | null>(null);
   const [locale, setLocale] = useState<Locale>(() => detectLocale());
@@ -751,14 +753,24 @@ export function App() {
     requestCollaborationCloudPanelOpen(window);
   }, [isTranscriptionRoute]);
 
+  const desktopContextPane =
+    isTranscriptionRoute &&
+    featureFlags.desktopTranscriptionWorkspaceEnabled &&
+    !showLegacyWebChrome;
+  const shownPaneWidth =
+    desktopContextPane && sidePaneWidth === SIDE_PANE_DEFAULT_WIDTH
+      ? DESKTOP_CONTEXT_PANE_WIDTH
+      : sidePaneWidth;
   const shellStyle = useMemo(
     () =>
       ({
         ['--side-pane-width' as '--side-pane-width']: isSidePaneCollapsed
-          ? '0px'
-          : `${sidePaneWidth}px`,
+          ? desktopContextPane
+            ? '32px'
+            : '0px'
+          : `${shownPaneWidth}px`,
       }) as CSSProperties,
-    [isSidePaneCollapsed, sidePaneWidth],
+    [desktopContextPane, isSidePaneCollapsed, shownPaneWidth],
   );
   const shellStyleProps = { style: shellStyle };
 
@@ -779,12 +791,12 @@ export function App() {
     usePanelResize({
       sidePane: {
         isCollapsed: isSidePaneCollapsed,
-        width: sidePaneWidth,
+        width: shownPaneWidth,
         setWidth: setSidePaneWidth,
         boundaryRef: shellBodyRef,
         dragCleanupRef: shellDragCleanupRef,
         side: 'left',
-        minWidth: SIDE_PANE_MIN_WIDTH,
+        minWidth: desktopContextPane ? DESKTOP_CONTEXT_PANE_WIDTH : SIDE_PANE_MIN_WIDTH,
         maxWidth: SIDE_PANE_MAX_WIDTH,
         maxWidthRatio: 0.45,
         defaultWidth: SIDE_PANE_DEFAULT_WIDTH,
@@ -796,11 +808,11 @@ export function App() {
       <LocaleProvider locale={locale}>
         <AppSidePaneProvider>
           <div
-            className={`app-shell ${location.pathname === '/' ? 'app-shell-home' : ''} ${isTranscriptionRoute ? 'app-shell-transcription' : ''} ${isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
+            className={`app-shell ${location.pathname === '/' ? 'app-shell-home' : ''} ${isTranscriptionRoute ? 'app-shell-transcription' : ''} ${isTranscriptionRoute && featureFlags.desktopTranscriptionWorkspaceEnabled && !showLegacyWebChrome ? 'app-shell-desktop-transcription' : ''} ${isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
             {...shellStyleProps}
           >
             <div role="region" aria-label={t(locale, 'app.shell.aria.notices')}>
-              <DevBuildBanner locale={locale} />
+              {showLegacyWebChrome ? <DevBuildBanner locale={locale} /> : null}
               <AppOfflineStatusBanner locale={locale} />
               <WorkspaceReturnBanner locale={locale} />
             </div>
@@ -850,7 +862,7 @@ export function App() {
                   aria-label={t(locale, 'app.leftRail.aria.footer')}
                 >
                   <div id="left-rail-project-hub-slot" className="left-rail-project-hub-anchor" />
-                  {isTranscriptionRoute && !desktopBuild ? (
+                  {isTranscriptionRoute && showLegacyWebChrome ? (
                     <button
                       type="button"
                       className="left-rail-btn left-rail-btn-utility"
@@ -897,7 +909,7 @@ export function App() {
                           element={
                             <DesktopRoute
                               folder
-                              desktop={() => <Navigate to="/desktop-project" replace />}
+                              desktop={() => <DesktopProjectReadPage />}
                               legacy={<HomePage />}
                             />
                           }
@@ -987,7 +999,7 @@ export function App() {
                         <Route path="*" element={<NotFound locale={locale} />} />
                       </Routes>
                     </Suspense>
-                    {electronDesktopPresent() ? null : (
+                    {showLegacyWebChrome ? (
                       <Suspense fallback={null}>
                         <ModalPanel
                           isOpen={openAssetPanel === 'language-metadata'}
@@ -1050,21 +1062,21 @@ export function App() {
                           </CatalogProjectGate>
                         </ModalPanel>
                       </Suspense>
-                    )}
+                    ) : null}
                   </AssetPanelProvider>
                 </AiPanelProvider>
               </main>
             </div>
             {import.meta.env.DEV ? <DevErrorAggregationPanel /> : null}
             <AppGlobalToastHost />
-            {electronDesktopPresent() ? null : (
+            {showLegacyWebChrome ? (
               <>
                 <LegacyDataResetDialog locale={locale} />
                 <DbMigrationGateOverlay locale={locale} />
                 <BrowserDataResilience locale={locale} />
               </>
-            )}
-            {desktopBuild ? null : <CollaborationLifecycleNotices locale={locale} />}
+            ) : null}
+            {showLegacyWebChrome ? <CollaborationLifecycleNotices locale={locale} /> : null}
             <SettingsModal
               isOpen={isSettingsOpen}
               onClose={handleSettingsClose}

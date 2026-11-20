@@ -4,6 +4,7 @@ import {
   useRef,
   type CSSProperties,
   type ChangeEvent,
+  type CompositionEvent,
   type FocusEvent,
   type KeyboardEvent,
   type MouseEvent,
@@ -19,8 +20,10 @@ import { TimelineBadges } from './TimelineBadges';
 // ── Types ────────────────────────────────────────────────────
 
 export interface TimelineAnnotationItemProps {
-  left: number;
-  width: number;
+  /** Marks the element with `data-unit-id` and makes it focusable from script (focus return). */
+  unitId?: string;
+  left: number | string;
+  width: number | string;
   isSelected: boolean;
   isLayerCurrent?: boolean;
   isActive: boolean;
@@ -52,6 +55,8 @@ export interface TimelineAnnotationItemProps {
   /** 平移语段时间范围（与波形上拖动区域一致）| Move segment time range, like waveform region drag */
   onBodyMovePointerDown?: (e: PointerEvent<HTMLDivElement>) => void;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onCompositionStart?: (e: CompositionEvent<HTMLInputElement>) => void;
+  onCompositionEnd?: (e: CompositionEvent<HTMLInputElement>) => void;
   onFocus?: (e: FocusEvent<HTMLInputElement>) => void;
   onBlur: (e: FocusEvent<HTMLInputElement>) => void;
   onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
@@ -65,6 +70,7 @@ export interface TimelineAnnotationItemProps {
 // ── Component ────────────────────────────────────────────────
 
 export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
+  unitId,
   left,
   width,
   isSelected,
@@ -95,6 +101,8 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   onResizeEndPointerDown,
   onBodyMovePointerDown,
   onChange,
+  onCompositionStart,
+  onCompositionEnd,
   onFocus,
   onBlur,
   onKeyDown,
@@ -141,6 +149,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         ...layerStyle,
       }}
       dir={contentDirection}
+      {...(unitId === undefined ? {} : { 'data-unit-id': unitId, tabIndex: -1 })}
       onClick={onClick}
       onContextMenu={onContextMenu}
       title={title}
@@ -197,6 +206,8 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
           {...(tools ? { tools } : {})}
           toolsClassName="timeline-annotation-tools"
           onChange={onChange}
+          {...(onCompositionStart ? { onCompositionStart } : {})}
+          {...(onCompositionEnd ? { onCompositionEnd } : {})}
           {...(onFocus ? { onFocus } : {})}
           onBlur={onBlur}
           onKeyDown={onKeyDown}

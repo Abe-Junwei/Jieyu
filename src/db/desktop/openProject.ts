@@ -246,6 +246,21 @@ function acceptedSchema(db: SqliteDatabase, schemaSql: string): boolean {
   );
 }
 
+export function projectLibraryHeaderMatches(file: string): boolean {
+  try {
+    assertProjectHeader(file);
+    return true;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === 'project.sqlite is not a Jieyu project library'
+    ) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 function assertProjectHeader(file: string): void {
   const header = Buffer.alloc(100);
   const fd = openSync(file, 'r');

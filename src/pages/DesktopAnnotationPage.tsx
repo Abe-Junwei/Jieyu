@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ContentNoteCategory } from '../app/desktopProjectReadPageAccess';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
-import { msToSeconds } from '../desktop/timeMs';
+import { msToSec } from '../utils/timeMs';
 import { t, tf, useLocale } from '../i18n';
 import { useDesktopAnnotationLexemeLinks } from './useDesktopAnnotationLexemeLinks';
 import { useDesktopAnnotationWords } from './useDesktopAnnotationWords';
@@ -154,7 +154,9 @@ export function DesktopAnnotationPage({ host }: { host: DesktopReadHost }) {
                   setBody('');
                 }}
               >
-                {`${unit.startMs === null || unit.endMs === null ? '' : `${msToSeconds(unit.startMs).toFixed(1)}–${msToSeconds(unit.endMs).toFixed(1)}`} ${unit.text}`}
+                {unit.startMs === null || unit.endMs === null
+                  ? unit.text
+                  : `${msToSec(unit.startMs).toFixed(1)}–${msToSec(unit.endMs).toFixed(1)} ${unit.text}`}
               </button>
             ))}
           </div>

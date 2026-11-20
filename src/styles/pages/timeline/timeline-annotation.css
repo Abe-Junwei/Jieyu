@@ -4,7 +4,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: transparent;
   border: 0;
   overflow: visible;
@@ -292,8 +292,9 @@
 .timeline-lane:has(.timeline-annotation:focus-within) .timeline-annotation:focus-within {
   background: var(--timeline-neutral-empty-bg);
   border: 0;
-  --timeline-item-divider-color: color-mix(in srgb, var(--state-info-solid) 52%, transparent);
-  box-shadow: none;
+  box-shadow:
+    inset 0 0 0 1px var(--text-secondary),
+    0 0 0 3px var(--focus-ring);
 }
 
 /* 状态 selected / current：使用同一档主题高亮 | Selected and current segment share the same themed highlight */
@@ -381,8 +382,9 @@
 .timeline-annotation:focus-within {
   background: var(--timeline-neutral-empty-bg);
   border: 0;
-  --timeline-item-divider-color: color-mix(in srgb, var(--state-info-solid) 52%, transparent);
-  box-shadow: none;
+  box-shadow:
+    inset 0 0 0 1px var(--text-secondary),
+    0 0 0 3px var(--focus-ring);
 }
 
 /* 编辑态输入框：保持原始单层框架，不再叠加内层边框 | Keep single-frame editing box, no inner framed input */

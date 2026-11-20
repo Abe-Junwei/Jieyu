@@ -48,6 +48,11 @@ vi.mock('./pages/DesktopAnnotationPage', () => ({
 vi.mock('./pages/DesktopProjectReadPage', () => ({
   DesktopProjectReadPage: () => <div data-testid="desktop-folder-page">folder</div>,
 }));
+vi.mock('./pages/DesktopTranscriptionWorkspacePage', () => ({
+  DesktopTranscriptionWorkspacePage: () => (
+    <div data-testid="desktop-transcription-workspace">desktop-transcription</div>
+  ),
+}));
 
 const resilience = vi.hoisted(() => vi.fn());
 
@@ -123,6 +128,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  vi.stubEnv('VITE_LEGACY_WEB_SURFACE', 'true');
   window.localStorage.clear();
   resilience.mockClear();
   forgetOpenProjectSession();
@@ -134,6 +140,7 @@ afterEach(() => {
   clearActiveProjectTextId();
   forgetOpenProjectSession();
   delete (globalThis as { jieyuDesktop?: unknown }).jieyuDesktop;
+  vi.unstubAllEnvs();
 });
 
 function installDesktopHost(desktopCall: DesktopReadHost['desktopCall']): void {
@@ -203,6 +210,21 @@ describe('App shell', () => {
     expect(screen.queryByTestId('app-workspace-return')).toBeNull();
   });
 
+  it('shows the desktop shell notice instead of the web home page', async () => {
+    vi.stubEnv('VITE_LEGACY_WEB_SURFACE', '');
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect((await screen.findByTestId('desktop-unavailable')).textContent).toMatch(
+      /请在解语桌面窗口中打开|Open this in the Jieyu desktop window/,
+    );
+    expect(screen.queryByTestId('home-page')).toBeNull();
+    expect(screen.queryByTestId('app-dev-build-banner')).toBeNull();
+  });
+
   it('renders the home page at /', async () => {
     render(
       <MemoryRouter initialEntries={['/']}>
@@ -227,7 +249,7 @@ describe('App shell', () => {
     expect(getActiveProjectTextId()).toBe('');
   });
 
-  it('returns the desktop corpus route without a session to the folder page', async () => {
+  it('keeps the desktop corpus route without a session', async () => {
     installDesktopHost(() => Promise.resolve([]));
     render(
       <MemoryRouter initialEntries={['/corpus']}>
@@ -235,7 +257,7 @@ describe('App shell', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByTestId('desktop-folder-page')).toBeTruthy();
+    expect(await screen.findByRole('link', { name: /打开文件夹|Open folder/ })).toBeTruthy();
     expect(screen.queryByText('corpus-library-page')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Search corpus' })).toBeNull();
   });
@@ -249,7 +271,41 @@ describe('App shell', () => {
     );
 
     expect(await screen.findByTestId('desktop-folder-page')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /首页|Home/ }).className).toContain(
+      'left-rail-btn-active',
+    );
     expect(screen.queryByTestId('home-page')).toBeNull();
+  });
+
+  it('does not keep Home highlighted on the folder page', async () => {
+    installDesktopHost(() => Promise.resolve([]));
+    render(
+      <MemoryRouter initialEntries={['/desktop-project']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId('desktop-folder-page')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /首页|Home/ }).className).not.toContain(
+      'left-rail-btn-active',
+    );
+  });
+
+  it('highlights the transcription rail item on /transcription', async () => {
+    installDesktopHost(() => Promise.resolve([]));
+    render(
+      <MemoryRouter initialEntries={['/transcription']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId('desktop-transcription-workspace')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /转写|Transcription/ }).className).toContain(
+      'left-rail-btn-active',
+    );
+    expect(screen.getByRole('link', { name: /首页|Home/ }).className).not.toContain(
+      'left-rail-btn-active',
+    );
   });
 
   it('T48 shows the project gate instead of the lexicon when no project is active', async () => {
@@ -496,7 +552,7 @@ describe('App shell', () => {
     expect(getActiveProjectTextId()).toBe('');
   });
 
-  it('returns a desktop route without a session to the folder page', async () => {
+  it('keeps a desktop route without a session', async () => {
     const desktopCall = vi.fn(() => Promise.resolve([]));
     installDesktopHost(desktopCall);
     render(
@@ -505,9 +561,8 @@ describe('App shell', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByTestId('desktop-folder-page')).toBeTruthy();
+    expect(await screen.findByTestId('desktop-lexicon-page')).toBeTruthy();
     expect(desktopCall).not.toHaveBeenCalled();
-    expect(screen.queryByTestId('desktop-lexicon-page')).toBeNull();
     expect(screen.queryByTestId('catalog-project-gate')).toBeNull();
     expect(screen.queryByText('lexicon-page')).toBeNull();
     expect(getActiveProjectTextId()).toBe('');
@@ -537,7 +592,7 @@ describe('App shell', () => {
     },
   );
 
-  it('returns a desktop catalog route without a session to the folder page', async () => {
+  it('keeps a desktop catalog route without a session', async () => {
     const desktopCall = vi.fn(() => Promise.resolve([]));
     installDesktopHost(desktopCall);
     render(
@@ -546,9 +601,9 @@ describe('App shell', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByTestId('desktop-folder-page')).toBeTruthy();
+    expect(await screen.findByTestId('desktop-catalog-page')).toBeTruthy();
     expect(desktopCall).not.toHaveBeenCalled();
-    expect(screen.queryByTestId('desktop-catalog-page')).toBeNull();
+    expect(screen.queryByTestId('desktop-folder-page')).toBeNull();
     expect(screen.queryByTestId('catalog-project-gate')).toBeNull();
     expect(screen.queryByText('language-metadata-page')).toBeNull();
     expect(getActiveProjectTextId()).toBe('');
@@ -607,12 +662,12 @@ describe('App shell', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByTestId('desktop-folder-page')).toBeTruthy();
+    expect(await screen.findByTestId('desktop-transcription-workspace')).toBeTruthy();
     expect(screen.queryByTestId('transcription-page')).toBeNull();
     expect(getActiveProjectTextId()).toBe('');
   });
 
-  it('drops an expired desktop session and returns to the folder page', async () => {
+  it('drops an expired desktop session and stays on the current route', async () => {
     rememberOpenProjectSession('stale');
     installDesktopHost(() => Promise.reject(new Error('project session expired')));
     render(
@@ -621,8 +676,8 @@ describe('App shell', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByTestId('desktop-folder-page')).toBeTruthy();
-    expect(screen.queryByTestId('desktop-annotation-page')).toBeNull();
+    expect(await screen.findByTestId('desktop-annotation-page')).toBeTruthy();
+    expect(screen.queryByTestId('desktop-folder-page')).toBeNull();
     expect(readOpenProjectSession()).toBeNull();
     expect(getActiveProjectTextId()).toBe('');
   });

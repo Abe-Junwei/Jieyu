@@ -52,6 +52,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Build
         run: npm run build
+        env:
+          VITE_LEGACY_WEB_SURFACE: 'true'
       - name: Run E2E (Chromium)
         run: npm run test:e2e:chromium
       - name: E2E F4 session-sidecar audit (readonly bundle, Chromium)

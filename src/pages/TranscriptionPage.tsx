@@ -1,4 +1,3 @@
-import { Navigate } from 'react-router-dom';
 import { DesktopUnavailable } from '../components/DesktopRoute';
 import { ProjectLanguageListsEditorHost } from '../components/ProjectLanguageListsDialog';
 import { ProjectLanguageListsLoader } from '../components/ProjectLanguageListsContext';
@@ -14,7 +13,7 @@ interface TranscriptionPageProps {
 export function TranscriptionPage(props: TranscriptionPageProps) {
   const surface = resolveDesktopSurface(readDesktopProjectHost());
   if (surface === 'unavailable') return <DesktopUnavailable />;
-  if (surface === 'desktop') return <Navigate to="/desktop-project" replace />;
+  if (surface === 'desktop') return <DesktopUnavailable />;
   return (
     <ProjectLanguageListsLoader>
       <TranscriptionPageOrchestrator {...props} />

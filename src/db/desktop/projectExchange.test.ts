@@ -224,15 +224,15 @@ describe('desktop JYT exchange', () => {
       manuscriptId: selected.id,
       key: 'pt',
       name: { zh: '点' },
-      tierType: 'point',
-      contentType: 'custom',
+      tierType: 'time-aligned',
+      contentType: 'point',
     });
     const otherPointLayer = source.layers.create({
       manuscriptId: other.id,
       key: 'pt',
       name: { zh: '点' },
-      tierType: 'point',
-      contentType: 'custom',
+      tierType: 'time-aligned',
+      contentType: 'point',
     });
     const selectedUnit = source.units.create({
       layerId: selectedLayer.id,
@@ -247,39 +247,41 @@ describe('desktop JYT exchange', () => {
       text: '另一份',
     });
     const insertPoint = source.db.prepare(
-      'INSERT INTO points (id, layer_id, time_ms, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO points (id, layer_id, time_ms, label, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
     );
-    insertPoint.run('point-selected', selectedPointLayer.id, 100, T, T);
-    insertPoint.run('point-other', otherPointLayer.id, 200, T, T);
+    insertPoint.run('point-selected', selectedPointLayer.id, 100, '点', T, T);
+    insertPoint.run('point-other', otherPointLayer.id, 200, '点', T, T);
     const insertLink = source.db.prepare(
-      `INSERT INTO unit_identity_links (id, operation_id, kind, old_unit_id, new_unit_id, created_at)
-       VALUES (?, ?, 'split', ?, ?, ?)`,
+      `INSERT INTO unit_span_maps (operation_id, kind, old_id, new_id, created_at)
+       VALUES (?, 'split', ?, ?, ?)`,
     );
-    insertLink.run('link-new', 'op-new', 'gone-old', selectedUnit.id, T);
-    insertLink.run('link-old', 'op-old', selectedUnit.id, 'gone-new', T);
-    insertLink.run('link-other', 'op-other', 'gone-old', otherUnit.id, T);
-    insertLink.run('link-detached', 'op-detached', 'gone-a', 'gone-b', T);
+    insertLink.run('op-new', 'gone-old', selectedUnit.id, T);
+    insertLink.run('op-old', selectedUnit.id, 'gone-new', T);
+    insertLink.run('op-other', 'gone-old', otherUnit.id, T);
+    insertLink.run('op-detached', 'gone-a', 'gone-b', T);
     const packed = exportDesktopManuscriptJyt(source.db, [selected.id]);
     const data = JSON.parse(strFromU8(unzipSync(packed)['data/project.json']!)) as {
       tables: {
         points: Array<{ id: string }>;
-        unit_identity_links: Array<{ id: string }>;
+        unit_span_maps: Array<{ operation_id: string }>;
       };
     };
     expect(data.tables.points.map((row) => row.id).sort()).toEqual(['point-selected']);
-    expect(data.tables.unit_identity_links.map((row) => row.id).sort()).toEqual([
-      'link-new',
-      'link-old',
+    expect(data.tables.unit_span_maps.map((row) => row.operation_id).sort()).toEqual([
+      'op-new',
+      'op-old',
     ]);
     expect(source.db.prepare('SELECT id FROM points ORDER BY id').all()).toEqual([
       { id: 'point-other' },
       { id: 'point-selected' },
     ]);
-    expect(source.db.prepare('SELECT id FROM unit_identity_links ORDER BY id').all()).toEqual([
-      { id: 'link-detached' },
-      { id: 'link-new' },
-      { id: 'link-old' },
-      { id: 'link-other' },
+    expect(
+      source.db.prepare('SELECT operation_id FROM unit_span_maps ORDER BY operation_id').all(),
+    ).toEqual([
+      { operation_id: 'op-detached' },
+      { operation_id: 'op-new' },
+      { operation_id: 'op-old' },
+      { operation_id: 'op-other' },
     ]);
     source.close();
   });

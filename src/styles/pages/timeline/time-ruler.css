@@ -75,7 +75,7 @@
 }
 
 .time-ruler-lane-toggle:focus-visible {
-  outline: 2px solid var(--state-info-border);
+  outline: 1.5px solid var(--focus-color);
   outline-offset: 1px;
 }
 

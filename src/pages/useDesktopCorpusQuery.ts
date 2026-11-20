@@ -75,7 +75,7 @@ export function useDesktopCorpusQuery(host: DesktopReadHost, sessionId: string) 
         setCursor({
           manuscriptId: last.manuscriptId,
           layerId: last.layerId,
-          startMs: last.startMs,
+          startTime: last.startTime,
           unitId: last.unitId,
         });
       })

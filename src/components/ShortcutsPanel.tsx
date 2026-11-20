@@ -3,7 +3,7 @@
  */
 import { useMemo } from 'react';
 import { DEFAULT_KEYBINDINGS, formatKeyComboForDisplay } from '../services/KeybindingService';
-import { useOptionalLocale } from '../i18n';
+import { t, useOptionalLocale, type DictKey } from '../i18n';
 import { getShortcutsPanelMessages } from '../i18n/messages';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '~/hooks/ui/useUiFontScaleRuntime';
@@ -13,6 +13,11 @@ import { ModalPanel, PanelSection } from './ui';
 interface ShortcutsPanelProps {
   onClose: () => void;
 }
+
+const DICTIONARY_LABELS: Partial<Record<string, DictKey>> = {
+  playSegment: 'app.desktopTranscription.playSegment',
+  cycleEdge: 'app.desktopTranscription.cycleEdge',
+};
 
 const CATEGORY_ORDER = ['playback', 'editing', 'navigation', 'view', 'voice'] as const;
 
@@ -73,7 +78,11 @@ export function ShortcutsPanel({ onClose }: ShortcutsPanelProps) {
                   <td className="shortcuts-panel-key">
                     <kbd>{formatKeyComboForDisplay(entry.defaultKey)}</kbd>
                   </td>
-                  <td className="shortcuts-panel-desc">{entry.label}</td>
+                  <td className="shortcuts-panel-desc">
+                    {DICTIONARY_LABELS[entry.id] === undefined
+                      ? entry.label
+                      : t(locale, DICTIONARY_LABELS[entry.id]!)}
+                  </td>
                   <td className="shortcuts-panel-scope">
                     {entry.scope === 'waveform' ? messages.scopeWaveform : messages.scopeGlobal}
                   </td>

@@ -1,0 +1,339 @@
+import type { Dispatch, PointerEvent as ReactPointerEvent, SetStateAction } from 'react';
+import type { DesktopReadHost } from '../desktop/projectReadHost';
+import type { UnitDeletePreview } from '../app/desktopProjectReadPageAccess';
+import {
+  cycleEdge,
+  sharedEdge,
+  type EdgeSelection,
+  type TimeEdge,
+  type TimedEdgeUnit,
+} from './desktopTranscriptionEdge';
+import {
+  applyNudge,
+  commitSharedEdge,
+  commitUnitEdge,
+  dropEdgeStack,
+  edgeFailureMessage,
+  flushTypedEdge,
+  NO_CONFLICTS,
+  openEdgeCall,
+  rebaseTimeDraft,
+  runEdgeStack,
+  type StoredTimes,
+} from './desktopTranscriptionEdgeSession';
+import { startCreate, startEdgeDrag, type ShownPreview } from './desktopTranscriptionEdgePointer';
+
+export type EdgeNoticeKind =
+  'overlap' | 'outside' | 'short' | 'apart' | 'order' | 'unknown' | 'stale' | 'failed';
+
+export interface EdgeControllerInput {
+  sessionId: string | null;
+  manuscriptId: string | null;
+  layerId: string | null;
+  desktopCall: DesktopReadHost['desktopCall'] | undefined;
+  units: readonly TimedEdgeUnit[];
+  hasMedia: boolean;
+  zoomPxPerSec: number;
+  selectedUnitId: string | null;
+  playheadMs: () => number | null;
+  reload: () => Promise<void> | undefined;
+  message: (kind: EdgeNoticeKind, time: string) => string;
+  snapMessage: (kind: 'neighbor' | 'playhead', time: string) => string;
+  draftSavedMessage: string;
+  notify: (message: string, tone?: 'error' | 'info') => void;
+  /** Gives keyboard focus back to the segment after the delete dialog closes. */
+  focusUnit?: (unitId: string) => void;
+}
+
+export interface EdgeUi {
+  preview: ShownPreview | null;
+  edge: EdgeSelection | null;
+  reason: { unitId: string; message: string } | null;
+  menu: { unitId: string; x: number; y: number } | null;
+  deletePrompt: { unitId: string; counts: UnitDeletePreview } | null;
+  raw: { unitId: string } & StoredTimes;
+  /** An undo/redo step that later edits made stale; it stays until dropped (ADR-0129 E04). */
+  stale: { action: 'undo' | 'redo' } | null;
+}
+
+export const EMPTY_EDGE_UI: EdgeUi = {
+  preview: null,
+  edge: null,
+  reason: null,
+  menu: null,
+  deletePrompt: null,
+  raw: { unitId: '', start: null, end: null, saved: false, conflicts: NO_CONFLICTS },
+  stale: null,
+};
+
+type MenuEvent = { preventDefault(): void; clientX: number; clientY: number };
+
+/** The edge controller's actions. They read the latest input and UI through refs. */
+export function createEdgeActions(ctx: {
+  live: { current: EdgeControllerInput };
+  uiRef: { current: EdgeUi };
+  setUi: Dispatch<SetStateAction<EdgeUi>>;
+  edited: { current: boolean };
+}) {
+  const { live, uiRef, setUi, edited } = ctx;
+  const call = () => openEdgeCall(live.current.sessionId, live.current.desktopCall);
+  const failed = () => live.current.notify(live.current.message('failed', ''));
+  const setPreview = (preview: ShownPreview | null) =>
+    setUi((current) => ({ ...current, preview }));
+
+  function reject(unitId: string, error: unknown, timeMs: number) {
+    const message = edgeFailureMessage(error, timeMs, live.current.message);
+    setUi((current) => ({ ...current, preview: null, reason: { unitId, message } }));
+    live.current.notify(message);
+  }
+
+  async function afterWrite(work: () => Promise<void>, unitId: string, timeMs: number) {
+    try {
+      await work();
+      edited.current = false;
+      setUi((current) => ({
+        ...current,
+        preview: null,
+        reason: null,
+        raw: { ...EMPTY_EDGE_UI.raw, unitId: current.raw.unitId },
+      }));
+      await live.current.reload();
+    } catch (error) {
+      reject(unitId, error, timeMs);
+    }
+  }
+
+  async function nudge(selected: EdgeSelection, delta: number) {
+    const current = call();
+    if (!current) return;
+    const result = await applyNudge({ call: current, units: live.current.units, selected, delta });
+    if (result?.failed) reject(selected.unitId, result.error, result.time);
+    else if (result) await afterWrite(async () => undefined, selected.unitId, 0);
+  }
+
+  async function runStack(action: 'undo' | 'redo') {
+    const current = call();
+    if (!current) return;
+    const result = await runEdgeStack(current, live.current.manuscriptId, action);
+    if (result === 'done') {
+      edited.current = false;
+      setUi((state) => ({ ...state, stale: null }));
+      await live.current.reload();
+      return;
+    }
+    if (result === 'stale') {
+      setUi((state) => ({ ...state, stale: { action } }));
+      live.current.notify(live.current.message('stale', ''));
+    }
+    if (result === 'unknown') live.current.notify(live.current.message('unknown', ''));
+    if (result === 'failed') failed();
+  }
+
+  async function dropStale() {
+    const stale = uiRef.current.stale;
+    const current = call();
+    if (!stale || !current) return;
+    try {
+      await dropEdgeStack(current, live.current.manuscriptId, stale.action);
+      setUi((state) => ({ ...state, stale: null }));
+      await live.current.reload();
+    } catch {
+      failed();
+    }
+  }
+
+  async function askDelete(unitId: string) {
+    const current = call();
+    if (!current) return;
+    try {
+      const counts = await current.api.previewUnitDelete(current.sessionId, unitId);
+      setUi((state) => ({ ...state, menu: null, deletePrompt: { unitId, counts } }));
+    } catch {
+      failed();
+    }
+  }
+
+  function closeDelete(unitId: string, deleted: boolean) {
+    setUi((current) => ({
+      ...current,
+      deletePrompt: null,
+      edge: deleted ? null : current.edge,
+    }));
+    if (!deleted) window.setTimeout(() => live.current.focusUnit?.(unitId), 0);
+  }
+
+  function create(event: ReactPointerEvent<HTMLElement>, msAt: (clientX: number) => number) {
+    const layerId = live.current.layerId;
+    if (layerId === null) return;
+    startCreate({
+      event,
+      msAt,
+      zoomPxPerSec: live.current.zoomPxPerSec,
+      units: live.current.units,
+      playheadMs: () => live.current.playheadMs(),
+      snapMessage: (kind, time) => live.current.snapMessage(kind, time),
+      setPreview,
+      tooShort: (endMs) => reject(layerId, new Error('edge span is under 10ms'), endMs),
+      commit: (startMs, endMs) => {
+        const session = call();
+        if (!session) return;
+        void session.api
+          .createUnit(session.sessionId, { layerId, startMs, endMs, text: '' })
+          .then(() => live.current.reload())
+          .catch((error: unknown) => reject(layerId, error, endMs));
+      },
+    });
+  }
+
+  async function flush(edge: TimeEdge) {
+    const current = live.current;
+    const unit = current.units.find((item) => item.id === current.selectedUnitId);
+    const raw = edge === 'start' ? uiRef.current.raw.start : uiRef.current.raw.end;
+    const session = call();
+    if (!unit || raw === null || !session) return;
+    try {
+      const result = await flushTypedEdge({
+        call: session,
+        unit,
+        edge,
+        raw,
+        onDraft: () => {
+          setUi((state) => ({ ...state, raw: { ...state.raw, saved: true } }));
+          live.current.notify(live.current.draftSavedMessage, 'info');
+        },
+      });
+      if (result === 'commit') await afterWrite(async () => undefined, unit.id, 0);
+    } catch (error) {
+      reject(unit.id, error, edge === 'start' ? unit.startMs : unit.endMs);
+    }
+  }
+
+  async function rebaseDraft(edge: TimeEdge) {
+    const current = live.current;
+    const unit = current.units.find((item) => item.id === current.selectedUnitId);
+    const conflict = uiRef.current.raw.conflicts[edge];
+    const session = call();
+    if (!unit || !conflict || !session) return;
+    try {
+      const result = await rebaseTimeDraft({ call: session, unit, edge, raw: conflict.rawInput });
+      if (result.committed) {
+        await afterWrite(async () => undefined, unit.id, 0);
+        return;
+      }
+      setUi((state) => ({
+        ...state,
+        raw: { ...state.raw, saved: true, conflicts: { ...state.raw.conflicts, [edge]: null } },
+      }));
+      reject(unit.id, result.error, result.time);
+    } catch {
+      failed();
+    }
+  }
+
+  async function discardDraft(edge: TimeEdge) {
+    const unitId = live.current.selectedUnitId;
+    const session = call();
+    if (unitId === null || !session) return;
+    try {
+      await session.api.discardTimeDraft(session.sessionId, unitId, edge);
+      setUi((state) => ({
+        ...state,
+        raw: {
+          ...state.raw,
+          [edge]: null,
+          saved: false,
+          conflicts: { ...state.raw.conflicts, [edge]: null },
+        },
+      }));
+    } catch {
+      failed();
+    }
+  }
+
+  return {
+    nudge,
+    runStack,
+    dropStale,
+    askDelete,
+    flush,
+    rebaseDraft,
+    discardDraft,
+    cycle(unitId: string) {
+      const next = cycleEdge(live.current.units, unitId, uiRef.current.edge);
+      if (next) setUi((current) => ({ ...current, edge: next }));
+    },
+    beginDrag(unitId: string, edge: TimeEdge, event: ReactPointerEvent<HTMLElement>) {
+      startEdgeDrag({
+        unitId,
+        edge,
+        event,
+        units: live.current.units,
+        readZoom: () => live.current.zoomPxPerSec,
+        playheadMs: () => live.current.playheadMs(),
+        snapMessage: (kind, time) => live.current.snapMessage(kind, time),
+        setPreview,
+        select: (next) => setUi((current) => ({ ...current, menu: null, edge: next })),
+        linked:
+          uiRef.current.edge?.edge === 'shared' &&
+          (uiRef.current.edge.unitId === unitId || uiRef.current.edge.otherId === unitId),
+        commit: (shared, time, originMs) => {
+          const session = call();
+          if (time === originMs || !session) return;
+          const work = shared
+            ? commitSharedEdge(session, shared.leftId, shared.rightId, time)
+            : commitUnitEdge(session, unitId, edge, time);
+          void afterWrite(() => work, unitId, time);
+        },
+      });
+    },
+    /** Lane track: only a press on the empty track itself. */
+    beginCreate(event: ReactPointerEvent<HTMLElement>) {
+      if (event.target !== event.currentTarget) return;
+      const origin = event.currentTarget;
+      create(
+        event,
+        (clientX) =>
+          ((clientX - origin.getBoundingClientRect().left) / live.current.zoomPxPerSec) * 1000,
+      );
+    },
+    /** Waveform: a press inside an existing segment is ignored; a short press stays a click. */
+    beginWaveCreate: create,
+    openMenu(unitId: string, event: MenuEvent) {
+      event.preventDefault();
+      setUi((current) => ({ ...current, menu: { unitId, x: event.clientX, y: event.clientY } }));
+    },
+    closeMenu() {
+      setUi((current) => ({ ...current, menu: null }));
+    },
+    linkShared() {
+      const menu = uiRef.current.menu;
+      if (!menu) return;
+      const next = sharedEdge(live.current.units, menu.unitId);
+      if (!next) {
+        const message = live.current.message('apart', '');
+        setUi((current) => ({ ...current, menu: null, reason: { unitId: menu.unitId, message } }));
+        live.current.notify(message);
+        return;
+      }
+      setUi((current) => ({ ...current, menu: null, edge: next }));
+    },
+    cancelDelete() {
+      const prompt = uiRef.current.deletePrompt;
+      if (prompt) closeDelete(prompt.unitId, false);
+    },
+    confirmDelete() {
+      const prompt = uiRef.current.deletePrompt;
+      const session = call();
+      if (!prompt || !session) return;
+      void session.api
+        .deleteUnit(session.sessionId, prompt.unitId)
+        .then(() => {
+          closeDelete(prompt.unitId, true);
+          return live.current.reload();
+        })
+        .catch(() => failed());
+    },
+  };
+}
+
+export type EdgeActions = ReturnType<typeof createEdgeActions>;

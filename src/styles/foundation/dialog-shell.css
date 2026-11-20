@@ -53,6 +53,15 @@
   border-radius: var(--radius-lg);
 }
 
+.desktop-draft-leave .dialog-header {
+  border-bottom: 0;
+}
+
+.desktop-draft-leave .dialog-body:empty {
+  display: none;
+  padding: 0;
+}
+
 .dialog-header {
   display: flex;
   align-items: center;

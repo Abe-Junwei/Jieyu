@@ -153,10 +153,6 @@ export function DesktopProjectReadPage() {
           onSplit={read.splitUnit}
           onMerge={read.mergeUnits}
           onMoveBoundary={read.moveBoundary}
-          offsetLabel={t(locale, 'app.desktopRead.offset')}
-          scaleLabel={t(locale, 'app.desktopRead.scale')}
-          retimeLabel={t(locale, 'app.desktopRead.saveMapping')}
-          onRetime={read.retime}
           onSaveNote={read.saveUnitNote}
           onSaveTierNote={read.saveTierNote}
           noteSessionId={read.sessionId}

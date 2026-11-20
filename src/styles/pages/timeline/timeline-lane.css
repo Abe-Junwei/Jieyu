@@ -18,7 +18,9 @@
   height: var(--timeline-lane-height);
   --timeline-lane-separator-color: color-mix(in srgb, var(--text-tertiary) 58%, transparent);
   border-bottom: none; /* 改进：移除硬边界，统一用 ::after 弱分隔 */
-  transition: transform var(--duration-normal) var(--ease-spring), box-shadow var(--duration-normal) var(--ease-spring);
+  transition:
+    transform var(--duration-normal) var(--ease-spring),
+    box-shadow var(--duration-normal) var(--ease-spring);
 }
 
 /* 统一弱分隔线 — 仅内容区可见 */
@@ -135,7 +137,13 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent), color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-6), transparent) 18%, color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-6), transparent) 82%, color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent));
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent),
+    color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-6), transparent) 18%,
+    color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-6), transparent) 82%,
+    color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent)
+  );
   opacity: 0.85;
   pointer-events: none;
   z-index: calc(var(--z-overlay) + 1);
@@ -150,12 +158,21 @@
 }
 
 .timeline-lane-bundle-target {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-1), transparent), color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-1), transparent),
+    color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent)
+  );
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent);
 }
 
 .timeline-lane-bundle-target .timeline-lane-label {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-bg) 96%, transparent), color-mix(in srgb, var(--state-info-bg) 92%, transparent));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--state-info-bg) 96%, transparent),
+    color-mix(in srgb, var(--state-info-bg) 92%, transparent)
+  );
   border-right-color: color-mix(in srgb, var(--state-info-solid) 34%, transparent);
   color: var(--text-secondary);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 12%, transparent);
@@ -173,9 +190,14 @@
 }
 
 .timeline-lane-focused .timeline-lane-label {
-  background: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-1), var(--surface-elevated));
+  background: color-mix(
+    in srgb,
+    var(--state-info-solid) var(--theme-opacity-1),
+    var(--surface-elevated)
+  );
   color: var(--state-info-solid);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-3), transparent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-3), transparent);
 }
 
 .timeline-lane-translation .timeline-text-item {
@@ -193,7 +215,11 @@
 /* 折叠 Lane — 弱化分隔 */
 .timeline-lane-collapsed {
   cursor: pointer;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 42%, transparent) 0%, color-mix(in srgb, var(--surface-header) 38%, transparent) 100%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-header) 42%, transparent) 0%,
+    color-mix(in srgb, var(--surface-header) 38%, transparent) 100%
+  );
 }
 
 .timeline-lane-collapsed::after {
@@ -230,19 +256,32 @@
 }
 
 .timeline-lane-overlap-hint:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--state-info-solid) 65%, transparent);
+  outline: 1.5px solid var(--focus-color);
   outline-offset: 1px;
 }
 
 .timeline-lane-flash {
-  background: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-1), var(--surface-panel));
+  background: color-mix(
+    in srgb,
+    var(--state-info-solid) var(--theme-opacity-1),
+    var(--surface-panel)
+  );
 }
 
 .timeline-lane-flash .timeline-lane-label {
-  border-right-color: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4), transparent);
-  background: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-1), var(--surface-elevated));
+  border-right-color: color-mix(
+    in srgb,
+    var(--state-info-solid) var(--theme-opacity-4),
+    transparent
+  );
+  background: color-mix(
+    in srgb,
+    var(--state-info-solid) var(--theme-opacity-1),
+    var(--surface-elevated)
+  );
   color: var(--state-info-solid);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-3), transparent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-3), transparent);
   animation: timeline-lane-created-flash 1120ms ease-in-out 1 both;
 }
 
@@ -253,17 +292,27 @@
 }
 
 @keyframes timeline-lane-created-flash {
-  0%, 18%, 50%, 68% {
+  0%,
+  18%,
+  50%,
+  68% {
     background: var(--state-info-solid);
     color: var(--text-on-solid);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-5), transparent);
+    box-shadow: inset 0 0 0 1px
+      color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-5), transparent);
   }
 
-  25%, 43%, 75%, 100% {
-    background: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-1), var(--surface-elevated));
+  25%,
+  43%,
+  75%,
+  100% {
+    background: color-mix(
+      in srgb,
+      var(--state-info-solid) var(--theme-opacity-1),
+      var(--surface-elevated)
+    );
     color: var(--state-info-solid);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-3), transparent);
+    box-shadow: inset 0 0 0 1px
+      color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-3), transparent);
   }
 }
-
-

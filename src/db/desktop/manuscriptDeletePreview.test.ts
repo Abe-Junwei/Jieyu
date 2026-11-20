@@ -136,6 +136,7 @@ describe('delete impact preview', () => {
     const session = openDesktopSession(dir, [dir]);
     const manuscript = createManuscript(requireDesktopSession(session.sessionId).db, {
       title: { zh: '无录音' },
+      mediaId: null,
     });
     const before = cycles(session.sessionId);
     expect(

@@ -11,74 +11,7 @@ type SqliteDatabase = InstanceType<typeof Database>;
 
 const MIN_SPLIT_SPAN = 1;
 
-const UNIT_CHILD_TABLES = [
-  'unit_texts',
-  'tokens',
-  'notes',
-  'analysis_candidates',
-  'reception_batches',
-  'transcription_acceptances',
-  'text_save_receipts',
-] as const;
-
-function retargetUnit(
-  db: SqliteDatabase,
-  fromId: string,
-  toId: string,
-  startMs: number | null,
-  endMs: number | null,
-  now: string,
-): void {
-  const row = db.prepare('SELECT * FROM units WHERE id = ?').get(fromId) as UnitRow | undefined;
-  if (row === undefined) throw new Error('unit is missing');
-  db.prepare(
-    `INSERT INTO units (
-      id, layer_id, speaker_id, parent_unit_id, sort_order, start_ms, end_ms, created_at, updated_at,
-      analysis_graph_json, analysis_generation, graph_fingerprint
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    toId,
-    row.layer_id,
-    row.speaker_id,
-    row.parent_unit_id,
-    row.sort_order,
-    startMs,
-    endMs,
-    row.created_at,
-    now,
-    row.analysis_graph_json,
-    row.analysis_generation,
-    row.graph_fingerprint,
-  );
-  for (const table of UNIT_CHILD_TABLES) {
-    db.prepare(`UPDATE ${table} SET unit_id = ? WHERE unit_id = ?`).run(toId, fromId);
-  }
-  db.prepare('UPDATE unit_text_drafts SET unit_id = ? WHERE unit_id = ?').run(toId, fromId);
-  db.prepare('UPDATE units SET parent_unit_id = ? WHERE parent_unit_id = ?').run(toId, fromId);
-  db.prepare(
-    `UPDATE custom_field_values SET target_id = ? WHERE target_type = 'unit' AND target_id = ?`,
-  ).run(toId, fromId);
-  db.prepare('DELETE FROM units WHERE id = ?').run(fromId);
-}
-
-function linkIdentity(
-  db: SqliteDatabase,
-  operationId: string,
-  kind: 'split' | 'merge',
-  oldId: string,
-  newId: string,
-  now: string,
-): void {
-  db.prepare(
-    `INSERT INTO unit_identity_links (
-      id, operation_id, kind, old_unit_id, new_unit_id, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(randomUUID(), operationId, kind, oldId, newId, now);
-}
-
 export interface UnitSplitUndo {
-  oldId: string;
-  operationId: string;
   unitId: string;
   createdId: string;
   startMs: number;
@@ -100,9 +33,9 @@ interface UnitRow {
   layer_id: string;
   speaker_id: string | null;
   parent_unit_id: string | null;
-  sort_order: number;
   start_ms: number | null;
   end_ms: number | null;
+  sort_order: number;
   created_at: string;
   updated_at: string;
   analysis_graph_json: string | null;
@@ -225,7 +158,16 @@ interface AcceptanceRow {
   created_at: string;
 }
 
-interface RemovedUnit {
+interface TimeDraftRow {
+  unit_id: string;
+  edge: string;
+  raw_input: string;
+  base_ms: number;
+  issue: string | null;
+  updated_at: string;
+}
+
+export interface RemovedUnit {
   unit: UnitRow;
   texts: TextRow[];
   tokens: TokenRow[];
@@ -237,19 +179,18 @@ interface RemovedUnit {
   batches: BatchRow[];
   localIds: LocalIdRow[];
   acceptances: AcceptanceRow[];
+  timeDrafts: TimeDraftRow[];
 }
 
 export interface UnitMergeUndo {
-  oldKeepId: string;
-  operationId: string;
   keepId: string;
   removeId: string;
-  keepStart: number | null;
-  keepEnd: number | null;
+  keepStart: number;
+  keepEnd: number;
   keepText: string;
   keepFingerprint: string;
-  mergedStart: number | null;
-  mergedEnd: number | null;
+  mergedStart: number;
+  mergedEnd: number;
   manuscriptId: string;
   manuscriptGeneration: number;
   removed: RemovedUnit;
@@ -260,39 +201,42 @@ export function splitUnit(
   input: { unitId: string; time: number },
   afterWrite?: () => void,
 ): { left: Unit; right: Unit; undo: UnitSplitUndo } {
-  if (!Number.isFinite(input.time)) throw new Error('split point is outside the unit');
+  if (!Number.isInteger(input.time)) throw new Error('split point is outside the unit');
   const write = db.transaction(() => {
     const existing = requireLiveUnit(db, input.unitId);
+    if (existing.startMs === null || existing.endMs === null) {
+      throw new Error('split point is outside the unit');
+    }
     if (
-      existing.startMs === null ||
-      existing.endMs === null ||
-      !Number.isInteger(input.time) ||
       input.time - existing.startMs < MIN_SPLIT_SPAN ||
       existing.endMs - input.time < MIN_SPLIT_SPAN
     ) {
       throw new Error('split point is outside the unit');
     }
     const place = manuscriptOf(db, existing.id);
-    const leftId = randomUUID();
     const createdId = randomUUID();
-    const operationId = randomUUID();
     const now = new Date().toISOString();
-    retargetUnit(db, existing.id, leftId, existing.startMs, input.time, now);
-    db.prepare(
-      'UPDATE units SET sort_order = sort_order + 1 WHERE layer_id = ? AND sort_order > ?',
-    ).run(existing.layerId, existing.sortOrder);
+    db.prepare('UPDATE units SET end_ms = ?, updated_at = ? WHERE id = ?').run(
+      input.time,
+      now,
+      existing.id,
+    );
+    const sortRow = db
+      .prepare('SELECT sort_order AS sortOrder FROM units WHERE id = ?')
+      .get(existing.id) as { sortOrder: number };
+    const sortOrder = shiftSortOrdersAfter(db, existing.layerId, sortRow.sortOrder);
     db.prepare(
       `INSERT INTO units (
-        id, layer_id, speaker_id, parent_unit_id, sort_order, start_ms, end_ms, created_at, updated_at
+        id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, sort_order, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       createdId,
       existing.layerId,
       existing.speakerId,
       existing.parentUnitId,
-      existing.sortOrder + 1,
       input.time,
       existing.endMs,
+      sortOrder,
       now,
       now,
     );
@@ -301,12 +245,10 @@ export function splitUnit(
       `INSERT INTO unit_texts (id, unit_id, role, body, updated_at)
        VALUES (?, ?, 'transcription', ?, ?)`,
     ).run(randomUUID(), createdId, existing.text, now);
-    const copied = copyAssociations(db, leftId, createdId);
-    linkIdentity(db, operationId, 'split', existing.id, leftId, now);
-    linkIdentity(db, operationId, 'split', existing.id, createdId, now);
+    const copied = copyAssociations(db, existing.id, createdId);
     bumpGeneration(db, place.manuscriptId, now);
     afterWrite?.();
-    const left = readStoredUnit(db, leftId);
+    const left = readStoredUnit(db, existing.id);
     const right = readStoredUnit(db, createdId);
     const generation = generationOf(db, place.manuscriptId);
     if (
@@ -326,9 +268,7 @@ export function splitUnit(
       left,
       right,
       undo: {
-        oldId: existing.id,
-        operationId,
-        unitId: leftId,
+        unitId: existing.id,
         createdId,
         startMs: existing.startMs,
         splitTime: input.time,
@@ -350,11 +290,14 @@ export function undoSplit(db: SqliteDatabase, undo: UnitSplitUndo, afterWrite?: 
     if (!splitStillAfter(db, undo)) throw new Error('unit split undo is stale');
     const now = new Date().toISOString();
     deleteUnitTree(db, undo.createdId);
-    retargetUnit(db, undo.unitId, undo.oldId, undo.startMs, undo.restoredEnd, now);
-    db.prepare('DELETE FROM unit_identity_links WHERE operation_id = ?').run(undo.operationId);
+    db.prepare('UPDATE units SET end_ms = ?, updated_at = ? WHERE id = ?').run(
+      undo.restoredEnd,
+      now,
+      undo.unitId,
+    );
     bumpGeneration(db, undo.manuscriptId, now);
     afterWrite?.();
-    const unit = readStoredUnit(db, undo.oldId);
+    const unit = readStoredUnit(db, undo.unitId);
     const created = readStoredUnit(db, undo.createdId);
     if (
       !unit ||
@@ -383,45 +326,40 @@ export function mergeUnits(
     if (keep.id === remove.id || keep.layerId !== remove.layerId) {
       throw new Error('units are not in the same layer');
     }
-    const timed =
-      keep.startMs !== null &&
-      keep.endMs !== null &&
-      remove.startMs !== null &&
-      remove.endMs !== null;
-    const mixed = (keep.startMs === null) !== (remove.startMs === null);
-    // Both-null merges wait for 1b-7. This slice merges two timed neighbors, or one timed and one untimed.
-    if (!timed && !mixed) throw new Error('units are not aligned');
-    if (timed) {
-      const adjacent = keep.endMs === remove.startMs || remove.endMs === keep.startMs;
-      if (!adjacent) throw new Error('units are not adjacent');
-    } else if (!sortAdjacent(db, keep.layerId, keep.sortOrder, remove.sortOrder)) {
+    if (
+      keep.startMs === null ||
+      keep.endMs === null ||
+      remove.startMs === null ||
+      remove.endMs === null
+    ) {
       throw new Error('units are not adjacent');
     }
+    const adjacent = keep.endMs === remove.startMs || remove.endMs === keep.startMs;
+    if (!adjacent) throw new Error('units are not adjacent');
     const place = manuscriptOf(db, keep.id);
     const keepFingerprint = fingerprintOf(db, keep.id);
     const removed = readRemovedUnit(db, remove.id);
-    const mergedStart = timed ? Math.min(keep.startMs ?? 0, remove.startMs ?? 0) : null;
-    const mergedEnd = timed ? Math.max(keep.endMs ?? 0, remove.endMs ?? 0) : null;
+    const mergedStart = Math.min(keep.startMs, remove.startMs);
+    const mergedEnd = Math.max(keep.endMs, remove.endMs);
     const now = new Date().toISOString();
-    const mergedId = randomUUID();
-    const operationId = randomUUID();
-    retargetUnit(db, keep.id, mergedId, mergedStart, mergedEnd, now);
     deleteUnitTree(db, remove.id);
-    linkIdentity(db, operationId, 'merge', keep.id, mergedId, now);
-    linkIdentity(db, operationId, 'merge', remove.id, mergedId, now);
+    db.prepare('UPDATE units SET start_ms = ?, end_ms = ?, updated_at = ? WHERE id = ?').run(
+      mergedStart,
+      mergedEnd,
+      now,
+      keep.id,
+    );
     bumpGeneration(db, place.manuscriptId, now);
     afterWrite?.();
-    const unit = readStoredUnit(db, mergedId);
+    const unit = readStoredUnit(db, keep.id);
     const gone = readStoredUnit(db, remove.id);
-    const keptGone = readStoredUnit(db, keep.id);
     if (
       !unit ||
       gone !== null ||
-      keptGone !== null ||
       unit.startMs !== mergedStart ||
       unit.endMs !== mergedEnd ||
       unit.text !== keep.text ||
-      fingerprintOf(db, mergedId) !== keepFingerprint ||
+      fingerprintOf(db, keep.id) !== keepFingerprint ||
       generationOf(db, place.manuscriptId) !== place.generation + 1
     ) {
       throw new Error('unit merge readback failed');
@@ -429,9 +367,7 @@ export function mergeUnits(
     return {
       unit,
       undo: {
-        oldKeepId: keep.id,
-        operationId,
-        keepId: mergedId,
+        keepId: keep.id,
         removeId: remove.id,
         keepStart: keep.startMs,
         keepEnd: keep.endMs,
@@ -452,12 +388,16 @@ export function undoMerge(db: SqliteDatabase, undo: UnitMergeUndo, afterWrite?: 
   const write = db.transaction(() => {
     if (!mergeStillAfter(db, undo)) throw new Error('unit merge undo is stale');
     const now = new Date().toISOString();
-    retargetUnit(db, undo.keepId, undo.oldKeepId, undo.keepStart, undo.keepEnd, now);
+    db.prepare('UPDATE units SET start_ms = ?, end_ms = ?, updated_at = ? WHERE id = ?').run(
+      undo.keepStart,
+      undo.keepEnd,
+      now,
+      undo.keepId,
+    );
     insertRemovedUnit(db, undo.removed);
-    db.prepare('DELETE FROM unit_identity_links WHERE operation_id = ?').run(undo.operationId);
     bumpGeneration(db, undo.manuscriptId, now);
     afterWrite?.();
-    const keep = readStoredUnit(db, undo.oldKeepId);
+    const keep = readStoredUnit(db, undo.keepId);
     const removed = readStoredUnit(db, undo.removeId);
     if (
       !keep ||
@@ -465,7 +405,7 @@ export function undoMerge(db: SqliteDatabase, undo: UnitMergeUndo, afterWrite?: 
       keep.startMs !== undo.keepStart ||
       keep.endMs !== undo.keepEnd ||
       keep.text !== undo.keepText ||
-      fingerprintOf(db, undo.oldKeepId) !== undo.keepFingerprint ||
+      fingerprintOf(db, undo.keepId) !== undo.keepFingerprint ||
       removed.startMs !== undo.removed.unit.start_ms ||
       removed.endMs !== undo.removed.unit.end_ms ||
       removed.text !== undo.removed.texts.find((row) => row.role === 'transcription')?.body ||
@@ -793,18 +733,6 @@ function splitStillAfter(db: SqliteDatabase, undo: UnitSplitUndo): boolean {
   );
 }
 
-function sortAdjacent(db: SqliteDatabase, layerId: string, left: number, right: number): boolean {
-  const low = Math.min(left, right);
-  const high = Math.max(left, right);
-  const between = db
-    .prepare(
-      `SELECT 1 AS hit FROM units
-       WHERE layer_id = ? AND sort_order > ? AND sort_order < ?`,
-    )
-    .get(layerId, low, high);
-  return between === undefined;
-}
-
 function mergeStillAfter(db: SqliteDatabase, undo: UnitMergeUndo): boolean {
   const keep = readStoredUnit(db, undo.keepId);
   return (
@@ -818,10 +746,10 @@ function mergeStillAfter(db: SqliteDatabase, undo: UnitMergeUndo): boolean {
   );
 }
 
-function readRemovedUnit(db: SqliteDatabase, unitId: string): RemovedUnit {
+export function readRemovedUnit(db: SqliteDatabase, unitId: string): RemovedUnit {
   const unit = db
     .prepare(
-      `SELECT id, layer_id, speaker_id, parent_unit_id, sort_order, start_ms, end_ms, created_at, updated_at,
+      `SELECT id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, sort_order, created_at, updated_at,
               analysis_graph_json, analysis_generation, graph_fingerprint
        FROM units WHERE id = ?`,
     )
@@ -878,14 +806,31 @@ function readRemovedUnit(db: SqliteDatabase, unitId: string): RemovedUnit {
          FROM transcription_acceptances WHERE unit_id = ?`,
       )
       .all(unitId) as AcceptanceRow[],
+    timeDrafts: db
+      .prepare(
+        `SELECT unit_id, edge, raw_input, base_ms, issue, updated_at
+         FROM unit_time_drafts WHERE unit_id = ?`,
+      )
+      .all(unitId) as TimeDraftRow[],
   };
 }
 
-function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): void {
+function shiftSortOrdersAfter(db: SqliteDatabase, layerId: string, sortOrder: number): number {
+  // ponytail: two-step shift avoids a unique collision. Breaks if one layer exceeds 1000000 units.
+  db.prepare(
+    'UPDATE units SET sort_order = sort_order + 1000000 WHERE layer_id = ? AND sort_order > ?',
+  ).run(layerId, sortOrder);
+  db.prepare(
+    'UPDATE units SET sort_order = sort_order - 999999 WHERE layer_id = ? AND sort_order >= 1000000',
+  ).run(layerId);
+  return sortOrder + 1;
+}
+
+export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): void {
   const unit = removed.unit;
   db.prepare(
     `INSERT INTO units (
-      id, layer_id, speaker_id, parent_unit_id, sort_order, start_ms, end_ms, created_at, updated_at,
+      id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, sort_order, created_at, updated_at,
       analysis_graph_json, analysis_generation, graph_fingerprint
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
@@ -893,9 +838,9 @@ function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): void {
     unit.layer_id,
     unit.speaker_id,
     unit.parent_unit_id,
-    unit.sort_order,
     unit.start_ms,
     unit.end_ms,
+    unit.sort_order,
     unit.created_at,
     unit.updated_at,
     unit.analysis_graph_json,
@@ -1045,9 +990,16 @@ function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): void {
       row.created_at,
     );
   }
+  const insertTimeDraft = db.prepare(
+    `INSERT INTO unit_time_drafts (unit_id, edge, raw_input, base_ms, issue, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  );
+  for (const row of removed.timeDrafts) {
+    insertTimeDraft.run(unit.id, row.edge, row.raw_input, row.base_ms, row.issue, row.updated_at);
+  }
 }
 
-function deleteUnitTree(db: SqliteDatabase, unitId: string): void {
+export function deleteUnitTree(db: SqliteDatabase, unitId: string): void {
   const tokenIds = idsOf(db, 'SELECT id FROM tokens WHERE unit_id = ?', unitId);
   const morphemeIds = morphemeIdsOf(db, tokenIds);
   const noteIds = idsOf(db, 'SELECT id FROM notes WHERE unit_id = ?', unitId);
@@ -1079,6 +1031,7 @@ function deleteUnitTree(db: SqliteDatabase, unitId: string): void {
   db.prepare('DELETE FROM transcription_acceptances WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM unit_texts WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM unit_text_drafts WHERE unit_id = ?').run(unitId);
+  db.prepare('DELETE FROM unit_time_drafts WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM text_save_receipts WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM units WHERE id = ?').run(unitId);
 }
@@ -1135,7 +1088,7 @@ function fieldsOf(
   return [unit, ...notes].flatMap((pair) => select.all(...pair) as FieldRow[]);
 }
 
-function nodeIdsOf(json: string | null): string[] {
+export function nodeIdsOf(json: string | null): string[] {
   if (json === null) return [];
   const parsed = JSON.parse(json) as { nodes?: { id?: unknown }[] };
   if (!Array.isArray(parsed.nodes)) return [];

@@ -8,6 +8,7 @@ const SETTING_KEYS = new Set<string>([
   projectTextMetadataKey.characterVariantLines,
   projectTextMetadataKey.annotationAbbreviations,
   projectTextMetadataKey.annotationPosCategories,
+  'mergeSeparator',
 ]);
 
 export function getSettings(db: SqliteDatabase, projectId: string): Record<string, unknown> | null {

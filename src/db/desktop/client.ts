@@ -1,8 +1,10 @@
 import type { BridgeCreate, LanguageEnsure, OrthographyCreate } from './catalog';
+import type { EditInspection, EditReceiptKind } from './editReceipts';
 import type { DesktopOperations } from './operationContract';
 import type { LayerCreate } from './layers';
 import type { LexemeLinkWrite, LexemeSave } from './lexicon';
 import type { MediaCreate } from './media';
+import type { RecordingRegistration } from './registerRecording';
 import type { ManuscriptCreate } from './manuscripts';
 import type { AnalysisCredentials } from './analysisRestore';
 import type { SourceCreate, SourcePatch } from './sourceFields';
@@ -17,7 +19,30 @@ export interface DesktopBridge {
   desktopCall(sessionId: string, method: string, args: unknown): Promise<unknown>;
 }
 
-/** One bridge call per action. A lost response is returned as a failure and is not sent again. */
+type EditMethod =
+  | 'units.create'
+  | 'units.moveEdge'
+  | 'units.moveSharedBoundary'
+  | 'units.delete'
+  | 'units.undo'
+  | 'units.redo';
+
+const EDIT_KINDS: Record<EditMethod, EditReceiptKind> = {
+  'units.create': 'create',
+  'units.moveEdge': 'moveEdge',
+  'units.moveSharedBoundary': 'moveSharedBoundary',
+  'units.delete': 'delete',
+  'units.undo': 'undo',
+  'units.redo': 'redo',
+};
+
+/** ADR-0129: the edit may or may not have committed, and the library could not say which. */
+export const EDIT_OUTCOME_UNKNOWN = 'edit outcome is unknown';
+
+/**
+ * One bridge call per action. A lost response is returned as a failure and is not sent again,
+ * except for receipted edits (ADR-0129), which ask the library by operation id first.
+ */
 export function createDesktopClient(bridge: DesktopBridge) {
   async function once<K extends keyof DesktopOperations>(
     sessionId: string,
@@ -26,12 +51,41 @@ export function createDesktopClient(bridge: DesktopBridge) {
   ): Promise<DesktopOperations[K]['output']> {
     return (await bridge.desktopCall(sessionId, method, args)) as DesktopOperations[K]['output'];
   }
+  /** committed → stored result; not-submitted → one retry with the same id; otherwise unknown. */
+  async function receipted<K extends EditMethod>(
+    sessionId: string,
+    method: K,
+    payload: Record<string, unknown>,
+  ): Promise<DesktopOperations[K]['output']> {
+    const operationId = globalThis.crypto.randomUUID();
+    const args = { ...payload, operationId };
+    try {
+      return await once(sessionId, method, args);
+    } catch (error) {
+      let found: EditInspection;
+      try {
+        found = await once(sessionId, 'units.inspectEdit', {
+          operationId,
+          kind: EDIT_KINDS[method],
+          payload,
+        });
+      } catch {
+        throw new Error(EDIT_OUTCOME_UNKNOWN, { cause: error });
+      }
+      if (found.status === 'committed') return found.result as DesktopOperations[K]['output'];
+      if (found.status === 'not-submitted') return once(sessionId, method, args);
+      throw new Error(EDIT_OUTCOME_UNKNOWN, { cause: error });
+    }
+  }
   return {
     createMedia: (sessionId: string, input: MediaCreate) => once(sessionId, 'media.create', input),
+    registerRecording: (sessionId: string, input: RecordingRegistration) =>
+      once(sessionId, 'recordings.register', input),
     createManuscript: (sessionId: string, input: ManuscriptCreate) =>
       once(sessionId, 'manuscripts.create', input),
     createLayer: (sessionId: string, input: LayerCreate) => once(sessionId, 'layers.create', input),
-    createUnit: (sessionId: string, input: UnitCreate) => once(sessionId, 'units.create', input),
+    createUnit: (sessionId: string, input: UnitCreate) =>
+      receipted(sessionId, 'units.create', { ...input }),
     getUnit: (sessionId: string, id: string) => once(sessionId, 'units.get', { id }),
     listManuscripts: (sessionId: string) => once(sessionId, 'manuscripts.list', {}),
     getProject: (sessionId: string) => once(sessionId, 'project.get', {}),
@@ -50,6 +104,10 @@ export function createDesktopClient(bridge: DesktopBridge) {
     listDueReminders: (sessionId: string) => once(sessionId, 'deletion.listDue', {}),
     showManuscriptReminder: (sessionId: string, id: string) =>
       once(sessionId, 'manuscripts.showReminder', { id }),
+    retimeManuscript: (
+      sessionId: string,
+      input: { manuscriptId: string; offsetMs: number; scale: number },
+    ) => once(sessionId, 'manuscripts.retime', input),
     showRecordingReminder: (sessionId: string, id: string) =>
       once(sessionId, 'media.showReminder', { id }),
     listLayers: (sessionId: string, manuscriptId: string) =>
@@ -86,13 +144,46 @@ export function createDesktopClient(bridge: DesktopBridge) {
     discardTextDraft: (sessionId: string, unitId: string) =>
       once(sessionId, 'units.discardTextDraft', { unitId }),
     undoUnitText: (sessionId: string) => once(sessionId, 'units.undoText', {}),
-    undoStep: (sessionId: string) => once(sessionId, 'units.undo', {}),
+    undoStep: (sessionId: string, manuscriptId?: string) =>
+      receipted(sessionId, 'units.undo', manuscriptId === undefined ? {} : { manuscriptId }),
+    redoStep: (sessionId: string, manuscriptId?: string) =>
+      receipted(sessionId, 'units.redo', manuscriptId === undefined ? {} : { manuscriptId }),
+    dropUndoStep: (sessionId: string, manuscriptId?: string) =>
+      once(sessionId, 'units.dropUndo', manuscriptId === undefined ? {} : { manuscriptId }),
+    dropRedoStep: (sessionId: string, manuscriptId?: string) =>
+      once(sessionId, 'units.dropRedo', manuscriptId === undefined ? {} : { manuscriptId }),
     splitUnit: (sessionId: string, input: { unitId: string; time: number }) =>
       once(sessionId, 'units.split', input),
     mergeUnits: (sessionId: string, input: { keepId: string; removeId: string }) =>
       once(sessionId, 'units.merge', input),
     updateBoundary: (sessionId: string, input: { leftId: string; rightId: string; time: number }) =>
       once(sessionId, 'units.updateBoundary', input),
+    moveUnitEdge: (
+      sessionId: string,
+      input: { unitId: string; edge: 'start' | 'end'; time: number },
+    ) => receipted(sessionId, 'units.moveEdge', { ...input }),
+    moveSharedBoundary: (
+      sessionId: string,
+      input: { leftId: string; rightId: string; time: number },
+    ) => receipted(sessionId, 'units.moveSharedBoundary', { ...input }),
+    previewUnitDelete: (sessionId: string, unitId: string) =>
+      once(sessionId, 'units.deletePreview', { unitId }),
+    deleteUnit: (sessionId: string, unitId: string) =>
+      receipted(sessionId, 'units.delete', { unitId }),
+    readTimeDraft: (sessionId: string, unitId: string) =>
+      once(sessionId, 'units.readTimeDraft', { unitId }),
+    putTimeDraft: (
+      sessionId: string,
+      input: {
+        unitId: string;
+        edge: 'start' | 'end';
+        rawInput: string;
+        baseMs: number;
+        issue: string | null;
+      },
+    ) => once(sessionId, 'units.putTimeDraft', input),
+    discardTimeDraft: (sessionId: string, unitId: string, edge?: 'start' | 'end') =>
+      once(sessionId, 'units.discardTimeDraft', edge === undefined ? { unitId } : { unitId, edge }),
     createCustomFieldDefinition: (sessionId: string, input: unknown) =>
       once(sessionId, 'customFields.createDefinition', input),
     updateCustomFieldDefinition: (sessionId: string, input: unknown) =>
@@ -138,10 +229,6 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once(sessionId, 'customFields.previewPurge', { definitionId }),
     purgeCustomFieldDefinition: (sessionId: string, input: unknown) =>
       once(sessionId, 'customFields.purgeDefinition', input),
-    retimeManuscript: (
-      sessionId: string,
-      input: { manuscriptId: string; offsetMs: number; scale: number },
-    ) => once(sessionId, 'manuscripts.retime', input),
     ensureProjectDefinition: (sessionId: string, input: LanguageEnsure) =>
       once(sessionId, 'catalog.ensureProjectDefinition', input),
     getLanguage: (sessionId: string, id: string) => once(sessionId, 'catalog.getLanguage', { id }),

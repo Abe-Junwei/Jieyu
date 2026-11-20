@@ -2,7 +2,8 @@
 export type { Manuscript, ManuscriptDeletePreview } from '../db/desktop/manuscripts';
 export type { DeletedMedia } from '../db/desktop/media';
 export type { DueDeletionReminder } from '../db/desktop/manuscriptPurge';
-export { createDesktopClient } from '../db/desktop/client';
+export { createDesktopClient, EDIT_OUTCOME_UNKNOWN } from '../db/desktop/client';
+export type { UnitDeletePreview } from '../db/desktop/unitEdges';
 export type {
   CorpusQueryCursor,
   CorpusQueryHit,

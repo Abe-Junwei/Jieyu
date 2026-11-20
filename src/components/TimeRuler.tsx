@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import { useTranscriptionPlaybackClock } from '../hooks/transcription/transcriptionPlaybackClock';
 import { t, useLocale } from '../i18n';
+import { TimeRulerOverview } from './TimeRulerOverview';
 import { applyTimelineViewportScroll } from '../utils/applyTimelineViewportScroll';
 import { isExtendedDocumentTimeline } from '../utils/waveformTierScrollSync';
 import {
@@ -82,7 +83,6 @@ export function TimeRuler({
     startX: 0,
     startScroll: 0,
   });
-  const overviewDragRef = useRef(false);
   const clearDragFlagTimerRef = useRef<number | null>(null);
   const moveListenerRef = useRef<((ev: MouseEvent) => void) | null>(null);
   const upListenerRef = useRef<(() => void) | null>(null);
@@ -202,18 +202,6 @@ export function TimeRuler({
     [fmtLabel, start, ticks, windowSec],
   );
 
-  const seekFromOverview = useCallback(
-    (clientX: number, element: HTMLDivElement) => {
-      const rect = element.getBoundingClientRect();
-      const ratio = (clientX - rect.left) / rect.width;
-      seekTo(Math.max(0, Math.min(dur, ratio * dur)));
-    },
-    [dur, seekTo],
-  );
-
-  const overviewViewportLeft = `${(Math.max(0, start) / timelineSpanSec) * 100}%`;
-  const overviewViewportWidth = `${Math.max(0.8, ((Math.min(timelineSpanSec, end) - Math.max(0, start)) / timelineSpanSec) * 100)}%`;
-
   if (windowSec <= 0) {
     return <div className="time-ruler" />;
   }
@@ -306,42 +294,13 @@ export function TimeRuler({
             waveCanvasRef={waveCanvasRef}
           />
         </svg>
-        <div
-          className="time-ruler-overview"
-          title={t(locale, 'transcription.wave.overviewTooltip')}
-          onClick={(e) => {
-            e.stopPropagation();
-            seekFromOverview(e.clientX, e.currentTarget);
-          }}
-          onPointerDown={(e) => {
-            e.stopPropagation();
-            e.currentTarget.setPointerCapture(e.pointerId);
-            overviewDragRef.current = true;
-            seekFromOverview(e.clientX, e.currentTarget);
-          }}
-          onPointerMove={(e) => {
-            if (overviewDragRef.current) seekFromOverview(e.clientX, e.currentTarget);
-          }}
-          onPointerUp={(e) => {
-            overviewDragRef.current = false;
-            if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-              e.currentTarget.releasePointerCapture(e.pointerId);
-            }
-          }}
-          onPointerCancel={(e) => {
-            overviewDragRef.current = false;
-            if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-              e.currentTarget.releasePointerCapture(e.pointerId);
-            }
-          }}
-        >
-          <div className="time-ruler-overview-track" />
-          <div
-            className="time-ruler-overview-viewport"
-            style={{ left: overviewViewportLeft, width: overviewViewportWidth }}
-            aria-hidden="true"
-          />
-        </div>
+        <TimeRulerOverview
+          trackSec={timelineSpanSec}
+          seekSec={dur}
+          viewStart={start}
+          viewEnd={end}
+          seekTo={seekTo}
+        />
       </div>
       {onWaveformResizeStart ? (
         <div

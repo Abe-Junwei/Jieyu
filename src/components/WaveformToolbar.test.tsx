@@ -7,9 +7,12 @@ import { WaveformToolbar } from './WaveformToolbar';
 describe('WaveformToolbar', () => {
   it('exposes accessible names for transport, speed, and volume controls', () => {
     const onPlaybackRateChange = vi.fn();
-    const onWaveformDisplayModeChange = vi.fn<(mode: 'waveform' | 'spectrogram' | 'split') => void>();
-    const onWaveformVisualStyleChange = vi.fn<(style: 'balanced' | 'dense' | 'contrast' | 'line') => void>();
-    const onAcousticOverlayModeChange = vi.fn<(mode: 'none' | 'f0' | 'intensity' | 'both') => void>();
+    const onWaveformDisplayModeChange =
+      vi.fn<(mode: 'waveform' | 'spectrogram' | 'split') => void>();
+    const onWaveformVisualStyleChange =
+      vi.fn<(style: 'balanced' | 'dense' | 'contrast' | 'line') => void>();
+    const onAcousticOverlayModeChange =
+      vi.fn<(mode: 'none' | 'f0' | 'intensity' | 'both') => void>();
     const onVolumeChange = vi.fn();
 
     const toolbarProps = {
@@ -38,10 +41,12 @@ describe('WaveformToolbar', () => {
       </LocaleProvider>,
     );
 
-    fireEvent.change(screen.getByRole('combobox', { name: /语段播放速度/i }), { target: { value: '1.5' } });
+    fireEvent.change(screen.getByRole('combobox', { name: /语段播放速度/i }), {
+      target: { value: '1.5' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /波形画布、声学叠加与波形绘制样式/i }));
     const viewPanel = screen.getByRole('dialog', { name: /波形与声学显示/i });
-    fireEvent.click(within(viewPanel).getByRole('radio', { name: '上下分屏' }));
+    fireEvent.click(within(viewPanel).getByRole('radio', { name: '分屏' }));
     const acousticGroup = within(viewPanel).getByRole('group', { name: /声学叠加/i });
     fireEvent.click(within(acousticGroup).getByRole('button', { name: 'F0' }));
     expect(onAcousticOverlayModeChange).toHaveBeenLastCalledWith('f0');

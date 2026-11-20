@@ -288,6 +288,8 @@ function ReadyStageContent({
 
             <TimelineScrollSection
               containerRef={tierContainerRef}
+              role="region"
+              aria-label={t(locale, 'transcription.timeline.regionLabel')}
               onPointerDownCapture={lassoHandlers.onPointerDownCapture}
               onPointerMove={lassoHandlers.onPointerMove}
               onPointerUp={lassoHandlers.onPointerUp}

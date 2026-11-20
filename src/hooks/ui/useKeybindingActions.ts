@@ -420,9 +420,10 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     for (const [actionId, combo] of getEffectiveKeymap()) {
       const entry = DEFAULT_KEYBINDINGS.find((b) => b.id === actionId);
       if (!entry || entry.scope !== 'waveform') continue;
-      if (matchKeyEvent(e, combo)) {
+      const action = waveformActionsRef.current[actionId];
+      if (matchKeyEvent(e, combo) && action) {
         e.preventDefault();
-        waveformActionsRef.current[actionId]?.(e);
+        action(e);
         recordTranscriptionKeyboardAction(actionId);
         return;
       }

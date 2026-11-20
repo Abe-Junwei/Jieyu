@@ -29,6 +29,39 @@
   padding-left: var(--side-pane-width);
 }
 
+.app-shell-desktop-transcription .app-side-pane {
+  top: 0;
+  background: var(--gray-3);
+  border-right: 0;
+}
+
+.app-shell-desktop-transcription .app-side-pane-handle-cluster {
+  display: none;
+}
+
+.app-shell-desktop-transcription .app-side-pane-header {
+  display: none;
+}
+
+.app-shell-desktop-transcription .app-side-pane-body {
+  padding: 4px 0 8px;
+  background: var(--gray-3);
+}
+
+.app-shell-desktop-transcription.app-shell-transcription .app-main-transcription {
+  transition: padding-left var(--shell-motion-base) ease;
+}
+
+.app-shell-desktop-transcription.app-shell-side-pane-collapsed .app-side-pane {
+  pointer-events: auto;
+}
+
+.app-shell-desktop-transcription.app-shell-side-pane-collapsed .app-side-pane-body {
+  padding: 0;
+  opacity: 1;
+  pointer-events: auto;
+}
+
 @media (max-width: 1024px) {
   .app-shell-transcription .app-main-transcription {
     padding-left: 0;
