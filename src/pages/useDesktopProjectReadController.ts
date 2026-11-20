@@ -96,15 +96,18 @@ export function useDesktopProjectReadController(
     unitId: string,
     text: string,
     operationId?: string,
+    textLayerId?: string,
   ): Promise<'saved' | 'failed' | 'refresh-failed' | 'unknown'> => {
     if (host === null || sessionId === null) return Promise.resolve('failed');
     const seen = sessionId;
     const manuscriptId = model?.manuscriptId ?? '';
     setError('');
     const client = createDesktopClient({ desktopCall: host.desktopCall });
+    const layer = textLayerId === undefined ? {} : { textLayerId };
     return emitAfterWrite(
       client.updateUnitText(seen, {
         unitId,
+        ...layer,
         text,
         ...(operationId === undefined ? {} : { operationId }),
       }),
@@ -119,7 +122,12 @@ export function useDesktopProjectReadController(
       .catch(async () => {
         if (operationId !== undefined) {
           try {
-            const found = await client.inspectTextSave(seen, { operationId, unitId, text });
+            const found = await client.inspectTextSave(seen, {
+              operationId,
+              unitId,
+              ...layer,
+              text,
+            });
             if (found === 'committed') {
               if (shownSession.current === seen) {
                 setError(t(locale, 'app.desktopRead.saveTextUnrefreshed'));
@@ -136,20 +144,34 @@ export function useDesktopProjectReadController(
         return 'failed';
       });
   };
-  const persistTextDraft = (unitId: string, text: string, baseBody: string) => {
+  const persistTextDraft = (
+    unitId: string,
+    text: string,
+    baseBody: string,
+    textLayerId?: string,
+  ) => {
     if (host === null || sessionId === null) return Promise.resolve();
     return createDesktopClient({ desktopCall: host.desktopCall })
-      .putTextDraft(sessionId, { unitId, rawInput: text, baseBody })
+      .putTextDraft(sessionId, {
+        unitId,
+        ...(textLayerId === undefined ? {} : { textLayerId }),
+        rawInput: text,
+        baseBody,
+      })
       .then(() => undefined);
   };
-  const readTextDraft = (unitId: string) => {
+  const readTextDraft = (unitId: string, textLayerId?: string) => {
     if (host === null || sessionId === null) return Promise.resolve(null);
-    return createDesktopClient({ desktopCall: host.desktopCall }).readTextDraft(sessionId, unitId);
+    return createDesktopClient({ desktopCall: host.desktopCall }).readTextDraft(
+      sessionId,
+      unitId,
+      textLayerId,
+    );
   };
-  const discardTextDraft = (unitId: string) => {
+  const discardTextDraft = (unitId: string, textLayerId?: string) => {
     if (host === null || sessionId === null) return Promise.resolve();
     return createDesktopClient({ desktopCall: host.desktopCall })
-      .discardTextDraft(sessionId, unitId)
+      .discardTextDraft(sessionId, unitId, textLayerId)
       .then(() => undefined);
   };
   const undoText = () => {
@@ -223,7 +245,10 @@ export function useDesktopProjectReadController(
     selectManuscript,
     forgetDeletedManuscript,
     saveText,
-    inspectTextSave: (draft: { unitId: string; text: string }, operationId: string) => {
+    inspectTextSave: (
+      draft: { unitId: string; textLayerId?: string; text: string },
+      operationId: string,
+    ) => {
       if (host === null || sessionId === null) return Promise.reject(new Error('no session'));
       return createDesktopClient({ desktopCall: host.desktopCall }).inspectTextSave(sessionId, {
         ...draft,

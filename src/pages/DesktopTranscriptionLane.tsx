@@ -1,11 +1,14 @@
 import {
   useEffect,
+  useRef,
   useState,
   type ChangeEvent,
-  type KeyboardEvent,
   type MutableRefObject,
+  type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from 'react';
+import { createPortal } from 'react-dom';
+import { DesktopTranscriptionCreatePreview } from './DesktopTranscriptionCreatePreview';
 import { TimelineAnnotationItem } from '../components/TimelineAnnotationItem';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, tf, type Locale } from '../i18n';
@@ -20,22 +23,35 @@ import {
   seamSeconds,
 } from './desktopTranscriptionEdgeView';
 import { useDesktopTranscriptionEdgeController } from './useDesktopTranscriptionEdgeController';
-import type { EdgeActions } from './desktopTranscriptionEdgeActions';
 import { edgeFocusKind } from './desktopTranscriptionEdge';
 import { NO_CONFLICTS } from './desktopTranscriptionEdgeSession';
+import type { RouteLayer, RouteLink } from './desktopTranscriptionCreateRoute';
+import { textKey } from './desktopTranscriptionTextKey';
+import {
+  DesktopTranscriptionLayerRows,
+  layerLabel,
+  restoreBody,
+  sameCard,
+  type LayerCardRef,
+  type LayerRowLayer,
+} from './DesktopTranscriptionLayerRows';
 import {
   formatPlaybackTime,
   type DesktopPlaybackUnit,
 } from './useDesktopTranscriptionMediaController';
 
-export type WaveCreate = EdgeActions['beginWaveCreate'];
+export type WaveCreate = (
+  event: ReactPointerEvent<HTMLElement>,
+  msAt: (clientX: number) => number,
+) => void;
 
 export function DesktopTranscriptionLane(props: {
   locale: Locale;
   sessionId: string | null;
   manuscriptId: string | null;
   layerId: string | null;
-  layers: readonly { id: string; name: Record<string, string> }[] | undefined;
+  layers: readonly (RouteLayer & LayerRowLayer)[] | undefined;
+  links: readonly RouteLink[] | undefined;
   desktopCall: DesktopReadHost['desktopCall'] | undefined;
   sourceUnits: readonly { id: string; startMs: number | null; endMs: number | null }[] | undefined;
   units: readonly DesktopPlaybackUnit[];
@@ -50,13 +66,26 @@ export function DesktopTranscriptionLane(props: {
   onSelectUnit: (unit: DesktopPlaybackUnit) => void;
   reload: () => Promise<unknown>;
   tierRef: RefObject<HTMLDivElement | null>;
-  waveCreateRef?: MutableRefObject<WaveCreate | null>;
+  scrollLeftPx: number;
+  waveCreateRef: MutableRefObject<WaveCreate | null>;
+  /** The waveform stage: a waveform drag draws its create preview here. */
+  waveStage: HTMLElement | null;
+  /** Runs `go` once the open body draft is saved or dropped (the leave guard). */
+  onLeave: (go: () => void) => void;
+  /** A body editor opened on `layerId`'s text of `unitId`: bring back its stored draft. */
+  onOpenBody: (layerId: string, unitId: string, savedText: string) => void;
 }) {
   const toast = useToast();
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<LayerCardRef | null>(null);
+  const [focus, setFocus] = useState<LayerCardRef | null>(null);
+  const [createLayerId, setCreateLayerId] = useState<string | null>(null);
+  const [waveDrag, setWaveDrag] = useState(false);
+  const selectedId = props.selectedUnitId;
   useEffect(() => {
-    if (editingId !== null && editingId !== props.selectedUnitId) setEditingId(null);
-  }, [editingId, props.selectedUnitId]);
+    const keep = (card: LayerCardRef | null) => (card?.unitId === selectedId ? card : null);
+    setEditing(keep);
+    setFocus(keep);
+  }, [selectedId]);
   const timedUnits = (props.sourceUnits ?? []).flatMap((unit) =>
     unit.startMs === null || unit.endMs === null
       ? []
@@ -91,25 +120,85 @@ export function DesktopTranscriptionLane(props: {
       props.tierRef.current
         ?.querySelector<HTMLElement>(`[data-unit-id="${CSS.escape(unitId)}"]`)
         ?.focus(),
+    createRoute: { layers: props.layers ?? [], links: props.links ?? [] },
+    selectUnits: (unitIds) => {
+      const hit = props.units.find((unit) => unitIds.includes(unit.id));
+      if (hit) props.onSelectUnit(hit);
+    },
   });
+  const keyOf = (unitId: string) =>
+    props.layerId === null ? unitId : textKey(props.layerId, unitId);
+  const mainCard = (unitId: string) => ({ layerId: props.layerId ?? '', unitId });
+  const openEdit = (card: LayerCardRef, savedText: string) => {
+    const main = card.layerId === (props.layerId ?? '');
+    const go = () => {
+      setFocus(main ? null : card);
+      setEditing(card);
+      if (!main) props.onOpenBody(card.layerId, card.unitId, savedText);
+    };
+    const key = main ? keyOf(card.unitId) : textKey(card.layerId, card.unitId);
+    if (props.bodyDraft === null || props.bodyDraft.unitId === key) go();
+    else props.onLeave(go);
+  };
+  const waveTarget = useRef<string | null>(null);
+  waveTarget.current = focus?.layerId ?? null;
   const waveCreateRef = props.waveCreateRef;
+  const beginWaveCreate = edges.beginWaveCreate;
   useEffect(() => {
-    if (!waveCreateRef) return undefined;
-    waveCreateRef.current = edges.beginWaveCreate;
+    waveCreateRef.current = (event, msAt) => {
+      setCreateLayerId(waveTarget.current);
+      setWaveDrag(true);
+      beginWaveCreate(event, msAt, waveTarget.current);
+    };
     return () => {
       waveCreateRef.current = null;
     };
-  }, [edges.beginWaveCreate, waveCreateRef]);
+  }, [beginWaveCreate, waveCreateRef]);
+  const previewFrame =
+    edges.ui.preview?.unitId === null && edges.ui.preview
+      ? desktopSegmentFrame(
+          {
+            id: 'draft',
+            startTime: edges.ui.preview.startMs / 1000,
+            endTime: edges.ui.preview.endMs / 1000,
+            text: '',
+          },
+          props.duration,
+          0,
+          1,
+          props.zoomPxPerSec,
+        )
+      : null;
   const selected = props.units.find((unit) => unit.id === props.selectedUnitId) ?? null;
+  const wavePreview =
+    waveDrag && props.waveStage && edges.ui.preview?.unitId === null && props.zoomPxPerSec > 0
+      ? createPortal(
+          <DesktopTranscriptionCreatePreview
+            style={{
+              position: 'absolute',
+              top: 0,
+              height: '100%',
+              left: (edges.ui.preview.startMs / 1000) * props.zoomPxPerSec - props.scrollLeftPx,
+              width: Math.max(
+                2,
+                ((edges.ui.preview.endMs - edges.ui.preview.startMs) / 1000) * props.zoomPxPerSec,
+              ),
+              pointerEvents: 'none',
+              zIndex: 'calc(var(--z-modal) - 50)',
+            }}
+          />,
+          props.waveStage,
+        )
+      : null;
   const seconds = seamSeconds(edges.ui.edge, edges.ui.preview, props.units);
   return (
     <>
+      {wavePreview}
       {props.hasAudio || props.units.length > 0 ? (
         <div className="desktop-tx-lane" data-testid="desktop-readonly-timeline">
           <div className="desktop-tx-band-label">
             {layerLabel(
-              props.layers,
-              props.layerId,
+              props.layers?.find((layer) => layer.id === props.layerId)?.name,
               props.locale,
               t(props.locale, 'app.desktopTranscription.contextLayerTranscription'),
             )}
@@ -120,7 +209,11 @@ export function DesktopTranscriptionLane(props: {
               style={
                 props.zoomPxPerSec > 0 ? { width: props.duration * props.zoomPxPerSec } : undefined
               }
-              onPointerDown={edges.beginCreate}
+              onPointerDown={(event) => {
+                setCreateLayerId(null);
+                setWaveDrag(false);
+                edges.beginCreate(event);
+              }}
             >
               {props.units.map((unit, index) => {
                 const shown = playbackWithPreview(unit, edges.ui.preview);
@@ -133,23 +226,31 @@ export function DesktopTranscriptionLane(props: {
                 );
                 const shared = edges.ui.edge?.edge === 'shared';
                 const selected = unit.id === props.selectedUnitId && !shared;
-                const editing = selected && editingId === unit.id;
+                const active = selected && sameCard(editing, mainCard(unit.id));
+                const shownSelected = selected && focus === null;
                 const draft =
-                  props.bodyDraft?.unitId === unit.id ? props.bodyDraft.text : unit.text;
+                  props.bodyDraft?.unitId === keyOf(unit.id) ? props.bodyDraft.text : unit.text;
                 return (
                   <TimelineAnnotationItem
                     key={unit.id}
                     unitId={unit.id}
                     left={frame.left ?? 0}
                     width={frame.width ?? 0}
-                    isSelected={selected}
-                    isActive={editing}
+                    isSelected={shownSelected}
+                    isActive={active}
                     isCompact={false}
                     title={unit.text}
                     draft={draft}
                     onClick={() => {
+                      if (selected && focus === null) {
+                        openEdit(mainCard(unit.id), unit.text);
+                        return;
+                      }
                       if (selected) {
-                        setEditingId(unit.id);
+                        props.onLeave(() => {
+                          setFocus(null);
+                          setEditing(null);
+                        });
                         return;
                       }
                       props.onSelectUnit(unit);
@@ -158,29 +259,23 @@ export function DesktopTranscriptionLane(props: {
                     onDoubleClick={ignoreAnnotationEvent}
                     onResizeStartPointerDown={(event) => edges.beginDrag(unit.id, 'start', event)}
                     onResizeEndPointerDown={(event) => edges.beginDrag(unit.id, 'end', event)}
-                    onChange={(event) => editBody(props, unit, event)}
+                    onChange={(event) => editBody(props, keyOf(unit.id), unit, event)}
                     onCompositionStart={() => props.onComposeBody(true)}
                     onCompositionEnd={() => props.onComposeBody(false)}
                     onBlur={() => props.onCommitBody()}
-                    onKeyDown={(event) => restoreBody(props, unit, event, () => setEditingId(null))}
+                    onKeyDown={(event) =>
+                      restoreBody(props.onEditBody, keyOf(unit.id), unit, event, () =>
+                        setEditing(null),
+                      )
+                    }
                   />
                 );
               })}
-              {edges.ui.preview?.unitId === null && edges.ui.preview ? (
-                <div
+              {previewFrame && createLayerId === null ? (
+                <DesktopTranscriptionCreatePreview
                   className="desktop-tx-create"
-                  style={desktopSegmentFrame(
-                    {
-                      id: 'draft',
-                      startTime: edges.ui.preview.startMs / 1000,
-                      endTime: edges.ui.preview.endMs / 1000,
-                      text: '',
-                    },
-                    props.duration,
-                    0,
-                    1,
-                    props.zoomPxPerSec,
-                  )}
+                  style={previewFrame}
+                  radius={4}
                 />
               ) : null}
               {seconds === null ? null : (
@@ -204,6 +299,42 @@ export function DesktopTranscriptionLane(props: {
           </div>
         </div>
       ) : null}
+      {props.hasAudio || props.units.length > 0 ? (
+        <DesktopTranscriptionLayerRows
+          locale={props.locale}
+          layers={props.layers ?? []}
+          mainLayerId={props.layerId}
+          duration={props.duration}
+          zoomPxPerSec={props.zoomPxPerSec}
+          scrollLeftPx={props.scrollLeftPx}
+          focus={focus}
+          editing={editing}
+          createLayerId={createLayerId}
+          createFrame={previewFrame}
+          bodyDraft={props.bodyDraft}
+          onPick={(card, unit) => {
+            if (sameCard(focus, card)) {
+              openEdit(card, unit.text);
+              return;
+            }
+            const hit = props.units.find((item) => item.id === card.unitId);
+            props.onLeave(() => {
+              setFocus(card);
+              setEditing(null);
+              if (hit && hit.id !== selectedId) props.onSelectUnit(hit);
+            });
+          }}
+          onEditBody={props.onEditBody}
+          onComposeBody={props.onComposeBody}
+          onCommitBody={props.onCommitBody}
+          onStopEdit={() => setEditing(null)}
+          onCreate={(event, layerId, units) => {
+            setCreateLayerId(layerId);
+            setWaveDrag(false);
+            edges.beginCreate(event, { layerId, units });
+          }}
+        />
+      ) : null}
       <DesktopTranscriptionEdgeChrome
         locale={props.locale}
         place={
@@ -220,7 +351,7 @@ export function DesktopTranscriptionLane(props: {
           (edges.ui.raw.saved && edges.ui.raw.unitId === selected?.id) ||
           (props.bodyDraft !== null &&
             selected !== null &&
-            props.bodyDraft.unitId === selected.id &&
+            props.bodyDraft.unitId === keyOf(selected.id) &&
             props.bodyDraft.text !== selected.text)
         }
         hasMedia={props.hasAudio}
@@ -270,33 +401,9 @@ function editBody(
   props: {
     onEditBody: (unitId: string, text: string, savedText: string) => void;
   },
+  key: string,
   unit: DesktopPlaybackUnit,
   event: ChangeEvent<HTMLInputElement>,
 ) {
-  props.onEditBody(unit.id, event.target.value, unit.text);
-}
-
-function restoreBody(
-  props: { onEditBody: (unitId: string, text: string, savedText: string) => void },
-  unit: DesktopPlaybackUnit,
-  event: KeyboardEvent<HTMLInputElement>,
-  stop: () => void,
-) {
-  if (event.key !== 'Escape' || event.nativeEvent.isComposing) return;
-  event.preventDefault();
-  props.onEditBody(unit.id, unit.text, unit.text);
-  stop();
-}
-
-function layerLabel(
-  layers: readonly { id: string; name: Record<string, string> }[] | undefined,
-  layerId: string | null,
-  locale: string,
-  fallback: string,
-): string {
-  const name = layers?.find((layer) => layer.id === layerId)?.name;
-  if (name === undefined) return fallback;
-  const preferred = locale.startsWith('zh') ? name.zh : name.en;
-  const label = (preferred ?? name.zh ?? name.en ?? Object.values(name)[0] ?? '').trim();
-  return label.length > 0 ? label : fallback;
+  props.onEditBody(key, event.target.value, unit.text);
 }

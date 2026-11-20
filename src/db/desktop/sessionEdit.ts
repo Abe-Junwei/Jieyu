@@ -399,12 +399,13 @@ function unitFromTree(tree: RemovedUnit): Unit {
   return {
     id: tree.unit.id,
     layerId: tree.unit.layer_id,
+    textLayerId: tree.unit.layer_id,
     speakerId: tree.unit.speaker_id,
     parentUnitId: tree.unit.parent_unit_id,
     startMs: tree.unit.start_ms,
     endMs: tree.unit.end_ms,
     text,
-    textId: tree.texts.find((row) => row.role === 'transcription')?.id ?? '',
+    textId: tree.texts.find((row) => row.role === 'transcription')?.id ?? null,
     createdAt: tree.unit.created_at,
     updatedAt: tree.unit.updated_at,
   };

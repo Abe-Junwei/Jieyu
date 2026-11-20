@@ -166,6 +166,7 @@ describe('DesktopProjectReadPage', () => {
         }
         if (method === 'notes.list') return Promise.resolve([]);
         if (
+          method === 'layers.listLinks' ||
           method === 'speakers.list' ||
           method === 'catalog.listLanguages' ||
           method === 'bridges.list' ||

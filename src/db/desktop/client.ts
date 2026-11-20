@@ -108,6 +108,8 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once(sessionId, 'media.showReminder', { id }),
     listLayers: (sessionId: string, manuscriptId: string) =>
       once(sessionId, 'layers.list', { manuscriptId }),
+    listLayerLinks: (sessionId: string, manuscriptId: string) =>
+      once(sessionId, 'layers.listLinks', { manuscriptId }),
     listUnits: (sessionId: string, layerId: string) => once(sessionId, 'units.list', { layerId }),
     queryCorpus: (
       sessionId: string,
@@ -125,20 +127,20 @@ export function createDesktopClient(bridge: DesktopBridge) {
     ) => once(sessionId, 'corpus.query', input),
     updateUnitText: (
       sessionId: string,
-      input: { unitId: string; text: string; operationId?: string },
+      input: { unitId: string; textLayerId?: string; text: string; operationId?: string },
     ) => once(sessionId, 'units.updateText', input),
-    readTextDraft: (sessionId: string, unitId: string) =>
-      once(sessionId, 'units.readTextDraft', { unitId }),
+    readTextDraft: (sessionId: string, unitId: string, textLayerId?: string) =>
+      once(sessionId, 'units.readTextDraft', layerScoped(unitId, textLayerId)),
     inspectTextSave: (
       sessionId: string,
-      input: { operationId: string; unitId: string; text: string },
+      input: { operationId: string; unitId: string; textLayerId?: string; text: string },
     ) => once(sessionId, 'units.inspectTextSave', input),
     putTextDraft: (
       sessionId: string,
-      input: { unitId: string; rawInput: string; baseBody: string },
+      input: { unitId: string; textLayerId?: string; rawInput: string; baseBody: string },
     ) => once(sessionId, 'units.putTextDraft', input),
-    discardTextDraft: (sessionId: string, unitId: string) =>
-      once(sessionId, 'units.discardTextDraft', { unitId }),
+    discardTextDraft: (sessionId: string, unitId: string, textLayerId?: string) =>
+      once(sessionId, 'units.discardTextDraft', layerScoped(unitId, textLayerId)),
     undoUnitText: (sessionId: string) => once(sessionId, 'units.undoText', {}),
     undoStep: (sessionId: string, manuscriptId?: string) =>
       receipted(sessionId, 'units.undo', manuscriptId === undefined ? {} : { manuscriptId }),
@@ -454,4 +456,8 @@ export function createDesktopClient(bridge: DesktopBridge) {
     removeAttachmentLink: (sessionId: string, linkId: string) =>
       once(sessionId, 'attachments.removeLink', { linkId }),
   };
+}
+
+function layerScoped(unitId: string, textLayerId?: string): { unitId: string; textLayerId?: string } {
+  return textLayerId === undefined ? { unitId } : { unitId, textLayerId };
 }

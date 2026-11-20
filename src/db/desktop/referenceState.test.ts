@@ -250,7 +250,7 @@ function seedUnit(db: InstanceType<typeof Database>): void {
     'INSERT INTO units (id, layer_id, start_ms, end_ms, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?)',
   ).run('u1', 'ly1', 0, 1, T, T);
   db.prepare(
-    `INSERT INTO unit_texts (id, unit_id, role, body, updated_at) VALUES (?, ?, 'transcription', ?, ?)`,
+    `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at) VALUES (?, ?, 'ly1', 'transcription', ?, ?)`,
   ).run('tx1', 'u1', 'ka', T);
   db.prepare(
     `INSERT INTO tokens (

@@ -119,12 +119,15 @@ interface CandidateRow {
 
 const MATERIAL = `
 SELECT units.analysis_graph_json, units.analysis_generation, units.graph_fingerprint,
-       unit_texts.body AS text, manuscripts.id AS manuscript_id,
+       COALESCE(unit_texts.body, '') AS text, manuscripts.id AS manuscript_id,
        manuscripts.generation AS manuscript_generation
 FROM units
 JOIN layers ON layers.id = units.layer_id
 JOIN manuscripts ON manuscripts.id = layers.manuscript_id
-JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
+LEFT JOIN unit_texts
+  ON unit_texts.unit_id = units.id
+ AND unit_texts.layer_id = units.layer_id
+ AND unit_texts.role = 'transcription'
 WHERE units.id = ?
 `;
 
