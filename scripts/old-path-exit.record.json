@@ -73,7 +73,45 @@
       "oldTests": ["src/pages/HomePage.test.tsx"],
       "replacement": ["src/pages/DesktopProjectReadPage.tsx"],
       "desktopTests": [],
-      "decision": ""
+      "decision": "",
+      "subFeatures": [
+        {
+          "id": "project-open",
+          "name": "打开项目并选择文稿",
+          "owner": "ported",
+          "ref": "src/pages/DesktopProjectReadPage.tsx"
+        },
+        {
+          "id": "project-language-lists",
+          "name": "项目语言列表",
+          "owner": "3b",
+          "ref": "ADR-0134 §5"
+        },
+        {
+          "id": "project-file-browser",
+          "name": "项目文件浏览器",
+          "owner": "1d",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "project-overview",
+          "name": "项目概览（录音数、时长、文稿统计）",
+          "owner": "1d",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "project-delete",
+          "name": "删除项目与已删除列表",
+          "owner": "7",
+          "ref": "docs/execution/specs/desktop-project-deletion/requirements.md"
+        },
+        {
+          "id": "removed-cloud-projects",
+          "name": "已移除的云项目",
+          "owner": "C4",
+          "ref": "ADR-0134 §7"
+        }
+      ]
     },
     {
       "id": "transcription",
@@ -82,7 +120,201 @@
       "oldTests": ["src/pages/TranscriptionPage.desktopRoute.test.tsx"],
       "replacement": ["src/pages/DesktopTranscriptionWorkspacePage.tsx"],
       "desktopTests": [],
-      "decision": ""
+      "decision": "",
+      "subFeatures": [
+        {
+          "id": "audio-import",
+          "name": "导入录音",
+          "owner": "ported",
+          "ref": "src/desktop/importDesktopRecording.ts"
+        },
+        {
+          "id": "main-recording",
+          "name": "应用内录主录音",
+          "owner": "#285",
+          "ref": "ADR-0134 §2"
+        },
+        {
+          "id": "video-playback",
+          "name": "视频导入与播放",
+          "owner": "#285",
+          "ref": "ADR-0134 §2"
+        },
+        {
+          "id": "waveform",
+          "name": "波形时间轴",
+          "owner": "1b",
+          "ref": "docs/execution/specs/desktop-4ws-slice1b-transcription-editing/tasks.md"
+        },
+        {
+          "id": "playback",
+          "name": "播放、暂停与定位",
+          "owner": "1b",
+          "ref": "docs/execution/specs/desktop-4ws-slice1b-transcription-editing/tasks.md"
+        },
+        {
+          "id": "spectrogram",
+          "name": "频谱视图",
+          "owner": "1c",
+          "ref": "ADR-0134 §2"
+        },
+        {
+          "id": "playback-speed-loop",
+          "name": "播放变速与循环选区",
+          "owner": "1c",
+          "ref": "ADR-0134 §2"
+        },
+        {
+          "id": "jkl-shuttle",
+          "name": "J/K/L 穿梭播放",
+          "owner": "1c",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "vertical-paired-view",
+          "name": "纵向对读视图",
+          "owner": "1c",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "segment-create",
+          "name": "手动建段",
+          "owner": "1b",
+          "ref": "docs/execution/specs/desktop-4ws-slice1b-transcription-editing/tasks.md"
+        },
+        {
+          "id": "split-merge",
+          "name": "拆段与合段",
+          "owner": "1b",
+          "ref": "docs/execution/specs/desktop-4ws-slice1b-transcription-editing/tasks.md"
+        },
+        {
+          "id": "vad-autosegment",
+          "name": "自动分段（FR-072）",
+          "owner": "1b",
+          "ref": "docs/execution/specs/desktop-4ws-slice1b-transcription-editing/tasks.md"
+        },
+        {
+          "id": "text-edit",
+          "name": "转写正文编辑",
+          "owner": "ported",
+          "ref": "src/pages/DesktopTranscriptionWorkspacePage.tsx"
+        },
+        {
+          "id": "translation-edit",
+          "name": "翻译层录入",
+          "owner": "1b",
+          "ref": "docs/execution/specs/desktop-4ws-slice1b-transcription-editing/tasks.md"
+        },
+        {
+          "id": "layer-management",
+          "name": "新建、编辑、删除、排序层",
+          "owner": "1b",
+          "ref": "docs/execution/specs/desktop-4ws-slice1b-transcription-editing/tasks.md"
+        },
+        {
+          "id": "translation-host-link",
+          "name": "翻译层与宿主层关联",
+          "owner": "1b",
+          "ref": "docs/execution/specs/desktop-4ws-slice1b-transcription-editing/tasks.md"
+        },
+        {
+          "id": "speaker-management",
+          "name": "说话人管理与分配",
+          "owner": "1b",
+          "ref": "docs/execution/specs/desktop-4ws-slice1b-transcription-editing/tasks.md"
+        },
+        {
+          "id": "batch-ops",
+          "name": "多选批量操作",
+          "owner": "1b",
+          "ref": "docs/execution/specs/desktop-4ws-slice1b-transcription-editing/tasks.md"
+        },
+        {
+          "id": "lasso-selection",
+          "name": "套索多选",
+          "owner": "1b",
+          "ref": "docs/execution/specs/desktop-4ws-slice1b-transcription-editing/design.md"
+        },
+        {
+          "id": "context-menu",
+          "name": "右键菜单",
+          "owner": "1b",
+          "ref": "docs/execution/specs/desktop-4ws-slice1b-transcription-editing/tasks.md"
+        },
+        {
+          "id": "undo-redo",
+          "name": "撤销与重做",
+          "owner": "1b",
+          "ref": "docs/execution/specs/desktop-4ws-slice1b-transcription-editing/tasks.md"
+        },
+        {
+          "id": "undo-history-panel",
+          "name": "撤销历史面板",
+          "owner": "1d",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "notes",
+          "name": "语段备注",
+          "owner": "1b",
+          "ref": "docs/execution/specs/desktop-4ws-slice1b-transcription-editing/tasks.md"
+        },
+        {
+          "id": "self-certainty",
+          "name": "确信度标记",
+          "owner": "1b",
+          "ref": "docs/execution/specs/desktop-4ws-slice1b-transcription-editing/tasks.md"
+        },
+        {
+          "id": "interpreter-track",
+          "name": "口译轨",
+          "owner": "1b",
+          "ref": "docs/execution/specs/desktop-4ws-slice1b-transcription-editing/tasks.md"
+        },
+        {
+          "id": "layer-metadata",
+          "name": "层元数据（治理、互通、结构）",
+          "owner": "1d",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "unit-record-fields",
+          "name": "语段记录字段",
+          "owner": "1d",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "search-replace",
+          "name": "查找替换",
+          "owner": "4",
+          "ref": "ADR-0134 §4"
+        },
+        {
+          "id": "recovery-banner",
+          "name": "恢复提示",
+          "owner": "6",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "snapshot-restore",
+          "name": "快照恢复",
+          "owner": "6",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "acoustic-panel",
+          "name": "声学面板（含基频与共振峰读数）",
+          "owner": "#285",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "pdf-viewer",
+          "name": "工作台内 PDF 查看",
+          "owner": "drop",
+          "ref": "ADR-0134 §6"
+        }
+      ]
     },
     {
       "id": "annotation",
@@ -91,7 +323,81 @@
       "oldTests": ["src/pages/AnnotationPage.test.tsx"],
       "replacement": ["src/pages/DesktopAnnotationPage.tsx"],
       "desktopTests": [],
-      "decision": ""
+      "decision": "",
+      "subFeatures": [
+        {
+          "id": "igt-workspace",
+          "name": "IGT 标注工作区",
+          "owner": "2",
+          "ref": "ADR-0134 §3"
+        },
+        {
+          "id": "tokenize",
+          "name": "切词",
+          "owner": "2",
+          "ref": "ADR-0134 §3"
+        },
+        {
+          "id": "morpheme-gloss",
+          "name": "语素切分与 gloss",
+          "owner": "2",
+          "ref": "ADR-0134 §3"
+        },
+        {
+          "id": "pos-tag",
+          "name": "词性标记",
+          "owner": "2",
+          "ref": "ADR-0134 §3"
+        },
+        {
+          "id": "autogloss",
+          "name": "AutoGloss 预览采纳",
+          "owner": "2",
+          "ref": "ADR-0134 §3"
+        },
+        {
+          "id": "structure-validation",
+          "name": "结构校验面板",
+          "owner": "2",
+          "ref": "ADR-0134 §3"
+        },
+        {
+          "id": "playback-notes",
+          "name": "标注页播放与备注",
+          "owner": "2",
+          "ref": "ADR-0134 §3"
+        },
+        {
+          "id": "pos-abbreviation-templates",
+          "name": "词性与缩写模板",
+          "owner": "2",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "annotation-documents",
+          "name": "标注文稿新建、重命名、删除",
+          "owner": "2",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "export-current-sentence",
+          "name": "导出当前句",
+          "owner": "6",
+          "ref": "ADR-0134 §3"
+        },
+        {
+          "id": "sentence-acoustic-figure",
+          "name": "句级声学图",
+          "owner": "#285",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "import-mismatch",
+          "name": "标注导入层级不匹配处理",
+          "owner": "6",
+          "ref": "docs/execution/specs/desktop-file-formats/design.md"
+        }
+      ]
     },
     {
       "id": "analysis",
@@ -100,7 +406,33 @@
       "oldTests": ["src/pages/AnalysisPage.test.tsx"],
       "replacement": ["src/pages/DesktopAnalysisPage.tsx"],
       "desktopTests": [],
-      "decision": ""
+      "decision": "",
+      "subFeatures": [
+        {
+          "id": "workspace",
+          "name": "分析页",
+          "owner": "ported",
+          "ref": "src/pages/DesktopAnalysisPage.tsx"
+        },
+        {
+          "id": "charts",
+          "name": "统计图表",
+          "owner": "#285",
+          "ref": "ADR-0134 §4"
+        },
+        {
+          "id": "acoustic-inspector",
+          "name": "声学检查器",
+          "owner": "#285",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "completeness-diagnostics",
+          "name": "完整度诊断",
+          "owner": "#285",
+          "ref": "ADR-0134 §4"
+        }
+      ]
     },
     {
       "id": "corpus",
@@ -109,7 +441,51 @@
       "oldTests": ["src/pages/CorpusLibraryPage.test.tsx"],
       "replacement": ["src/pages/DesktopCorpusPage.tsx"],
       "desktopTests": [],
-      "decision": ""
+      "decision": "",
+      "subFeatures": [
+        {
+          "id": "browse",
+          "name": "语料浏览",
+          "owner": "ported",
+          "ref": "src/pages/DesktopCorpusPage.tsx"
+        },
+        {
+          "id": "search",
+          "name": "语料检索",
+          "owner": "4",
+          "ref": "docs/execution/specs/desktop-professional-query/requirements.md"
+        },
+        {
+          "id": "working-set",
+          "name": "语料工作集",
+          "owner": "4",
+          "ref": "docs/execution/specs/desktop-professional-query/requirements.md"
+        },
+        {
+          "id": "kwic",
+          "name": "KWIC",
+          "owner": "4",
+          "ref": "ADR-0134 §4"
+        },
+        {
+          "id": "morpheme-paradigm",
+          "name": "语素范式",
+          "owner": "4",
+          "ref": "ADR-0134 §4"
+        },
+        {
+          "id": "counterexample",
+          "name": "反例查找",
+          "owner": "4",
+          "ref": "ADR-0134 §4"
+        },
+        {
+          "id": "stats-report",
+          "name": "语料统计报告",
+          "owner": "#285",
+          "ref": "ADR-0134 §4"
+        }
+      ]
     },
     {
       "id": "lexicon",
@@ -118,7 +494,39 @@
       "oldTests": ["src/pages/LexiconPage.test.tsx"],
       "replacement": ["src/pages/DesktopLexiconPage.tsx"],
       "desktopTests": [],
-      "decision": ""
+      "decision": "",
+      "subFeatures": [
+        {
+          "id": "browse-search",
+          "name": "词条浏览与查找",
+          "owner": "ported",
+          "ref": "src/pages/DesktopLexiconPage.tsx"
+        },
+        {
+          "id": "entry-edit",
+          "name": "词条完整编辑",
+          "owner": "3",
+          "ref": "docs/execution/specs/desktop-lexicon-complete-editor/requirements.md"
+        },
+        {
+          "id": "attachments",
+          "name": "词条附件",
+          "owner": "3",
+          "ref": "docs/execution/specs/desktop-lexicon-complete-editor/requirements.md"
+        },
+        {
+          "id": "citations-jump",
+          "name": "义项引用与跳转",
+          "owner": "3",
+          "ref": "docs/execution/specs/desktop-lexicon-complete-editor/requirements.md"
+        },
+        {
+          "id": "token-lexeme-link",
+          "name": "标注词与词条关联",
+          "owner": "3",
+          "ref": "docs/execution/specs/desktop-lexicon-complete-editor/requirements.md"
+        }
+      ]
     },
     {
       "id": "language-metadata",
@@ -127,7 +535,51 @@
       "oldTests": ["src/pages/LanguageMetadataWorkspacePage.test.tsx"],
       "replacement": ["src/pages/DesktopCatalogPage.tsx"],
       "desktopTests": [],
-      "decision": ""
+      "decision": "",
+      "subFeatures": [
+        {
+          "id": "metadata-edit",
+          "name": "语言名称、别名与基本资料",
+          "owner": "3b",
+          "ref": "ADR-0134 §5"
+        },
+        {
+          "id": "search-suggest",
+          "name": "语言搜索建议",
+          "owner": "3b",
+          "ref": "ADR-0134 §5"
+        },
+        {
+          "id": "iso-lookup",
+          "name": "ISO 639-3 查找",
+          "owner": "3b",
+          "ref": "ADR-0134 §5"
+        },
+        {
+          "id": "geography-map",
+          "name": "地理信息与地图",
+          "owner": "3b",
+          "ref": "ADR-0134 §5"
+        },
+        {
+          "id": "administrative-division",
+          "name": "行政区划选择",
+          "owner": "3b",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "history",
+          "name": "语言历史",
+          "owner": "3b",
+          "ref": "ADR-0134 §5"
+        },
+        {
+          "id": "custom-fields",
+          "name": "语言目录自定义字段",
+          "owner": "3b",
+          "ref": "ADR-0134 §9"
+        }
+      ]
     },
     {
       "id": "orthography",
@@ -136,7 +588,33 @@
       "oldTests": ["src/pages/OrthographyManagerPage.test.tsx"],
       "replacement": ["src/pages/DesktopCatalogPage.tsx"],
       "desktopTests": [],
-      "decision": ""
+      "decision": "",
+      "subFeatures": [
+        {
+          "id": "manage",
+          "name": "正字法新建、编辑与删除",
+          "owner": "3b",
+          "ref": "ADR-0134 §5"
+        },
+        {
+          "id": "character-variants",
+          "name": "字符变体",
+          "owner": "3b",
+          "ref": "ADR-0134 §5"
+        },
+        {
+          "id": "input-assist",
+          "name": "输入辅助",
+          "owner": "3b",
+          "ref": "ADR-0134 §5"
+        },
+        {
+          "id": "conversion-rules",
+          "name": "正字法转换规则",
+          "owner": "3b",
+          "ref": "ADR-0134 §9"
+        }
+      ]
     },
     {
       "id": "orthography-bridge",
@@ -145,7 +623,15 @@
       "oldTests": ["src/pages/OrthographyBridgeWorkspacePage.test.tsx"],
       "replacement": ["src/pages/DesktopCatalogPage.tsx"],
       "desktopTests": [],
-      "decision": ""
+      "decision": "",
+      "subFeatures": [
+        {
+          "id": "bridge-manage",
+          "name": "正字法桥",
+          "owner": "3b",
+          "ref": "ADR-0134 §9"
+        }
+      ]
     },
     {
       "id": "structural-profile",
@@ -154,7 +640,357 @@
       "oldTests": ["src/pages/StructuralProfileWorkspacePage.test.tsx"],
       "replacement": ["src/pages/DesktopCatalogPage.tsx"],
       "desktopTests": [],
-      "decision": ""
+      "decision": "",
+      "subFeatures": [
+        {
+          "id": "profile-sandbox",
+          "name": "结构档案与沙箱",
+          "owner": "2",
+          "ref": "ADR-0134 §7"
+        }
+      ]
+    },
+    {
+      "id": "ai-assistant",
+      "status": "planned",
+      "paths": ["src/components/ai/AiChatCard.tsx"],
+      "oldTests": [],
+      "replacement": [],
+      "desktopTests": [],
+      "decision": "",
+      "subFeatures": [
+        {
+          "id": "chat",
+          "name": "对话",
+          "owner": "5b",
+          "ref": "ADR-0134 §1"
+        },
+        {
+          "id": "conversations",
+          "name": "会话管理",
+          "owner": "5b",
+          "ref": "ADR-0134 §1"
+        },
+        {
+          "id": "tool-calls",
+          "name": "工具调用（语段、层、导航、查询）",
+          "owner": "5b",
+          "ref": "ADR-0134 §1"
+        },
+        {
+          "id": "proposals-preview",
+          "name": "批量提案与写入预览",
+          "owner": "5b",
+          "ref": "ADR-0134 §1"
+        },
+        {
+          "id": "qa-reflection",
+          "name": "质量反思",
+          "owner": "5b",
+          "ref": "ADR-0134 §1"
+        },
+        {
+          "id": "evidence-jump",
+          "name": "证据跳转",
+          "owner": "5b",
+          "ref": "ADR-0134 §1"
+        },
+        {
+          "id": "source-set",
+          "name": "来源集",
+          "owner": "5b",
+          "ref": "ADR-0134 §1"
+        },
+        {
+          "id": "rag",
+          "name": "嵌入检索",
+          "owner": "5b",
+          "ref": "ADR-0134 §1"
+        },
+        {
+          "id": "provider-config",
+          "name": "提供商配置",
+          "owner": "5b",
+          "ref": "ADR-0134 §1"
+        },
+        {
+          "id": "session-memory",
+          "name": "会话记忆与指令",
+          "owner": "5b",
+          "ref": "ADR-0134 §1"
+        },
+        {
+          "id": "mcp-trust",
+          "name": "MCP 外部证据信任设置",
+          "owner": "5b",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "dev-tools",
+          "name": "AI 开发工具组",
+          "owner": "5b",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "observer-status",
+          "name": "观察者状态",
+          "owner": "5b",
+          "ref": "ADR-0134 §1"
+        },
+        {
+          "id": "adoption-queue",
+          "name": "建议采纳队列",
+          "owner": "5a",
+          "ref": "ADR-0134 §1"
+        }
+      ]
+    },
+    {
+      "id": "voice",
+      "status": "planned",
+      "paths": ["src/components/VoiceAgentWidget.tsx"],
+      "oldTests": [],
+      "replacement": [],
+      "desktopTests": [],
+      "decision": "",
+      "subFeatures": [
+        {
+          "id": "dictation",
+          "name": "听写",
+          "owner": "5b",
+          "ref": "ADR-0134 §1"
+        },
+        {
+          "id": "voice-panel",
+          "name": "语音面板",
+          "owner": "5b",
+          "ref": "ADR-0134 §1"
+        },
+        {
+          "id": "stt-engines",
+          "name": "语音识别引擎",
+          "owner": "5b",
+          "ref": "docs/execution/specs/desktop-local-whisper/requirements.md"
+        },
+        {
+          "id": "voice-commands",
+          "name": "语音命令",
+          "owner": "#285",
+          "ref": "ADR-0134 §1"
+        },
+        {
+          "id": "wake-word",
+          "name": "唤醒词",
+          "owner": "#285",
+          "ref": "ADR-0134 §1"
+        },
+        {
+          "id": "tts",
+          "name": "语音播报",
+          "owner": "#285",
+          "ref": "ADR-0134 §1"
+        }
+      ]
+    },
+    {
+      "id": "import-export",
+      "status": "planned",
+      "paths": ["src/services/eaf/eafImport.ts"],
+      "oldTests": [],
+      "replacement": [],
+      "desktopTests": [],
+      "decision": "",
+      "subFeatures": [
+        {
+          "id": "eaf",
+          "name": "EAF 导入导出",
+          "owner": "6",
+          "ref": "docs/execution/specs/desktop-file-formats/design.md"
+        },
+        {
+          "id": "eaf-tier-roles",
+          "name": "EAF 层角色",
+          "owner": "6",
+          "ref": "docs/execution/specs/desktop-file-formats/design.md"
+        },
+        {
+          "id": "textgrid",
+          "name": "TextGrid 导入导出",
+          "owner": "6",
+          "ref": "docs/execution/specs/desktop-file-formats/design.md"
+        },
+        {
+          "id": "toolbox-flex",
+          "name": "Toolbox 与 FLEx 交换",
+          "owner": "6",
+          "ref": "docs/execution/specs/desktop-file-formats/design.md"
+        },
+        {
+          "id": "project-package",
+          "name": "JYM/JYT 项目包",
+          "owner": "6",
+          "ref": "docs/execution/specs/desktop-file-formats/design.md"
+        },
+        {
+          "id": "jyb-backup",
+          "name": "JYB 备份导入",
+          "owner": "drop",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "backup-folder",
+          "name": "备份目录",
+          "owner": "drop",
+          "ref": "docs/execution/specs/desktop-legacy-isolation/tasks.md"
+        }
+      ]
+    },
+    {
+      "id": "settings",
+      "status": "planned",
+      "paths": ["src/components/SettingsModal.tsx"],
+      "oldTests": [],
+      "replacement": [],
+      "desktopTests": [],
+      "decision": "",
+      "subFeatures": [
+        {
+          "id": "appearance",
+          "name": "外观与字号",
+          "owner": "7",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "local-fonts",
+          "name": "本地字体",
+          "owner": "7",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "ui-language",
+          "name": "界面语言",
+          "owner": "7",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "shortcuts",
+          "name": "快捷键查看与自定义",
+          "owner": "7",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "about",
+          "name": "关于",
+          "owner": "7",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "playback-defaults",
+          "name": "默认播放设置",
+          "owner": "1c",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "data-backup",
+          "name": "数据与备份设置",
+          "owner": "6",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "storage-diagnostics",
+          "name": "存储诊断",
+          "owner": "7",
+          "ref": "ADR-0134 §9"
+        }
+      ]
+    },
+    {
+      "id": "collaboration",
+      "status": "planned",
+      "paths": ["src/components/transcription/CollaborationCloudPanel.tsx"],
+      "oldTests": [],
+      "replacement": [],
+      "desktopTests": [],
+      "decision": "",
+      "subFeatures": [
+        {
+          "id": "cloud-panel",
+          "name": "云协作面板",
+          "owner": "C4",
+          "ref": "ADR-0134 §7"
+        },
+        {
+          "id": "sync-status",
+          "name": "同步状态",
+          "owner": "C4",
+          "ref": "ADR-0134 §7"
+        },
+        {
+          "id": "presence",
+          "name": "在线成员",
+          "owner": "C4",
+          "ref": "ADR-0134 §7"
+        },
+        {
+          "id": "conflict-review",
+          "name": "冲突审核",
+          "owner": "C4",
+          "ref": "ADR-0134 §7"
+        },
+        {
+          "id": "lifecycle-notices",
+          "name": "协作状态提示",
+          "owner": "C4",
+          "ref": "ADR-0134 §7"
+        }
+      ]
+    },
+    {
+      "id": "app-shell",
+      "status": "planned",
+      "paths": ["src/App.tsx"],
+      "oldTests": [],
+      "replacement": [],
+      "desktopTests": [],
+      "decision": "",
+      "subFeatures": [
+        {
+          "id": "navigation",
+          "name": "页面导航与侧栏",
+          "owner": "ported",
+          "ref": "src/pages/desktopShellNav.ts"
+        },
+        {
+          "id": "offline-banner",
+          "name": "离线横幅",
+          "owner": "drop",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "dev-banner",
+          "name": "开发横幅",
+          "owner": "drop",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "error-aggregation",
+          "name": "错误汇总面板",
+          "owner": "drop",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "feature-availability",
+          "name": "功能可用性面板",
+          "owner": "drop",
+          "ref": "ADR-0134 §9"
+        },
+        {
+          "id": "dexie-overlays",
+          "name": "Dexie 迁移、重置与完整性遮罩",
+          "owner": "drop",
+          "ref": "ADR-0134 §9"
+        }
+      ]
     }
   ]
 }

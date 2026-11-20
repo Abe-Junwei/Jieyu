@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — .mjs guard script without type declarations
-import { featureViolations, legacyRouteGaps } from './check-old-path-exit.mjs';
+import { featureViolations, legacyRouteGaps, subFeatureViolations } from './check-old-path-exit.mjs';
 
 const present = () => true;
 
@@ -76,5 +76,35 @@ describe('old path feature ledger', () => {
     expect(legacyRouteGaps(record)).toContain('old-path record has surfaces');
     expect(legacyRouteGaps(record)).toContain('desktop-routes missing src/pages/TranscriptionPage.tsx');
     expect(legacyRouteGaps(record)).toContain('feature missing src/pages/TranscriptionPage.tsx');
+  });
+
+  it('rejects legacy sub-features without an owner or a ref', () => {
+    const withSubs = (subFeatures: unknown[]) => [{ id: 'home', subFeatures }];
+    expect(subFeatureViolations([{ id: 'home' }], present)).toEqual(['home lists no sub-features']);
+    expect(
+      subFeatureViolations(
+        withSubs([
+          { id: 'a', name: 'A', ref: 'ADR-0134' },
+          { id: 'b', name: 'B', owner: 'later', ref: 'ADR-0134' },
+          { id: 'c', name: 'C', owner: '1c', ref: '' },
+          { id: 'c', name: 'C', owner: '#285', ref: 'ADR-0134' },
+        ]),
+        present,
+      ),
+    ).toEqual(['home/a has no owner', 'home/b has no owner', 'home/c has no ref', 'home/c is listed twice']);
+    expect(
+      subFeatureViolations(withSubs([{ id: 'd', name: 'D', owner: 'ported', ref: 'src/pages/Gone.tsx' }]), () => false),
+    ).toEqual(['home/d ported to missing src/pages/Gone.tsx']);
+    expect(
+      subFeatureViolations(withSubs([{ id: 'd2', name: 'D2', owner: 'ported', ref: 'docs/adr/0134.md' }]), present),
+    ).toEqual(['home/d2 ported to missing docs/adr/0134.md']);
+    expect(
+      subFeatureViolations(
+        withSubs([{ id: 'f', name: 'F', owner: '1b', ref: 'docs/execution/specs/gone/requirements.md' }]),
+        () => false,
+      ),
+    ).toEqual(['home/f points to missing docs/execution/specs/gone/requirements.md']);
+    expect(subFeatureViolations(withSubs([null]), present)).toEqual(['home/(unnamed) has no owner']);
+    expect(subFeatureViolations(withSubs([{ id: 'e', name: 'E', owner: 'drop', ref: 'ADR-0134 §6' }]), present)).toEqual([]);
   });
 });

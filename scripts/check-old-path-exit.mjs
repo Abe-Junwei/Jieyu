@@ -6,6 +6,8 @@ const root = process.cwd();
 const recordPath = 'scripts/old-path-exit.record.json';
 const surfaces = ['production', 'scripts', 'ci', 'e2e', 'keep'];
 const featureStatuses = ['planned', 'in-progress', 'ported', 'dropped'];
+// ADR-0134 §8: every legacy sub-feature names a slice, #285, C4, a drop, or the desktop file that already took it over.
+const subFeatureOwners = ['1b', '1c', '1d', '2', '3', '3b', '4', '5a', '5b', '6', '7', '#285', 'C4', 'drop', 'ported'];
 const legacyRoutePages = [
   'src/pages/HomePage.tsx',
   'src/pages/TranscriptionPage.tsx',
@@ -96,6 +98,10 @@ export function featureViolations(features, exists) {
   if (!Array.isArray(features)) return ['old-path features are missing'];
   const violations = [];
   for (const feature of features) {
+    if (typeof feature !== 'object' || feature === null) {
+      violations.push('(unnamed) has a missing feature field');
+      continue;
+    }
     const id = typeof feature.id === 'string' && feature.id.length > 0 ? feature.id : '(unnamed)';
     if (!featureStatuses.includes(feature.status)) violations.push(`${id} has no feature status`);
     const paths = namedList(feature.paths);
@@ -125,6 +131,44 @@ export function featureViolations(features, exists) {
     if (feature.status === 'dropped') {
       if (feature.decision === '') violations.push(`${id} dropped without decision`);
       if (replacement.length > 0 || desktopTests.length > 0) violations.push(`${id} dropped with a port`);
+    }
+  }
+  return violations;
+}
+
+export function subFeatureViolations(features, exists) {
+  if (!Array.isArray(features)) return [];
+  const violations = [];
+  const seen = new Set();
+  for (const feature of features) {
+    if (typeof feature !== 'object' || feature === null) continue;
+    const featureId = typeof feature.id === 'string' && feature.id.length > 0 ? feature.id : '(unnamed)';
+    if (!Array.isArray(feature.subFeatures) || feature.subFeatures.length === 0) {
+      violations.push(`${featureId} lists no sub-features`);
+      continue;
+    }
+    for (const sub of feature.subFeatures) {
+      if (typeof sub !== 'object' || sub === null) {
+        violations.push(`${featureId}/(unnamed) has no owner`);
+        continue;
+      }
+      const id = `${featureId}/${typeof sub.id === 'string' && sub.id.length > 0 ? sub.id : '(unnamed)'}`;
+      if (seen.has(id)) violations.push(`${id} is listed twice`);
+      seen.add(id);
+      if (typeof sub.name !== 'string' || sub.name.length === 0) violations.push(`${id} has no name`);
+      if (!subFeatureOwners.includes(sub.owner)) {
+        violations.push(`${id} has no owner`);
+        continue;
+      }
+      if (typeof sub.ref !== 'string' || sub.ref.length === 0) {
+        violations.push(`${id} has no ref`);
+      } else if (sub.owner === 'ported') {
+        if (!/^(?:src|electron)\//.test(sub.ref) || !safeName(sub.ref) || !exists(sub.ref)) {
+          violations.push(`${id} ported to missing ${sub.ref}`);
+        }
+      } else if (!/^ADR-\d{4}\b/.test(sub.ref) && (!safeName(sub.ref) || !exists(sub.ref))) {
+        violations.push(`${id} points to missing ${sub.ref}`);
+      }
     }
   }
   return violations;
@@ -257,6 +301,7 @@ function main() {
   const violations = [
     ...oldPathExitViolations(record, exists, (name) => fs.readFileSync(path.join(root, name), 'utf8')),
     ...featureViolations(record.features, exists),
+    ...subFeatureViolations(record.features, exists),
     ...legacyRouteGaps(record),
   ];
   if (violations.length > 0) {
