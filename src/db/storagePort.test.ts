@@ -9,8 +9,8 @@ import type {
   SegmentMetaDocType,
   SourceRecordDocType,
 } from './types';
+import { dexieStoragePort } from './dexieStoragePort';
 import {
-  dexieStoragePort,
   installStoragePort,
   recordingRemovalBlockReason,
   StorageReadbackError,
@@ -89,6 +89,12 @@ describe('dexie storage port', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     installStoragePort(dexieStoragePort);
+  });
+
+  it('throws when nothing is installed', async () => {
+    vi.resetModules();
+    const fresh = await import('./storagePort');
+    expect(() => fresh.storagePort()).toThrow('storagePort is not installed');
   });
 
   it('rolls back a newly created speaker when mixed assignment roster write fails', async () => {

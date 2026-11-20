@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { installSqliteIpcPortIfEnabled } from './installSqliteIpcPort';
 import { createIpcStoragePort } from './ipcStoragePort';
-import { dexieStoragePort, installStoragePort, storagePort } from './storagePort';
+import { dexieStoragePort } from './dexieStoragePort';
+import { installStoragePort, storagePort } from './storagePort';
 
 afterEach(() => {
   installStoragePort(dexieStoragePort);

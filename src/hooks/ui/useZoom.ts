@@ -95,6 +95,8 @@ export interface UseZoomInput {
   setZoomMode: React.Dispatch<React.SetStateAction<'fit-all' | 'fit-selection' | 'custom'>>;
   fitPxPerSec: number;
   maxZoomPercent: number;
+  /** Media-backed timelines pass 100: WaveSurfer cannot draw narrower than fit-all. */
+  minZoomPercent?: number;
   zoomPxPerSec: number;
   /** 纯文本壳层：无 WaveSurfer 时以文献秒为轴做缩放/平移，并同步刻度与波形桥 scroll 状态 */
   documentSpanSec?: number;
@@ -127,6 +129,7 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
     setZoomMode,
     fitPxPerSec,
     maxZoomPercent,
+    minZoomPercent = 0,
     zoomPxPerSec,
     documentSpanSec: documentSpanIn,
     onLogicalTimelineScrollSync,
@@ -153,7 +156,12 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
       const ws = playerInstanceRef.current;
       const tier = tierContainerRef.current;
       const canvas = waveCanvasRef.current;
-      const clamped = clampTimelineZoomPercent(newPercent, fitPxPerSec, maxZoomPercent);
+      const clamped = clampTimelineZoomPercent(
+        newPercent,
+        fitPxPerSec,
+        maxZoomPercent,
+        minZoomPercent,
+      );
       const newPxPerSec = Math.max(1, fitPxPerSec * (clamped / 100));
       const frac = anchorFraction ?? 0.5;
       const mediaDur = playerDuration || 0;
@@ -236,6 +244,7 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
       zoomPxPerSec,
       fitPxPerSec,
       maxZoomPercent,
+      minZoomPercent,
       playerIsReady,
       playerDuration,
       playerInstanceRef,
@@ -279,7 +288,12 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
             ...(minPxPerSec !== undefined ? { minPxPerSec } : {}),
           });
           const targetPercent = Math.round((ranged.pxPerSec / fitPxPerSec) * 100);
-          const clamped = clampTimelineZoomPercent(targetPercent, fitPxPerSec, maxZoomPercent);
+          const clamped = clampTimelineZoomPercent(
+            targetPercent,
+            fitPxPerSec,
+            maxZoomPercent,
+            minZoomPercent,
+          );
           const newPxPerSec = Math.max(1, fitPxPerSec * (clamped / 100));
           const anchorTime = ranged.alignStart ? startTime : (startTime + endTime) / 2;
           const anchorFraction = ranged.alignStart ? 0.04 : 0.5;
@@ -318,7 +332,12 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
           ...(minPxPerSec !== undefined ? { minPxPerSec } : {}),
         });
         const targetPercent = Math.round((ranged.pxPerSec / fitPxPerSec) * 100);
-        const clamped = clampTimelineZoomPercent(targetPercent, fitPxPerSec, maxZoomPercent);
+        const clamped = clampTimelineZoomPercent(
+          targetPercent,
+          fitPxPerSec,
+          maxZoomPercent,
+          minZoomPercent,
+        );
         const newPxPerSec = Math.max(1, fitPxPerSec * (clamped / 100));
         const anchorTime = ranged.alignStart ? startTime : (startTime + endTime) / 2;
         const anchorFraction = ranged.alignStart ? 0.04 : 0.5;
@@ -358,7 +377,12 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
         ...(minPxPerSec !== undefined ? { minPxPerSec } : {}),
       });
       const targetPercent = Math.round((ranged.pxPerSec / fitPxPerSec) * 100);
-      const clamped = clampTimelineZoomPercent(targetPercent, fitPxPerSec, maxZoomPercent);
+      const clamped = clampTimelineZoomPercent(
+        targetPercent,
+        fitPxPerSec,
+        maxZoomPercent,
+        minZoomPercent,
+      );
       const newPxPerSec = Math.max(1, fitPxPerSec * (clamped / 100));
       const anchorTime = ranged.alignStart ? startTime : (startTime + endTime) / 2;
       const anchorFraction = ranged.alignStart ? 0.04 : 0.5;
@@ -383,6 +407,7 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
       docSpanSec,
       fitPxPerSec,
       maxZoomPercent,
+      minZoomPercent,
       zoomPercent,
       playerIsReady,
       playerDuration,

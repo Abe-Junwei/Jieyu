@@ -579,6 +579,7 @@ export default defineConfig({
     setupFiles: [
       'src/zodJitlessBootstrap.ts',
       'src/test/vitestWebApiPolyfillsSetup.ts',
+      'src/test/vitestStoragePortSetup.ts',
       'src/test/vitestLocalStorageSetup.ts',
       'src/test/vitestJestDomSetup.ts',
       'src/test/vitestLanguageGeodataSetup.ts',
