@@ -1,7 +1,18 @@
-import type { CSSProperties, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
+import {
+  Fragment,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 import { TimelineAnnotationItem } from '../components/TimelineAnnotationItem';
 import type { Locale } from '../i18n';
 import { DesktopTranscriptionCreatePreview } from './DesktopTranscriptionCreatePreview';
+import {
+  DesktopTranscriptionFoldedStrip,
+  DesktopTranscriptionLayerLabel,
+} from './DesktopTranscriptionLayerLabel';
+import type { LayerTreeRow } from './desktopTranscriptionLayerTree';
 import type { TimedEdgeUnit } from './desktopTranscriptionEdge';
 import { desktopSegmentFrame } from './desktopTranscriptionEdgeView';
 import { textKey } from './desktopTranscriptionTextKey';
@@ -21,14 +32,19 @@ export interface LayerCardRef {
 }
 
 /**
- * The manuscript's other layers under the main row: one row each, by sort order. Cards of the
- * same time unit line up; text is that layer's own. Click selects, a second click edits, a drag
- * on the empty track creates there.
+ * The manuscript's layers as a tree (`tree` is the visible rows in order; the main layer's own
+ * row comes from `renderMain`). Cards of the same time unit line up; text is that layer's own.
+ * Click selects, a second click edits, a drag on the empty track creates there.
  */
 export function DesktopTranscriptionLayerRows(props: {
   locale: Locale;
   layers: readonly LayerRowLayer[];
+  tree: readonly LayerTreeRow[];
   mainLayerId: string | null;
+  renderMain: (row: LayerTreeRow) => ReactNode;
+  onToggleGroup: (layerId: string) => void;
+  onCollapse: (layerId: string) => void;
+  onExpand: (layerId: string) => void;
   duration: number;
   zoomPxPerSec: number;
   scrollLeftPx: number;
@@ -48,10 +64,24 @@ export function DesktopTranscriptionLayerRows(props: {
     units: readonly TimedEdgeUnit[],
   ) => void;
 }) {
-  const rows = props.layers
-    .filter((layer) => layer.id !== props.mainLayerId)
-    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-  return rows.map((layer) => {
+  const mainInTree = props.tree.some((row) => row.layerId === props.mainLayerId);
+  const mainRow: LayerTreeRow = {
+    layerId: props.mainLayerId ?? '',
+    depth: 0,
+    hostId: null,
+    childCount: 0,
+    lastChild: false,
+    groupCollapsed: false,
+    folded: false,
+    groove: 'none',
+  };
+  const rows = props.tree.flatMap((row) => {
+    const layer = props.layers.find((item) => item.id === row.layerId);
+    return layer ? [{ row, layer }] : [];
+  });
+  const body = rows.map(({ row, layer }) => {
+    if (layer.id === props.mainLayerId)
+      return <Fragment key={layer.id}>{props.renderMain(row)}</Fragment>;
     const units = layer.units.flatMap((unit) =>
       unit.startMs === null || unit.endMs === null
         ? []
@@ -69,9 +99,29 @@ export function DesktopTranscriptionLayerRows(props: {
       startMs: Math.round(unit.startTime * 1000),
       endMs: Math.round(unit.endTime * 1000),
     }));
+    const name = layerLabel(layer.name, props.locale, '');
+    if (row.folded) {
+      return (
+        <DesktopTranscriptionFoldedStrip
+          key={layer.id}
+          layerId={layer.id}
+          locale={props.locale}
+          name={name}
+          segmentCount={layer.units.length}
+          onExpand={() => props.onExpand(layer.id)}
+        />
+      );
+    }
     return (
       <div key={layer.id} className="desktop-tx-lane" data-layer-id={layer.id}>
-        <div className="desktop-tx-band-label">{layerLabel(layer.name, props.locale, '')}</div>
+        <DesktopTranscriptionLayerLabel
+          locale={props.locale}
+          name={name}
+          row={row}
+          focused={props.focus?.layerId === layer.id}
+          onToggleGroup={() => props.onToggleGroup(layer.id)}
+          onCollapse={() => props.onCollapse(layer.id)}
+        />
         <div
           className="desktop-tx-lane__body"
           ref={(body) => {
@@ -134,6 +184,12 @@ export function DesktopTranscriptionLayerRows(props: {
       </div>
     );
   });
+  return (
+    <>
+      {mainInTree ? null : props.renderMain(mainRow)}
+      {body}
+    </>
+  );
 }
 
 function ignore() {

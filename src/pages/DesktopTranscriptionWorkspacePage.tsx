@@ -25,6 +25,7 @@ import {
   getTranscriptionPlaybackClockSnapshot,
   subscribeTranscriptionPlaybackClock,
 } from '../hooks/transcription/transcriptionPlaybackClock';
+import { useDesktopLayerView } from './useDesktopLayerView';
 import { DesktopTranscriptionLane, type WaveCreate } from './DesktopTranscriptionLane';
 import {
   formatPlaybackTime,
@@ -83,6 +84,7 @@ function DesktopTranscriptionWorkspace() {
     true,
     locate === null ? null : { manuscriptId: locate.manuscriptId, layerId: locate.layerId },
   );
+  const layerView = useDesktopLayerView(read.model?.manuscriptId ?? null);
   const textStore = layerTextStore(read);
   const draft = useDesktopDraftGuard(textStore.save, textStore.store);
   useEffect(() => {
@@ -202,7 +204,10 @@ function DesktopTranscriptionWorkspace() {
   if (host === null) return <Navigate to="/" replace />;
 
   return (
-    <section className="desktop-tx-workspace" data-testid="desktop-transcription-workspace">
+    <section
+      className={`desktop-tx-workspace${layerView.headerFolded ? ' is-header-folded' : ''}`}
+      data-testid="desktop-transcription-workspace"
+    >
       <div className="desktop-tx-workspace__body">
         <div className="desktop-tx-workspace__main">
           {read.error.length > 0 ? <p role="alert">{read.error}</p> : null}
@@ -378,6 +383,26 @@ function DesktopTranscriptionWorkspace() {
               </div>
               {playback.duration > 0 ? (
                 <div className="desktop-tx-ruler">
+                  <button
+                    type="button"
+                    className="desktop-tx-header-fold"
+                    aria-label={t(
+                      locale,
+                      layerView.headerFolded
+                        ? 'app.desktopTranscription.layerHeaderExpand'
+                        : 'app.desktopTranscription.layerHeaderCollapse',
+                    )}
+                    title={t(
+                      locale,
+                      layerView.headerFolded
+                        ? 'app.desktopTranscription.layerHeaderExpand'
+                        : 'app.desktopTranscription.layerHeaderCollapse',
+                    )}
+                    aria-expanded={!layerView.headerFolded}
+                    onClick={layerView.toggleHeader}
+                  >
+                    <span aria-hidden className="desktop-tx-header-fold__mark" />
+                  </button>
                   <TimeRuler
                     duration={playback.duration}
                     rulerView={
@@ -413,6 +438,7 @@ function DesktopTranscriptionWorkspace() {
             layerId={read.model?.layerId ?? null}
             layers={read.model?.layers}
             links={read.model?.links}
+            view={layerView}
             desktopCall={host?.desktopCall}
             sourceUnits={sourceUnits}
             units={units}

@@ -9,6 +9,16 @@
   min-height: 0;
   height: 100%;
   background: var(--surface-canvas);
+  --lane-label-width: 104px;
+}
+
+/* 层头折叠：层名列宽归零，波形、时间尺与各层轨道一起贴上下文侧栏。 */
+.desktop-tx-workspace.is-header-folded {
+  --lane-label-width: 0px;
+}
+
+.desktop-tx-workspace.is-header-folded .desktop-tx-band-label {
+  display: none;
 }
 
 .desktop-tx-workspace__body {
@@ -549,6 +559,216 @@
 
 .desktop-tx-ruler .time-ruler-lane-toggle {
   display: none;
+}
+
+.desktop-tx-ruler {
+  position: relative;
+}
+
+.desktop-tx-header-fold {
+  position: absolute;
+  top: 3px;
+  left: calc(var(--lane-label-width) - 26px);
+  z-index: calc(var(--z-timeline-sticky) + 8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.is-header-folded .desktop-tx-header-fold {
+  left: 2px;
+  color: var(--brand-solid);
+}
+
+.desktop-tx-header-fold:hover {
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+
+.desktop-tx-header-fold__mark {
+  width: 6px;
+  height: 6px;
+  border-left: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  transform: translateX(1px) rotate(45deg);
+}
+
+.is-header-folded .desktop-tx-header-fold__mark {
+  transform: translateX(-1px) rotate(-135deg);
+}
+
+/* 层树：缩进表从属，线表关系，点表节点。 */
+.desktop-tx-layer-label {
+  --tree-line: var(--border-strong);
+  --dot-left: 23px;
+  position: relative;
+  gap: 5px;
+  padding-left: 0;
+  color: var(--text-primary);
+}
+
+.desktop-tx-layer-label.is-depth-1 {
+  --dot-left: 39px;
+}
+
+.desktop-tx-layer-label.is-focused {
+  color: var(--brand-solid);
+}
+
+.desktop-tx-layer-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-left: var(--dot-left);
+  border-radius: 50%;
+  background: var(--text-tertiary);
+}
+
+.desktop-tx-layer-label.is-focused .desktop-tx-layer-dot {
+  background: var(--brand-solid);
+}
+
+.desktop-tx-layer-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.desktop-tx-layer-more {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.desktop-tx-layer-chevron {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-secondary);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.desktop-tx-layer-chevron__mark {
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-1px) rotate(45deg);
+}
+
+.desktop-tx-layer-chevron[aria-expanded='false'] .desktop-tx-layer-chevron__mark {
+  transform: translateX(-1px) rotate(-45deg);
+}
+
+.desktop-tx-layer-label.has-children::after {
+  content: '';
+  position: absolute;
+  left: 25px;
+  top: 50%;
+  bottom: 0;
+  width: 1px;
+  background: var(--tree-line);
+}
+
+.desktop-tx-layer-label.is-depth-1::before {
+  content: '';
+  position: absolute;
+  left: 25px;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  border-left: 1px solid var(--tree-line);
+  background: linear-gradient(var(--tree-line), var(--tree-line)) no-repeat 0 50% / 100% 1px;
+}
+
+.desktop-tx-layer-label.is-depth-1.is-last::before {
+  bottom: 50%;
+  border-bottom: 1px solid var(--tree-line);
+  background: none;
+}
+
+/* 其他宿主：最左窄槽里的虚线，仅两端都可见时画。 */
+.desktop-tx-layer-label[class*='groove-']:not(.groove-none) {
+  --groove: repeating-linear-gradient(to bottom, var(--tree-line) 0 3px, transparent 3px 6px);
+  --groove-h: repeating-linear-gradient(to right, var(--tree-line) 0 3px, transparent 3px 6px);
+}
+
+.desktop-tx-layer-label.groove-through {
+  background: var(--groove) no-repeat 4px 0 / 1px 100%;
+}
+
+.desktop-tx-layer-label.groove-start {
+  background: var(--groove) no-repeat 4px 50% / 1px 50%;
+}
+
+.desktop-tx-layer-label.groove-end {
+  background:
+    var(--groove) no-repeat 4px 0 / 1px 50%,
+    var(--groove-h) no-repeat 4px 50% / calc(var(--dot-left) - 8px) 1px;
+}
+
+.desktop-tx-layer-strip {
+  display: flex;
+  height: 28px;
+}
+
+.desktop-tx-layer-strip__spacer {
+  background: transparent;
+}
+
+.desktop-tx-layer-strip__body {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--text-primary) 4%, var(--surface-panel));
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.desktop-tx-layer-strip__body:hover {
+  background: color-mix(in srgb, var(--text-primary) 8%, var(--surface-panel));
+}
+
+.desktop-tx-layer-strip__name {
+  color: var(--text-primary);
+}
+
+.desktop-tx-layer-strip__count {
+  color: var(--text-tertiary);
+}
+
+.desktop-tx-lane.is-folded {
+  height: 0;
+  min-height: 0;
+}
+
+.desktop-tx-layer-menu {
+  z-index: var(--z-popover);
 }
 
 .desktop-tx-zoom-dock {

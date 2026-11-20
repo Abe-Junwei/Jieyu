@@ -50,7 +50,7 @@ depends_on:
   - 落位：v32 schema、`layers.ts`／`units.ts`／`textSave.ts` 与 project read/exchange/purge；纯路由和创建 controller 分离；页面只装配，`useDesktopDraftGuard.ts` 不超过 300 行；不得改其他会话的 token、设计资产或转写工作区 CSS。
   - 验证：定向单元测试覆盖多宿主 preferred/fallback、时间细分越界拒绝、拖过已有段转选择、按 speaker overlap、空投影首次保存、同 unit 双 layer 草稿／正文／回执互不覆盖；数据库写入后关闭重开读回。再跑 `npm run typecheck`、相关 `vitest`、`npm run check:architecture-guard`、`npm run check:docs-governance`、`npm run test:e2e:desktop-project`；若改共享旧组件 props，再跑 `npm run test:e2e:chromium`。
   - 安全门禁：波形和文本轨创建入口仅在上述单库读回与 Electron 流程均通过后一起开放；未完成时保持关闭，其他编辑不受影响。
-  - 进度（2026-11-20）：格式、读写、路由、手势与多层行已落地，两个拖建入口已开放。证据：`npm run typecheck` 通过；相关 vitest 458 通过／1 跳过；`check:architecture-guard`、`check:docs-governance`、`check:desktop-format-freeze` 通过；`npm run test:e2e:desktop-project` 17 通过（含「波形与关联层行拖建、正文按层保存」真实手势用例）。未完成：折叠层（`67:2846`）、连接线、多选态（`19:12433`）、speaker lane（#600）、拆分／合并时关联层正文的处理。
+  - 进度（2026-11-20）：格式、读写、路由、手势与多层行已落地，两个拖建入口已开放。证据：`npm run typecheck` 通过；相关 vitest 458 通过／1 跳过；`check:architecture-guard`、`check:docs-governance`、`check:desktop-format-freeze` 通过；`npm run test:e2e:desktop-project` 17 通过（含「波形与关联层行拖建、正文按层保存」真实手势用例）。层树落地（2026-11-20）：层名列 104px 的缩进／连线／圆点、宿主组收起、单层收起为窄条、层头折叠（`desktopTranscriptionLayerTree.ts`、`useDesktopLayerView.ts`；本机视图偏好），页面与 hook vitest 覆盖。未完成：行卡边缘拖动与菜单、多选态（`19:12433`）、speaker lane（#600）、拆分／合并时关联层正文的处理。
 - [ ] 1b-3（[#563](https://github.com/Abe-Junwei/Jieyu/issues/563)）拆分：时间切点 + 文字位置、预览、新身份与映射、跨切点分析待复核、撤销 → 验证：同上
 - [ ] 1b-4（[#564](https://github.com/Abe-Junwei/Jieyu/issues/564)）合并：同稿同层同说话人相邻、显示空隙、确认正文分隔（记 `project.settings_json`）、下级保留与冲突阻断（EF-018）、新身份与映射、撤销 → 验证：同上
 - [ ] 1b-5（[#565](https://github.com/Abe-Junwei/Jieyu/issues/565)）点层：增删改移、同层同毫秒唯一 → 验证：同上
