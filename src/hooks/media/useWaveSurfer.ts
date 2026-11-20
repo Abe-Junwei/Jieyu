@@ -113,6 +113,10 @@ export interface UseWaveSurferOptions {
   primaryRegionColor?: string;
   /** 当前句段选区的左右边。缺省不画。 */
   primaryRegionEdgeColor?: string;
+  /** 其余句段的选区底色。缺省沿用旧转写页的状态色。 */
+  regionColor?: string;
+  /** 其余句段选区的左右边。缺省不画。 */
+  regionEdgeColor?: string;
   /** 缺省可拖可拉。只读时间轴传 false。 */
   regionsInteractive?: boolean;
 }
@@ -601,9 +605,10 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
             : focused
               ? 'color-mix(in srgb, var(--state-warning-solid) 22%, transparent)'
               : 'color-mix(in srgb, var(--state-success-solid) 18%, transparent)'
-          : activeRegionIdsRef.current?.has(region.id)
-            ? 'color-mix(in srgb, var(--state-info-solid) 22%, transparent)'
-            : 'color-mix(in srgb, var(--state-info-solid) 6%, transparent)';
+          : (cbRef.current.regionColor ??
+            (activeRegionIdsRef.current?.has(region.id)
+              ? 'color-mix(in srgb, var(--state-info-solid) 22%, transparent)'
+              : 'color-mix(in srgb, var(--state-info-solid) 6%, transparent)'));
       const baseColor = defaultBaseColor;
 
       // WaveSurfer region DOM lives in an isolated internal tree; paint skipped stripes inline.
@@ -621,10 +626,10 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       el.style.borderBottom = isSkipped
         ? '1px dashed color-mix(in srgb, var(--header-accent) 38%, transparent)'
         : 'none';
-      const edge = cbRef.current.primaryRegionEdgeColor;
       const isPrimary = region.id === primaryRegionIdRef.current;
-      el.style.borderLeft = isPrimary && edge ? `1px solid ${edge}` : 'none';
-      el.style.borderRight = isPrimary && edge ? `1px solid ${edge}` : 'none';
+      const edge = isPrimary ? cbRef.current.primaryRegionEdgeColor : cbRef.current.regionEdgeColor;
+      el.style.borderLeft = edge ? `1px solid ${edge}` : 'none';
+      el.style.borderRight = edge ? `1px solid ${edge}` : 'none';
       el.style.boxShadow = isSkipped
         ? 'inset 0 0 0 1px color-mix(in srgb, var(--header-accent) 10%, transparent)'
         : 'none';
@@ -662,9 +667,10 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
           r.id === primaryRegionIdRef.current
             ? (cbRef.current.primaryRegionColor ??
               'color-mix(in srgb, var(--state-warning-solid) 22%, transparent)')
-            : activeRegionIdsRef.current?.has(r.id)
-              ? 'color-mix(in srgb, var(--state-info-solid) 22%, transparent)'
-              : 'color-mix(in srgb, var(--state-info-solid) 6%, transparent)',
+            : (cbRef.current.regionColor ??
+              (activeRegionIdsRef.current?.has(r.id)
+                ? 'color-mix(in srgb, var(--state-info-solid) 22%, transparent)'
+                : 'color-mix(in srgb, var(--state-info-solid) 6%, transparent)')),
       }) as unknown as RegionHandle;
       // Alt+pointerdown: intercept native region drag so we can do sub-range selection
       const elForAlt = (handle as unknown as { element?: HTMLElement }).element;
@@ -906,6 +912,8 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     options.primaryRegionColor,
     options.primaryRegionEdgeColor,
     options.primaryRegionId,
+    options.regionColor,
+    options.regionEdgeColor,
     regions,
   ]);
 
