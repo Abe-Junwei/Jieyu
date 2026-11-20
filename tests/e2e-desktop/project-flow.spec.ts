@@ -77,6 +77,13 @@ test('transcription workspace seeks a segment and space starts playback', async 
     await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
     await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
     await expect(page.getByRole('button', { name: /^(Play|播放)$/ })).toBeEnabled();
+    // 转写壳样式随桌面入口加载：主区铺满、侧栏顶对齐。
+    const shell = await page.evaluate(() => ({
+      main: getComputedStyle(document.querySelector('.app-main-transcription') as Element)
+        .paddingTop,
+      side: getComputedStyle(document.querySelector('.app-side-pane') as Element).top,
+    }));
+    expect(shell).toEqual({ main: '0px', side: '0px' });
     await waitForAudio(page);
     const segment = page.locator('.timeline-annotation', { hasText: 'two' });
     await segment.click();
@@ -339,10 +346,13 @@ test('waveform handles resize a segment edge and the grip moves it with its chil
 
     const end = seg.getByTestId('desktop-wave-handle-end');
     const at = await end.boundingBox();
-    if (at === null) throw new Error('wave end handle missing');
+    const span = await seg.boundingBox();
+    if (at === null || span === null) throw new Error('wave end handle missing');
+    // 按段宽换算拉回 100 毫秒；固定像素在窄波形下会把右子段压到 10 毫秒以下而被拒。
+    const pullBack = (100 * span.width) / (parent.endMs - parent.startMs);
     await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2);
     await page.mouse.down();
-    await page.mouse.move(at.x - 30, at.y + at.height / 2, { steps: 6 });
+    await page.mouse.move(at.x + at.width / 2 - pullBack, at.y + at.height / 2, { steps: 6 });
     await page.mouse.up();
     await expect
       .poll(async () => (await read(clip.layerId, parent.id))?.endMs ?? Infinity)
