@@ -45,7 +45,8 @@ export function desktopRoots(repoRoot) {
       .map((file) => relPosix(repoRoot, file))
       .filter((rel) => !isTestPath(rel)),
   );
-  return [...new Set([...pages, ...dirs])].sort();
+  const entries = ['src/main.desktop.tsx', 'src/DesktopApp.tsx'];
+  return [...new Set([...pages, ...dirs, ...entries])].sort();
 }
 
 export function readLegacyRoots(repoRoot = process.cwd()) {

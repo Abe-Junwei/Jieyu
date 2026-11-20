@@ -282,7 +282,7 @@ npm run test:e2e:chromium -- tests/e2e/aiAgentLoopHandoffAfterReload.spec.ts
 1. **数据层**：经存储接口写入并读回校验。#275 的 SQLite 实现落地前沿用 Dexie 写路径；落地后新增操作只写并读回 SQLite 实现，不再两边都写（ADR-0064 第 4 条）。**写 → reload/requery → readback 验证**（不止字段存在）。
 2. **UI 层**：入口、状态、交互闭环接线完成；用户可见文案走 `dictKeys` / 字典，不留硬编码。
 3. **编排纪律**：重逻辑下沉 controller/service/纯函数；不在页面层堆业务（copilot-instructions §一/§三）。
-4. **验证证据**：`npm run typecheck` + 触及域定向 `vitest`；触交互/ReadyWorkspace/侧栏/时间轴加 `npm run test:e2e:chromium`（#329 搬完的那几组改跑 Electron E2E）；触编排加 `npm run check:architecture-guard`；触 AI 加 `npm run check:agent-evals:smoke`；触桌面壳/存储加 Electron 构建与主进程测试。
+4. **验证证据**：`npm run typecheck` + 触及域定向 `vitest`；桌面页面、壳层和 `src/db/desktop` 跑 `npm run test:e2e:desktop-project`（Ubuntu CI 加本机 macOS）；`npm run test:e2e:chromium` 只覆盖仍走旧网页构建的组；触编排加 `npm run check:architecture-guard`；触 AI 加 `npm run check:agent-evals:smoke`；触桌面壳/存储加 Electron 构建与主进程测试。
 5. **可回滚**：高风险或 UI 觉察大改套 feature flag（`src/ai/config/featureFlags.ts`），`false` 合并、自用后切默认。
 6. **SDD**：中等以上复杂度（≥1 新 controller / ≥1 新 service / 跨 ≥3 controller）先写 `docs/execution/specs/<slug>/` 三件套再编码。
 

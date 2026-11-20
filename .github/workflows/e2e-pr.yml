@@ -19,6 +19,9 @@ on:
       - 'playwright*.config.ts'
       - 'public/**'
       - 'vite.config.ts'
+      - 'vite.shared.ts'
+      - 'vite.legacy.config.ts'
+      - 'legacy/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/e2e-pr.yml'
@@ -51,7 +54,7 @@ jobs:
       - name: Install Playwright (Chromium only)
         run: npx playwright install --with-deps chromium
       - name: Build
-        run: npm run build
+        run: npm run build:legacy
         env:
           VITE_LEGACY_WEB_SURFACE: 'true'
       - name: Run E2E (Chromium)

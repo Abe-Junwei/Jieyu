@@ -151,6 +151,6 @@ export default [
     },
   },
   {
-    ignores: ['dist/', 'node_modules/', 'src/data/generated/'],
+    ignores: ['dist/', 'dist-legacy/', 'node_modules/', 'src/data/generated/'],
   },
 ];

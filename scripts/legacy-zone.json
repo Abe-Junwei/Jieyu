@@ -14,6 +14,16 @@
     "src/pages/OrthographyManagerPage.tsx",
     "src/pages/OrthographyBridgeWorkspacePage.tsx",
     "src/pages/StructuralProfileWorkspacePage.tsx",
-    "src/db/migration/e2eMigrationHarness.ts"
+    "src/db/migration/e2eMigrationHarness.ts",
+    "src/components/LegacyDataResetDialog.tsx",
+    "src/components/DbMigrationGateOverlay.tsx",
+    "src/hooks/useAppDataResilienceEffects.ts",
+    "src/components/DbIntegrityBlockingOverlay.tsx",
+    "src/components/DevBuildBanner.tsx",
+    "src/components/CollaborationLifecycleNotices.tsx",
+    "src/components/transcription/LeftRailProjectHub.tsx",
+    "src/components/transcription/TranscriptionLeftRailLayerActions.tsx",
+    "src/services/LinguisticService.ts",
+    "src/services/projectLocalCleanupJobs.ts"
   ]
 }
