@@ -44,21 +44,21 @@ ADR-0063 定了只交付桌面。ADR-0064 定了 #329 把 E2E 迁到 Electron �
 
 ## 决定
 
-1. **桌面占用默认入口，旧网页改名。** `index.html → src/main.desktop.tsx → src/DesktopApp.tsx` 只挂桌面路由，没有旧页面可回落。`vite.config.ts`、`dist/`、`npm run dev`、`npm run build` 都是桌面的，所以 Electron 三个加载点的路径不变。旧网页改为 `index.legacy.html → src/main.tsx → src/App.tsx`，配置为 `vite.legacy.config.ts`（产物 `dist-legacy/`），用 `dev:legacy`、`build:legacy` 启动和构建，只给 Chromium E2E 用。PWA 只放在旧网页的配置里。
+1. **桌面占用默认入口，旧网页改名。** `index.html → src/main.desktop.tsx → src/DesktopApp.tsx` 只挂桌面路由，没有旧页面可回落。`vite.config.ts`、`dist/`、`npm run dev`、`npm run build` 都是桌面的，所以 Electron 三个加载点的路径不变。旧网页使用独立根目录 `legacy/index.html → src/main.tsx → src/App.tsx`，配置为 `vite.legacy.config.ts`（`root: 'legacy'`，产物 `dist-legacy/index.html`），用 `dev:legacy`、`build:legacy`、`preview:legacy` 启动、构建和预览，只给 Chromium E2E 用。PWA 只放在旧网页的配置里。共享构建步骤里的输出目录由调用方传入，旧网页不写进 `dist/`。
 2. **继续执行 ADR-0123。** `vite dev` 显示的就是桌面入口；没有桥接时只显示「请在解语桌面窗口中打开」。旧网页只出现在 Chromium E2E 使用的旧网页构建里。
-3. **拆掉 `App.tsx` 的桌面分支和切换入口在同一个 PR 里完成。** 这个 PR 的验证必须包含 `desktop:smoke`、`test:e2e:desktop-project` 和 `test:e2e:chromium`；不允许先拆壳再切入口。
+3. **拆掉 `App.tsx` 的桌面分支和切换入口在同一个 PR 里完成。** 入口切换由 `test:e2e:desktop-project` 和 `test:e2e:chromium` 验证。`desktop:smoke` 加载临时空白页，不验证入口。`test:e2e:desktop-project` 的 CI 只在 Ubuntu；本机补跑 macOS。不允许先拆壳再切入口。
 4. **三道门禁，零容忍，不设 allowlist。**
    - 源码门禁 `check:desktop-boundary`：根是桌面渲染入口的可达集。新入口建好之前，以桌面页面入口为根。从这些根出发，不得到达旧区。旧区指 `scripts/legacy-zone.json` 列出的根，以及所有导入这些根的模块。两条混合边拆掉以后，再把 `src/desktop/**`、`src/db/desktop/**`、`src/hooks/desktop/**` 全部加为根。门禁只在当次实测为 0 时才接进 `check:all`。
    - 产物门禁：桌面构建的模块里出现 `dexie`、`src/db/engine.ts` 或旧区根模块时，构建失败。
-   - 运行时门禁：Electron E2E 断言渲染层 IndexedDB 为空、界面形态为 `desktop`。桌面入口不装载 `e2eMigrationHarness`。
+   - 运行时门禁：`test:e2e:desktop-project` 在开发服务器里断言渲染层 IndexedDB 为空、界面形态为 `desktop`。打包后的 `dist/` 由产物门禁检查。桌面入口不装载 `e2eMigrationHarness`。
 5. **前移旧功能。** 一律先进 ADR-0086 白名单，再登记到 `scripts/old-path-exit.record.json` 新增的 `features` 数组（不新增 `surface` 类别）。实现时纯逻辑和展示组件可以复用，存储一律在 `src/db/desktop` 重写；旧测试的业务断言改写成桌面测试后，才算前移完成。不前移的功能交 #328，由用户决定。
 6. **退场。** 删除需同时满足三条：台账里没有未完成条目、#329 已完成、#328 已有决定。删除前先打 tag `legacy-web-final`，然后删掉旧入口、旧页面、Dexie、`vite.legacy.config.ts` 和 Chromium 门禁。之后要复用旧功能，从 tag 取回原实现，仍按第 5 条前移。
 
 ## 后果
 
 - Electron 不再加载 Dexie、旧页面和 service worker；共享模块一旦引到旧区，门禁会给出导入链，修法是拆开该模块。
-- Dexie 实现挪到 `src/db/dexieStoragePort.ts`。`storagePort.ts` 不再导入 `engine`，未安装时抛错。旧入口和测试显式安装 `dexieStoragePort`。
-- Playwright 的 webServer、`e2e-pr.yml`、`test:e2e:session-sidecar-audit` 改用旧网页构建。
+- Dexie 实现挪到 `src/db/dexieStoragePort.ts`。`storagePort.ts` 不再导入 `engine`，未安装时抛错。旧入口先安装 `dexieStoragePort`，再让 SQLite 开关覆盖它。桌面入口不安装 Dexie；IPC 仍按 ADR-0079，开关默认关。
+- Playwright 的 webServer、`e2e-pr.yml`、`test:e2e:session-sidecar-audit` 改用 `build:legacy` 和 `preview:legacy`。
 - 并存期间有两份 Vite 配置；Chromium 用例按 #329 每迁一组删一组。
 - 路线图分四次改，不改 1b–7 和 #285 的产品顺序。S0b 登记工程轨；S5 改验证命令；S7 按组改 #329 进度；S8 改现状句并写入第二程开工约束。带日期的记录不改。
 - 执行细节见[规格](../execution/specs/desktop-legacy-isolation/requirements.md)。
