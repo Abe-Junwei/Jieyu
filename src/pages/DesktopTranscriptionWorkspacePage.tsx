@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type CSSProperties, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { TimeRuler } from '../components/TimeRuler';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
@@ -7,6 +7,7 @@ import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { ToastProvider } from '../contexts/ToastContext';
 import { readDesktopProjectHost } from '../desktop/projectReadHost';
 import { useDesktopDraftGuard } from '../desktop/useDesktopDraftGuard';
+import { layerTextStore, textKey } from './desktopTranscriptionTextKey';
 import { t, tf, useLocale } from '../i18n';
 import { JIEYU_ICON_INLINE, JIEYU_ICON_WAVE, JIEYU_ICON_WAVE_PLAY } from '../utils/jieyuIcon';
 import { getWaveformDisplayHeights, type WaveformDisplayMode } from '../utils/waveformDisplayMode';
@@ -24,6 +25,7 @@ import {
   getTranscriptionPlaybackClockSnapshot,
   subscribeTranscriptionPlaybackClock,
 } from '../hooks/transcription/transcriptionPlaybackClock';
+import { useDesktopLayerView } from './useDesktopLayerView';
 import { DesktopTranscriptionLane, type WaveCreate } from './DesktopTranscriptionLane';
 import {
   formatPlaybackTime,
@@ -74,6 +76,7 @@ function DesktopTranscriptionWorkspace() {
   const tierRef = useRef<HTMLDivElement | null>(null);
   const waveHostRef = useRef<HTMLDivElement | null>(null);
   const waveCreateRef = useRef<WaveCreate | null>(null);
+  const [waveStage, setWaveStage] = useState<HTMLDivElement | null>(null);
   const [searchParams] = useSearchParams();
   const locate = readDesktopCorpusLocate(searchParams);
   const read = useDesktopProjectReadController(
@@ -81,14 +84,9 @@ function DesktopTranscriptionWorkspace() {
     true,
     locate === null ? null : { manuscriptId: locate.manuscriptId, layerId: locate.layerId },
   );
-  const draft = useDesktopDraftGuard(
-    (current, operationId) => read.saveText(current.unitId, current.text, operationId),
-    {
-      persist: (item) => read.persistTextDraft(item.unitId, item.rawInput, item.baseBody),
-      discard: (unitId) => read.discardTextDraft(unitId),
-      inspect: read.inspectTextSave,
-    },
-  );
+  const layerView = useDesktopLayerView(read.model?.manuscriptId ?? null);
+  const textStore = layerTextStore(read);
+  const draft = useDesktopDraftGuard(textStore.save, textStore.store);
   useEffect(() => {
     const stopFlush = host?.onTextClose?.(() => {
       void draft.flushForClose().then((result) => host.reportTextClose?.(result));
@@ -153,15 +151,17 @@ function DesktopTranscriptionWorkspace() {
     restore: draft.restore,
     read: read.readTextDraft,
   };
+  const textLayerId = read.model?.layerId ?? null;
   useEffect(() => {
     const id = selection.selectedUnitId;
-    if (id === null || selectedUnit === null) return;
+    if (id === null || selectedUnit === null || textLayerId === null) return;
+    const key = textKey(textLayerId, id);
     const saved = selectedUnit.text;
-    textSync.current.syncSaved(id, saved);
-    void textSync.current.read(id).then((row) => {
-      if (row) textSync.current.restore(row, saved);
+    textSync.current.syncSaved(key, saved);
+    void textSync.current.read(id, textLayerId).then((row) => {
+      if (row) textSync.current.restore({ ...row, unitId: key }, saved);
     });
-  }, [selectedUnit, selection.selectedUnitId]);
+  }, [selectedUnit, selection.selectedUnitId, textLayerId]);
   const waveHeights = getWaveformDisplayHeights(168, playback.waveformDisplayMode);
 
   const speakerCount = new Set(
@@ -204,7 +204,10 @@ function DesktopTranscriptionWorkspace() {
   if (host === null) return <Navigate to="/" replace />;
 
   return (
-    <section className="desktop-tx-workspace" data-testid="desktop-transcription-workspace">
+    <section
+      className={`desktop-tx-workspace${layerView.headerFolded ? ' is-header-folded' : ''}`}
+      data-testid="desktop-transcription-workspace"
+    >
       <div className="desktop-tx-workspace__body">
         <div className="desktop-tx-workspace__main">
           {read.error.length > 0 ? <p role="alert">{read.error}</p> : null}
@@ -311,6 +314,7 @@ function DesktopTranscriptionWorkspace() {
                   }
                 >
                   <div
+                    ref={setWaveStage}
                     className="desktop-tx-wave-stage"
                     onPointerDown={(event) => {
                       const wave = playback.waveformRef.current;
@@ -379,6 +383,26 @@ function DesktopTranscriptionWorkspace() {
               </div>
               {playback.duration > 0 ? (
                 <div className="desktop-tx-ruler">
+                  <button
+                    type="button"
+                    className="desktop-tx-header-fold"
+                    aria-label={t(
+                      locale,
+                      layerView.headerFolded
+                        ? 'app.desktopTranscription.layerHeaderExpand'
+                        : 'app.desktopTranscription.layerHeaderCollapse',
+                    )}
+                    title={t(
+                      locale,
+                      layerView.headerFolded
+                        ? 'app.desktopTranscription.layerHeaderExpand'
+                        : 'app.desktopTranscription.layerHeaderCollapse',
+                    )}
+                    aria-expanded={!layerView.headerFolded}
+                    onClick={layerView.toggleHeader}
+                  >
+                    <span aria-hidden className="desktop-tx-header-fold__mark" />
+                  </button>
                   <TimeRuler
                     duration={playback.duration}
                     rulerView={
@@ -413,6 +437,8 @@ function DesktopTranscriptionWorkspace() {
             manuscriptId={read.model?.manuscriptId ?? null}
             layerId={read.model?.layerId ?? null}
             layers={read.model?.layers}
+            links={read.model?.links}
+            view={layerView}
             desktopCall={host?.desktopCall}
             sourceUnits={sourceUnits}
             units={units}
@@ -427,7 +453,17 @@ function DesktopTranscriptionWorkspace() {
             onSelectUnit={selectPlaybackUnit}
             reload={() => read.refresh()}
             tierRef={tierRef}
+            scrollLeftPx={playback.scrollLeftPx}
             waveCreateRef={waveCreateRef}
+            waveStage={waveStage}
+            onLeave={(go) => draft.leave(go)}
+            onOpenBody={(layerId, unitId, saved) => {
+              const key = textKey(layerId, unitId);
+              textSync.current.syncSaved(key, saved);
+              void textSync.current.read(unitId, layerId).then((row) => {
+                if (row) textSync.current.restore({ ...row, unitId: key }, saved);
+              });
+            }}
           />
         </div>
       </div>

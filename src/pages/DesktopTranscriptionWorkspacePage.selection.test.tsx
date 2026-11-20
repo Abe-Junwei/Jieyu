@@ -12,7 +12,12 @@ const readState = vi.hoisted(() => {
   const base = () => ({
     manuscriptId: 'ms-1',
     manuscripts: [{ id: 'ms-1', title: { und: 'Story' }, timeMapping: null }],
-    layers: [] as { id: string; name: Record<string, string> }[],
+    layers: [] as {
+      id: string;
+      name: Record<string, string>;
+      sortOrder?: number;
+      units: { id: string; startMs: number; endMs: number; text: string }[];
+    }[],
     layerId: null as string | null,
     units: [
       { id: 'u-a', startMs: 0, endMs: 1000, text: 'alpha', speakerId: null as string | null },
@@ -177,12 +182,33 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     expect(saveText).not.toHaveBeenCalled();
   });
 
+  it('does not create units from drags before the timeline has a pixel scale', async () => {
+    const calls: string[] = [];
+    readState.model = { ...readState.base(), units: [] };
+    renderWorkspace('/transcription', async (_sessionId, method) => {
+      calls.push(method);
+      if (method === 'units.readTimeDraft') return [];
+      return null;
+    });
+
+    const waveform = screen.getByTestId('desktop-waveform');
+    const track = document.querySelector('.desktop-tx-lane__track');
+    if (!track) throw new Error('missing text track');
+    for (const target of [waveform, track]) {
+      fireEvent.pointerDown(target, { button: 0, clientX: 100, clientY: 20 });
+      fireEvent.pointerMove(window, { clientX: 300, clientY: 20 });
+      fireEvent.pointerUp(window, { clientX: 300, clientY: 20 });
+    }
+
+    expect(calls).not.toContain('units.create');
+  });
+
   it('names the lane after the deep-linked layer and keeps that layer’s units', () => {
     readState.model = {
       ...readState.base(),
       layers: [
-        { id: 'layer-tx', name: { zh: '转写' } },
-        { id: 'layer-tl', name: { zh: '翻译' } },
+        { id: 'layer-tx', name: { zh: '转写' }, units: [] },
+        { id: 'layer-tl', name: { zh: '翻译' }, units: [] },
       ],
       layerId: 'layer-tl',
       units: [{ id: 'u-tl', startMs: 0, endMs: 1000, text: '译文', speakerId: null }],
@@ -279,6 +305,99 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     await waitFor(() => {
       expect(saveText).toHaveBeenCalledWith('u-a', '你', expect.any(String));
     });
+  });
+
+  it('edits a linked layer row’s own text and guards switching away from it', async () => {
+    readState.model = {
+      ...readState.base(),
+      layerId: 'layer-1',
+      layers: [
+        { id: 'layer-1', name: { zh: '转写' }, units: [] },
+        {
+          id: 'layer-tl',
+          name: { zh: '翻译' },
+          sortOrder: 1,
+          units: [{ id: 'u-a', startMs: 0, endMs: 1000, text: 'gloss-a' }],
+        },
+      ],
+    };
+    renderWorkspace();
+    const row = document.querySelector('[data-layer-id="layer-tl"]');
+    expect(row?.querySelector('.desktop-tx-band-label')?.textContent).toBe('翻译');
+    fireEvent.click(screen.getByText('gloss-a'));
+    expect(annotation('gloss-a')?.classList.contains('timeline-annotation-selected')).toBe(true);
+    fireEvent.click(screen.getByText('gloss-a'));
+    const input = bodyInput();
+    expect(input.value).toBe('gloss-a');
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: 'gl' }, isComposing: true });
+    fireEvent.click(screen.getByText('alpha'));
+    expect(await screen.findByRole('dialog', { name: '正文还没保存' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '留在这里' }));
+    fireEvent.compositionEnd(input);
+    fireEvent.change(input, { target: { value: 'gloss A' } });
+    fireEvent.blur(input);
+    await waitFor(() => {
+      expect(saveText).toHaveBeenCalledWith('u-a', 'gloss A', expect.any(String), 'layer-tl');
+    });
+    expect(screen.getByText('alpha')).toBeTruthy();
+  });
+
+  it('moves the focus highlight from the main card to a linked layer row card', () => {
+    readState.model = {
+      ...readState.base(),
+      layerId: 'layer-1',
+      layers: [
+        { id: 'layer-1', name: { zh: '转写' }, units: [] },
+        {
+          id: 'layer-tl',
+          name: { zh: '翻译' },
+          sortOrder: 1,
+          units: [{ id: 'u-a', startMs: 0, endMs: 1000, text: 'gloss-a' }],
+        },
+      ],
+    };
+    renderWorkspace();
+    const selectedClass = 'timeline-annotation-selected';
+    fireEvent.click(screen.getByText('alpha'));
+    expect(annotation('alpha')?.classList.contains(selectedClass)).toBe(true);
+    fireEvent.click(screen.getByText('gloss-a'));
+    expect(annotation('gloss-a')?.classList.contains(selectedClass)).toBe(true);
+    expect(annotation('alpha')?.classList.contains(selectedClass)).toBe(false);
+    fireEvent.click(screen.getByText('alpha'));
+    expect(annotation('alpha')?.classList.contains(selectedClass)).toBe(true);
+    expect(annotation('gloss-a')?.classList.contains(selectedClass)).toBe(false);
+  });
+
+  it('squeezes a layer to a strip from its menu and hands focus back to the main layer', async () => {
+    window.localStorage.clear();
+    readState.model = {
+      ...readState.base(),
+      layerId: 'layer-1',
+      layers: [
+        { id: 'layer-1', name: { zh: '转写' }, units: [] },
+        {
+          id: 'layer-tl',
+          name: { zh: '翻译' },
+          sortOrder: 1,
+          units: [{ id: 'u-a', startMs: 0, endMs: 1000, text: 'gloss-a' }],
+        },
+      ],
+    };
+    renderWorkspace();
+    fireEvent.click(screen.getByText('gloss-a'));
+    const label = document.querySelector('[data-layer-id="layer-tl"] .desktop-tx-layer-label');
+    fireEvent.contextMenu(label as Element);
+    fireEvent.click(screen.getByRole('menuitem', { name: '收起该层' }));
+    await waitFor(() => {
+      expect(
+        document.querySelector('.desktop-tx-layer-strip[data-layer-id="layer-tl"]'),
+      ).toBeTruthy();
+    });
+    expect(screen.queryByText('gloss-a')).toBeNull();
+    expect(annotation('alpha')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /展开/ }));
+    expect(screen.getByText('gloss-a')).toBeTruthy();
   });
 
   it('keeps the side pane content identical while typing a body', () => {

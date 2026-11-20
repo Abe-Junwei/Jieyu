@@ -1,10 +1,11 @@
-import type { Layer } from './layers';
+import type { Layer, LayerLink } from './layers';
 import type { Manuscript } from './manuscripts';
 import type { Unit } from './units';
 
 export interface DesktopProjectReadApi {
   listManuscripts(sessionId: string): Promise<Manuscript[]>;
   listLayers(sessionId: string, manuscriptId: string): Promise<Layer[]>;
+  listLayerLinks(sessionId: string, manuscriptId: string): Promise<LayerLink[]>;
   listUnits(sessionId: string, layerId: string): Promise<Unit[]>;
   mediaPlayUrl(sessionId: string, mediaId: string): Promise<string>;
 }
@@ -17,6 +18,8 @@ export interface DesktopProjectRead {
   manuscripts: Manuscript[];
   manuscriptId: string | null;
   layers: DesktopProjectLayerRead[];
+  /** Explicit text-layer → host-layer links of the manuscript. */
+  links: LayerLink[];
   layerId: string | null;
   audioUrl: string | null;
   /** Units of `layerId`. The whole manuscript, including parent links, is `layers`. */
@@ -43,6 +46,7 @@ export async function loadDesktopProjectRead(
       manuscripts,
       manuscriptId: null,
       layers: [],
+      links: [],
       layerId: null,
       audioUrl: null,
       units: [],
@@ -55,6 +59,7 @@ export async function loadDesktopProjectRead(
       units: await api.listUnits(sessionId, item.id),
     })),
   );
+  const links = (await api.listLayerLinks(sessionId, selected.id)) ?? [];
   const layer =
     layers.find((item) => item.id === layerId) ??
     layers.find((item) => item.tierType === 'time-aligned' && item.contentType === 'transcription');
@@ -66,6 +71,7 @@ export async function loadDesktopProjectRead(
     manuscripts,
     manuscriptId: selected.id,
     layers,
+    links,
     layerId: layer?.id ?? null,
     audioUrl,
     units: layer?.units ?? [],

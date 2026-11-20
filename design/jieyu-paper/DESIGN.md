@@ -238,9 +238,9 @@ components:
 | grip-vertical | 拖动把手 |
 
 - 列表／表格默认行高 36–44px，密度一致；不要单凭缩小字形制造紧凑感。
-- 工作平面、面板和卡片不加投影。浮层用发丝边加三档阴影之一：`--shadow-popover`（菜单、Tooltip）、`--shadow-float`（层操作、备注等浮动面板）、`--shadow-modal`（模态）。按钮等独立控件焦点用 1.5px `--focus-color` 外环，输入类焦点用 `--focus-ring` 3px 淡墨晕，不手写粗黑双环。最多两层可见容器边框，内层用间距和底色分组。
+- 工作平面、面板、卡片、侧栏、波形和轨道不加投影。粘顶工具栏在静止时只用 1px 底边分隔；只有内容真正从栏下滚过、且滚动位置离开顶部时，底边才加轻量 `--shadow-sticky`，不复用 `--shadow-popover`。暗色仍保留这条分隔线。桌面转写页的播放栏下面没有滚动容器，所以只有分隔线、没有阴影（[ADR-0130](../../docs/adr/0130-sticky-shadow-only-while-content-scrolls-under.md)）。浮层用发丝边加三档阴影之一：`--shadow-popover`（菜单、Tooltip）、`--shadow-float`（层操作、备注等浮动面板）、`--shadow-modal`（模态）。按钮等独立控件焦点用 1.5px `--focus-color` 外环，输入类焦点用 `--focus-ring` 3px 淡墨晕，不手写粗黑双环。最多两层可见容器边框，内层用间距和底色分组。
 - 层级顺序（7 档语义 `z-index`）：内容 `--z-base`（1）< 粘顶表头与标尺 `--z-sticky`（20）< 导航轨与分栏壳 `--z-shell`（40）< 贴边非模态抽屉 `--z-drawer`（80）< 菜单、下拉与浮动面板 `--z-popover`（160）< 提示条与 Tooltip `--z-toast`（240）< 模态与阻断层 `--z-modal`（320）。对话框遮罩、顶层对话框和聊天宿主等内部子层可在所属档位附近用局部偏移，但不得越过下一档语义层；不手写脱离层级的整数。
-- 滚动条与粘顶（sticky）：统一 6px 药丸拇指（`--border-strong`，悬停 `--border-control`）、透明无底轨道；粘顶表头、时间刻度与工具栏只用 `1px` 底边分隔，禁止加投影。
+- 滚动条与粘顶（sticky）：统一 6px 药丸拇指（`--border-strong`，悬停 `--border-control`）、透明无底轨道；粘顶表头与时间刻度只用 `1px` 底边分隔。其余工具栏同样禁止常驻投影。例外只发生在内容会滚到栏下的那一条：滚回顶部时仍是 1px 分隔线，`scrollTop > 0` 时才在底边使用 `--shadow-sticky`。播放栏不在此列。
 - 动效与退化：只有两档——悬停、色变、小控件 `--motion-fast`（160ms），浮层与抽屉进出 `--motion-base`（200ms），缓动 `ease-out`。开启「减少动态」或 `prefers-reduced-motion: reduce` 时去掉位移、脉冲与旋转闪烁，保留透明度切换、色点与文字状态。
 - 光标与拖放四态：水平调宽／句段边界用 `ew-resize`，轨高调节用 `ns-resize`，可拖排序把手悬停 `grab`、按住拖动中 `grabbing`，不可放置目标用 `not-allowed` 并就近给出原因文字。
 

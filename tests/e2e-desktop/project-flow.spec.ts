@@ -81,6 +81,93 @@ test('transcription workspace seeks a segment and space starts playback', async 
   }
 });
 
+test('drags create on the waveform and on a linked layer row, and texts stay per layer', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-create-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  const app = await launch('tx-create');
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const clip = await clipLayer(page, sessionId);
+    const manuscripts = await desktopCall<{ id: string; title: Record<string, string> }[]>(
+      page,
+      sessionId,
+      'manuscripts.list',
+      {},
+    );
+    const manuscriptId = manuscripts.find((item) => item.title.und === 'Clip')?.id;
+    const tl = await desktopCall<{ id: string }>(page, sessionId, 'layers.create', {
+      manuscriptId,
+      key: 'tl',
+      name: { und: 'Gloss' },
+      tierType: 'symbolic-association',
+      contentType: 'translation',
+      sortOrder: 1,
+      hosts: [{ hostLayerId: clip.layerId }],
+    });
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    await waitForAudio(page);
+    const wave = page.getByTestId('desktop-waveform');
+    await expect.poll(async () => (await wave.boundingBox())?.width ?? 0).toBeGreaterThan(100);
+    const listed = () =>
+      desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId: clip.layerId });
+    const drag = async (box: { x: number; y: number; width: number }, from: number, to: number) => {
+      const y = box.y + 10;
+      await page.mouse.move(box.x + (box.width * from) / 2, y);
+      await page.mouse.down();
+      await page.mouse.move(box.x + (box.width * (from + to)) / 4, y, { steps: 4 });
+      await page.mouse.move(box.x + (box.width * to) / 2, y, { steps: 4 });
+      await page.mouse.up();
+    };
+    const waveBox = await wave.boundingBox();
+    if (waveBox === null) throw new Error('waveform missing');
+    await drag(waveBox, 1.0, 1.3);
+    await expect.poll(async () => (await listed()).length).toBe(3);
+
+    const row = page.locator(`[data-layer-id="${tl.id}"]`);
+    await expect(row).toBeVisible();
+    await expect(row.locator('.timeline-annotation')).toHaveCount(3);
+    const track = row.locator('.desktop-tx-lane__track');
+    const trackBox = await track.boundingBox();
+    if (trackBox === null) throw new Error('layer row track missing');
+    await drag({ ...trackBox, width: waveBox.width, x: trackBox.x }, 1.5, 1.8);
+    await expect.poll(async () => (await listed()).length).toBe(4);
+    const spans = (await listed())
+      .map((unit) => [unit.startMs ?? 0, unit.endMs ?? 0] as const)
+      .sort((a, b) => a[0] - b[0]);
+    expect(spans[2]?.[0]).toBeGreaterThanOrEqual(950);
+    expect(spans[2]?.[1]).toBeLessThanOrEqual(1350);
+    expect(spans[3]?.[0]).toBeGreaterThanOrEqual(1450);
+
+    const first = row.locator('.timeline-annotation').first();
+    await first.click();
+    await expect(first).toHaveClass(/timeline-annotation-selected/);
+    await first.click();
+    const input = row.locator('.timeline-annotation-input');
+    await input.fill('gloss one');
+    await input.evaluate((element) => (element as HTMLInputElement).blur());
+    await expect
+      .poll(async () =>
+        (await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId: tl.id })).map(
+          (unit) => unit.text,
+        ),
+      )
+      .toContain('gloss one');
+    expect((await listed()).map((unit) => unit.text)).toContain('one');
+    expect((await listed()).map((unit) => unit.text)).not.toContain('gloss one');
+  } finally {
+    await app.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
+
 test('does not create a sample project on startup', async () => {
   const app = await launch('no-sample');
   try {

@@ -450,13 +450,20 @@ function insertPayload(db: SqliteDatabase, tables: Record<string, Row[]>): void 
         const storing = { ...row };
         if (name === 'unit_texts') {
           const unitId = storing.unit_id;
+          const layerId = storing.layer_id;
           const role = storing.role;
-          if (typeof unitId !== 'string' || typeof role !== 'string') {
+          if (
+            typeof unitId !== 'string' ||
+            typeof layerId !== 'string' ||
+            typeof role !== 'string'
+          ) {
             throw new Error('desktop package is unreadable');
           }
           const existing = db
-            .prepare('SELECT COUNT(*) AS n FROM unit_texts WHERE unit_id = ? AND role = ?')
-            .get(unitId, role) as { n: number };
+            .prepare(
+              'SELECT COUNT(*) AS n FROM unit_texts WHERE unit_id = ? AND layer_id = ? AND role = ?',
+            )
+            .get(unitId, layerId, role) as { n: number };
           if (existing.n !== 0) throw new Error('unit text role is duplicated');
         }
         if (name === 'manuscripts' || name === 'media') {
@@ -482,10 +489,15 @@ function insertPayload(db: SqliteDatabase, tables: Record<string, Row[]>): void 
   write();
 }
 
+// Trigger checks that read another table, not visible through foreign keys.
+const TRIGGER_DEPENDENCIES: Record<string, string[]> = { unit_texts: ['layer_links'] };
+
 function insertOrder(db: SqliteDatabase, names: string[]): string[] {
   const pending = new Map<string, Set<string>>();
   for (const name of names) {
-    const deps = new Set<string>();
+    const deps = new Set<string>(
+      (TRIGGER_DEPENDENCIES[name] ?? []).filter((table) => names.includes(table)),
+    );
     const foreignKeys = db.prepare(`PRAGMA foreign_key_list(${name})`).all() as Array<{
       table: string;
     }>;

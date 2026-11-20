@@ -11,7 +11,7 @@ export interface DesktopProjectReadManuscript {
 export interface DesktopProjectReadUnit {
   id: string;
   layerId?: string;
-  textId?: string;
+  textId?: string | null;
   startMs: number | null;
   endMs: number | null;
   text: string;
@@ -267,7 +267,7 @@ export function DesktopProjectReadView(props: {
               </button>
             </>
           )}
-          {selected.textId === undefined ||
+          {selected.textId == null ||
           props.noteSessionId == null ||
           props.noteDesktopCall === undefined ||
           props.textNoteLabel === undefined ||

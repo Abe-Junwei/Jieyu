@@ -105,9 +105,9 @@ describe('content notes', () => {
     replaceProjection(project.db, unit.id, projected.tokens, projected.morphemes);
     project.db
       .prepare(
-        `INSERT INTO unit_texts (id, unit_id, role, body, updated_at) VALUES ('tr1', ?, 'translation', '你好', ?)`,
+        `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at) VALUES ('tr1', ?, ?, 'translation', '你好', ?)`,
       )
-      .run(unit.id, T);
+      .run(unit.id, unit.layerId, T);
 
     const written = [
       createContentNote(project.db, {
@@ -364,9 +364,9 @@ describe('content notes', () => {
     const unit = project.units.create({ layerId: layer.id, startMs: 0, endMs: 1, text: 'ka' });
     project.db
       .prepare(
-        `INSERT INTO unit_texts (id, unit_id, role, body, updated_at) VALUES ('tr1', ?, 'translation', '你好', ?)`,
+        `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at) VALUES ('tr1', ?, ?, 'translation', '你好', ?)`,
       )
-      .run(unit.id, T);
+      .run(unit.id, unit.layerId, T);
     const entry = {
       headword: 'run',
       senses: [{ id: 's1', definitions: [{ text: 'to move' }] }],

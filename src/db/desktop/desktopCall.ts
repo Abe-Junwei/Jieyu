@@ -70,7 +70,7 @@ import { patchSpeaker, redeliverSpeaker } from './speakerFields';
 import { createSpeaker, listSpeakers } from './speakers';
 import { createSource, patchSource, redeliverSource } from './sourceFields';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
-import { createLayer, listLayers } from './layers';
+import { createLayer, listLayerLinks, listLayers } from './layers';
 import { linkSense, removeSense, saveLexemeEntry, getLexemeEntry } from './lexicon';
 import {
   clearTokenLexemeLink,
@@ -154,6 +154,7 @@ import {
   readUnitTextDraft,
   textSaveDigest,
 } from './textSave';
+import { resolveUnitTextContext } from './unitTextLayers';
 import { mergeUnits, readRemovedUnit, splitUnit } from './unitSpan';
 import {
   manuscriptIdOf,
@@ -209,6 +210,10 @@ const operationHandlers = {
   'layers.list': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.list']['check']>) =>
       listLayers(ctx.db, input.manuscriptId),
+  },
+  'layers.listLinks': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.listLinks']['check']>) =>
+      listLayerLinks(ctx.db, input.manuscriptId),
   },
   'catalog.ensureProjectDefinition': {
     run: (
@@ -943,11 +948,18 @@ const operationHandlers = {
     run: (
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['units.inspectTextSave']['check']>,
-    ) => inspectUnitTextSave(ctx.db, input.operationId, textSaveDigest(input.unitId, input.text)),
+    ) => {
+      const context = resolveUnitTextContext(ctx.db, input.unitId, input.textLayerId);
+      return inspectUnitTextSave(
+        ctx.db,
+        input.operationId,
+        textSaveDigest(input.unitId, context.textLayerId, input.text),
+      );
+    },
   },
   'units.readTextDraft': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.readTextDraft']['check']>) =>
-      readUnitTextDraft(ctx.db, input.unitId),
+      readUnitTextDraft(ctx.db, input.unitId, input.textLayerId),
   },
   'units.putTextDraft': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.putTextDraft']['check']>) =>
@@ -958,7 +970,7 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['units.discardTextDraft']['check']>,
     ) => {
-      discardUnitTextDraft(ctx.db, input.unitId);
+      discardUnitTextDraft(ctx.db, input.unitId, input.textLayerId);
       return null;
     },
   },

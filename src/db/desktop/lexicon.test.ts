@@ -220,7 +220,7 @@ function seedToken(dir: string): void {
     ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).run('tok-1', 'u1', 0, '{"default":"run"}', '{}', T, T);
   db.prepare(
-    `INSERT INTO unit_texts (id, unit_id, role, body, updated_at) VALUES ('ut1', 'u1', 'transcription', 'run', ?)`,
+    `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at) VALUES ('ut1', 'u1', 'ly1', 'transcription', 'run', ?)`,
   ).run(T);
   writeAnalysisRoot(project.db, {
     unitId: 'u1',

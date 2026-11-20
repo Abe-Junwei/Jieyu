@@ -213,7 +213,7 @@ function seedHost(dir: string): void {
     ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).run('tok-1', 'u1', 0, '{"default":"ka"}', '{}', T, T);
   db.prepare(
-    `INSERT INTO unit_texts (id, unit_id, role, body, updated_at) VALUES ('ut1', 'u1', 'transcription', 'ka', ?)`,
+    `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at) VALUES ('ut1', 'u1', 'ly1', 'transcription', 'ka', ?)`,
   ).run(T);
   writeAnalysisRoot(db, {
     unitId: 'u1',

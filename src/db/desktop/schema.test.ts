@@ -146,6 +146,7 @@ describe('desktop project schema', () => {
       { name: 'language_display_names' },
       { name: 'languages' },
       { name: 'layer_lane_locks' },
+      { name: 'layer_links' },
       { name: 'layers' },
       { name: 'lexemes' },
       { name: 'local_id_map' },
