@@ -1,4 +1,6 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useRef } from 'react';
+import { ToastStack } from '../components/ToastStack';
+import { useToastQueue } from '../hooks/useToastQueue';
 import type { SaveState } from '../hooks/transcription/transcriptionTypes';
 import type { VoiceAgentMode } from '../services/VoiceAgentService';
 import { isDictKey, t, useLocale, type Locale } from '../i18n';
@@ -22,6 +24,8 @@ export interface ToastItem {
   message: string;
   variant: ToastVariant;
   autoDismissMs?: number;
+  /** 同 key 的提示条原位更新，不叠新条。 */
+  key?: string;
   exiting?: boolean;
   actionLabel?: string;
   onAction?: () => void;
@@ -68,11 +72,12 @@ export function useToast(): ToastContextValue {
 
 // ── Auto-dismiss delays ──────────────────────────────────────────────────────
 
-const DISMISS_DELAY_MS = 2000;
-const DISMISS_ERROR_MS = 2000;
-const DISMISS_FADE_OUT_MS = 260;
+/** 结果 6 秒；错误与常驻状态不自动关闭（ADR-0116）。 */
+const DISMISS_DELAY_MS = 6000;
 const TOAST_DEDUP_WINDOW_MS = 2500;
 const SAVE_DONE_TOAST_COOLDOWN_MS = 6000;
+const SAVE_TOAST_KEY = 'save';
+const VOICE_TOAST_KEY = 'voice';
 
 function nextId(): string {
   return `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -180,46 +185,28 @@ interface Props {
   children: React.ReactNode;
 }
 
+/** 外层已有提示条时直接复用，全应用只有一个队列与一个容器。 */
 export function ToastProvider({ children }: Props) {
+  const parent = useContext(ToastContext);
+  if (parent) return <>{children}</>;
+  return <ToastProviderRoot>{children}</ToastProviderRoot>;
+}
+
+function ToastProviderRoot({ children }: Props) {
   const locale = useLocale();
-  const [current, setCurrent] = useState<ToastItem | null>(null);
-  const currentRef = useRef<ToastItem | null>(null);
-  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const removeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queue = useToastQueue();
+  const { items, push, dismiss, dismissWhere, dismissAll, setPaused } = queue;
   const lastToastRef = useRef<{ message: string; variant: ToastVariant; timestamp: number } | null>(
     null,
   );
   const lastSaveDoneToastAtRef = useRef<number>(0);
-
-  useEffect(() => {
-    currentRef.current = current;
-  }, [current]);
-
-  const clearTimers = useCallback(() => {
-    if (dismissTimerRef.current !== null) {
-      clearTimeout(dismissTimerRef.current);
-      dismissTimerRef.current = null;
-    }
-    if (removeTimerRef.current !== null) {
-      clearTimeout(removeTimerRef.current);
-      removeTimerRef.current = null;
-    }
-  }, []);
-
-  const dismiss = useCallback(() => {
-    clearTimers();
-    setCurrent((prev) => (prev ? { ...prev, exiting: true } : prev));
-    removeTimerRef.current = setTimeout(() => {
-      setCurrent(null);
-      removeTimerRef.current = null;
-    }, DISMISS_FADE_OUT_MS);
-  }, [clearTimers]);
 
   const showToast = useCallback(
     (
       message: string,
       variant: ToastVariant = 'info',
       autoDismissMs: number | undefined = undefined,
+      key?: string,
     ) => {
       const now = Date.now();
       const previousToast = lastToastRef.current;
@@ -232,58 +219,55 @@ export function ToastProvider({ children }: Props) {
         return;
       }
 
-      clearTimers();
+      const persistent =
+        variant === 'error' ||
+        variant === 'recording' ||
+        variant === 'listening' ||
+        variant === 'routing' ||
+        variant === 'executing' ||
+        variant === 'ai-thinking';
+      const totalDelay = autoDismissMs ?? (persistent ? 0 : DISMISS_DELAY_MS);
 
-      // Auto-dismiss defaults
-      const totalDelay =
-        autoDismissMs ??
-        (variant === 'error'
-          ? DISMISS_ERROR_MS
-          : variant === 'recording' ||
-              variant === 'listening' ||
-              variant === 'routing' ||
-              variant === 'executing' ||
-              variant === 'ai-thinking'
-            ? 0 // persist until explicitly dismissed
-            : DISMISS_DELAY_MS);
-
-      const item: ToastItem = { id: nextId(), message, variant, exiting: false };
       lastToastRef.current = { message, variant, timestamp: now };
-      setCurrent(item);
-
-      if (totalDelay > 0) {
-        dismissTimerRef.current = setTimeout(
-          dismiss,
-          Math.max(totalDelay - DISMISS_FADE_OUT_MS, 0),
-        );
-      }
+      push(
+        {
+          id: nextId(),
+          message,
+          variant,
+          exiting: false,
+          ...(key !== undefined && key !== '' ? { key } : {}),
+        },
+        totalDelay,
+      );
     },
-    [clearTimers, dismiss],
+    [push],
   );
 
   const showSaveState = useCallback(
     (state: SaveState) => {
       if (state.kind === 'idle') {
-        dismiss();
+        dismissWhere((item) => item.key === SAVE_TOAST_KEY);
         return;
       }
 
       if (state.kind === 'viewStale') {
-        clearTimers();
-        const item: ToastItem = {
-          id: nextId(),
-          message: state.message,
-          variant: 'warning',
-          exiting: false,
-          actionLabel: state.actionLabel,
-          onAction: state.onAction,
-        };
         lastToastRef.current = {
           message: state.message,
           variant: 'warning',
           timestamp: Date.now(),
         };
-        setCurrent(item);
+        push(
+          {
+            id: nextId(),
+            key: SAVE_TOAST_KEY,
+            message: state.message,
+            variant: 'warning',
+            exiting: false,
+            actionLabel: state.actionLabel,
+            onAction: state.onAction,
+          },
+          0,
+        );
         return;
       }
 
@@ -309,67 +293,44 @@ export function ToastProvider({ children }: Props) {
 
       if (state.kind === 'error') {
         const normalized = normalizeErrorToast(locale, state);
-        showToast(normalized.message, normalized.variant);
+        showToast(normalized.message, normalized.variant, undefined, SAVE_TOAST_KEY);
         return;
       }
 
-      showToast(message, defaultVariant);
+      showToast(message, defaultVariant, undefined, SAVE_TOAST_KEY);
     },
-    [clearTimers, dismiss, locale, showToast],
+    [dismissWhere, locale, push, showToast],
   );
 
   const showVoiceState = useCallback(
     (mode: VoiceAgentMode | null, isListening = false) => {
       if (mode === null) {
-        const active = currentRef.current;
-        if (!active || !isVoiceToastVariant(active.variant)) {
-          return;
-        }
-        dismiss();
+        dismissWhere((item) => isVoiceToastVariant(item.variant));
         return;
       }
       const variant = VOICE_MODE_VARIANT[mode];
       const message = getVoiceToastMessage(locale, mode, isListening);
-      showToast(message, variant, 0); // persist while in voice mode
+      showToast(message, variant, 0, VOICE_TOAST_KEY); // persist while in voice mode
     },
-    [dismiss, locale, showToast],
+    [dismissWhere, locale, showToast],
   );
 
-  const value: ToastContextValue = { showToast, showSaveState, showVoiceState, dismiss };
+  const value: ToastContextValue = {
+    showToast,
+    showSaveState,
+    showVoiceState,
+    dismiss: dismissAll,
+  };
 
   return (
     <ToastContext.Provider value={value}>
       {children}
-      {current && (
-        <div className="transcription-toast-container" role="status" aria-live="polite">
-          <div
-            className={`transcription-toast toast-${current.variant} ${current.actionLabel !== undefined && current.actionLabel.length > 0 ? 'transcription-toast-with-action' : ''} ${current.exiting === true ? 'transcription-toast-exiting' : ''}`}
-          >
-            <span className="transcription-toast-dot" aria-hidden="true" />
-            <span className="transcription-toast-text">{current.message}</span>
-            {current.actionLabel !== undefined &&
-            current.actionLabel.length > 0 &&
-            current.onAction !== undefined ? (
-              <button
-                type="button"
-                className="transcription-toast-action"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  current.onAction?.();
-                }}
-              >
-                {current.actionLabel}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="transcription-toast-close"
-              aria-label={t(locale, 'transcription.toast.dismiss')}
-              onClick={dismiss}
-            />
-          </div>
-        </div>
-      )}
+      <ToastStack
+        items={items}
+        dismissLabel={t(locale, 'transcription.toast.dismiss')}
+        onDismiss={dismiss}
+        onPausedChange={setPaused}
+      />
     </ToastContext.Provider>
   );
 }
