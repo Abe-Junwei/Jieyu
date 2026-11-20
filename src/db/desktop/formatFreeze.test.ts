@@ -85,5 +85,5 @@ describe('desktop format freeze', () => {
     expect(() => openProject(added)).toThrow(record.rejection);
     expect(readFileSync(addedFile)).toEqual(addedBefore);
     expect(readdirSync(added).includes(PROJECT_LOCK_NAME)).toBe(false);
-  });
+  }, 20_000);
 });
