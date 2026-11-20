@@ -3,7 +3,7 @@ import path from 'node:path';
 import { buildBudgets } from './build-budget-config.mjs';
 
 const workspaceRoot = process.cwd();
-const assetsDir = path.join(workspaceRoot, 'dist', 'assets');
+const assetsDir = path.join(workspaceRoot, 'dist-legacy', 'assets');
 
 function formatKiB(bytes) {
   return `${(bytes / 1024).toFixed(2)} kB`;
@@ -29,7 +29,7 @@ async function main() {
     if (matched.length === 0) {
       const line = `- ${budget.label}: skipped (asset not found)`;
       console.error(`${line} [FAIL]`);
-      failures.push(`${budget.label}: expected asset matching ${budget.pattern} not found in dist/assets`);
+      failures.push(`${budget.label}: expected asset matching ${budget.pattern} not found in dist-legacy/assets`);
       continue;
     }
 
@@ -59,6 +59,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error('[build-budget] Failed to inspect dist/assets', error);
+  console.error('[build-budget] Failed to inspect dist-legacy/assets', error);
   process.exitCode = 1;
 });

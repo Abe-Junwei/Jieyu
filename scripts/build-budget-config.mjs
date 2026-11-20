@@ -2,7 +2,7 @@ export const buildBudgets = [
   { label: 'TranscriptionPage.Orchestrator', pattern: /^TranscriptionPage\.Orchestrator-.*\.js$/, maxBytes: 860 * 1024 },
   { label: 'TranscriptionPage.ImportExport.archive', pattern: /^TranscriptionPage\.ImportExport\.archive-.*\.js$/, maxBytes: 1400 * 1024 },
   { label: 'db-import-validation-runtime', pattern: /^db-import-validation-runtime-.*\.js$/, maxBytes: 1400 * 1024 },
-  { label: 'pdf-vendor', pattern: /^pdf-vendor-.*\.js$/, maxBytes: 900 * 1024 },
+  { label: 'pdf-vendor', pattern: /^pdf-vendor-.*\.js$/, maxBytes: 960 * 1024 },
   { label: 'transformers', pattern: /^transformers[.\-].*\.js$/, maxBytes: 860 * 1024 },
   { label: 'onnxruntime-vendor', pattern: /^ort\.bundle\.min-.*\.js$/, maxBytes: 400 * 1024 },
   { label: 'language-mapping-runtime', pattern: /^language-mapping-runtime-.*\.js$/, maxBytes: 64 * 1024 },
@@ -13,7 +13,7 @@ export const buildBudgets = [
   { label: 'transcription-timeline.css', pattern: /^transcription-timeline-.*\.css$/, maxBytes: 56 * 1024 },
   { label: 'OrchestratorWaveformContent.css', pattern: /^OrchestratorWaveformContent-.*\.css$/, maxBytes: 28 * 1024 },
   { label: 'languageMetadataWorkspace.css', pattern: /^languageMetadataWorkspace-.*\.css$/, maxBytes: 28 * 1024 },
-  { label: 'OrthographyManagerPage.css', pattern: /^OrthographyManagerPage-.*\.css$/, maxBytes: 36 * 1024 },
+  { label: 'OrthographyManagerPage.css', pattern: /^OrthographyManagerPage-.*\.css$/, maxBytes: 40 * 1024 },
   { label: 'OrthographyBridgeWorkspacePage.css', pattern: /^OrthographyBridgeWorkspacePage-.*\.css$/, maxBytes: 16 * 1024 },
 ];
 

@@ -18,14 +18,12 @@ export function DesktopUnavailable() {
 
 export function DesktopRoute(props: {
   desktop: (host: DesktopReadHost) => ReactNode;
-  legacy: ReactNode;
   /** Folder and home skip the open-project session check. */
   folder?: boolean;
 }) {
   const host = readDesktopProjectHost();
   const surface = resolveDesktopSurface(host);
-  if (surface === 'legacy') return props.legacy;
-  if (host === null) return <DesktopUnavailable />;
+  if (surface !== 'desktop' || host === null) return <DesktopUnavailable />;
   if (props.folder) return props.desktop(host);
   return <DesktopSessionGate host={host} desktop={props.desktop} />;
 }

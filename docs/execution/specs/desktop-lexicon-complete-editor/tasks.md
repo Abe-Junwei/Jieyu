@@ -18,4 +18,5 @@ depends_on:
 - [ ] 完整编辑壳 flag 默认 false → 验证：featureFlags
 - [ ] 义项嵌套增删改 + 重开 → 验证：vitest + Electron
 - [ ] 引用迁移／解除 → 验证：失败用例 + 重开
+- [ ] 旧页台账关账（[S7 对照](../desktop-legacy-isolation/tasks.md#s7-台账关账对照)）：`features` 中 `lexicon` 改为 `ported`，填桌面测试与决定；`LexiconPage.test.tsx` 的业务断言在桌面测试里有对应 → 验证：`npm run check:old-path-exit`
 - [x] 不适用：本门阶段不改产品代码
