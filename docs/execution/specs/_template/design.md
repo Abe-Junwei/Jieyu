@@ -29,6 +29,15 @@ depends_on:
   - 方案 A vs B：选 A 因为 …
   - 拒绝的方案：…
 
+## 2.5 UI 精稿对照
+
+桌面页面（`src/pages/Desktop*.tsx`）、桌面样式（`src/styles/**/desktop*.css`），或新建共享组件（`src/components/**`）时必填。纯后端写「不适用」。
+
+- 对应 DESIGN.md 章节：
+- Pixso 文件 `va44BZLBUSYRQ7KoiO3PJw`：有整页精稿写画板名并逐帧对照；尚无整页精稿时，新建工作区或改整页分栏须先补精稿并经确认；局部控件只对照「组件」「规范」页。
+- 本片对齐的区域，以及有意留白：
+- 开工前用 Pixso MCP 读取画板结构和导出图。MCP 未登录或不通则停下，不改为只读 DESIGN.md 继续写代码。
+
 ## 3. 落位清单（与 requirements §4 对应）
 
 | 文件 | 职责（一句话） | 复杂度估计（行 / hooks） |

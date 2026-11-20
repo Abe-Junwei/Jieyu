@@ -607,6 +607,10 @@ async function editProject(app: ElectronApplication, projectFolder: string): Pro
   await expect
     .poll(() => audio.evaluate((element) => (element as HTMLAudioElement).currentTime))
     .toBeLessThan(0.05);
+  await page.getByRole('button', { name: '0.2–0.8 two' }).click();
+  await expect
+    .poll(() => audio.evaluate((element) => (element as HTMLAudioElement).currentTime))
+    .toBeGreaterThan(0.1);
   return page;
 }
 

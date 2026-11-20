@@ -287,47 +287,113 @@ function writeTiers(
       unprojected.push({ name: tier.name, reason: 'layer is missing a required field' });
       return;
     }
-    const pointTier = tier.intervals.every((row) => row.start === row.end);
-    const layer = createLayer(db, {
-      manuscriptId: manuscript.id,
-      key: `tier-${index}`,
-      name: { und: tier.name },
-      tierType: 'time-aligned',
-      contentType: pointTier ? 'point' : tier.role,
-      sortOrder: index,
-    });
-    const now = new Date().toISOString();
-    for (const row of tier.intervals) {
-      if (blocked(db, 'unit')) {
-        unprojected.push({
-          name: named(row.text, tier.name),
-          reason: 'unit is missing a required field',
-        });
-        continue;
-      }
-      if (pointTier) {
-        db.prepare(
-          `INSERT INTO points (id, layer_id, time_ms, label, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-        ).run(randomUUID(), layer.id, secToMs(row.start), row.text, now, now);
-        written += 1;
-        continue;
-      }
-      const speakerId = speakerFor(db, speakers, row.speaker, unprojected);
-      const unit = createUnit(db, {
-        layerId: layer.id,
-        startMs: secToMs(row.start),
-        endMs: secToMs(row.end),
-        text: row.text,
-        ...(speakerId === undefined ? {} : { speakerId }),
+    const spans = tier.intervals.filter((row) => secToMs(row.start) !== secToMs(row.end));
+    const marks = tier.intervals.filter((row) => secToMs(row.start) === secToMs(row.end));
+    if (spans.length > 0) {
+      written += writeIntervals(db, {
+        manuscriptId: manuscript.id,
+        key: `tier-${index}`,
+        name: tier.name,
+        role: tier.role,
+        sortOrder: index,
+        rows: spans,
+        speakers,
+        source,
+        unprojected,
       });
-      stampUnit(db, unit.id, source);
-      if (row.words !== undefined && row.words.length > 0) {
-        projectWords(db, unit.id, row.text, row.words, unprojected);
-      }
-      written += 1;
+    }
+    if (marks.length > 0) {
+      written += writePoints(db, {
+        manuscriptId: manuscript.id,
+        key: spans.length > 0 ? `tier-${index}-point` : `tier-${index}`,
+        name: tier.name,
+        role: tier.role,
+        sortOrder: spans.length > 0 ? index + 1 : index,
+        rows: marks,
+        unprojected,
+      });
     }
   });
+  return written;
+}
+
+function writeIntervals(
+  db: Sqlite,
+  input: {
+    manuscriptId: string;
+    key: string;
+    name: string;
+    role: ProjectedRole;
+    sortOrder: number;
+    rows: Interval[];
+    speakers: Map<string, string>;
+    source: SourceFile;
+    unprojected: ImportNotice[];
+  },
+): number {
+  const layer = createLayer(db, {
+    manuscriptId: input.manuscriptId,
+    key: input.key,
+    name: { und: input.name },
+    tierType: 'time-aligned',
+    contentType: input.role,
+    sortOrder: input.sortOrder,
+  });
+  let written = 0;
+  for (const row of input.rows) {
+    if (blocked(db, 'unit')) {
+      input.unprojected.push({
+        name: named(row.text, input.name),
+        reason: 'unit is missing a required field',
+      });
+      continue;
+    }
+    const speakerId = speakerFor(db, input.speakers, row.speaker, input.unprojected);
+    const unit = createUnit(db, {
+      layerId: layer.id,
+      startMs: secToMs(row.start),
+      endMs: secToMs(row.end),
+      text: row.text,
+      ...(speakerId === undefined ? {} : { speakerId }),
+    });
+    stampUnit(db, unit.id, input.source);
+    if (row.words !== undefined && row.words.length > 0) {
+      projectWords(db, unit.id, row.text, row.words, input.unprojected);
+    }
+    written += 1;
+  }
+  return written;
+}
+
+function writePoints(
+  db: Sqlite,
+  input: {
+    manuscriptId: string;
+    key: string;
+    name: string;
+    role: ProjectedRole;
+    sortOrder: number;
+    rows: Interval[];
+    unprojected: ImportNotice[];
+  },
+): number {
+  const layer = createLayer(db, {
+    manuscriptId: input.manuscriptId,
+    key: input.key,
+    name: { und: input.name },
+    tierType: 'time-aligned',
+    contentType: 'point',
+    sortOrder: input.sortOrder,
+  });
+  let written = 0;
+  const now = new Date().toISOString();
+  for (const row of input.rows) {
+    db.prepare(
+      `INSERT INTO points (id, layer_id, time_ms, label, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run(randomUUID(), layer.id, secToMs(row.start), row.text, now, now);
+    written += 1;
+  }
   return written;
 }
 

@@ -8,4 +8,5 @@ export default defineConfig({
   retries: 0,
   workers: 1,
   reporter: 'list',
+  use: { screenshot: 'on' },
 });
