@@ -17,7 +17,7 @@ import { importFromFlextext } from '../../services/FlexService';
 import { importFromTextGrid } from '../../services/TextGridService';
 import { importFromToolbox } from '../../services/ToolboxService';
 import { ensureDomParser } from '../../utils/ensureDomParser';
-import { parseLiftXml } from '../../utils/lexiconLiftImport';
+import { parseLiftXml } from '../../utils/lexiconLiftParse';
 import { readAnalysisMaterial } from './analysisCandidates';
 import { writeGraph } from './analysisRestore';
 import { publishAttachment } from './attachments';
