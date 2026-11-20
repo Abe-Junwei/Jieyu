@@ -1,9 +1,23 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const root = process.cwd();
 const recordPath = 'scripts/old-path-exit.record.json';
 const surfaces = ['production', 'scripts', 'ci', 'e2e', 'keep'];
+const featureStatuses = ['planned', 'in-progress', 'ported', 'dropped'];
+const legacyRoutePages = [
+  'src/pages/HomePage.tsx',
+  'src/pages/TranscriptionPage.tsx',
+  'src/pages/AnnotationPage.tsx',
+  'src/pages/AnalysisPage.tsx',
+  'src/pages/CorpusLibraryPage.tsx',
+  'src/pages/LexiconPage.tsx',
+  'src/pages/LanguageMetadataWorkspacePage.tsx',
+  'src/pages/OrthographyManagerPage.tsx',
+  'src/pages/OrthographyBridgeWorkspacePage.tsx',
+  'src/pages/StructuralProfileWorkspacePage.tsx',
+];
 
 function safeName(name) {
   return (
@@ -70,6 +84,63 @@ export function oldPathExitViolations(record, exists, read) {
   }
   for (const surface of surfaces) {
     if (!seen.has(surface)) violations.push(`missing ${surface}`);
+  }
+  return violations;
+}
+
+function namedList(value) {
+  return Array.isArray(value) ? value : null;
+}
+
+export function featureViolations(features, exists) {
+  if (!Array.isArray(features)) return ['old-path features are missing'];
+  const violations = [];
+  for (const feature of features) {
+    const id = typeof feature.id === 'string' && feature.id.length > 0 ? feature.id : '(unnamed)';
+    if (!featureStatuses.includes(feature.status)) violations.push(`${id} has no feature status`);
+    const paths = namedList(feature.paths);
+    const oldTests = namedList(feature.oldTests);
+    const replacement = namedList(feature.replacement);
+    const desktopTests = namedList(feature.desktopTests);
+    if (!paths || !oldTests || !replacement || !desktopTests) {
+      violations.push(`${id} has a missing feature field`);
+      continue;
+    }
+    if (typeof feature.decision !== 'string') violations.push(`${id} has no decision`);
+    if (paths.length === 0) violations.push(`${id} names no path`);
+    for (const name of [...paths, ...oldTests, ...replacement, ...desktopTests]) {
+      if (!safeName(name)) violations.push(`${id} has an unsafe path`);
+      else if (!exists(name)) violations.push(`${id} missing ${name}`);
+    }
+    if (feature.status === 'ported') {
+      if (replacement.length === 0) violations.push(`${id} ported without replacement`);
+      if (desktopTests.length === 0) violations.push(`${id} ported without desktop tests`);
+      if (feature.decision === '') violations.push(`${id} ported without decision`);
+    }
+    if (feature.status === 'dropped') {
+      if (feature.decision === '') violations.push(`${id} dropped without decision`);
+      if (replacement.length > 0 || desktopTests.length > 0) violations.push(`${id} dropped with a port`);
+    }
+  }
+  return violations;
+}
+
+export function legacyRouteGaps(record) {
+  const violations = [];
+  if (typeof record === 'object' && record !== null && 'surfaces' in record) {
+    violations.push('old-path record has surfaces');
+  }
+  const entries = Array.isArray(record?.entries) ? record.entries : [];
+  const routes = entries.find((entry) => entry.id === 'desktop-routes');
+  const routePaths = new Set(Array.isArray(routes?.paths) ? routes.paths : []);
+  const featurePaths = new Set(
+    (Array.isArray(record?.features) ? record.features : []).flatMap((feature) =>
+      Array.isArray(feature.paths) ? feature.paths : [],
+    ),
+  );
+  for (const page of legacyRoutePages) {
+    if (!routePaths.has(page)) violations.push(`desktop-routes missing ${page}`);
+    if (!featurePaths.has(page)) violations.push(`feature missing ${page}`);
   }
   return violations;
 }
@@ -174,15 +245,20 @@ function selfCheck() {
   }
 }
 
-selfCheck();
-const record = JSON.parse(fs.readFileSync(path.join(root, recordPath), 'utf8'));
-const violations = oldPathExitViolations(
-  record,
-  (name) => fs.existsSync(path.join(root, name)),
-  (name) => fs.readFileSync(path.join(root, name), 'utf8'),
-);
-if (violations.length > 0) {
-  for (const violation of violations) console.error(violation);
-  process.exit(1);
+function main() {
+  selfCheck();
+  const record = JSON.parse(fs.readFileSync(path.join(root, recordPath), 'utf8'));
+  const exists = (name) => fs.existsSync(path.join(root, name));
+  const violations = [
+    ...oldPathExitViolations(record, exists, (name) => fs.readFileSync(path.join(root, name), 'utf8')),
+    ...featureViolations(record.features, exists),
+    ...legacyRouteGaps(record),
+  ];
+  if (violations.length > 0) {
+    for (const violation of violations) console.error(violation);
+    process.exit(1);
+  }
+  console.log('[check-old-path-exit] OK');
 }
-console.log('[check-old-path-exit] OK');
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) main();

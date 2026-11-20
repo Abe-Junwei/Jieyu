@@ -10,7 +10,11 @@
         "src/pages/AnnotationPage.tsx",
         "src/pages/AnalysisPage.tsx",
         "src/pages/LexiconPage.tsx",
-        "src/pages/CorpusLibraryPage.tsx"
+        "src/pages/CorpusLibraryPage.tsx",
+        "src/pages/LanguageMetadataWorkspacePage.tsx",
+        "src/pages/OrthographyManagerPage.tsx",
+        "src/pages/OrthographyBridgeWorkspacePage.tsx",
+        "src/pages/StructuralProfileWorkspacePage.tsx"
       ],
       "replacement": [
         "src/App.tsx",
@@ -55,6 +59,98 @@
         "src/collaboration/collaborationOpLog.ts",
         "src/collaboration/cloud/collaborationSupabaseFacade.ts"
       ]
+    }
+  ],
+  "features": [
+    {
+      "id": "home",
+      "status": "planned",
+      "paths": ["src/pages/HomePage.tsx"],
+      "oldTests": ["src/pages/HomePage.test.tsx"],
+      "replacement": ["src/pages/DesktopProjectReadPage.tsx"],
+      "desktopTests": [],
+      "decision": ""
+    },
+    {
+      "id": "transcription",
+      "status": "planned",
+      "paths": ["src/pages/TranscriptionPage.tsx"],
+      "oldTests": ["src/pages/TranscriptionPage.desktopRoute.test.tsx"],
+      "replacement": ["src/pages/DesktopTranscriptionWorkspacePage.tsx"],
+      "desktopTests": [],
+      "decision": ""
+    },
+    {
+      "id": "annotation",
+      "status": "planned",
+      "paths": ["src/pages/AnnotationPage.tsx"],
+      "oldTests": ["src/pages/AnnotationPage.test.tsx"],
+      "replacement": ["src/pages/DesktopAnnotationPage.tsx"],
+      "desktopTests": [],
+      "decision": ""
+    },
+    {
+      "id": "analysis",
+      "status": "planned",
+      "paths": ["src/pages/AnalysisPage.tsx"],
+      "oldTests": ["src/pages/AnalysisPage.test.tsx"],
+      "replacement": ["src/pages/DesktopAnalysisPage.tsx"],
+      "desktopTests": [],
+      "decision": ""
+    },
+    {
+      "id": "corpus",
+      "status": "planned",
+      "paths": ["src/pages/CorpusLibraryPage.tsx"],
+      "oldTests": ["src/pages/CorpusLibraryPage.test.tsx"],
+      "replacement": ["src/pages/DesktopCorpusPage.tsx"],
+      "desktopTests": [],
+      "decision": ""
+    },
+    {
+      "id": "lexicon",
+      "status": "planned",
+      "paths": ["src/pages/LexiconPage.tsx"],
+      "oldTests": ["src/pages/LexiconPage.test.tsx"],
+      "replacement": ["src/pages/DesktopLexiconPage.tsx"],
+      "desktopTests": [],
+      "decision": ""
+    },
+    {
+      "id": "language-metadata",
+      "status": "planned",
+      "paths": ["src/pages/LanguageMetadataWorkspacePage.tsx"],
+      "oldTests": ["src/pages/LanguageMetadataWorkspacePage.test.tsx"],
+      "replacement": ["src/pages/DesktopCatalogPage.tsx"],
+      "desktopTests": [],
+      "decision": ""
+    },
+    {
+      "id": "orthography",
+      "status": "planned",
+      "paths": ["src/pages/OrthographyManagerPage.tsx"],
+      "oldTests": ["src/pages/OrthographyManagerPage.test.tsx"],
+      "replacement": ["src/pages/DesktopCatalogPage.tsx"],
+      "desktopTests": [],
+      "decision": ""
+    },
+    {
+      "id": "orthography-bridge",
+      "status": "planned",
+      "paths": ["src/pages/OrthographyBridgeWorkspacePage.tsx"],
+      "oldTests": ["src/pages/OrthographyBridgeWorkspacePage.test.tsx"],
+      "replacement": ["src/pages/DesktopCatalogPage.tsx"],
+      "desktopTests": [],
+      "decision": ""
+    },
+    {
+      "id": "structural-profile",
+      "status": "planned",
+      "paths": ["src/pages/StructuralProfileWorkspacePage.tsx"],
+      "oldTests": ["src/pages/StructuralProfileWorkspacePage.test.tsx"],
+      "replacement": ["src/pages/DesktopCatalogPage.tsx"],
+      "desktopTests": [],
+      "decision": ""
     }
   ]
 }
