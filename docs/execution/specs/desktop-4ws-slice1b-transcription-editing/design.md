@@ -1,7 +1,7 @@
 ---
 title: desktop-4ws-slice1b-transcription-editing design
 doc_type: execution-spec-design
-status: draft
+status: active
 owner: repo
 last_reviewed: 2026-11-19
 source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
@@ -20,6 +20,8 @@ depends_on:
 - **不采纳**：ELAN 推土机／平移模式（会挤动全文档，违反 E06「不挤邻段」）；ELAN 合并时拉长下级时间（违反 EF-018「不编造时间」）；把 `VerticalView` 整个挂进桌面（会回落 Dexie 写路径）。
 - **坑**：媒体秒与文献毫秒的换算要集中一处，避免多处取整不一致；拖动预览不能写库；改旧组件 props 会波及 ReadyWorkspace。
 - **决定：适配**。展示复用现有波形与时间轴组件，新写受控 controller；单库写操作按 E06 重写。不新增依赖。
+- **本次创建／投影调研**：桌面已有的 `startCreate` 只覆盖空白起点、4px 手势阈值与单层 `units.create`，不能代替旧版套索的命中选择和层路由。旧版成熟路径是 `useLasso` → `createUnitFromSelectionRouted` → `resolveSegmentTimelineSourceLayer` / `resolveProjectionLayerIdsForNewUnit`；适配其命中、宿主选择、父段约束和正文投影语义，不挂载旧版 Dexie 写路径。WaveSurfer regions 插件只提供 waveform region 手势，不含文本轨道命中、宿主路由或正文投影，故不以插件替代领域路径；不增加依赖。
+- **决定：适配旧版交互与路由**。空白起点拖过已存在语段进入选择；只有无命中拖动才创建。新建阈值为 50ms，仅影响新建拖选；既有边界拖动／键盘规则仍按 E06。相关实现锚点：`src/hooks/ui/useLasso.ts`、`src/pages/transcriptionSegmentCreationActions.ts`、`src/hooks/layer/useLayerSegments.ts`、`src/hooks/transcription/useTranscriptionUnitActions.helpers.ts`。
 
 ## 2. 架构选择
 
@@ -29,6 +31,9 @@ depends_on:
 - 用户决定（2026-11-19 排期审查）：1b 新排期所需的全部表列在 1b-0（v29 新 ADR）一次建齐（`units` 补 `skip_processing`／`confidence`／`self_certainty`，`layers` 补 90 天软删三列／`modality`／轨高与字体展示列，新建 `layer_lane_locks` 子表，`unit_texts` 关联 `attachment_files(id)` 存口译短录音，`settings.ts` 放行合并分隔符键）；同层内仅同说话人（或均未标说话人）禁重叠，不同说话人允许重叠并分轨；口译 STT 本机 Whisper 优先、云端守 E11 授权且转出文本走候选待确认；VAD 自动分段只填空白区间（0 ms 不重叠）并整批同事务一步可撤；多层视图（#598）排在层结构（#597）之前，分轨（#600）用预置多说话人种子验收。
 
 - 状态：选择、媒体、视口、草稿四块受控状态放 controller，Query 只放已保存数据（沿用 slice1 design §8）。
+- 用户决定（2026-11-19）：恢复旧版多层正文投影，而非只创建当前显示层的简化实现。一个时间 unit 共享时间与说话人，`unit_texts.layer_id` 存各文本层正文；空正文按需创建，不为所有匹配层预写空行。正文草稿、正式保存、回执和撤销按 unit + layer 隔离。保留翻译层对多个宿主转写层的显式链接；`layers.parent_id` 仅表达结构父子，不能替代匹配链接。
+- 用户决定（2026-11-19）：波形创建目标取活动文本层，没有明确活动层时默认转写层；关联层只按旧路由匹配。独立边界层仅在被选为目标时建段；时间细分要求新范围完全落在一个父段内并继承说话人。文本轨道拖选创建到指针所在说话人轨；同说话人不重叠、异说话人可重叠，沿用 E06，不复用旧版 20ms 邻段空隙。拖建最短 50ms；其余编辑仍按 10ms。
+- **数据适配**：当前桌面格式为 v31，`units.layer_id` 是区间所属结构层，`unit_texts` 和 `unit_text_drafts` 目前均按 unit 单键；v32 增加 `unit_texts.layer_id`、显式 `layer_links` 及复合文本草稿／回执身份。按 ADR-0086 严格拒绝旧格式、不迁移；只在合成项目上验证。
 - 动作：`onSelectUnit`、`onSeek`、`onRequestEdge`、`onRequestSharedBoundary`、`onRequestSplit`、`onRequestMerge`、层与分轨操作、口译录音与候选、点层增删改；展示组件不直接 `desktopCall`。
 - 拒绝：在 `useDesktopProjectReadController` 上继续加；一个大 controller 承担全部编辑（会过 300 行，按职责拆分为媒体、选择、层与分轨、口译录音、边界拆合与自动分段）。
 
@@ -37,8 +42,10 @@ depends_on:
 | 文件 | 职责 | 估计 |
 | --- | --- | --- |
 | `src/db/desktop/timeMs.ts` | 秒↔毫秒换算与取整（唯一入口） | < 80 |
-| `src/db/desktop/schema.ts` | v29：毫秒列、点层、拆合映射、句段样态／确信度列、层软删与外观列、`layer_lane_locks`、口译附件关联 | DDL |
-| `src/db/desktop/layers.ts` | 层改名、排序、层高／字体、分轨锁定、E06 迁移与 90 天软删 | < 300 |
+| `src/db/desktop/schema.ts` | v29 既有毫秒列、点层、拆合映射、句段样态／确信度列、层软删与外观列、`layer_lane_locks`、口译附件关联；v32 增加 `unit_texts.layer_id`、显式多宿主 `layer_links`、layer-scoped text drafts / receipts | DDL |
+| `src/db/desktop/layers.ts` | 层读路径携带链接关系；显式关系读写和同稿校验 | < 300 |
+| `src/db/desktop/units.ts` | 按显示层解析宿主语段；正文按 layer 读写，空投影不预建 | < 300 |
+| `src/db/desktop/textSave.ts` | 草稿、保存、回执、冲突与撤销按 `(unit_id, layer_id)` 隔离 | < 300 |
 | `src/db/desktop/unitEdges.ts` | 单边、共用边界、同说话人防重叠校验、批量新建与撤销 | < 300 |
 | `src/db/desktop/unitSpan.ts` | 拆分／合并按 E06 改写（文件已 1094 行，改写时拆出） | 降行数 |
 | `src/db/desktop/points.ts` | 点层读写 | < 200 |
@@ -47,12 +54,26 @@ depends_on:
 | `src/pages/useDesktopTranscriptionLayerController.ts`（计划，后续切片） | 多层读取装配、层 CRUD／软删、层高与字体、分轨锁定 | < 280 / < 10 hooks |
 | `src/pages/useDesktopTranscriptionOralController.ts`（计划，后续切片） | 口译短录音（附件 CAS）与 STT 候选采纳 | < 250 / < 10 hooks |
 | `src/pages/useDesktopTranscriptionEditController.ts`（计划，后续切片） | 边界／行内草稿／拆合／点层／VAD 批量分段动作与回执 | < 300 / < 12 hooks |
+| `src/pages/desktopTranscriptionCreateRouting.ts` | 纯层路由：目标层、旧版宿主选择、父段和说话人规则 | < 200 |
+| `src/pages/useDesktopTranscriptionCreateController.ts` | 桌面 unit 创建、selection hit-test、一次性 receipt 与读回 | < 260 / < 10 hooks |
+| `src/pages/DesktopTranscriptionLayers.tsx` | 多层只读装配与每层受控文本轨；页面仅装配 | < 240 |
+| `src/db/desktop/projectRead.ts`、`projectExchange.ts`、`manuscriptPurge.ts` | 按层正文／链接的读回、交换与清理 | focused |
 
 约束：守卫 `rules.desktop.mjs` 300 行；页面只装配；面板 CSS 最多两层边框。
 
+## UI 精稿对照
+
+| Pixso 画板 | 精稿事实 | 落地约束 |
+| --- | --- | --- |
+| `01 转写 · 样态 · 标准`（`19:6187`） | 波形与标尺共用水平时间轴；转写与翻译文本卡片纵向堆叠，卡片起止边界对齐；空翻译卡可编辑。 | 多层读取同一 unit 的时间区间，各自只显示本层正文；空文本是可编辑占位，不落空记录。 |
+| `01 转写 · 样态 · 收起与连线`（`67:2846`） | 收起层仍以一行保留名称和段数；层连接关系作为显示状态，不改变时间轴数据。 | 折叠只影响展示；连接来源是显式 layer link，不能从 `parent_id` 推断翻译宿主。 |
+| `01 转写 · 交互 · 多选`（`19:12433`） | 命中段的拖动表现为多选，选中摘要和批量菜单出现；已有段不能因从波形跨过而误建新段。 | 无命中空白拖动才创建；拖过既有卡片转入选择；保留现有多选入口，不以创建覆盖选择。 |
+
+波形拖选阈值与正文拖建按本次 ADR 为 50ms；截图只用于精稿对照，不提交运行态图像。
+
 ## 4. ADR
 
-- 需新 ADR（1b-0）：user_version 29 的毫秒时间、点层、拆合映射、句段样态与确信度列、层软删与显示列、`layer_lane_locks` 子表、口译附件关联与旧库拒绝规则，接在 ADR-0121（v28）之后。E06 的行为规则已由 ADR-0100 决定，不重复。
+- 既有 1b-0 格式决定由 ADR-0126／0128／0129 管理；本次新增 ADR-0132 将 v31 升至 v32，新增 layer-scoped 正文、显式多宿主链接与 50ms 创建拖选规则。仅新格式合成项目；旧格式严格拒绝、不写迁移。
 
 必须遵守的既有规范（开工清单第 0 步逐条写遵守方式；冲突回用户定）。队列 2–7 的归属在[工程索引 §7](../desktop-engineering-contract/design.md)，不在本文件重复：
 
@@ -79,7 +100,7 @@ depends_on:
 
 ## 6. 失败模式 / 兼容性
 
-- 旧库（≤ 28）打开即拒绝、不改字节；只重建合成项目。
+- 旧库（非 v32）打开即拒绝、不改字节；只重建合成项目。
 - 非法边界：拒绝并保留最后有效时间；拖动预览不落库。
 - 撤销遇后续修改：提示先处理后续修改，不部分撤回（E06／ADR-0100 撤销条款）。
 
@@ -90,6 +111,9 @@ depends_on:
 | typecheck | `npm run typecheck` | 0 errors |
 | 单库 | `npx vitest run src/db/desktop` | all pass，含写→关→重开读回 |
 | 页面 | `npx vitest run src/pages/DesktopTranscriptionWorkspacePage.test.tsx src/pages/useDesktopTranscription*` | all pass |
+| 创建路由 | `npx vitest run src/pages/desktopTranscriptionCreateRouting.test.ts src/pages/useDesktopTranscriptionCreateController.test.tsx` | 旧版路由、父段和 speaker overlap 结果通过 |
+| 多层正文 | `npx vitest run src/db/desktop/units.test.ts src/db/desktop/textSave.test.ts src/db/desktop/projectRead.test.ts` | 层间正文／草稿隔离，关闭重开后读回 |
 | 结构守卫 | `npm run check:architecture-guard` | OK，无桌面例外新增 |
+| 文档守卫 | `npm run check:docs-governance` | OK，含 Research 与 spec frontmatter 检查 |
 | 桌面流程 | `npm run test:e2e:desktop-project` | green（CI `desktop-flow`） |
 | 旧页回归 | `npm run test:e2e:chromium` | green（改旧组件 props 时） |

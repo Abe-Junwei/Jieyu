@@ -39,7 +39,7 @@ import type {
 } from './notes';
 import type { CorpusQuery, CorpusQueryCursor, CorpusQueryPage } from './corpusQuery';
 import type { EditInspection, EditReceiptKind } from './editReceipts';
-import type { Layer, LayerCreate } from './layers';
+import type { Layer, LayerCreate, LayerHostInput, LayerLink, LayerLinkType } from './layers';
 import type {
   AcceptableRun,
   ModelRun,
@@ -160,6 +160,7 @@ function checkLayerCreate(input: Record<string, unknown>): LayerCreate {
     'parentId',
     'sortOrder',
     'fieldValues',
+    'hosts',
   ]);
   return {
     manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
@@ -176,8 +177,31 @@ function checkLayerCreate(input: Record<string, unknown>): LayerCreate {
     ...('parentId' in input ? { parentId: optionalString(input.parentId, 'parentId') } : {}),
     ...('sortOrder' in input ? { sortOrder: requiredNumber(input.sortOrder, 'sortOrder') } : {}),
     ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+    ...('hosts' in input ? { hosts: layerHosts(input.hosts) } : {}),
     ...editOperationId(input),
   };
+}
+
+const LAYER_LINK_TYPES: readonly LayerLinkType[] = ['direct', 'free', 'literal', 'pedagogical'];
+
+function layerHosts(value: unknown): LayerHostInput[] {
+  if (!Array.isArray(value)) throw new Error('desktop call hosts must be an array');
+  return value.map((item) => {
+    const record = objectArg(item);
+    knownKeys(record, ['hostLayerId', 'linkType', 'preferred']);
+    const linkType = record.linkType;
+    if (linkType !== undefined && !LAYER_LINK_TYPES.includes(linkType as LayerLinkType)) {
+      throw new Error('desktop call linkType is not supported');
+    }
+    if (record.preferred !== undefined && typeof record.preferred !== 'boolean') {
+      throw new Error('desktop call preferred must be a boolean');
+    }
+    return {
+      hostLayerId: requiredString(record.hostLayerId, 'hostLayerId'),
+      ...(linkType === undefined ? {} : { linkType: linkType as LayerLinkType }),
+      ...(record.preferred === undefined ? {} : { preferred: record.preferred }),
+    };
+  });
 }
 
 function aliasInput(value: unknown): { alias: string; aliasType: string } {
@@ -641,6 +665,7 @@ function unitCreate(input: Record<string, unknown>): UnitCreate & { operationId?
   knownKeys(input, [
     'operationId',
     'layerId',
+    'textLayerId',
     'startMs',
     'endMs',
     'text',
@@ -653,6 +678,9 @@ function unitCreate(input: Record<string, unknown>): UnitCreate & { operationId?
   if ((startMs === null) !== (endMs === null)) throw new Error('unit time is invalid');
   return {
     layerId: requiredString(input.layerId, 'layerId'),
+    ...(input.textLayerId === undefined
+      ? {}
+      : { textLayerId: requiredString(input.textLayerId, 'textLayerId') }),
     startMs,
     endMs,
     text: typeof input.text === 'string' ? input.text : requiredString(input.text, 'text'),
@@ -1444,58 +1472,100 @@ export const desktopOperations = {
   'layers.list': spec<'keep', { manuscriptId: string }, Layer[]>('keep', (input) => ({
     manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
   })),
+  'layers.listLinks': spec<'keep', { manuscriptId: string }, LayerLink[]>('keep', (input) => {
+    knownKeys(input, ['manuscriptId']);
+    return { manuscriptId: requiredString(input.manuscriptId, 'manuscriptId') };
+  }),
   'units.updateText': spec<
     'replace-on-success',
-    { unitId: string; text: string; operationId?: string },
+    { unitId: string; textLayerId?: string; text: string; operationId?: string },
     Unit
   >('replace-on-success', (input) => {
+    if (typeof input.text !== 'string') throw new Error('desktop call text must be a string');
     const checked = {
       unitId: requiredString(input.unitId, 'unitId'),
-      text: requiredString(input.text, 'text'),
+      ...(input.textLayerId === undefined
+        ? {}
+        : { textLayerId: requiredString(input.textLayerId, 'textLayerId') }),
+      text: input.text,
     };
     if (input.operationId === undefined) return checked;
     return { ...checked, operationId: requiredString(input.operationId, 'operationId') };
   }),
   'units.readTextDraft': spec<
     'keep',
-    { unitId: string },
-    { unitId: string; rawInput: string; baseBody: string; updatedAt: string } | null
+    { unitId: string; textLayerId?: string },
+    {
+      unitId: string;
+      textLayerId: string;
+      rawInput: string;
+      baseBody: string;
+      updatedAt: string;
+    } | null
   >('keep', (input) => {
-    knownKeys(input, ['unitId']);
-    return { unitId: requiredString(input.unitId, 'unitId') };
+    knownKeys(input, ['unitId', 'textLayerId']);
+    return {
+      unitId: requiredString(input.unitId, 'unitId'),
+      ...(input.textLayerId === undefined
+        ? {}
+        : { textLayerId: requiredString(input.textLayerId, 'textLayerId') }),
+    };
   }),
   'units.putTextDraft': spec<
     'keep',
-    { unitId: string; rawInput: string; baseBody: string },
-    { unitId: string; rawInput: string; baseBody: string; updatedAt: string } | null
+    { unitId: string; textLayerId?: string; rawInput: string; baseBody: string },
+    {
+      unitId: string;
+      textLayerId: string;
+      rawInput: string;
+      baseBody: string;
+      updatedAt: string;
+    } | null
   >('keep', (input) => {
-    knownKeys(input, ['unitId', 'rawInput', 'baseBody']);
+    knownKeys(input, ['unitId', 'textLayerId', 'rawInput', 'baseBody']);
     if (typeof input.rawInput !== 'string') {
       throw new Error('desktop call rawInput must be a string');
     }
+    if (typeof input.baseBody !== 'string') {
+      throw new Error('desktop call baseBody must be a string');
+    }
     return {
       unitId: requiredString(input.unitId, 'unitId'),
+      ...(input.textLayerId === undefined
+        ? {}
+        : { textLayerId: requiredString(input.textLayerId, 'textLayerId') }),
       rawInput: input.rawInput,
-      baseBody: requiredString(input.baseBody, 'baseBody'),
+      baseBody: input.baseBody,
     };
   }),
   'units.inspectTextSave': spec<
     'keep',
-    { operationId: string; unitId: string; text: string },
+    { operationId: string; unitId: string; textLayerId?: string; text: string },
     'committed' | 'not-submitted' | 'conflict'
   >('keep', (input) => {
-    knownKeys(input, ['operationId', 'unitId', 'text']);
+    knownKeys(input, ['operationId', 'unitId', 'textLayerId', 'text']);
     if (typeof input.text !== 'string') throw new Error('desktop call text must be a string');
     return {
       operationId: requiredString(input.operationId, 'operationId'),
       unitId: requiredString(input.unitId, 'unitId'),
+      ...(input.textLayerId === undefined
+        ? {}
+        : { textLayerId: requiredString(input.textLayerId, 'textLayerId') }),
       text: input.text,
     };
   }),
-  'units.discardTextDraft': spec<'keep', { unitId: string }, null>('keep', (input) => {
-    knownKeys(input, ['unitId']);
-    return { unitId: requiredString(input.unitId, 'unitId') };
-  }),
+  'units.discardTextDraft': spec<'keep', { unitId: string; textLayerId?: string }, null>(
+    'keep',
+    (input) => {
+      knownKeys(input, ['unitId', 'textLayerId']);
+      return {
+        unitId: requiredString(input.unitId, 'unitId'),
+        ...(input.textLayerId === undefined
+          ? {}
+          : { textLayerId: requiredString(input.textLayerId, 'textLayerId') }),
+      };
+    },
+  ),
   'media.finishCleanup': spec<'clear', { id: string; operationId: string }, MediaCleanup>(
     'clear',
     (input) => {

@@ -92,11 +92,16 @@ describe('unit text save receipt and draft', () => {
       operationId: 'op-1',
     });
     expect(generation(session.sessionId, unitId)).toBe(after);
+    const textLayerId = (
+      callDesktopSession(session.sessionId, 'units.get', { id: unitId }) as {
+        textLayerId: string;
+      }
+    ).textLayerId;
     expect(
       inspectUnitTextSave(
         requireDesktopSession(session.sessionId).db,
         'op-1',
-        textSaveDigest(unitId, 'ta'),
+        textSaveDigest(unitId, textLayerId, 'ta'),
       ),
     ).toBe('committed');
     expect(

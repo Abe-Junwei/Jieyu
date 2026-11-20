@@ -6,6 +6,7 @@ import {
 } from '../../annotation/analysisGraphDomain';
 import { assertStoredCustomFields, missingFields } from './customFields';
 import { assertUnitTextRoleFree, readStoredUnit, type Unit } from './units';
+import { resolveUnitTextContext } from './unitTextLayers';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -45,6 +46,7 @@ interface UnitRow {
 
 interface TextRow {
   id: string;
+  layer_id: string;
   role: string;
   body: string;
   provenance_json: string | null;
@@ -240,11 +242,14 @@ export function splitUnit(
       now,
       now,
     );
-    assertUnitTextRoleFree(db, createdId, 'transcription');
-    db.prepare(
-      `INSERT INTO unit_texts (id, unit_id, role, body, updated_at)
-       VALUES (?, ?, 'transcription', ?, ?)`,
-    ).run(randomUUID(), createdId, existing.text, now);
+    if (existing.text !== '') {
+      const { role } = resolveUnitTextContext(db, existing.id, existing.textLayerId);
+      assertUnitTextRoleFree(db, createdId, role, existing.textLayerId);
+      db.prepare(
+        `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run(randomUUID(), createdId, existing.textLayerId, role, existing.text, now);
+    }
     const copied = copyAssociations(db, existing.id, createdId);
     bumpGeneration(db, place.manuscriptId, now);
     afterWrite?.();
@@ -408,7 +413,9 @@ export function undoMerge(db: SqliteDatabase, undo: UnitMergeUndo, afterWrite?: 
       fingerprintOf(db, undo.keepId) !== undo.keepFingerprint ||
       removed.startMs !== undo.removed.unit.start_ms ||
       removed.endMs !== undo.removed.unit.end_ms ||
-      removed.text !== undo.removed.texts.find((row) => row.role === 'transcription')?.body ||
+      removed.text !==
+        (undo.removed.texts.find((row) => row.layer_id === undo.removed.unit.layer_id)?.body ??
+          '') ||
       generationOf(db, undo.manuscriptId) !== undo.manuscriptGeneration + 1
     ) {
       throw new Error('unit merge undo readback failed');
@@ -765,7 +772,7 @@ export function readRemovedUnit(db: SqliteDatabase, unitId: string): RemovedUnit
     unit,
     texts: db
       .prepare(
-        `SELECT id, role, body, provenance_json, updated_at FROM unit_texts WHERE unit_id = ?`,
+        `SELECT id, layer_id, role, body, provenance_json, updated_at FROM unit_texts WHERE unit_id = ?`,
       )
       .all(unitId) as TextRow[],
     tokens: db
@@ -848,12 +855,20 @@ export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): voi
     unit.graph_fingerprint,
   );
   const insertText = db.prepare(
-    `INSERT INTO unit_texts (id, unit_id, role, body, provenance_json, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, provenance_json, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
   );
   for (const row of removed.texts) {
-    assertUnitTextRoleFree(db, unit.id, row.role);
-    insertText.run(row.id, unit.id, row.role, row.body, row.provenance_json, row.updated_at);
+    assertUnitTextRoleFree(db, unit.id, row.role, row.layer_id);
+    insertText.run(
+      row.id,
+      unit.id,
+      row.layer_id,
+      row.role,
+      row.body,
+      row.provenance_json,
+      row.updated_at,
+    );
   }
   const insertToken = db.prepare(
     `INSERT INTO tokens (
