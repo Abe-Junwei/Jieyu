@@ -98,7 +98,8 @@ describe('useTranscriptionUnitActions - batch operations', () => {
     resetCommercialSttRuntimeSnapshotForTests();
     window.localStorage.removeItem(LOCALE_PREFERENCE_STORAGE_KEY);
     vi.restoreAllMocks();
-    const { dexieStoragePort, installStoragePort } = await import('../../db/storagePort');
+    const { installStoragePort } = await import('../../db/storagePort');
+    const { dexieStoragePort } = await import('../../db/dexieStoragePort');
     installStoragePort(dexieStoragePort);
   });
 
@@ -1081,8 +1082,8 @@ describe('useTranscriptionUnitActions - batch operations', () => {
     const pushUndo = vi.fn();
     const rollbackUndo = vi.fn(async () => undefined);
     const setSaveState = vi.fn();
-    const { dexieStoragePort, installStoragePort, StorageReadbackError } =
-      await import('../../db/storagePort');
+    const { installStoragePort, StorageReadbackError } = await import('../../db/storagePort');
+    const { dexieStoragePort } = await import('../../db/dexieStoragePort');
     installStoragePort({
       ...dexieStoragePort,
       commitRegexSplit: async (write) => {
@@ -1155,7 +1156,8 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       throw new Error('rollback failed');
     });
     const setSaveState = vi.fn();
-    const { dexieStoragePort, installStoragePort } = await import('../../db/storagePort');
+    const { installStoragePort } = await import('../../db/storagePort');
+    const { dexieStoragePort } = await import('../../db/dexieStoragePort');
     installStoragePort({
       ...dexieStoragePort,
       commitRegexSplit: async () => {

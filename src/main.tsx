@@ -7,7 +7,9 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { featureFlags } from './ai/config/featureFlags';
 import { App } from './App';
 import { connectDesktopInvalidation } from './desktop/desktopQueryKeys';
+import { dexieStoragePort } from './db/dexieStoragePort';
 import { installSqliteIpcPortIfEnabled, readDesktopStorageCall } from './db/installSqliteIpcPort';
+import { installStoragePort } from './db/storagePort';
 import { initOtelForReleaseStage } from './observability/otel';
 import { initSentryForReleaseStage } from './observability/sentry';
 import { initLcpMetricObserver } from './observability/webVitals';
@@ -19,6 +21,7 @@ import './styles/app-foundation.css';
 
 const log = createLogger('main');
 
+installStoragePort(dexieStoragePort);
 installSqliteIpcPortIfEnabled({
   enabled: featureFlags.sqliteStoragePortEnabled,
   invoke: readDesktopStorageCall(),

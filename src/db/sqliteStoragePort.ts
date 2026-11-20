@@ -40,12 +40,12 @@ import { assignSpeakerInProject, PROJECT_APPLICATION_ID } from './sqliteSpeakerA
 import { listTrackEntitiesInProject, putTrackEntityInProject } from './sqliteTrackEntity';
 import { putUnitRelationInProject, setUnitParentInProject } from './sqliteUnitLinks';
 import { tokenCountMethods } from './sqliteUnitTokens';
-import {
-  RecordingRemovalBlockedError,
-  type ManuscriptRelationWrite,
-  type MixedSpeakerSelectionWrite,
-  type RegexSplitCommit,
-  type StoragePort,
+import { RecordingRemovalBlockedError } from './storagePortErrors';
+import type {
+  ManuscriptRelationWrite,
+  MixedSpeakerSelectionWrite,
+  RegexSplitCommit,
+  StoragePort,
 } from './storagePort';
 import type { SourceRecordRegistration } from './storagePortSourceRecords';
 import { StorageReadbackError } from './storageReadbackError';

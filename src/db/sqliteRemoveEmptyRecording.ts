@@ -9,7 +9,7 @@ import Database from 'better-sqlite3';
 import { emptyRecordingRemovalByteBlock } from '../utils/mediaItemState';
 import { readMediaItemById } from './sqliteMediaItems';
 import { MANUSCRIPT_APPLICATION_ID } from './sqliteSpeakerAssignment';
-import { RecordingRemovalBlockedError } from './storagePort';
+import { RecordingRemovalBlockedError } from './storagePortErrors';
 import { StorageReadbackError } from './storageReadbackError';
 
 type SqliteDatabase = InstanceType<typeof Database>;
