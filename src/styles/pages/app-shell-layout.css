@@ -186,6 +186,10 @@
   margin-top: auto;
 }
 
+.app-left-rail-footer .left-rail-btn-utility {
+  color: var(--text-primary);
+}
+
 .left-rail-project-hub-anchor {
   display: flex;
   flex-direction: column;
