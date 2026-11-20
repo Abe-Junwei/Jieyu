@@ -317,7 +317,7 @@
 
 .desktop-tx-volume input::-webkit-slider-runnable-track {
   height: 2px;
-  border-radius: 1px;
+  border-radius: var(--radius-xs);
   background: linear-gradient(
     to right,
     var(--brand-solid) var(--volume-fill, 100%),
@@ -341,7 +341,7 @@
 .desktop-tx-volume input::-moz-range-track {
   height: 2px;
   border: 0;
-  border-radius: 1px;
+  border-radius: var(--radius-xs);
   background: linear-gradient(
     to right,
     var(--brand-solid) var(--volume-fill, 100%),
@@ -645,7 +645,7 @@
 
 .desktop-tx-zoom-slider::-webkit-slider-runnable-track {
   height: 4px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: linear-gradient(
     to right,
     var(--brand-solid) var(--zoom-fill, 0%),
@@ -669,7 +669,7 @@
 .desktop-tx-zoom-slider::-moz-range-track {
   height: 4px;
   border: 0;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: linear-gradient(
     to right,
     var(--brand-solid) var(--zoom-fill, 0%),

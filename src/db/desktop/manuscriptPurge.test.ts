@@ -298,10 +298,10 @@ describe('manuscript reminder and purge', () => {
       text: '留',
     }) as { id: string };
     const insertPoint = db.prepare(
-      'INSERT INTO points (id, layer_id, time_ms, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO points (id, layer_id, time_ms, label, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
     );
-    insertPoint.run('point-gone', pointLayer.id, 100, PAST, PAST);
-    insertPoint.run('point-stay', otherPointLayer.id, 200, PAST, PAST);
+    insertPoint.run('point-gone', pointLayer.id, 100, '点', PAST, PAST);
+    insertPoint.run('point-stay', otherPointLayer.id, 200, '点', PAST, PAST);
     const insertLink = db.prepare(
       `INSERT INTO unit_span_maps (operation_id, kind, old_id, new_id, created_at)
        VALUES (?, 'split', ?, ?, ?)`,

@@ -9,7 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const node = process.execPath;
 const scratch = mkdtempSync(path.join(tmpdir(), 'jieyu-m4c-run-'));
 const outFile = path.join(scratch, 'folder.txt');
-const port = 5199;
+const port = Number(process.env.JIEYU_DESKTOP_FLOW_PORT ?? 5199);
 const devServer = `http://127.0.0.1:${port}/desktop-project`;
 let vite;
 let folder = '';

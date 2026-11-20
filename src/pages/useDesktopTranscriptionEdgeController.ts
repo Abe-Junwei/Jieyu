@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useEdgeSaveTimer } from './useEdgeSaveTimer';
 import type { TimeEdge } from './desktopTranscriptionEdge';
 import { watchTimeDraft } from './desktopTranscriptionEdgeSession';
 import { bindEdgeKeys, type ShownPreview } from './desktopTranscriptionEdgePointer';
@@ -10,8 +11,6 @@ import {
 } from './desktopTranscriptionEdgeActions';
 
 export type { ShownPreview };
-const IDLE_MS = 500;
-const CAP_MS = 5000;
 
 export function useDesktopTranscriptionEdgeController(input: EdgeControllerInput) {
   const live = useRef(input);
@@ -20,10 +19,9 @@ export function useDesktopTranscriptionEdgeController(input: EdgeControllerInput
   const uiRef = useRef(ui);
   uiRef.current = ui;
   const edited = useRef(false);
-  const idle = useRef<number | null>(null);
-  const cap = useRef<number | null>(null);
   const watchedUnit = useRef<string | null>(null);
   const [actions] = useState(() => createEdgeActions({ live, uiRef, setUi, edited }));
+  const timer = useEdgeSaveTimer();
 
   useEffect(
     () =>
@@ -69,18 +67,7 @@ export function useDesktopTranscriptionEdgeController(input: EdgeControllerInput
   }, [input.desktopCall, input.selectedUnitId, input.sessionId, selectedStart, selectedEnd]);
 
   function schedule(edge: TimeEdge) {
-    if (idle.current !== null) window.clearTimeout(idle.current);
-    idle.current = window.setTimeout(() => {
-      idle.current = null;
-      void actions.flush(edge);
-    }, IDLE_MS);
-    if (cap.current !== null) return;
-    cap.current = window.setTimeout(() => {
-      cap.current = null;
-      if (idle.current !== null) window.clearTimeout(idle.current);
-      idle.current = null;
-      void actions.flush(edge);
-    }, CAP_MS);
+    timer.schedule(() => void actions.flush(edge));
   }
 
   return {
@@ -102,8 +89,7 @@ export function useDesktopTranscriptionEdgeController(input: EdgeControllerInput
       schedule(edge);
     },
     flushTime(edge: TimeEdge) {
-      if (idle.current !== null) window.clearTimeout(idle.current);
-      idle.current = null;
+      timer.cancelIdle();
       void actions.flush(edge);
     },
   };

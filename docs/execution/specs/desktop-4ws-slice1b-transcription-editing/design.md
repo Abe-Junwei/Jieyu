@@ -44,9 +44,9 @@ depends_on:
 | `src/db/desktop/points.ts` | 点层读写 | < 200 |
 | `src/pages/useDesktopTranscriptionMediaController.ts` | 媒体、播放、视口 | < 220 / < 8 hooks |
 | `src/pages/useDesktopTranscriptionSelectionController.ts` | 选择与定位请求 | < 150 |
-| `src/pages/useDesktopTranscriptionLayerController.ts` | 多层读取装配、层 CRUD／软删、层高与字体、分轨锁定 | < 280 / < 10 hooks |
-| `src/pages/useDesktopTranscriptionOralController.ts` | 口译短录音（附件 CAS）与 STT 候选采纳 | < 250 / < 10 hooks |
-| `src/pages/useDesktopTranscriptionEditController.ts` | 边界／行内草稿／拆合／点层／VAD 批量分段动作与回执 | < 300 / < 12 hooks |
+| `src/pages/useDesktopTranscriptionLayerController.ts`（计划，后续切片） | 多层读取装配、层 CRUD／软删、层高与字体、分轨锁定 | < 280 / < 10 hooks |
+| `src/pages/useDesktopTranscriptionOralController.ts`（计划，后续切片） | 口译短录音（附件 CAS）与 STT 候选采纳 | < 250 / < 10 hooks |
+| `src/pages/useDesktopTranscriptionEditController.ts`（计划，后续切片） | 边界／行内草稿／拆合／点层／VAD 批量分段动作与回执 | < 300 / < 12 hooks |
 
 约束：守卫 `rules.desktop.mjs` 300 行；页面只装配；面板 CSS 最多两层边框。
 

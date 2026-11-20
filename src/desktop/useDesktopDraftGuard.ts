@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useDesktopDraftLeaveGuard } from '../hooks/desktop/useDesktopDraftLeaveGuard';
 import {
   claimTextSave,
@@ -10,8 +10,7 @@ import {
   type TextSaveResult,
 } from './desktopTextDraft';
 
-const IDLE_MS = 500;
-const CAP_MS = 5000;
+import { useDesktopDraftTimers } from './useDesktopDraftTimers';
 
 /**
  * One unsaved text draft. Leaving saves it first when it can be submitted. A failed save, an unfinished
@@ -35,9 +34,8 @@ export function useDesktopDraftGuard(
   const heldDraft = useRef<DesktopTextDraft | null>(null);
   const flying = useRef(false);
   const flight = useRef<Promise<boolean> | null>(null);
-  const dirtySince = useRef<number | null>(null);
-  const idleTimer = useRef<number | null>(null);
-  const capTimer = useRef<number | null>(null);
+  const timers = useDesktopDraftTimers(() => flushRef.current());
+  const clearTimers = timers.clear;
   const saveRef = useRef(save);
   const storeRef = useRef(store);
   draftRef.current = draft;
@@ -49,20 +47,13 @@ export function useDesktopDraftGuard(
     setDraft(next);
   };
 
-  const clearTimers = () => {
-    if (idleTimer.current !== null) window.clearTimeout(idleTimer.current);
-    if (capTimer.current !== null) window.clearTimeout(capTimer.current);
-    idleTimer.current = null;
-    capTimer.current = null;
-    dirtySince.current = null;
-  };
-
   const markHeld = (next: DesktopTextDraft | null) => {
     heldDraft.current = next;
   };
   const held = (current: DesktopTextDraft | null) => isSameTextDraft(heldDraft.current, current);
 
   const reset = (unitId: string | null) => {
+    composing.current = false;
     operationId.current = null;
     sent.current = null;
     used.current = null;
@@ -169,23 +160,9 @@ export function useDesktopDraftGuard(
   flushRef.current = flush;
 
   const arm = () => {
-    if (idleTimer.current !== null) window.clearTimeout(idleTimer.current);
     const current = draftRef.current;
-    if (current === null || held(current)) return;
-    if (dirtySince.current === null) {
-      dirtySince.current = Date.now();
-      capTimer.current = window.setTimeout(() => flushRef.current(), CAP_MS);
-    }
-    idleTimer.current = window.setTimeout(() => flushRef.current(), IDLE_MS);
+    timers.arm(current === null || held(current));
   };
-
-  useEffect(
-    () => () => {
-      if (idleTimer.current !== null) window.clearTimeout(idleTimer.current);
-      if (capTimer.current !== null) window.clearTimeout(capTimer.current);
-    },
-    [],
-  );
 
   const leaving = useDesktopDraftLeaveGuard(
     draftRef,

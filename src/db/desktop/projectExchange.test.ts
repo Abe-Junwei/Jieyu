@@ -247,10 +247,10 @@ describe('desktop JYT exchange', () => {
       text: '另一份',
     });
     const insertPoint = source.db.prepare(
-      'INSERT INTO points (id, layer_id, time_ms, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO points (id, layer_id, time_ms, label, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
     );
-    insertPoint.run('point-selected', selectedPointLayer.id, 100, T, T);
-    insertPoint.run('point-other', otherPointLayer.id, 200, T, T);
+    insertPoint.run('point-selected', selectedPointLayer.id, 100, '点', T, T);
+    insertPoint.run('point-other', otherPointLayer.id, 200, '点', T, T);
     const insertLink = source.db.prepare(
       `INSERT INTO unit_span_maps (operation_id, kind, old_id, new_id, created_at)
        VALUES (?, 'split', ?, ?, ?)`,

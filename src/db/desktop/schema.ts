@@ -441,7 +441,7 @@ BEGIN
   );
 END;
 
-CREATE TRIGGER units_aligned_order_update
+CREATE TRIGGER units_time_follows_sort_update
 BEFORE UPDATE OF start_ms, end_ms, layer_id ON units
 WHEN NEW.start_ms IS NOT NULL
 BEGIN

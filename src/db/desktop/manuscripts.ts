@@ -341,13 +341,11 @@ export function restoreManuscript(db: SqliteDatabase, id: string): Manuscript {
            lifecycle_generation = lifecycle_generation + 1, updated_at = ?
        WHERE id = ? AND deleted_at IS NOT NULL`,
     ).run(now, id);
-    if (current.mediaId !== null) {
-      db.prepare(
-        `UPDATE media
-         SET deleted_at = NULL, retain_until = NULL, reminder_shown_at = NULL
-         WHERE id = ?`,
-      ).run(current.mediaId);
-    }
+    db.prepare(
+      `UPDATE media
+       SET deleted_at = NULL, retain_until = NULL, reminder_shown_at = NULL
+       WHERE id = ?`,
+    ).run(current.mediaId);
     const next = getManuscript(db, id);
     if (
       !next ||

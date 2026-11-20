@@ -19,6 +19,10 @@ export function releaseDesktopMediaSession(sessionId: string): void {
 
 export function grantDesktopMedia(sessionId: string, filePath: string): string {
   if (bound !== sessionId) throw new Error('project session expired');
+  // Same file keeps one token so re-reads after a save do not change the media URL and reload the waveform.
+  for (const [existing, grant] of grants) {
+    if (grant.filePath === filePath) return existing;
+  }
   const token = randomUUID();
   grants.set(token, { sessionId, filePath });
   return token;
