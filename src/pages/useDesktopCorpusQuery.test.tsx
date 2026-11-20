@@ -75,7 +75,9 @@ describe('useDesktopCorpusQuery (#406)', () => {
     await act(async () => {
       result.current.more();
     });
-    await waitFor(() => expect(result.current.items.map((row) => row.unitId)).toEqual(['u1', 'u2']));
+    await waitFor(() =>
+      expect(result.current.items.map((row) => row.unitId)).toEqual(['u1', 'u2']),
+    );
     expect(queryCorpus).toHaveBeenLastCalledWith(
       'session-1',
       expect.objectContaining({

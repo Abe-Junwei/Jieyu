@@ -53,6 +53,13 @@ import {
   DesktopTranscriptionWorkspacePage,
 } from './DesktopTranscriptionWorkspacePage';
 
+const sidePaneContents: unknown[] = [];
+vi.mock('../contexts/AppSidePaneContext', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../contexts/AppSidePaneContext')>()),
+  useRegisterAppSidePane: ({ content }: { content: unknown }) => {
+    sidePaneContents.push(content);
+  },
+}));
 vi.mock('wavesurfer.js', () => ({ default: { create: vi.fn() } }));
 vi.mock('wavesurfer.js/dist/plugins/regions.esm.js', () => ({
   default: { create: vi.fn(() => ({ on: vi.fn(), destroy: vi.fn(), clearRegions: vi.fn() })) },
@@ -237,6 +244,35 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     await waitFor(() => {
       expect(saveText).toHaveBeenCalledWith('u-a', 'alpha beta', expect.any(String));
     });
+  });
+
+  it('saves when an IME composition ends and holds the leave dialog while it is open', async () => {
+    renderWorkspace();
+    fireEvent.click(screen.getByText('alpha'));
+    fireEvent.click(screen.getByText('alpha'));
+    const input = bodyInput();
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: 'ni' }, isComposing: true });
+    fireEvent.click(screen.getByText('beta'));
+    expect(await screen.findByRole('dialog', { name: '正文还没保存' })).toBeTruthy();
+    expect(saveText).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '留在这里' }));
+    fireEvent.change(input, { target: { value: '你' }, isComposing: true });
+    fireEvent.compositionEnd(input);
+    await waitFor(() => {
+      expect(saveText).toHaveBeenCalledWith('u-a', '你', expect.any(String));
+    });
+  });
+
+  it('keeps the side pane content identical while typing a body', () => {
+    renderWorkspace();
+    fireEvent.click(screen.getByText('alpha'));
+    fireEvent.click(screen.getByText('alpha'));
+    const input = bodyInput();
+    const before = sidePaneContents[sidePaneContents.length - 1];
+    fireEvent.change(input, { target: { value: 'alphax' } });
+    fireEvent.change(input, { target: { value: 'alphaxy' } });
+    expect(sidePaneContents[sidePaneContents.length - 1]).toBe(before);
   });
 });
 

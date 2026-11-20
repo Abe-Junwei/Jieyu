@@ -196,6 +196,96 @@ describe('desktop JYT exchange', () => {
     dest.close();
   });
 
+  it('exports points and links that still name a selected unit', () => {
+    const sourceDir = folder();
+    const source = openProject(sourceDir);
+    source.db
+      .prepare(
+        'INSERT INTO media (id, relpath, sha256, filename, duration, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .run('media-1', 'a.wav', 'aa', 'a.wav', 3, T);
+    const selected = source.manuscripts.create({ title: { zh: '选中' }, mediaId: 'media-1' });
+    const other = source.manuscripts.create({ title: { zh: '另一份' }, mediaId: 'media-1' });
+    const selectedLayer = source.layers.create({
+      manuscriptId: selected.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    });
+    const otherLayer = source.layers.create({
+      manuscriptId: other.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    });
+    const selectedPointLayer = source.layers.create({
+      manuscriptId: selected.id,
+      key: 'pt',
+      name: { zh: '点' },
+      tierType: 'time-aligned',
+      contentType: 'point',
+    });
+    const otherPointLayer = source.layers.create({
+      manuscriptId: other.id,
+      key: 'pt',
+      name: { zh: '点' },
+      tierType: 'time-aligned',
+      contentType: 'point',
+    });
+    const selectedUnit = source.units.create({
+      layerId: selectedLayer.id,
+      startMs: 0,
+      endMs: 1000,
+      text: '选中',
+    });
+    const otherUnit = source.units.create({
+      layerId: otherLayer.id,
+      startMs: 0,
+      endMs: 1000,
+      text: '另一份',
+    });
+    const insertPoint = source.db.prepare(
+      'INSERT INTO points (id, layer_id, time_ms, label, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+    );
+    insertPoint.run('point-selected', selectedPointLayer.id, 100, '点', T, T);
+    insertPoint.run('point-other', otherPointLayer.id, 200, '点', T, T);
+    const insertLink = source.db.prepare(
+      `INSERT INTO unit_span_maps (operation_id, kind, old_id, new_id, created_at)
+       VALUES (?, 'split', ?, ?, ?)`,
+    );
+    insertLink.run('op-new', 'gone-old', selectedUnit.id, T);
+    insertLink.run('op-old', selectedUnit.id, 'gone-new', T);
+    insertLink.run('op-other', 'gone-old', otherUnit.id, T);
+    insertLink.run('op-detached', 'gone-a', 'gone-b', T);
+    const packed = exportDesktopManuscriptJyt(source.db, [selected.id]);
+    const data = JSON.parse(strFromU8(unzipSync(packed)['data/project.json']!)) as {
+      tables: {
+        points: Array<{ id: string }>;
+        unit_span_maps: Array<{ operation_id: string }>;
+      };
+    };
+    expect(data.tables.points.map((row) => row.id).sort()).toEqual(['point-selected']);
+    expect(data.tables.unit_span_maps.map((row) => row.operation_id).sort()).toEqual([
+      'op-new',
+      'op-old',
+    ]);
+    expect(source.db.prepare('SELECT id FROM points ORDER BY id').all()).toEqual([
+      { id: 'point-other' },
+      { id: 'point-selected' },
+    ]);
+    expect(
+      source.db.prepare('SELECT operation_id FROM unit_span_maps ORDER BY operation_id').all(),
+    ).toEqual([
+      { operation_id: 'op-detached' },
+      { operation_id: 'op-new' },
+      { operation_id: 'op-old' },
+      { operation_id: 'op-other' },
+    ]);
+    source.close();
+  });
+
   it('leaves the source and an existing destination unchanged when import fails', () => {
     const sourceDir = folder();
     const source = openProject(sourceDir);

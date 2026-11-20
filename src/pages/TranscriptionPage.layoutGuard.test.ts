@@ -21,7 +21,7 @@ describe('Transcription layout guard', () => {
     expect(appCode).toContain('aria-expanded={!isSidePaneCollapsed}');
     expect(appCode).not.toContain('className="app-side-pane-hover-zone"');
     expect(appCode).toMatch(
-      /isSidePaneCollapsed[\s\S]{0,200}\?[\s\S]{0,40}'0px'[\s\S]{0,200}:\s*`\$\{sidePaneWidth\}px`/,
+      /isSidePaneCollapsed[\s\S]{0,200}\?[\s\S]{0,80}'0px'[\s\S]{0,200}:\s*`\$\{shownPaneWidth\}px`/,
     );
     expect(foundationCode).toContain("@import './pages/app-shell-layout.css';");
   });

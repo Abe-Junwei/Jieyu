@@ -95,7 +95,7 @@ last_reviewed: 2026-11-18
 - **长期目标**：田野录音 → 转写标注 → 词典/语料 → 出版与存档，在一台机器上闭环完成。
 
 - **形态**：Electron 桌面应用（路线 C；React + Vite 渲染层 + Worker/WASM），非移动。原纯 Web 形态（浏览器 + Dexie/IndexedDB）为历史基线；Electron 骨架跑通后只作开发与测试，E2E 迁完、旧库迁完后删除（[ADR-0063](../../adr/0063-desktop-only-after-electron-skeleton.md)、[ADR-0064](../../adr/0064-storage-freeze-until-desktop-opens-real-projects.md)）。
-- **数据真源**：本机项目文件夹。文件夹里放什么以 [ADR-0085](../../adr/0085-desktop-project-one-sqlite.md) 为准（音频原文件、一份 `project.sqlite`，文稿是表里的一行）；交换包和每日 JYM 备份仍以 [ADR-0046](../../adr/0046-desktop-sqlite-project-folder.md) 第 2、6 条为准。哪一条有效见 [ADR 目录](../../adr/README.md)。D14 冻结于 user_version 27，1a 按 [ADR-0121](../../adr/0121-text-save-receipt-and-draft.md) 升到现行 28。之后改表要新决定。桌面版剥离协作、密钥托管与遥测（ADR-0047）；**协作云（Supabase）为可选增强**，非真源，**独立切片**推进。
+- **数据真源**：本机项目文件夹。文件夹里放什么以 [ADR-0085](../../adr/0085-desktop-project-one-sqlite.md) 为准（音频原文件、一份 `project.sqlite`，文稿是表里的一行）；交换包和每日 JYM 备份仍以 [ADR-0046](../../adr/0046-desktop-sqlite-project-folder.md) 第 2、6 条为准。哪一条有效见 [ADR 目录](../../adr/README.md)。D14 冻结于 user_version 27，1a 升到 28，1b-0 按 [ADR-0122](../../adr/0122-integer-milliseconds-and-optional-media.md) 升到现行 29。之后改表要新决定。桌面版剥离协作、密钥托管与遥测（ADR-0047）；**协作云（Supabase）为可选增强**，非真源，**独立切片**推进。
 - **独立性**：与 Rushi（如是我闻）**无运行时依赖、无能力互补承诺**；解语缺口在本仓内解决或显式标为非目标。
 - **刻意不做**：每 PR 全量重型 gate、高频依赖自动化、多角色评审路由、为形式的全量 E2E、通用多智能体 swarm / 云端多租户。成熟度检查留在 `package.json` 的按需分组，不接回 PR CI。
 

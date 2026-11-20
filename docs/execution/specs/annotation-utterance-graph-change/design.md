@@ -60,3 +60,7 @@ depends_on:
 | --- | --- | --- |
 | 单元测试 | `npx vitest run src/pages/annotation/saveAnnotationUnitAnalysisGraph.test.ts` | all pass |
 | typecheck | `npm run typecheck` | 0 errors |
+
+## UI 精稿对照
+
+- 不适用：本规格不改桌面页面或桌面样式。后续切片若改 `src/pages/Desktop*.tsx`、`src/styles/**/desktop*.css` 或新建 `src/components/**`，在那次改动里改写本节。

@@ -114,8 +114,8 @@ function plusUtcDays(iso: string, days: number): string {
 export interface ManuscriptDeletePreview {
   id: string;
   title: Record<string, string>;
-  mediaId: string;
-  mediaRelpath: string;
+  mediaId: string | null;
+  mediaRelpath: string | null;
   alreadyDeleted: boolean;
   running: boolean;
 }
@@ -142,16 +142,16 @@ export function previewManuscriptDelete(db: SqliteDatabase, id: string): Manuscr
                 SELECT 1 FROM model_runs
                 WHERE model_runs.manuscript_id = manuscripts.id AND model_runs.status = 'running'
               ) AS running
-       FROM manuscripts JOIN media ON media.id = manuscripts.media_id
+       FROM manuscripts LEFT JOIN media ON media.id = manuscripts.media_id
        WHERE manuscripts.id = ?`,
     )
     .get(id) as
     | {
         id: string;
         titleJson: string;
-        mediaId: string;
+        mediaId: string | null;
         deletedAt: string | null;
-        mediaRelpath: string;
+        mediaRelpath: string | null;
         running: number;
       }
     | undefined;

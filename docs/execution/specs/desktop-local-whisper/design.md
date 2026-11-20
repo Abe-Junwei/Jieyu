@@ -35,3 +35,7 @@ source_of_truth: desktop-local-whisper-spec
 当前仅匹配 16 kHz 单声道 PCM16 WAV，其他格式/采样率仍拒绝；重采样转码与应用内下载归下一刀。tiny 只用于合成验收，不更改 Mac small / Windows base 首发选择。权重目录/哈希来自 https://huggingface.co/api/models/ggerganov/whisper.cpp/tree/main?recursive=false&expand=false ，公开 tiny 下载后校验为 be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21。
 
 服务只在当前应用会话内持有；重开需重新选择，不冒充持久模型注册。默认关闭现有候选 flag，自用与稳定周期清开关沿原规格，不关闭 #303/#305。
+
+## UI 精稿对照
+
+- 不适用：本规格不改桌面页面或桌面样式。后续切片若改 `src/pages/Desktop*.tsx`、`src/styles/**/desktop*.css` 或新建 `src/components/**`，在那次改动里改写本节。

@@ -95,3 +95,7 @@ depends_on:
 展示动作约定：onSelectUnit(unitId)、onSeek(mediaSeconds)、onTogglePlayback()、onEditText(unitId,text)、onCompositionChange(boolean)、onRequestBoundary(preview)、onRequestSplit(preview)、onRequestMerge(preview)、onLeave(intent)。controller将媒体秒与文献毫秒按映射转换；展示组件不读Dexie、不直接desktopCall。只有成功持久回执后广播统一领域事件，刷新失败独立提示、不重放写入。
 
 **UI 精稿准入：Pixso「精稿」页。** 代码实现准入仍开：1a 的队列、离开链和 Electron 故障验证；1b 受控波形／时间轴（不得直接挂旧 VerticalView）。回执表和草稿表已是 user_version 28（ADR-0121）。运行时键盘、焦点返回与界面上的持久化仍由实现测试验收。
+
+## UI 精稿对照
+
+- 不适用：本规格不改桌面页面或桌面样式。后续切片若改 `src/pages/Desktop*.tsx`、`src/styles/**/desktop*.css` 或新建 `src/components/**`，在那次改动里改写本节。
