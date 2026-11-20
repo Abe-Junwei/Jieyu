@@ -44,7 +44,7 @@ ADR-0063 定了只交付桌面。ADR-0064 定了 #329 把 E2E 迁到 Electron �
 
 ## 决定
 
-1. **桌面占用默认入口，旧网页改名。** `index.html → src/main.desktop.tsx → src/DesktopApp.tsx` 只挂桌面路由，没有旧页面可回落。`vite.config.ts`、`dist/`、`npm run dev`、`npm run build` 都是桌面的，所以 Electron 三个加载点的路径不变。旧网页使用独立根目录 `legacy/index.html → src/main.tsx → src/App.tsx`，配置为 `vite.legacy.config.ts`（`root: 'legacy'`，产物 `dist-legacy/index.html`），用 `dev:legacy`、`build:legacy`、`preview:legacy` 启动、构建和预览，只给 Chromium E2E 用。PWA 只放在旧网页的配置里。共享构建步骤里的输出目录由调用方传入，旧网页不写进 `dist/`。
+1. **桌面占用默认入口，旧网页改名。** `index.html → src/main.desktop.tsx → src/DesktopApp.tsx` 只挂桌面路由，没有旧页面可回落。`vite.config.ts`、`dist/`、`npm run dev`、`npm run build` 都是桌面的，所以 Electron 三个加载点的路径不变。旧网页使用独立根目录 `legacy/index.html → src/main.tsx → src/App.tsx`，配置为 `vite.legacy.config.ts`（`root: 'legacy'`，`publicDir` 仍是仓库 `public`，产物 `dist-legacy/index.html`），用 `dev:legacy`、`build:legacy`、`preview:legacy` 启动、构建和预览，只给 Chromium E2E 用。模块脚本用 `../src/main.tsx`。PWA 只放在旧网页的配置里。共享构建步骤里的 HTML 入口和输出目录由调用方传入，旧网页不写进 `dist/`。
 2. **继续执行 ADR-0123。** `vite dev` 显示的就是桌面入口；没有桥接时只显示「请在解语桌面窗口中打开」。旧网页只出现在 Chromium E2E 使用的旧网页构建里。
 3. **拆掉 `App.tsx` 的桌面分支和切换入口在同一个 PR 里完成。** 入口切换由 `test:e2e:desktop-project` 和 `test:e2e:chromium` 验证。`desktop:smoke` 加载临时空白页，不验证入口。`test:e2e:desktop-project` 的 CI 只在 Ubuntu；本机补跑 macOS。不允许先拆壳再切入口。
 4. **三道门禁，零容忍，不设 allowlist。**
