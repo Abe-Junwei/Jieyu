@@ -48,6 +48,24 @@ describe('old path feature ledger', () => {
     expect(featureViolations([feature('dropped', { decision: '328' })], present)).toEqual([]);
   });
 
+  it('requires old files only while a feature is still open', () => {
+    const closed = feature('ported', {
+      paths: ['src/pages/HomePage.tsx'],
+      oldTests: ['tests/e2e/home.spec.ts'],
+      replacement: ['src/pages/Next.tsx'],
+      desktopTests: ['src/pages/Next.test.tsx'],
+      decision: 'whitelist',
+    });
+    const kept = (name: string) => name.startsWith('src/pages/Next');
+    expect(featureViolations([closed], kept)).toEqual([]);
+    expect(
+      featureViolations(
+        [feature('planned', { oldTests: ['tests/e2e/home.spec.ts'] })],
+        kept,
+      ),
+    ).toEqual(['sample missing src/pages/HomePage.tsx', 'sample missing tests/e2e/home.spec.ts']);
+  });
+
   it('keeps the ten old routes on desktop-routes and features, and rejects a surfaces field', () => {
     const page = 'src/pages/HomePage.tsx';
     const record = {

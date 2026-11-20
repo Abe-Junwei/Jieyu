@@ -17,10 +17,14 @@
         "src/pages/StructuralProfileWorkspacePage.tsx"
       ],
       "replacement": [
-        "src/App.tsx",
+        "src/DesktopApp.tsx",
         "src/pages/DesktopProjectReadPage.tsx",
+        "src/pages/DesktopTranscriptionWorkspacePage.tsx",
+        "src/pages/DesktopAnnotationPage.tsx",
         "src/pages/DesktopAnalysisPage.tsx",
-        "src/pages/DesktopLexiconPage.tsx"
+        "src/pages/DesktopCorpusPage.tsx",
+        "src/pages/DesktopLexiconPage.tsx",
+        "src/pages/DesktopCatalogPage.tsx"
       ]
     },
     {

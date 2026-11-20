@@ -108,7 +108,12 @@ export function featureViolations(features, exists) {
     }
     if (typeof feature.decision !== 'string') violations.push(`${id} has no decision`);
     if (paths.length === 0) violations.push(`${id} names no path`);
-    for (const name of [...paths, ...oldTests, ...replacement, ...desktopTests]) {
+    const open = feature.status === 'planned' || feature.status === 'in-progress';
+    for (const name of [...paths, ...oldTests]) {
+      if (!safeName(name)) violations.push(`${id} has an unsafe path`);
+      else if (open && !exists(name)) violations.push(`${id} missing ${name}`);
+    }
+    for (const name of [...replacement, ...desktopTests]) {
       if (!safeName(name)) violations.push(`${id} has an unsafe path`);
       else if (!exists(name)) violations.push(`${id} missing ${name}`);
     }
