@@ -19,7 +19,7 @@ depends_on:
 
 ADR-0063 定了只交付桌面。ADR-0064 定了 #329 把 E2E 迁到 Electron 之后再删浏览器构建和 Dexie。ADR-0123 定了 `vite dev` 显示桌面外壳，旧网页只在 `VITE_LEGACY_WEB_SURFACE=true` 的测试构建里出现。
 
-现在 Electron 和浏览器加载同一份 `index.html → src/main.tsx → src/App.tsx`，Electron 的三个加载点都读这份产物：`JIEYU_VITE_DEV_SERVER`、`dist/index.html`，以及打包态 `app://` 协议所读的 `dist/`。桌面页面还是旧页面，由 `DesktopRoute`、`resolveDesktopSurface` 在运行时决定。
+现在 Electron 和浏览器加载同一份 `index.html → src/main.tsx → src/App.tsx`，Electron 的三个加载点都读这份产物：`JIEYU_VITE_DEV_SERVER`、`dist/index.html`，以及打包态 `jieyu-app://` 所读的 `dist/`。桌面页面还是旧页面，由 `DesktopRoute`、`resolveDesktopSurface` 在运行时决定。
 
 2026-11-20 在 `2017062b`（已合入主干 `cd44f04f`）上用 TypeScript 导入图实测。统计含动态导入，不含 type-only 导入和测试：
 
@@ -57,7 +57,7 @@ ADR-0063 定了只交付桌面。ADR-0064 定了 #329 把 E2E 迁到 Electron �
 ## 后果
 
 - Electron 不再加载 Dexie、旧页面和 service worker；共享模块一旦引到旧区，门禁会给出导入链，修法是拆开该模块。
-- `storagePort.ts` 的默认值不再是 Dexie，旧入口和测试要显式安装 Dexie 实现。
+- Dexie 实现挪到 `src/db/dexieStoragePort.ts`。`storagePort.ts` 不再导入 `engine`，未安装时抛错。旧入口和测试显式安装 `dexieStoragePort`。
 - Playwright 的 webServer、`e2e-pr.yml`、`test:e2e:session-sidecar-audit` 改用旧网页构建。
 - 并存期间有两份 Vite 配置；Chromium 用例按 #329 每迁一组删一组。
 - 执行细节见[规格](../execution/specs/desktop-legacy-isolation/requirements.md)。

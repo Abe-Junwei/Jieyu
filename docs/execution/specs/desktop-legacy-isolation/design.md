@@ -26,10 +26,10 @@ depends_on:
 
 - **门禁根**：用桌面渲染入口的可达集，不用目录全量。`src/desktop/skeleton/sqliteStorageHost.ts` 由 `electron/vite.config.ts` 打进主进程，不属于渲染层；但它同样经由 `storagePort` 到达 Dexie，所以先拆边，再把目录全量加为根。
 - **旧区**：`scripts/legacy-zone.json` 列出的根（`dexie`、`src/db/engine.ts`、`src/main.tsx`、`src/App.tsx`、10 个旧路由页面、旧壳组件、`src/db/migration/e2eMigrationHarness.ts`），以及所有导入这些根的模块。
-- **方案 A**：桌面占用默认名，旧网页改名。**方案 B**：旧网页保留默认名，桌面另起名。选 A：Electron 三个加载点（`JIEYU_VITE_DEV_SERVER`、`dist/index.html`、`app://` 协议的 `dist/`）路径不变，`npm run dev` 自然符合 ADR-0123，S8 只删不改名。代价是 Playwright 和 E2E 工作流要改用 `build:legacy`。
+- **方案 A**：桌面占用默认名，旧网页改名。**方案 B**：旧网页保留默认名，桌面另起名。选 A：Electron 三个加载点（`JIEYU_VITE_DEV_SERVER`、`dist/index.html`、`jieyu-app://` 所读的 `dist/`）路径不变，`npm run dev` 自然符合 ADR-0123，S8 只删不改名。代价是 Playwright 和 E2E 工作流要改用 `build:legacy`。
 - **拆边**：
   1. `parseLiftXml` 挪进只做解析的 `src/utils/lexiconLiftParse.ts`；`lexiconLiftImport.ts` 改为从这里导入，并保留 Dexie 写入。
-  2. `RecordingRemovalBlockedError` 等错误类型挪进 `src/db/storagePortErrors.ts`；`storagePort.ts` 的默认值改为未安装时抛错，由 `src/main.tsx` 与 vitest setup 显式安装 `dexieStoragePort`。
+  2. `RecordingRemovalBlockedError` 等错误类型挪进 `src/db/storagePortErrors.ts`，`sqliteStoragePort.ts` 改从这里导入。Dexie 实现挪进 `src/db/dexieStoragePort.ts` 并导出 `dexieStoragePort`。`storagePort.ts` 只留安装槽，不导入 `engine`，未安装时抛错。`src/main.tsx` 与 vitest setup 显式安装 `dexieStoragePort`。
 
 ## UI 精稿对照
 
@@ -41,6 +41,7 @@ depends_on:
 | --- | --- | --- |
 | `src/utils/lexiconLiftParse.ts` | LIFT XML 解析，不碰存储 | 从现文件搬出 |
 | `src/db/storagePortErrors.ts` | 存储操作的错误类型 | < 80 行 |
+| `src/db/dexieStoragePort.ts` | Dexie 实现，导出 `dexieStoragePort` | 从 `storagePort.ts` 搬出 |
 | `scripts/check-desktop-boundary.mjs` | 建导入图、计算传染集、报出导入链 | < 200 行 |
 | `src/main.desktop.tsx` | i18n、observability、桌面存储安装、错误边界、路由；不装载 `e2eMigrationHarness` | < 120 行 |
 | `src/DesktopApp.tsx` | 只装配桌面路由和桌面实际用到的壳组件 | < 300 行 / < 12 hooks |

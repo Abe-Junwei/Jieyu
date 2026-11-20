@@ -25,7 +25,7 @@ source_of_truth: desktop-legacy-isolation-spec
 
 ## 3. 验收标准
 
-- [ ] `parseLiftXml` 所在模块不到达 `storagePort*`；`storagePort.ts` 不导入 `engine`，默认值不是 Dexie。
+- [ ] `parseLiftXml` 所在模块不到达 `storagePort*`。Dexie 实现在 `src/db/dexieStoragePort.ts`。`storagePort.ts` 不导入 `engine`，未安装时抛错。
 - [ ] `check:desktop-boundary` 在接进 `check:all` 的那次提交上实测为 0；在桌面区样例导入 `db/engine` 时失败，并打印导入链（单测）。
 - [ ] 同一个 PR 内：`index.html` 改为桌面入口，`App.tsx` 去掉桌面分支；`desktop:smoke`、`test:e2e:desktop-project`、`test:e2e:chromium` 全部通过。
 - [ ] `npm run dev` 与 Electron 开发态加载桌面入口；浏览器没有桥接时只显示提示（ADR-0123）。
@@ -37,7 +37,7 @@ source_of_truth: desktop-legacy-isolation-spec
 
 | 类别 | 文件 / 目录 | 改动性质 |
 | --- | --- | --- |
-| 混合边 | `src/utils/lexiconLiftImport.ts`、`src/db/desktop/foreignImport.ts`、`src/db/storagePort.ts`、`src/db/sqliteStoragePort.ts` | 拆分 |
+| 混合边 | `src/utils/lexiconLiftImport.ts`、`src/db/desktop/foreignImport.ts`、`src/db/storagePort.ts`、`src/db/dexieStoragePort.ts`、`src/db/storagePortErrors.ts`、`src/db/sqliteStoragePort.ts` | 拆分 |
 | 桌面入口 | `index.html`、`src/main.desktop.tsx`、`src/DesktopApp.tsx` | 新增 / 改指向 |
 | 旧入口 | `index.legacy.html`、`src/main.tsx`、`src/App.tsx`、`src/components/DesktopRoute.tsx` | 改名 / 去桌面分支 |
 | 构建 | `vite.config.ts`（桌面）、`vite.legacy.config.ts`（PWA）、`vite.shared.ts`、`package.json` | 新增 / 修改 |
@@ -49,5 +49,5 @@ source_of_truth: desktop-legacy-isolation-spec
 ## 5. 已知风险与依赖
 
 - 上游：ADR-0063、0064 §5–§7、0079、0086 白名单、0123；#329、#328。
-- `storagePort` 默认值改了以后，依赖默认 Dexie 的 vitest 需要在 setup 里显式安装。
+- `storagePort` 未安装即抛错以后，依赖默认 Dexie 的 vitest 需要在 setup 里安装 `src/db/dexieStoragePort.ts`。
 - `App.tsx` 1086 行，拆的时候可能漏掉桌面实际用到的壳组件。

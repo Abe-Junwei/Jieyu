@@ -18,7 +18,7 @@ depends_on:
 
 - [x] S0 决策落档：ADR-0131 和本规格 → 验证：`npm run check:docs-governance`
 - [ ] S1a 把 `parseLiftXml` 挪到 `src/utils/lexiconLiftParse.ts`，`foreignImport.ts` 改从这里导入 → 验证：LIFT 相关 vitest；重新实测 `src/db/desktop/**` 不再到达 `engine`
-- [ ] S1b 新增 `src/db/storagePortErrors.ts`；把 `storagePort.ts` 的默认值改为未安装时抛错，由 `src/main.tsx` 和 vitest setup 安装 Dexie 实现 → 验证：`npm run typecheck`、`npm run test:vitest`、`npm run test:e2e:chromium`；重新实测目录全量为根时不到达 `engine`
+- [ ] S1b 新增 `src/db/storagePortErrors.ts`（`sqliteStoragePort.ts` 改从这里导入错误类型）和 `src/db/dexieStoragePort.ts`（Dexie 实现）。`storagePort.ts` 只留安装槽，不导入 `engine`，未安装时抛错；`src/main.tsx` 和 vitest setup 安装 `dexieStoragePort` → 验证：`npm run typecheck`、`npm run test:vitest`、`npm run test:e2e:chromium`；重新实测目录全量为根时不到达 `engine`
 - [ ] S2 源码门禁：新增 `scripts/check-desktop-boundary.mjs`（含单测）和 `scripts/legacy-zone.json`，以桌面页面入口和三个桌面目录为根；实测为 0 才接进 `check:all` → 验证：单测（样例导入 `db/engine` 应失败）、`npm run check:desktop-boundary`
 - [ ] S3a 列出 `App.tsx` 在桌面下实际渲染的组件和 effect，逐项写「搬 / 重写 / 不要」。`e2eMigrationHarness`、`LegacyDataResetDialog`、`DbMigrationGateOverlay`、`BrowserDataResilience` 标为不要 → 验证：评审本文件
 - [ ] S3b 在一个 PR 内完成：`index.html` 改指 `src/main.desktop.tsx` 和 `src/DesktopApp.tsx`；旧入口改为 `index.legacy.html` 和 `vite.legacy.config.ts`（带 PWA，产物到 `dist-legacy/`）；新增 `dev:legacy`、`build:legacy`；Playwright 的 webServer、session-sidecar、`e2e-pr.yml` 改用旧网页构建；`App.tsx` 和 `DesktopRoute` 去掉桌面分支；桌面入口加入门禁根 → 验证：`npm run typecheck`、`npm run build`、`npm run desktop:smoke`、`npm run test:e2e:desktop-project`、`npm run test:e2e:chromium`、`npm run check:desktop-boundary`
