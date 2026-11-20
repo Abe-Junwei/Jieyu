@@ -754,6 +754,11 @@
   background: color-mix(in srgb, var(--text-primary) 8%, var(--surface-panel));
 }
 
+.desktop-tx-layer-strip__expand {
+  flex: none;
+  color: var(--text-secondary);
+}
+
 .desktop-tx-layer-strip__name {
   color: var(--text-primary);
 }
