@@ -28,7 +28,7 @@ source_of_truth: desktop-legacy-isolation-spec
 - [ ] `parseLiftXml` 所在模块不到达 `storagePort*`。Dexie 实现在 `src/db/dexieStoragePort.ts`。`storagePort.ts` 不导入 `engine`，未安装时抛错。
 - [ ] `check:desktop-boundary` 在接进 `check:all` 的那次提交上实测为 0；在桌面区样例导入 `db/engine` 时失败，并打印导入链（单测）。
 - [ ] 同一个 PR 内：`index.html` 改为桌面入口，`App.tsx` 去掉桌面分支。`test:e2e:desktop-project` 在 Ubuntu CI 与本机 macOS 通过，`test:e2e:chromium` 经 `preview:legacy` 通过。`desktop:smoke` 不作为入口切换的证据。
-- [ ] `npm run dev` 与 Electron 开发态加载桌面入口；浏览器没有桥接时只显示提示（ADR-0123）。`dev:legacy` 的 `/` 打开 `legacy/index.html`，模块脚本是 `../src/main.tsx`，静态文件仍来自仓库 `public/`。两份 `#jieyu-csp` 文本相同。
+- [ ] `npm run dev` 与 Electron 开发态加载桌面入口；浏览器没有桥接时只显示提示（ADR-0123）。`dev:legacy` 的 `/` 打开 `legacy/index.html`，模块脚本是 `../src/main.tsx`，静态文件仍来自仓库 `public/`。两份 `#jieyu-csp` 和启动脚本的文本相同。
 - [ ] `npm run build` 产出的 `dist/` 里没有 `dexie`、`src/db/engine.ts`、旧区根模块和 service worker；出现时构建失败。旧网页构建不往 `dist/` 写文件。
 - [ ] `test:e2e:desktop-project` 在开发服务器里断言 `indexedDB.databases()` 为空、界面形态为 `desktop`。打包后的 `dist/` 由产物门禁检查。平台是 Ubuntu CI 加本机 macOS。
 - [ ] `src/main.tsx` 先安装 Dexie，SQLite 开关打开时覆盖它。`src/main.desktop.tsx` 不安装 Dexie；IPC 只在 ADR-0079 开关打开时安装。
