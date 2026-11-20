@@ -10,6 +10,7 @@ const EDGE_REASON = {
   short: 'app.desktopTranscription.edgeShort',
   createShort: 'app.desktopTranscription.createShort',
   noParent: 'app.desktopTranscription.createNoParent',
+  hasChildren: 'app.desktopTranscription.edgeHasChildren',
   noLayer: 'app.desktopTranscription.createNoLayer',
   apart: 'app.desktopTranscription.edgeNotTouching',
   order: 'app.desktopTranscription.edgeOrder',

@@ -67,6 +67,7 @@ export const DICT_KEYS = [
   'app.desktopTranscription.edgeOverlap',
   'app.desktopTranscription.edgeOutside',
   'app.desktopTranscription.edgeOutsideParent',
+  'app.desktopTranscription.edgeHasChildren',
   'app.desktopTranscription.edgeShort',
   'app.desktopTranscription.createShort',
   'app.desktopTranscription.createNoParent',

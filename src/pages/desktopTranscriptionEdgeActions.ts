@@ -6,6 +6,7 @@ import {
   sharedEdge,
   type EdgeSelection,
   type TimeEdge,
+  edgeRejectKind,
   type TimedEdgeUnit,
 } from './desktopTranscriptionEdge';
 import {
@@ -50,6 +51,7 @@ export type EdgeNoticeKind =
   | 'short'
   | 'createShort'
   | 'noParent'
+  | 'hasChildren'
   | 'noLayer'
   | 'apart'
   | 'order'
@@ -451,7 +453,10 @@ export function createEdgeActions(ctx: {
           closeDelete(prompt.unitId, true);
           return live.current.reload();
         })
-        .catch(() => failed());
+        .catch((error: unknown) => {
+          const text = error instanceof Error ? error.message : '';
+          live.current.notify(live.current.message(edgeRejectKind(text), ''));
+        });
     },
   };
 }

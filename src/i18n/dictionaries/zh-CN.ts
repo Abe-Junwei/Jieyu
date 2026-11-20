@@ -70,6 +70,7 @@ export const zhCNDictionary = {
   'app.desktopTranscription.edgeOverlap': '不能与相邻段重叠',
   'app.desktopTranscription.edgeOutside': '超出录音范围',
   'app.desktopTranscription.edgeOutsideParent': '不能超出上级语段',
+  'app.desktopTranscription.edgeHasChildren': '请先删除该语段下的细分子段，再删除本语段',
   'app.desktopTranscription.edgeShort': '至少要有 10 毫秒',
   'app.desktopTranscription.createShort': '新建语段至少要有 50 毫秒',
   'app.desktopTranscription.createNoParent': '要整段落在上级语段之内',

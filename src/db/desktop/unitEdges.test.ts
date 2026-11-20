@@ -288,6 +288,10 @@ describe('desktop unit edges', () => {
     expect(get(b)).toMatchObject({ startMs: 900, endMs: 1500 });
     callDesktopSession(id, 'units.moveEdge', { unitId: parent, edge: 'start', time: 300 });
     expect(get(a)).toMatchObject({ startMs: 300, endMs: 800 });
+    expect(() => callDesktopSession(id, 'units.delete', { unitId: parent })).toThrow(
+      'unit has time subdivisions',
+    );
+    expect(get(parent)).toMatchObject({ startMs: 300 });
     callDesktopSession(id, 'units.undo', {});
     expect(get(a)).toMatchObject({ startMs: 100, endMs: 800 });
     callDesktopSession(id, 'units.undo', {});

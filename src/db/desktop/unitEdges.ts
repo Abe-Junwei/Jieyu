@@ -299,6 +299,8 @@ export function previewUnitDeletion(db: SqliteDatabase, unitId: string): UnitDel
 export function removeUnit(db: SqliteDatabase, unitId: string): RemovedUnit {
   const write = db.transaction(() => {
     const tree = readRemovedUnit(db, unitId);
+    const child = db.prepare('SELECT 1 FROM units WHERE parent_unit_id = ? LIMIT 1').get(unitId);
+    if (child !== undefined) throw new Error('unit has time subdivisions');
     deleteUnitTree(db, unitId);
     if (readStoredUnit(db, unitId)) throw new Error('unit delete readback failed');
     return tree;
