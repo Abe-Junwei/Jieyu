@@ -185,7 +185,14 @@ interface Props {
   children: React.ReactNode;
 }
 
+/** 外层已有提示条时直接复用，全应用只有一个队列与一个容器。 */
 export function ToastProvider({ children }: Props) {
+  const parent = useContext(ToastContext);
+  if (parent) return <>{children}</>;
+  return <ToastProviderRoot>{children}</ToastProviderRoot>;
+}
+
+function ToastProviderRoot({ children }: Props) {
   const locale = useLocale();
   const queue = useToastQueue();
   const { items, push, dismiss, dismissWhere, dismissAll, setPaused } = queue;

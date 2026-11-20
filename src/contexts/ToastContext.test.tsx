@@ -3,6 +3,8 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, fireEvent, act } from '@testing-library/react';
 import { ToastProvider, useToast, type ToastVariant } from './ToastContext';
+import { AppGlobalToastHost } from '../components/AppGlobalToastHost';
+import { dispatchAppGlobalToast } from '../utils/appGlobalToast';
 import { t } from '../i18n';
 import { renderWithLocale } from '../test/localeTestUtils';
 
@@ -269,6 +271,25 @@ describe('ToastContext', () => {
       });
 
       expect(document.querySelectorAll('.transcription-toast')).toHaveLength(2);
+    });
+  });
+
+  describe('shell host and nested provider', () => {
+    it('shares one stack between shell events and a nested page provider', () => {
+      renderWithLocale(
+        <ToastProvider>
+          <AppGlobalToastHost />
+          <ToastProvider>
+            <TestConsumer />
+          </ToastProvider>
+        </ToastProvider>,
+        'zh-CN',
+      );
+      act(() => {
+        dispatchAppGlobalToast({ message: 'shell one', variant: 'error' });
+      });
+      expect(document.querySelectorAll('.transcription-toast-container')).toHaveLength(1);
+      expect(screen.getByText('shell one')).toBeTruthy();
     });
   });
 

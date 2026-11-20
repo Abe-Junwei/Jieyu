@@ -1,6 +1,7 @@
 import { lazy, Suspense, useMemo, type SyntheticEvent } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { featureFlags } from './ai/config/featureFlags';
+import { ToastProvider } from './contexts/ToastContext';
 import { AppGlobalToastHost } from './components/AppGlobalToastHost';
 import { AppOfflineStatusBanner } from './components/AppOfflineStatusBanner';
 import { WorkspaceReturnBanner } from './components/WorkspaceReturnBanner';
@@ -78,192 +79,198 @@ export function DesktopApp() {
   return (
     <ErrorBoundary>
       <LocaleProvider locale={prefs.locale}>
-        <AppSidePaneProvider>
-          <div
-            className={`app-shell ${pane.location.pathname === '/' ? 'app-shell-home' : ''} ${pane.isTranscriptionRoute ? 'app-shell-transcription' : ''} ${pane.desktopContextPane ? 'app-shell-desktop-transcription' : ''} ${pane.isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
-            {...shellStyleProps}
-          >
-            <div role="region" aria-label={t(prefs.locale, 'app.shell.aria.notices')}>
-              <AppOfflineStatusBanner locale={prefs.locale} />
-              <WorkspaceReturnBanner locale={prefs.locale} />
-            </div>
-            <div ref={pane.shellBodyRef} className="app-shell-body">
-              <aside
-                className="app-left-rail"
-                aria-label={t(prefs.locale, 'app.leftRail.aria.navigation')}
-              >
-                <nav
-                  className="app-left-rail-group app-left-rail-primary"
-                  aria-label={t(prefs.locale, 'app.navGroup.core')}
+        <ToastProvider>
+          <AppSidePaneProvider>
+            <div
+              className={`app-shell ${pane.location.pathname === '/' ? 'app-shell-home' : ''} ${pane.isTranscriptionRoute ? 'app-shell-transcription' : ''} ${pane.desktopContextPane ? 'app-shell-desktop-transcription' : ''} ${pane.isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
+              {...shellStyleProps}
+            >
+              <div role="region" aria-label={t(prefs.locale, 'app.shell.aria.notices')}>
+                <AppOfflineStatusBanner locale={prefs.locale} />
+                <WorkspaceReturnBanner locale={prefs.locale} />
+              </div>
+              <div ref={pane.shellBodyRef} className="app-shell-body">
+                <aside
+                  className="app-left-rail"
+                  aria-label={t(prefs.locale, 'app.leftRail.aria.navigation')}
                 >
-                  {primaryNav.map((item) => (
-                    <NavLink
-                      key={item.to}
-                      to={resolveDesktopNavTo(item.to)}
-                      end={item.to === '/'}
-                      className={({ isActive }) =>
-                        isActive ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'
-                      }
-                      title={item.label}
-                      aria-label={item.label}
-                    >
-                      <JieyuIcon name={item.icon} aria-hidden className={JIEYU_ICON_NAV} />
-                      <span>{item.label}</span>
-                    </NavLink>
-                  ))}
-                </nav>
-                <div
-                  className="app-left-rail-footer"
-                  aria-label={t(prefs.locale, 'app.leftRail.aria.footer')}
-                >
-                  <button
-                    type="button"
-                    className="left-rail-btn left-rail-btn-utility"
-                    aria-label={t(prefs.locale, 'transcription.voiceWidget.settings.button')}
-                    title={t(prefs.locale, 'transcription.voiceWidget.settings.button')}
-                    onClick={prefs.openSettings}
+                  <nav
+                    className="app-left-rail-group app-left-rail-primary"
+                    aria-label={t(prefs.locale, 'app.navGroup.core')}
                   >
-                    <JieyuIcon name="Settings" aria-hidden className={JIEYU_ICON_NAV} />
-                  </button>
-                </div>
-              </aside>
-              {pane.hideSidePane ? null : (
-                <DesktopShellSidePane
-                  locale={prefs.locale}
-                  activeNavItem={activeNavItem}
-                  isTranscriptionRoute={pane.isTranscriptionRoute}
-                  isSidePaneCollapsed={pane.isSidePaneCollapsed}
-                  sidePaneWidth={pane.sidePaneWidth}
-                  minWidth={pane.minWidth}
-                  maxWidth={pane.maxWidth}
-                  handleSidePaneResizeStart={pane.handleSidePaneResizeStart}
-                  handleSidePaneResizeKeyDown={pane.handleSidePaneResizeKeyDown}
-                  handleSidePaneResizeReset={pane.handleSidePaneResizeReset}
-                  handleSidePaneToggle={handleSidePaneToggle}
-                />
-              )}
-              <main
-                className={`app-main ${pane.isTranscriptionRoute ? 'app-main-transcription' : ''}`}
-              >
-                <h1 className="app-main-screen-reader-heading">{activeNavItem?.label}</h1>
-                <AiPanelProvider>
-                  <AssetPanelProvider value={assetPanelCtx}>
-                    <Suspense fallback={<div className="app-route-loading" aria-busy="true" />}>
-                      <Routes location={pane.location}>
-                        <Route
-                          path="/"
-                          element={
-                            <DesktopRoute folder desktop={() => <DesktopProjectReadPage />} />
-                          }
-                        />
-                        <Route
-                          path="/desktop-project"
-                          element={
-                            <DesktopRoute folder desktop={() => <DesktopProjectReadPage />} />
-                          }
-                        />
-                        <Route
-                          path="/transcription"
-                          element={
-                            <DesktopRoute
-                              desktop={() =>
-                                featureFlags.desktopTranscriptionWorkspaceEnabled ? (
-                                  <DesktopTranscriptionWorkspacePage />
-                                ) : (
-                                  <DesktopProjectReadPage />
-                                )
-                              }
-                            />
-                          }
-                        />
-                        <Route
-                          path="/assets/language-metadata"
-                          element={
-                            <DesktopRoute
-                              desktop={(host) => (
-                                <DesktopCatalogPage host={host} section="language" />
-                              )}
-                            />
-                          }
-                        />
-                        <Route
-                          path="/assets/structural-profiles"
-                          element={
-                            <DesktopRoute
-                              desktop={(host) => (
-                                <DesktopCatalogPage host={host} section="structure" />
-                              )}
-                            />
-                          }
-                        />
-                        <Route
-                          path="/assets/orthographies"
-                          element={
-                            <DesktopRoute
-                              desktop={(host) => (
-                                <DesktopCatalogPage host={host} section="orthography" />
-                              )}
-                            />
-                          }
-                        />
-                        <Route
-                          path="/assets/orthography-bridges"
-                          element={
-                            <DesktopRoute
-                              desktop={(host) => (
-                                <DesktopCatalogPage host={host} section="bridge" />
-                              )}
-                            />
-                          }
-                        />
-                        <Route
-                          path="/annotation"
-                          element={
-                            <DesktopRoute
-                              desktop={(host) => <DesktopAnnotationPage host={host} />}
-                            />
-                          }
-                        />
-                        <Route
-                          path="/analysis"
-                          element={
-                            <DesktopRoute desktop={(host) => <DesktopAnalysisPage host={host} />} />
-                          }
-                        />
-                        <Route path="/writing" element={<Navigate to="/corpus" replace />} />
-                        <Route
-                          path="/corpus"
-                          element={<DesktopRoute desktop={() => <DesktopCorpusPage />} />}
-                        />
-                        <Route
-                          path="/lexicon"
-                          element={
-                            <DesktopRoute desktop={(host) => <DesktopLexiconPage host={host} />} />
-                          }
-                        />
-                        <Route path="*" element={<DesktopNotFound locale={prefs.locale} />} />
-                      </Routes>
-                    </Suspense>
-                  </AssetPanelProvider>
-                </AiPanelProvider>
-              </main>
+                    {primaryNav.map((item) => (
+                      <NavLink
+                        key={item.to}
+                        to={resolveDesktopNavTo(item.to)}
+                        end={item.to === '/'}
+                        className={({ isActive }) =>
+                          isActive ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'
+                        }
+                        title={item.label}
+                        aria-label={item.label}
+                      >
+                        <JieyuIcon name={item.icon} aria-hidden className={JIEYU_ICON_NAV} />
+                        <span>{item.label}</span>
+                      </NavLink>
+                    ))}
+                  </nav>
+                  <div
+                    className="app-left-rail-footer"
+                    aria-label={t(prefs.locale, 'app.leftRail.aria.footer')}
+                  >
+                    <button
+                      type="button"
+                      className="left-rail-btn left-rail-btn-utility"
+                      aria-label={t(prefs.locale, 'transcription.voiceWidget.settings.button')}
+                      title={t(prefs.locale, 'transcription.voiceWidget.settings.button')}
+                      onClick={prefs.openSettings}
+                    >
+                      <JieyuIcon name="Settings" aria-hidden className={JIEYU_ICON_NAV} />
+                    </button>
+                  </div>
+                </aside>
+                {pane.hideSidePane ? null : (
+                  <DesktopShellSidePane
+                    locale={prefs.locale}
+                    activeNavItem={activeNavItem}
+                    isTranscriptionRoute={pane.isTranscriptionRoute}
+                    isSidePaneCollapsed={pane.isSidePaneCollapsed}
+                    sidePaneWidth={pane.sidePaneWidth}
+                    minWidth={pane.minWidth}
+                    maxWidth={pane.maxWidth}
+                    handleSidePaneResizeStart={pane.handleSidePaneResizeStart}
+                    handleSidePaneResizeKeyDown={pane.handleSidePaneResizeKeyDown}
+                    handleSidePaneResizeReset={pane.handleSidePaneResizeReset}
+                    handleSidePaneToggle={handleSidePaneToggle}
+                  />
+                )}
+                <main
+                  className={`app-main ${pane.isTranscriptionRoute ? 'app-main-transcription' : ''}`}
+                >
+                  <h1 className="app-main-screen-reader-heading">{activeNavItem?.label}</h1>
+                  <AiPanelProvider>
+                    <AssetPanelProvider value={assetPanelCtx}>
+                      <Suspense fallback={<div className="app-route-loading" aria-busy="true" />}>
+                        <Routes location={pane.location}>
+                          <Route
+                            path="/"
+                            element={
+                              <DesktopRoute folder desktop={() => <DesktopProjectReadPage />} />
+                            }
+                          />
+                          <Route
+                            path="/desktop-project"
+                            element={
+                              <DesktopRoute folder desktop={() => <DesktopProjectReadPage />} />
+                            }
+                          />
+                          <Route
+                            path="/transcription"
+                            element={
+                              <DesktopRoute
+                                desktop={() =>
+                                  featureFlags.desktopTranscriptionWorkspaceEnabled ? (
+                                    <DesktopTranscriptionWorkspacePage />
+                                  ) : (
+                                    <DesktopProjectReadPage />
+                                  )
+                                }
+                              />
+                            }
+                          />
+                          <Route
+                            path="/assets/language-metadata"
+                            element={
+                              <DesktopRoute
+                                desktop={(host) => (
+                                  <DesktopCatalogPage host={host} section="language" />
+                                )}
+                              />
+                            }
+                          />
+                          <Route
+                            path="/assets/structural-profiles"
+                            element={
+                              <DesktopRoute
+                                desktop={(host) => (
+                                  <DesktopCatalogPage host={host} section="structure" />
+                                )}
+                              />
+                            }
+                          />
+                          <Route
+                            path="/assets/orthographies"
+                            element={
+                              <DesktopRoute
+                                desktop={(host) => (
+                                  <DesktopCatalogPage host={host} section="orthography" />
+                                )}
+                              />
+                            }
+                          />
+                          <Route
+                            path="/assets/orthography-bridges"
+                            element={
+                              <DesktopRoute
+                                desktop={(host) => (
+                                  <DesktopCatalogPage host={host} section="bridge" />
+                                )}
+                              />
+                            }
+                          />
+                          <Route
+                            path="/annotation"
+                            element={
+                              <DesktopRoute
+                                desktop={(host) => <DesktopAnnotationPage host={host} />}
+                              />
+                            }
+                          />
+                          <Route
+                            path="/analysis"
+                            element={
+                              <DesktopRoute
+                                desktop={(host) => <DesktopAnalysisPage host={host} />}
+                              />
+                            }
+                          />
+                          <Route path="/writing" element={<Navigate to="/corpus" replace />} />
+                          <Route
+                            path="/corpus"
+                            element={<DesktopRoute desktop={() => <DesktopCorpusPage />} />}
+                          />
+                          <Route
+                            path="/lexicon"
+                            element={
+                              <DesktopRoute
+                                desktop={(host) => <DesktopLexiconPage host={host} />}
+                              />
+                            }
+                          />
+                          <Route path="*" element={<DesktopNotFound locale={prefs.locale} />} />
+                        </Routes>
+                      </Suspense>
+                    </AssetPanelProvider>
+                  </AiPanelProvider>
+                </main>
+              </div>
+              {import.meta.env.DEV ? <DevErrorAggregationPanel /> : null}
+              <AppGlobalToastHost />
+              <DesktopSettingsDialog
+                isOpen={prefs.isSettingsOpen}
+                onClose={prefs.closeSettings}
+                locale={prefs.locale}
+                themeMode={prefs.themeMode}
+                onThemeChange={prefs.setThemeMode}
+                onLocaleChange={prefs.handleLocaleChange}
+                fontScale={prefs.uiFontScale}
+                fontScaleMode={prefs.uiFontScaleMode}
+                onFontScaleChange={prefs.handleFontScaleChange}
+                onFontScaleModeChange={prefs.handleFontScaleModeChange}
+              />
             </div>
-            {import.meta.env.DEV ? <DevErrorAggregationPanel /> : null}
-            <AppGlobalToastHost />
-            <DesktopSettingsDialog
-              isOpen={prefs.isSettingsOpen}
-              onClose={prefs.closeSettings}
-              locale={prefs.locale}
-              themeMode={prefs.themeMode}
-              onThemeChange={prefs.setThemeMode}
-              onLocaleChange={prefs.handleLocaleChange}
-              fontScale={prefs.uiFontScale}
-              fontScaleMode={prefs.uiFontScaleMode}
-              onFontScaleChange={prefs.handleFontScaleChange}
-              onFontScaleModeChange={prefs.handleFontScaleModeChange}
-            />
-          </div>
-        </AppSidePaneProvider>
+          </AppSidePaneProvider>
+        </ToastProvider>
       </LocaleProvider>
     </ErrorBoundary>
   );

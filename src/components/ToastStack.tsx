@@ -6,7 +6,6 @@ interface Props {
   dismissLabel: string;
   onDismiss: (id: string) => void;
   onPausedChange: (paused: boolean) => void;
-  className?: string;
 }
 
 /** 提示条堆叠：新的在下；悬停、键盘焦点、窗口失焦暂停计时（ADR-0116）。 | Toast stack with pause rules. */
@@ -15,7 +14,6 @@ export function ToastStack({
   dismissLabel,
   onDismiss,
   onPausedChange,
-  className,
 }: Props): React.ReactNode {
   const hoverRef = useRef(false);
   const focusRef = useRef(false);
@@ -44,7 +42,7 @@ export function ToastStack({
 
   return (
     <div
-      className={`transcription-toast-container${className ? ` ${className}` : ''}`}
+      className="transcription-toast-container"
       role="status"
       aria-live="polite"
       onMouseEnter={() => {
