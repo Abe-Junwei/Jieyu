@@ -73,7 +73,9 @@ export function DesktopTranscriptionLayerRows(props: {
     lastChild: false,
     groupCollapsed: false,
     folded: false,
-    groove: 'none',
+    guides: [],
+    lanes: [],
+    moreHosts: 0,
   };
   const rows = props.tree.flatMap((row) => {
     const layer = props.layers.find((item) => item.id === row.layerId);

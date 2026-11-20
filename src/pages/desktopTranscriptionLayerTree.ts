@@ -1,6 +1,6 @@
 /**
- * Layer rows as a two-level tree from `layer_links` (ADR-0132): a layer sits under its preferred
- * host; other hosts draw a dashed groove. Pure, so the order and lines are testable.
+ * Layer rows as a tree from `layer_links` (ADR-0132): a layer sits under its preferred host, its
+ * subtree right after it; other hosts draw a dashed run in a side lane. Pure, so the order and lines are testable.
  */
 
 export interface TreeLayer {
@@ -21,20 +21,30 @@ export interface LayerFold {
   rows: readonly string[];
 }
 
-export type GrooveKind = 'none' | 'through' | 'start' | 'end';
+/** The most side lanes drawn for other hosts; links beyond that are counted in `moreHosts`. */
+export const MAX_SIDE_LANES = 3;
+
+export interface SideLane {
+  lane: number;
+  /** `through` passes the row; `host` and `child` are the two ends of one other-host link. */
+  role: 'through' | 'host' | 'child';
+  /** Where the row sits on the run: its top end, its bottom end, or between them. */
+  span: 'first' | 'last' | 'mid';
+}
 
 export interface LayerTreeRow {
   layerId: string;
-  depth: 0 | 1;
+  depth: number;
   hostId: string | null;
   childCount: number;
   lastChild: boolean;
   groupCollapsed: boolean;
   folded: boolean;
-  groove: GrooveKind;
+  /** Per ancestor level above the parent: whether that trunk still runs through this row. */
+  guides: boolean[];
+  lanes: SideLane[];
+  moreHosts: number;
 }
-
-const GROOVE_RANK: Record<GrooveKind, number> = { none: 0, through: 1, start: 2, end: 3 };
 
 export function buildLayerTree(
   layers: readonly TreeLayer[],
@@ -57,46 +67,34 @@ export function buildLayerTree(
           a.hostLayerId.localeCompare(b.hostLayerId),
       );
   const hasAnyLink = (layerId: string) => links.some((link) => link.layerId === layerId);
+  const linkOrder = (layerId: string, hostId: string) =>
+    links.find((link) => link.layerId === layerId && link.hostLayerId === hostId)?.sortOrder ?? 0;
 
   const parentOf = new Map<string, string>();
   for (const layer of layers) {
     const preferred = hostLinks(layer.id)[0];
     if (preferred) parentOf.set(layer.id, preferred.hostLayerId);
   }
-  // Two levels at most: a host that is itself a child gives way to its own root.
-  const rootOf = (layerId: string): string | null => {
-    let current = layerId;
-    const seen = new Set<string>([layerId]);
-    while (parentOf.has(current)) {
-      current = parentOf.get(current) as string;
-      if (seen.has(current)) return null;
-      seen.add(current);
-    }
-    return current;
-  };
-  const treeParent = new Map<string, string>();
-  const orphans: TreeLayer[] = [];
-  const roots: TreeLayer[] = [];
-  for (const layer of [...layers].sort(order)) {
-    if (!parentOf.has(layer.id)) {
-      (hasAnyLink(layer.id) ? orphans : roots).push(layer);
-      continue;
-    }
-    const root = rootOf(layer.id);
-    if (root === null || root === layer.id) roots.push(layer);
-    else treeParent.set(layer.id, root);
-  }
-
+  const sorted = [...layers].sort(order);
+  const roots = sorted.filter((layer) => !parentOf.has(layer.id) && !hasAnyLink(layer.id));
+  const orphans = sorted.filter((layer) => !parentOf.has(layer.id) && hasAnyLink(layer.id));
   const childrenOf = (hostId: string) =>
-    layers
-      .filter((layer) => treeParent.get(layer.id) === hostId)
+    sorted
+      .filter((layer) => parentOf.get(layer.id) === hostId)
       .sort((a, b) => linkOrder(a.id, hostId) - linkOrder(b.id, hostId) || order(a, b));
-  const linkOrder = (layerId: string, hostId: string) =>
-    links.find((link) => link.layerId === layerId && link.hostLayerId === hostId)?.sortOrder ?? 0;
 
+  // Depth-first: a host, then its whole subtree, then the next sibling.
   const rows: LayerTreeRow[] = [];
-  const push = (layer: TreeLayer, depth: 0 | 1, hostId: string | null, lastChild: boolean) => {
-    const children = depth === 0 ? childrenOf(layer.id) : [];
+  const placed = new Set<string>();
+  const push = (
+    layer: TreeLayer,
+    depth: number,
+    hostId: string | null,
+    lastChild: boolean,
+    lasts: boolean[],
+  ) => {
+    placed.add(layer.id);
+    const children = childrenOf(layer.id).filter((child) => !placed.has(child.id));
     const groupCollapsed = children.length > 0 && fold.groups.includes(layer.id);
     rows.push({
       layerId: layer.id,
@@ -106,31 +104,81 @@ export function buildLayerTree(
       lastChild,
       groupCollapsed,
       folded: fold.rows.includes(layer.id),
-      groove: 'none',
+      guides: lasts.map((last) => !last),
+      lanes: [],
+      moreHosts: 0,
     });
-    if (groupCollapsed) return;
-    children.forEach((child, index) => push(child, 1, layer.id, index === children.length - 1));
+    if (groupCollapsed) {
+      const hide = (id: string) =>
+        childrenOf(id).forEach((child) => {
+          if (placed.has(child.id)) return;
+          placed.add(child.id);
+          hide(child.id);
+        });
+      hide(layer.id);
+      return;
+    }
+    const inherited = depth >= 1 ? [...lasts, lastChild] : [];
+    children.forEach((child, index) =>
+      push(child, depth + 1, layer.id, index === children.length - 1, depth >= 1 ? inherited : []),
+    );
   };
-  roots.forEach((root) => push(root, 0, null, false));
-  orphans.forEach((orphan) => push(orphan, 0, null, false));
+  [...roots, ...orphans].forEach((layer) => push(layer, 0, null, false, []));
+  // Members of a host cycle are unreachable from any root; keep them as plain roots.
+  for (const layer of sorted) if (!placed.has(layer.id)) push(layer, 0, null, false, []);
 
+  assignSideLanes(rows, links, parentOf);
+  return rows;
+}
+
+/**
+ * Other-host links go in a gutter left of the tree. A lane is reused once its run has ended
+ * (interval colouring), so two runs never share a lane while overlapping.
+ */
+function assignSideLanes(
+  rows: LayerTreeRow[],
+  links: readonly TreeLink[],
+  parentOf: ReadonlyMap<string, string>,
+) {
   const indexOf = new Map(rows.map((row, index) => [row.layerId, index]));
-  const mark = (index: number, kind: GrooveKind) => {
-    const row = rows[index];
-    if (row && GROOVE_RANK[kind] > GROOVE_RANK[row.groove]) row.groove = kind;
+  // A hidden end docks to its nearest visible ancestor.
+  const anchor = (layerId: string): number | undefined => {
+    let current: string | undefined = layerId;
+    const seen = new Set<string>();
+    while (current !== undefined && !seen.has(current)) {
+      seen.add(current);
+      const index = indexOf.get(current);
+      if (index !== undefined) return rows[index]?.folded ? undefined : index;
+      current = parentOf.get(current);
+    }
+    return undefined;
   };
+  const runs: { child: number; host: number; from: number; to: number }[] = [];
   for (const link of links) {
     if (link.isPreferred || link.layerId === link.hostLayerId) continue;
-    if (treeParent.get(link.layerId) === link.hostLayerId) continue;
-    const child = indexOf.get(link.layerId);
-    const host = indexOf.get(link.hostLayerId);
-    if (child === undefined || host === undefined) continue;
-    const [from, to] = host < child ? [host, child] : [child, host];
-    for (let index = from + 1; index < to; index += 1) mark(index, 'through');
-    mark(host, 'start');
-    mark(child, 'end');
+    if (parentOf.get(link.layerId) === link.hostLayerId) continue;
+    const child = anchor(link.layerId);
+    const host = anchor(link.hostLayerId);
+    if (child === undefined || host === undefined || child === host) continue;
+    runs.push({ child, host, from: Math.min(child, host), to: Math.max(child, host) });
   }
-  return rows;
+  runs.sort((a, b) => a.from - b.from || a.to - b.to);
+  const laneEnds: number[] = [];
+  for (const run of runs) {
+    let lane = laneEnds.findIndex((end) => end < run.from);
+    if (lane === -1) lane = laneEnds.length;
+    if (lane >= MAX_SIDE_LANES) {
+      const row = rows[run.child];
+      if (row) row.moreHosts += 1;
+      continue;
+    }
+    laneEnds[lane] = run.to;
+    for (let index = run.from; index <= run.to; index += 1) {
+      const role = index === run.host ? 'host' : index === run.child ? 'child' : 'through';
+      const span = index === run.from ? 'first' : index === run.to ? 'last' : 'mid';
+      rows[index]?.lanes.push({ lane, role, span });
+    }
+  }
 }
 
 export function emptyFold(): LayerFold {

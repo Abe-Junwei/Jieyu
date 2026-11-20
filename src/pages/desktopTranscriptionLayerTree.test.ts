@@ -31,24 +31,83 @@ describe('buildLayerTree', () => {
     expect(rows[0]).toMatchObject({ groupCollapsed: true, childCount: 2 });
   });
 
-  it('draws a groove between a child and a non-preferred host only when both rows show', () => {
+  it('runs other hosts through side lanes docking a hidden end to its visible ancestor and skipping squeezed rows', () => {
     const links = [link('c', 'a', true), link('c', 'b', false)];
     const rows = buildLayerTree(layers, links, emptyFold());
-    expect(rows.map((row) => [row.layerId, row.groove])).toEqual(
-      [
-        ['a', 'none'],
-        ['c', 'none'],
-        ['b', 'none'],
-        ['d', 'none'],
-      ].map(([id]) => [id, expect.any(String)]),
-    );
-    const grooved = Object.fromEntries(rows.map((row) => [row.layerId, row.groove]));
-    expect(grooved).toMatchObject({ b: 'start', c: 'end' });
+    expect(rows.map((row) => row.layerId)).toEqual(['a', 'c', 'b', 'd']);
+    expect(rows[1]?.lanes).toEqual([{ lane: 0, role: 'child', span: 'first' }]);
+    expect(rows[2]?.lanes).toEqual([{ lane: 0, role: 'host', span: 'last' }]);
+    expect(rows[3]?.lanes).toEqual([]);
     const hidden = buildLayerTree(layers, links, { groups: ['a'], rows: [] });
-    expect(hidden.every((row) => row.groove === 'none')).toBe(true);
+    expect(hidden.map((row) => [row.layerId, row.lanes.map((lane) => lane.role)])).toEqual([
+      ['a', ['child']],
+      ['b', ['host']],
+      ['d', []],
+    ]);
+    const folded = buildLayerTree(layers, links, { groups: [], rows: ['b'] });
+    expect(folded.every((row) => row.lanes.length === 0)).toBe(true);
   });
 
-  it('flattens to two levels, sends layers with a missing host last, and survives cycles', () => {
+  it('reuses a lane once its run ended and counts runs beyond the lane cap', () => {
+    const many = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((id, index) => ({
+      id,
+      sortOrder: index,
+    }));
+    const overlapping = buildLayerTree(
+      many,
+      [
+        link('g', 'a', true),
+        link('g', 'b', false),
+        link('g', 'c', false),
+        link('g', 'd', false),
+        link('g', 'e', false),
+      ],
+      emptyFold(),
+    );
+    const g = overlapping.find((row) => row.layerId === 'g');
+    expect(g?.lanes.map((lane) => lane.lane)).toEqual([0, 1, 2]);
+    expect(g?.moreHosts).toBe(1);
+    const sequential = buildLayerTree(
+      many,
+      [link('b', 'a', true), link('b', 'c', false), link('e', 'd', true), link('e', 'f', false)],
+      emptyFold(),
+    );
+    expect(sequential.flatMap((row) => row.lanes.map((lane) => lane.lane))).toEqual([0, 0, 0, 0]);
+  });
+
+  it('keeps the real depth and a subtree right after its host, never split by a sibling', () => {
+    const six = ['tx', 'or', 'bt', 'gl', 'ph', 'lo'].map((id, index) => ({ id, sortOrder: index }));
+    const rows = buildLayerTree(
+      six,
+      [
+        link('or', 'tx', true),
+        link('bt', 'or', true),
+        link('gl', 'tx', true, 1),
+        link('ph', 'tx', true, 2),
+        link('ph', 'or', false),
+      ],
+      emptyFold(),
+    );
+    expect(rows.map((row) => [row.layerId, row.depth, row.hostId])).toEqual([
+      ['tx', 0, null],
+      ['or', 1, 'tx'],
+      ['bt', 2, 'or'],
+      ['gl', 1, 'tx'],
+      ['ph', 1, 'tx'],
+      ['lo', 0, null],
+    ]);
+    // The trunk of tx passes the grandchild because or is not tx's last child.
+    expect(rows[2]?.guides).toEqual([true]);
+    expect(rows[2]?.lastChild).toBe(true);
+    expect(rows[1]?.childCount).toBe(1);
+    const collapsed = buildLayerTree(six, [link('or', 'tx', true), link('bt', 'or', true)], {
+      groups: ['tx'],
+      rows: [],
+    });
+    expect(collapsed.map((row) => row.layerId)).toEqual(['tx', 'gl', 'ph', 'lo']);
+  });
+
+  it('sends layers with a missing host last and survives cycles', () => {
     const rows = buildLayerTree(
       layers,
       [link('b', 'a', true), link('c', 'b', true), link('d', 'zzz', true)],
@@ -57,7 +116,7 @@ describe('buildLayerTree', () => {
     expect(rows.map((row) => [row.layerId, row.depth])).toEqual([
       ['a', 0],
       ['b', 1],
-      ['c', 1],
+      ['c', 2],
       ['d', 0],
     ]);
     const cyc = buildLayerTree(layers, [link('a', 'b', true), link('b', 'a', true)], emptyFold());

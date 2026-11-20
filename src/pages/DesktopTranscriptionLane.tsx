@@ -224,7 +224,14 @@ export function DesktopTranscriptionLane(props: {
     });
   };
   const toggleGroup = (layerId: string) => {
-    const hidden = tree.filter((row) => row.hostId === layerId).map((row) => row.layerId);
+    const hidden: string[] = [];
+    const family = new Set([layerId]);
+    for (const row of tree) {
+      if (row.hostId !== null && family.has(row.hostId)) {
+        family.add(row.layerId);
+        hidden.push(row.layerId);
+      }
+    }
     if (props.view.fold.groups.includes(layerId)) props.view.toggleGroup(layerId);
     else handOff(hidden, layerId, () => props.view.toggleGroup(layerId));
   };

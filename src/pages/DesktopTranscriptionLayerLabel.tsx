@@ -1,6 +1,71 @@
-import { useEffect, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import {
+  useEffect,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react';
 import { t, tf, type Locale } from '../i18n';
 import type { LayerTreeRow } from './desktopTranscriptionLayerTree';
+
+const INDENT_BASE = 30;
+const INDENT_STEP = 16;
+const INDENT_LEVELS = 3;
+const LANE_BASE = 6;
+const LANE_STEP = 4;
+
+/** Dot centre for a depth; deeper than three levels only lengthens the guides. */
+const levelX = (depth: number) => INDENT_BASE + INDENT_STEP * Math.min(depth, INDENT_LEVELS);
+const px = (value: number) => `${value}px`;
+const cssVars = (vars: Record<string, string>) => vars as CSSProperties;
+
+/** Tree guides and the side-lane runs; drawn only, hidden from assistive tech. */
+function TreeLines(props: { row: LayerTreeRow }) {
+  const { row } = props;
+  const dotX = levelX(row.depth);
+  return (
+    <span aria-hidden className="desktop-tx-tree-lines">
+      {row.guides.map((through, level) =>
+        through ? (
+          <i
+            key={`g${level}`}
+            className="tree-guide"
+            style={cssVars({ '--x': px(levelX(level)) })}
+          />
+        ) : null,
+      )}
+      {row.depth > 0 ? (
+        <i
+          className={`tree-elbow${row.lastChild ? ' is-last' : ''}`}
+          style={cssVars({
+            '--x': px(levelX(row.depth - 1)),
+            '--w': px(Math.max(dotX - 4 - levelX(row.depth - 1), 0)),
+          })}
+        />
+      ) : null}
+      {row.childCount > 0 && !row.groupCollapsed ? (
+        <i className="tree-guide is-own" style={cssVars({ '--x': px(dotX) })} />
+      ) : null}
+      {row.lanes.map((lane) => {
+        const x = LANE_BASE + LANE_STEP * lane.lane;
+        return (
+          <span key={`${lane.lane}`}>
+            <i className={`lane-run is-${lane.span}`} style={cssVars({ '--x': px(x) })} />
+            {lane.role === 'through' ? null : (
+              <i
+                className={`lane-stub is-${lane.role}`}
+                style={cssVars({
+                  '--x': px(x),
+                  '--w': px(dotX - (lane.role === 'host' ? 6 : 4) - x),
+                })}
+              />
+            )}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
 
 /**
  * The layer-name column cell: tree lines and dot by depth, a chevron on a host with children,
@@ -48,16 +113,28 @@ export function DesktopTranscriptionLayerLabel(props: {
   );
   return (
     <div
-      className={`desktop-tx-band-label desktop-tx-layer-label is-depth-${row.depth} groove-${row.groove}${
-        row.depth === 1 && row.lastChild ? ' is-last' : ''
-      }${row.childCount > 0 && !row.groupCollapsed ? ' has-children' : ''}${
+      className={`desktop-tx-band-label desktop-tx-layer-label${row.lanes.some((lane) => lane.role === 'host') ? ' is-side-host' : ''}${
         props.focused ? ' is-focused' : ''
       }`}
+      style={cssVars({ '--dot-x': px(levelX(row.depth)) })}
       tabIndex={0}
       title={props.name}
       onContextMenu={open}
       onKeyDown={onKeyDown}
     >
+      <TreeLines row={row} />
+      <span aria-hidden className="desktop-tx-layer-dot" />
+      <span className="desktop-tx-layer-name">{props.name}</span>
+      {row.groupCollapsed ? (
+        <span className="desktop-tx-layer-more">
+          {tf(locale, 'app.desktopTranscription.layerGroupMore', { count: row.childCount })}
+        </span>
+      ) : null}
+      {row.moreHosts > 0 ? (
+        <span aria-hidden className="desktop-tx-layer-more">
+          +{row.moreHosts}
+        </span>
+      ) : null}
       {row.childCount > 0 ? (
         <button
           type="button"
@@ -69,13 +146,6 @@ export function DesktopTranscriptionLayerLabel(props: {
         >
           <span aria-hidden className="desktop-tx-layer-chevron__mark" />
         </button>
-      ) : null}
-      <span aria-hidden className="desktop-tx-layer-dot" />
-      <span className="desktop-tx-layer-name">{props.name}</span>
-      {row.groupCollapsed ? (
-        <span className="desktop-tx-layer-more">
-          {tf(locale, 'app.desktopTranscription.layerGroupMore', { count: row.childCount })}
-        </span>
       ) : null}
       {menu === null ? null : (
         <div
