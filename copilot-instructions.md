@@ -200,6 +200,7 @@ Explore（仅读本仓库）回答"我们现在有什么"；Research（向外调
 4. 拆分边界：哪些进 controller、哪些进 service、UI 保留哪些
 5. 验证方式：具体 `npm run` / `vitest` / E2E 命令
 6. 触发 SDD？（见 §5.2.1 触发条件）；触发则同时在 [docs/execution/specs/<slug>/](docs/execution/specs/) 起草三件套
+7. 桌面界面（`src/pages/Desktop*.tsx`、`src/styles/**/desktop*.css`、新建 `src/components/**`）：精稿对照表。有整页精稿写 Pixso 画板名并逐帧对照；尚无整页精稿的新建工作区或整页分栏先补精稿并经确认；局部控件写 DESIGN.md 章节与「组件」「规范」页。对照写进非 draft spec 的「UI 精稿对照」。开工前用 Pixso MCP 读画板，不通则停下。实运行截图不进 git，PR 正文记录截图命令。旧浏览器版 ReadyWorkspace 不在此列。
 
 #### 5.2.1 SDD 三件套触发条件（中等及以上复杂度）
 

@@ -68,6 +68,7 @@ describe('desktop operation contract', () => {
     const addedAfterSnapshot = [
       'attachments.finishCleanup',
       'attachments.read',
+      'manuscripts.retime',
       'media.listDeleted',
       'sources.create',
       'units.discardTextDraft',
@@ -91,8 +92,7 @@ describe('desktop operation contract', () => {
       expect(DESKTOP_METHODS_AT_5fbc66f8).not.toContain(key);
       expect(contract).toContain(key);
     }
-    const removedByAdr0122 = ['manuscripts.rollbackTimeMapping', 'manuscripts.setTimeMapping'];
-    expect(unique(['reopen', ...contract, ...removedByAdr0122]).sort()).toEqual(
+    expect(unique(['reopen', ...contract]).sort()).toEqual(
       unique([...DESKTOP_METHODS_AT_5fbc66f8, ...addedAfterSnapshot]).sort(),
     );
     expect(Object.keys(desktopOperations).sort()).toEqual([...contract].sort());

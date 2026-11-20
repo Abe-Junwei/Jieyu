@@ -53,6 +53,14 @@
 - 主要风险：
 - 回滚方式：
 
+## UI 精稿对照 | UI draft
+
+触及 `src/pages/Desktop*.tsx`、`src/styles/**/desktop*.css` 或新建 `src/components/**` 时必须逐项勾选 `[x]`，或在该行写明 `N/A` 与理由。未触及桌面界面时本段可全部 `N/A`。PNG 不进 git。门禁：`npm run check:ui-design-draft`。
+
+- [ ] **UI1** Pixso 画板名（有整页精稿写画板名；局部控件写 N/A，并注明只对照 DESIGN.md 与组件/规范页）
+- [ ] **UI2** DESIGN.md 章节
+- [ ] **UI3** 实运行截图命令（Electron 或 Chromium；截图由 CI artifact 或对话留存，不进 git）
+
 ## R1–R8 三页联评 | Cross-page checklist
 
 命中标注 `/annotation`、词典 `/lexicon`、语料 `/corpus` 产品路径时必须逐项勾选 `[x]`，或在该行写明 `N/A` 与理由。未触及三页产品代码时本段可全部 `N/A`。清单即本节。门禁：`npm run check:r1-r8`。

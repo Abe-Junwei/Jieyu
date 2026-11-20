@@ -1,1 +1,6 @@
-export { msToSec, secToMs } from '../../utils/timeMs';
+export {
+  msToSec,
+  msToSec as msToSeconds,
+  secToMs,
+  secToMs as secondsToMs,
+} from '../../utils/timeMs';

@@ -12,7 +12,7 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync, statSync } from 'node:fs';
 import { resolve, join } from 'node:path';
-import { checkSpecResearchFilled } from './check-spec-research-filled.mjs';
+import { checkSpecResearchFilled, uiDraftSectionFailure } from './check-spec-research-filled.mjs';
 
 /** @typedef {'A'|'M'|'D'|'R'|'??'} ChangeStatus */
 /** @typedef {{ path: string, status: ChangeStatus }} ChangedFile */
@@ -106,6 +106,16 @@ export function specSlugFromPath(filePath) {
 }
 
 /** @param {ChangedFile[]} files */
+/** 桌面页面、桌面样式，或新建的共享组件。测试文件不算落界面。 */
+export function isDesktopUiChange(file) {
+  if (file.status === 'D') return false;
+  const p = file.path.replace(/\\/g, '/');
+  if (p.includes('.test.')) return false;
+  if (/^src\/pages\/Desktop[^/]+\.tsx$/.test(p)) return true;
+  if (/^src\/styles\/(?:.*\/)?desktop[^/]*\.css$/.test(p)) return true;
+  return (file.status === 'A' || file.status === '??') && /^src\/components\/.+\.tsx$/.test(p);
+}
+
 export function hasSpecDirectoryActivity(files) {
   return files.some((f) => f.status !== 'D' && specSlugFromPath(f.path));
 }
@@ -196,7 +206,47 @@ export function verifyDevAgentWorkflow(changedFiles, injected = {}) {
     }
   }
 
+  const uiFiles = changedFiles.filter(isDesktopUiChange);
+  if (uiFiles.length > 0) {
+    const slugs = [...new Set(
+      changedFiles
+        .filter((f) => f.status !== 'D')
+        .map((f) => specSlugFromPath(f.path))
+        .filter(Boolean),
+    )];
+    const uiReady = slugs.some((slug) => (
+      injected.isUiSpecReady
+        ? injected.isUiSpecReady(slug)
+        : uiSpecReadyOnDisk(slug, specRoot)
+    ));
+    if (!uiReady) {
+      failures.push(
+        [
+          '桌面界面改动没有关联一份非 draft、且写了「UI 精稿对照」的 spec。',
+          '范围内的 Desktop*.tsx、desktop*.css，或新建的 src/components/**，哪怕一行也要在同一改动里更新该 spec。',
+          '有整页精稿写 Pixso 画板名；尚无整页精稿的新建工作区或整页分栏先补精稿；局部控件写 DESIGN.md 与组件/规范页。',
+          '改动文件：',
+          ...uiFiles.map((f) => `- ${f.path}`),
+        ].join('\n'),
+      );
+    }
+  }
+
   return failures;
+}
+
+function uiSpecReadyOnDisk(slug, specRoot) {
+  if (!specSlugReadyOnDisk(slug, specRoot)) return false;
+  const designPath = join(specRoot, slug, 'design.md');
+  let text = '';
+  try {
+    text = readFileSync(designPath, 'utf8');
+  } catch {
+    return false;
+  }
+  const fm = text.match(/^---\n([\s\S]*?)\n---/);
+  const status = fm?.[1].match(/^status:\s*(.*)$/m)?.[1].trim().replace(/^['"]|['"]$/g, '');
+  return uiDraftSectionFailure(text, designPath, status) === null;
 }
 
 function runGitLines(repoRoot, args) {

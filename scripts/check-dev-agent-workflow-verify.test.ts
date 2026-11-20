@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 // @ts-expect-error — .mjs guard script without type declarations
-import { detectSddTriggerSignals, hasSpecDirectoryActivity, isDevAgentConfigOnlyChange, verifyDevAgentWorkflow } from './check-dev-agent-workflow-verify.mjs';
+import { detectSddTriggerSignals, hasSpecDirectoryActivity, isDesktopUiChange, isDevAgentConfigOnlyChange, verifyDevAgentWorkflow } from './check-dev-agent-workflow-verify.mjs';
 
 type TriggerSignal = { kind: string; detail: string };
 
@@ -60,6 +60,16 @@ describe('isDevAgentConfigOnlyChange', () => {
   });
 });
 
+describe('isDesktopUiChange', () => {
+  it('matches a one-line desktop page edit and ignores tests and old pages', () => {
+    expect(isDesktopUiChange({ path: 'src/pages/DesktopProjectReadPage.tsx', status: 'M' })).toBe(true);
+    expect(isDesktopUiChange({ path: 'src/pages/DesktopProjectReadPage.test.tsx', status: 'M' })).toBe(false);
+    expect(isDesktopUiChange({ path: 'src/pages/TranscriptionPage.tsx', status: 'M' })).toBe(false);
+    expect(isDesktopUiChange({ path: 'src/components/NoteBadge.tsx', status: 'A' })).toBe(true);
+    expect(isDesktopUiChange({ path: 'src/components/NoteBadge.tsx', status: 'M' })).toBe(false);
+  });
+});
+
 describe('verifyDevAgentWorkflow', () => {
   it('skips SDD gate for dev-agent config-only diffs', () => {
     const failures = verifyDevAgentWorkflow([
@@ -85,6 +95,24 @@ describe('verifyDevAgentWorkflow', () => {
     ]);
     expect(failures.length).toBe(1);
     expect(failures[0]).toContain('SDD 触发信号');
+  });
+
+  it('fails a desktop page edit that does not update a non-draft spec', () => {
+    const failures = verifyDevAgentWorkflow([
+      { path: 'src/pages/DesktopProjectReadPage.tsx', status: 'M' },
+    ]);
+    expect(failures.some((failure: string) => failure.includes('UI 精稿对照'))).toBe(true);
+  });
+
+  it('passes a desktop page edit when the updated spec is ready', () => {
+    const failures = verifyDevAgentWorkflow(
+      [
+        { path: 'src/pages/DesktopProjectReadPage.tsx', status: 'M' },
+        { path: 'docs/execution/specs/my-feature/design.md', status: 'M' },
+      ],
+      { isUiSpecReady: (slug: string) => slug === 'my-feature' },
+    );
+    expect(failures.filter((failure: string) => failure.includes('UI 精稿对照'))).toEqual([]);
   });
 
   it('passes when the touched slug is an existing non-draft spec', () => {

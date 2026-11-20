@@ -590,13 +590,12 @@ function requiredLimit(value: unknown): number {
 function corpusCursor(value: unknown): CorpusQueryCursor | null {
   if (value === undefined || value === null) return null;
   const cursor = objectArg(value);
-  knownKeys(cursor, ['manuscriptId', 'layerId', 'startTime', 'unitId']);
-  if (!('startTime' in cursor))
-    throw new Error('desktop call startTime must be a whole millisecond');
+  knownKeys(cursor, ['manuscriptId', 'layerId', 'startMs', 'unitId']);
+  if (!('startMs' in cursor)) throw new Error('desktop call startMs must be a whole millisecond');
   return {
     manuscriptId: requiredString(cursor.manuscriptId, 'manuscriptId'),
     layerId: requiredString(cursor.layerId, 'layerId'),
-    startTime: optionalMs(cursor.startTime, 'startTime'),
+    startMs: requiredMs(cursor.startMs, 'startMs'),
     unitId: requiredString(cursor.unitId, 'unitId'),
   };
 }
@@ -1605,6 +1604,18 @@ export const desktopOperations = {
   'manuscripts.showReminder': spec<'clear', { id: string }, DeletionReminder>('clear', (input) => {
     knownKeys(input, ['id']);
     return { id: requiredString(input.id, 'id') };
+  }),
+  'manuscripts.retime': spec<
+    'clear',
+    { manuscriptId: string; offsetMs: number; scale: number },
+    { count: number }
+  >('clear', (input) => {
+    knownKeys(input, ['manuscriptId', 'offsetMs', 'scale']);
+    return {
+      manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
+      offsetMs: requiredNumber(input.offsetMs, 'offsetMs'),
+      scale: requiredNumber(input.scale, 'scale'),
+    };
   }),
   'manuscripts.purge': spec<'clear', { id: string }, { id: string }>('clear', (input) => {
     knownKeys(input, ['id']);

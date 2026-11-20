@@ -292,7 +292,7 @@ CREATE TABLE layers (
   key TEXT NOT NULL,
   name_json TEXT NOT NULL,
   tier_type TEXT NOT NULL CHECK (tier_type IN (
-    'time-aligned', 'time-subdivision', 'symbolic-subdivision', 'symbolic-association'
+    'time-aligned', 'time-subdivision', 'symbolic-subdivision', 'symbolic-association', 'point'
   )),
   content_type TEXT NOT NULL CHECK (content_type IN (
     'transcription', 'translation', 'gloss', 'pos', 'note', 'custom', 'point'
@@ -425,7 +425,7 @@ BEGIN
   );
 END;
 
-CREATE TRIGGER units_time_follows_sort_insert
+CREATE TRIGGER units_aligned_order_insert
 BEFORE INSERT ON units
 WHEN NEW.start_ms IS NOT NULL
 BEGIN
@@ -441,7 +441,7 @@ BEGIN
   );
 END;
 
-CREATE TRIGGER units_time_follows_sort_update
+CREATE TRIGGER units_aligned_order_update
 BEFORE UPDATE OF start_ms, end_ms, layer_id ON units
 WHEN NEW.start_ms IS NOT NULL
 BEGIN
@@ -464,7 +464,7 @@ CREATE TABLE points (
   id TEXT PRIMARY KEY,
   layer_id TEXT NOT NULL REFERENCES layers(id),
   time_ms INTEGER NOT NULL CHECK (typeof(time_ms) = 'integer' AND time_ms >= 0),
-  label TEXT NOT NULL,
+  label TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   UNIQUE (layer_id, time_ms)
@@ -474,12 +474,12 @@ CREATE TRIGGER points_layer_is_point_insert
 BEFORE INSERT ON points
 BEGIN
   SELECT RAISE(ABORT, 'point layer is required')
-  WHERE (SELECT content_type FROM layers WHERE id = NEW.layer_id) IS NOT 'point';
+  WHERE (SELECT tier_type FROM layers WHERE id = NEW.layer_id) IS NOT 'point';
 END;
 
 CREATE TRIGGER layers_point_needs_media_insert
 BEFORE INSERT ON layers
-WHEN NEW.content_type = 'point'
+WHEN NEW.tier_type = 'point'
 BEGIN
   SELECT RAISE(ABORT, 'point layer needs a recording')
   WHERE (SELECT media_id FROM manuscripts WHERE id = NEW.manuscript_id) IS NULL;

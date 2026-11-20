@@ -35,6 +35,36 @@ function textOf(sessionId: string, unitId: string): string {
 }
 
 describe('session unit text undo', () => {
+  it('retimes a manuscript and supports undo and redo', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const unitId = seed(session.sessionId);
+
+    expect(
+      callDesktopSession(session.sessionId, 'manuscripts.retime', {
+        manuscriptId: manuscriptId(session.sessionId, unitId),
+        offsetMs: 100,
+        scale: 2,
+      }),
+    ).toEqual({ count: 1 });
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
+      startMs: 100,
+      endMs: 2100,
+    });
+
+    callDesktopSession(session.sessionId, 'units.undo', {});
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
+      startMs: 0,
+      endMs: 1000,
+    });
+
+    callDesktopSession(session.sessionId, 'units.redo', {});
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
+      startMs: 100,
+      endMs: 2100,
+    });
+  });
+
   it('undoes each text write, then the create, until the stack is empty', () => {
     const dir = folder();
     const session = openDesktopSession(dir, [dir]);
@@ -216,6 +246,20 @@ function manuscriptGeneration(sessionId: string, unitId: string): number {
       )
       .get(unitId) as { generation: number }
   ).generation;
+}
+
+function manuscriptId(sessionId: string, unitId: string): string {
+  return (
+    requireDesktopSession(sessionId)
+      .db.prepare(
+        `SELECT manuscripts.id AS id
+         FROM units
+         JOIN layers ON layers.id = units.layer_id
+         JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+         WHERE units.id = ?`,
+      )
+      .get(unitId) as { id: string }
+  ).id;
 }
 
 function layerId(sessionId: string, unitId: string): string {

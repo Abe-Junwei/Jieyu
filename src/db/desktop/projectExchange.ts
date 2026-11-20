@@ -245,6 +245,10 @@ function keepRow(name: string, row: Row, scope: Scope): boolean {
   }
   if (name === 'custom_field_values') return keepCustomValue(row, scope);
   if (name === 'local_id_map') return scope.batchIds.has(String(row.batch_id));
+  // ponytail: a span map with both ids already gone has no manuscript column, so a single-manuscript export omits it.
+  if (name === 'unit_span_maps') {
+    return scope.unitIds.has(String(row.old_id)) || scope.unitIds.has(String(row.new_id));
+  }
   if ('manuscript_id' in row && row.manuscript_id != null) {
     return scope.wanted.has(String(row.manuscript_id));
   }

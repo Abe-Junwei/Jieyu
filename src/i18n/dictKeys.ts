@@ -111,6 +111,7 @@ export const DICT_KEYS = [
   'app.desktopRead.leaveDiscard',
   'app.desktopRead.leaveStay',
   'app.desktopRead.split',
+  'app.desktopRead.splitTooClose',
   'app.desktopRead.splitTime',
   'app.desktopRead.mergeNext',
   'app.desktopRead.speakerName',
