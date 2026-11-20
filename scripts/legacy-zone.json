@@ -1,0 +1,19 @@
+{
+  "roots": [
+    "dexie",
+    "src/db/engine.ts",
+    "src/main.tsx",
+    "src/App.tsx",
+    "src/pages/HomePage.tsx",
+    "src/pages/TranscriptionPage.tsx",
+    "src/pages/AnnotationPage.tsx",
+    "src/pages/AnalysisPage.tsx",
+    "src/pages/CorpusLibraryPage.tsx",
+    "src/pages/LexiconPage.tsx",
+    "src/pages/LanguageMetadataWorkspacePage.tsx",
+    "src/pages/OrthographyManagerPage.tsx",
+    "src/pages/OrthographyBridgeWorkspacePage.tsx",
+    "src/pages/StructuralProfileWorkspacePage.tsx",
+    "src/db/migration/e2eMigrationHarness.ts"
+  ]
+}
