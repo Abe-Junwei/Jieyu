@@ -757,6 +757,7 @@ export function App() {
     isTranscriptionRoute &&
     featureFlags.desktopTranscriptionWorkspaceEnabled &&
     !showLegacyWebChrome;
+  const desktopHomeWithoutSidePane = !showLegacyWebChrome && location.pathname === '/';
   const shownPaneWidth =
     desktopContextPane && sidePaneWidth === SIDE_PANE_DEFAULT_WIDTH
       ? DESKTOP_CONTEXT_PANE_WIDTH
@@ -764,13 +765,15 @@ export function App() {
   const shellStyle = useMemo(
     () =>
       ({
-        ['--side-pane-width' as '--side-pane-width']: isSidePaneCollapsed
-          ? desktopContextPane
-            ? '32px'
-            : '0px'
-          : `${shownPaneWidth}px`,
+        ['--side-pane-width' as '--side-pane-width']: desktopHomeWithoutSidePane
+          ? '0px'
+          : isSidePaneCollapsed
+            ? desktopContextPane
+              ? '32px'
+              : '0px'
+            : `${shownPaneWidth}px`,
       }) as CSSProperties,
-    [desktopContextPane, isSidePaneCollapsed, shownPaneWidth],
+    [desktopContextPane, desktopHomeWithoutSidePane, isSidePaneCollapsed, shownPaneWidth],
   );
   const shellStyleProps = { style: shellStyle };
 
@@ -886,17 +889,19 @@ export function App() {
                 </div>
               </aside>
 
-              <AppShellSidePane
-                locale={locale}
-                activeNavItem={activeNavItem}
-                isTranscriptionRoute={isTranscriptionRoute}
-                isSidePaneCollapsed={isSidePaneCollapsed}
-                sidePaneWidth={sidePaneWidth}
-                handleSidePaneResizeStart={handleSidePaneResizeStart}
-                handleSidePaneResizeKeyDown={handleSidePaneResizeKeyDown}
-                handleSidePaneResizeReset={handleSidePaneResizeReset}
-                handleSidePaneToggle={handleSidePaneToggle}
-              />
+              {desktopHomeWithoutSidePane ? null : (
+                <AppShellSidePane
+                  locale={locale}
+                  activeNavItem={activeNavItem}
+                  isTranscriptionRoute={isTranscriptionRoute}
+                  isSidePaneCollapsed={isSidePaneCollapsed}
+                  sidePaneWidth={sidePaneWidth}
+                  handleSidePaneResizeStart={handleSidePaneResizeStart}
+                  handleSidePaneResizeKeyDown={handleSidePaneResizeKeyDown}
+                  handleSidePaneResizeReset={handleSidePaneResizeReset}
+                  handleSidePaneToggle={handleSidePaneToggle}
+                />
+              )}
 
               <main className={`app-main ${isTranscriptionRoute ? 'app-main-transcription' : ''}`}>
                 <h1 className="app-main-screen-reader-heading">{activeNavItem?.label}</h1>

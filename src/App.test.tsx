@@ -235,6 +235,30 @@ describe('App shell', () => {
     expect((await screen.findByTestId('home-page')).textContent).toContain('home-page');
   });
 
+  it('leaves out the left side pane on the desktop home page only', async () => {
+    installDesktopHost(() => Promise.resolve([]));
+    const { container, unmount } = render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(container.querySelector('.app-side-pane')).toBeNull();
+    expect(
+      (container.querySelector('.app-shell') as HTMLElement).style.getPropertyValue(
+        '--side-pane-width',
+      ),
+    ).toBe('0px');
+    unmount();
+
+    const corpus = render(
+      <MemoryRouter initialEntries={['/corpus']}>
+        <App />
+      </MemoryRouter>,
+    );
+    expect(corpus.container.querySelector('.app-side-pane')).not.toBeNull();
+  });
+
   it('opens the desktop corpus page and leaves the old library unmounted', async () => {
     rememberOpenProjectSession('session-1');
     installDesktopHost(() => Promise.resolve([]));
