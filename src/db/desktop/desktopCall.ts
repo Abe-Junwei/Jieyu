@@ -121,6 +121,7 @@ import {
   listManuscripts,
   previewManuscriptDelete,
   previewRecordingDelete,
+  retimeManuscript,
   restoreManuscript,
 } from './manuscripts';
 import {
@@ -1035,6 +1036,21 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['manuscripts.showReminder']['check']>,
     ) => showDeletionReminder(ctx.db, 'manuscript', input.id),
+  },
+  'manuscripts.retime': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['manuscripts.retime']['check']>,
+    ) => {
+      const retimed = retimeManuscript(ctx.db, input);
+      rememberSessionEdit(ctx.sessionId, {
+        kind: 'retime',
+        undo: retimed.undo,
+        offsetMs: input.offsetMs,
+        scale: input.scale,
+      });
+      return { count: retimed.count };
+    },
   },
   'manuscripts.purge': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['manuscripts.purge']['check']>) =>
