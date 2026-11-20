@@ -200,7 +200,6 @@ export function DesktopTranscriptionLane(props: {
             ),
             x: edges.ui.preview.x,
             y: edges.ui.preview.y,
-            follow: true,
           }
         : edges.ui.preview.tip
           ? { text: edges.ui.preview.tip, x: edges.ui.preview.x, y: edges.ui.preview.y }

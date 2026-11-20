@@ -31,7 +31,7 @@ export function DesktopTranscriptionEdgeChrome(props: {
   saved: boolean;
   hasMedia: boolean;
   reason: string | null;
-  tip: { text: string; x: number; y: number; follow?: boolean } | null;
+  tip: { text: string; x: number; y: number } | null;
   edgeFocus: ReturnType<typeof edgeFocusKind> | null;
   conflicts: Record<TimeEdge, TimeConflict | null>;
   stale: { action: 'undo' | 'redo' } | null;
@@ -132,14 +132,7 @@ export function DesktopTranscriptionEdgeChrome(props: {
         </div>
       )}
       {props.tip === null ? null : (
-        <div
-          className={
-            props.tip.follow === true
-              ? 'desktop-tx-snap desktop-tx-snap--follow'
-              : 'desktop-tx-snap'
-          }
-          style={{ left: props.tip.x, top: props.tip.y }}
-        >
+        <div className="desktop-tx-snap" style={{ left: props.tip.x, top: props.tip.y }}>
           {props.tip.text}
         </div>
       )}
