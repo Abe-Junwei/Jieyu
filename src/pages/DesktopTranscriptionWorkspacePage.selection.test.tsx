@@ -559,8 +559,10 @@ describe('DesktopTranscriptionWorkspacePage edge gaps (#562)', () => {
     expect(dialog.textContent).toContain('词注 2');
     expect(dialog.textContent).toContain('备注 1');
     expect(dialog.textContent).not.toContain('语素');
-    fireEvent.keyDown(document, { key: 'Escape' });
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => {
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
     await waitFor(() => expect(document.activeElement).toBe(annotation('alpha')));
     expect(calls.some((call) => call.method === 'units.delete')).toBe(false);
   });
