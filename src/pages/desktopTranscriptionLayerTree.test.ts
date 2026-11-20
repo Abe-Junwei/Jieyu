@@ -100,6 +100,7 @@ describe('buildLayerTree', () => {
     expect(rows[2]?.guides).toEqual([true]);
     expect(rows[2]?.lastChild).toBe(true);
     expect(rows[1]?.childCount).toBe(1);
+    expect(rows[0]?.childCount).toBe(4);
     const collapsed = buildLayerTree(six, [link('or', 'tx', true), link('bt', 'or', true)], {
       groups: ['tx'],
       rows: [],

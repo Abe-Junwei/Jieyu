@@ -83,6 +83,14 @@ export function buildLayerTree(
       .filter((layer) => parentOf.get(layer.id) === hostId)
       .sort((a, b) => linkOrder(a.id, hostId) - linkOrder(b.id, hostId) || order(a, b));
 
+  /** Every layer below `id`, grandchildren included; the count shown on a collapsed host. */
+  const countSubtree = (id: string, seen = new Set<string>([id])): number =>
+    childrenOf(id).reduce((total, child) => {
+      if (seen.has(child.id)) return total;
+      seen.add(child.id);
+      return total + 1 + countSubtree(child.id, seen);
+    }, 0);
+
   // Depth-first: a host, then its whole subtree, then the next sibling.
   const rows: LayerTreeRow[] = [];
   const placed = new Set<string>();
@@ -100,7 +108,7 @@ export function buildLayerTree(
       layerId: layer.id,
       depth,
       hostId,
-      childCount: children.length,
+      childCount: countSubtree(layer.id),
       lastChild,
       groupCollapsed,
       folded: fold.rows.includes(layer.id),

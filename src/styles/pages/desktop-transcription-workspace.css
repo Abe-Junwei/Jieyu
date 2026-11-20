@@ -10,6 +10,13 @@
   height: 100%;
   background: var(--surface-canvas);
   --lane-label-width: 148px;
+  transition: --lane-label-width var(--shell-motion-base) ease;
+}
+
+@property --lane-label-width {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 148px;
 }
 
 /* 层头折叠：层名列宽归零，波形、时间尺与各层轨道一起贴上下文侧栏。 */
@@ -18,7 +25,9 @@
 }
 
 .desktop-tx-workspace.is-header-folded .desktop-tx-band-label {
-  display: none;
+  overflow: hidden;
+  padding: 0;
+  opacity: 0;
 }
 
 .desktop-tx-workspace__body {
@@ -584,7 +593,11 @@
 }
 
 .is-header-folded .desktop-tx-header-fold {
-  left: 2px;
+  left: 4px;
+  width: 24px;
+  height: 22px;
+  border: 1px solid color-mix(in srgb, var(--brand-solid) 40%, transparent);
+  background: color-mix(in srgb, var(--brand-solid) 10%, var(--surface-panel));
   color: var(--brand-solid);
 }
 
