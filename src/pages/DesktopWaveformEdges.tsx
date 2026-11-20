@@ -41,7 +41,7 @@ export function DesktopWaveformEdges(props: {
         return (
           <div
             key={unit.id}
-            className={`desktop-tx-wave-seg${props.selectedUnitIds.includes(unit.id) ? ' is-selected' : ''}`}
+            className={`desktop-tx-wave-seg${props.selectedUnitIds.includes(unit.id) ? ' is-selected' : ''}${unit.id !== props.selectedUnitId && props.selectedUnitIds.includes(unit.id) ? ' is-also' : ''}`}
             style={frame(px(unit.startMs), width)}
             data-wave-unit={unit.id}
           >
