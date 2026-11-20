@@ -344,10 +344,9 @@ export function ToastProvider({ children }: Props) {
         <div className="transcription-toast-container" role="status" aria-live="polite">
           <div
             className={`transcription-toast toast-${current.variant} ${current.actionLabel !== undefined && current.actionLabel.length > 0 ? 'transcription-toast-with-action' : ''} ${current.exiting === true ? 'transcription-toast-exiting' : ''}`}
-            onClick={dismiss}
-            title={t(locale, 'transcription.toast.dismiss')}
           >
-            {current.message}
+            <span className="transcription-toast-dot" aria-hidden="true" />
+            <span className="transcription-toast-text">{current.message}</span>
             {current.actionLabel !== undefined &&
             current.actionLabel.length > 0 &&
             current.onAction !== undefined ? (
@@ -362,6 +361,12 @@ export function ToastProvider({ children }: Props) {
                 {current.actionLabel}
               </button>
             ) : null}
+            <button
+              type="button"
+              className="transcription-toast-close"
+              aria-label={t(locale, 'transcription.toast.dismiss')}
+              onClick={dismiss}
+            />
           </div>
         </div>
       )}

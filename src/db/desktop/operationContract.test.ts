@@ -79,6 +79,7 @@ describe('desktop operation contract', () => {
       'recordings.register',
       'units.moveEdge',
       'units.moveSharedBoundary',
+      'units.moveUnit',
       'units.delete',
       'units.deletePreview',
       'units.inspectEdit',

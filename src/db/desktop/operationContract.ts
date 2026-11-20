@@ -749,6 +749,19 @@ function unitEdge(input: Record<string, unknown>): {
   };
 }
 
+function unitMove(input: Record<string, unknown>): {
+  unitId: string;
+  delta: number;
+  operationId?: string;
+} {
+  knownKeys(input, ['unitId', 'delta', 'operationId']);
+  return {
+    unitId: requiredString(input.unitId, 'unitId'),
+    delta: requiredNumber(input.delta, 'delta'),
+    ...editOperationId(input),
+  };
+}
+
 function unitStack(input: Record<string, unknown>): {
   manuscriptId?: string;
   operationId?: string;
@@ -772,6 +785,7 @@ const EDIT_RECEIPT_KINDS: readonly EditReceiptKind[] = [
   'create',
   'moveEdge',
   'moveSharedBoundary',
+  'moveUnit',
   'delete',
   'undo',
   'redo',
@@ -1946,6 +1960,10 @@ export const desktopOperations = {
     { leftId: string; rightId: string; time: number; operationId?: string },
     { left: Unit; right: Unit }
   >('keep', unitSharedBoundary),
+  'units.moveUnit': spec<'keep', { unitId: string; delta: number; operationId?: string }, Unit>(
+    'keep',
+    unitMove,
+  ),
   'units.deletePreview': spec<'keep', { unitId: string }, UnitDeletePreview>('keep', (input) => {
     knownKeys(input, ['unitId']);
     return { unitId: requiredString(input.unitId, 'unitId') };

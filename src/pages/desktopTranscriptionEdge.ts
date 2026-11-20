@@ -220,14 +220,62 @@ export function previewDrag(input: {
   };
 }
 
+/** Whole-segment drag: both edges are snap candidates, the nearer one wins; the start stays at 0 or later. */
+export function previewMove(input: {
+  unit: TimedEdgeUnit;
+  deltaPx: number;
+  zoomPxPerSec: number;
+  units: readonly TimedEdgeUnit[];
+  playheadMs: number | null;
+  alt: boolean;
+}): DragPreview {
+  const { unit } = input;
+  const neighborMs = neighborTargets(input.units, [unit.id]);
+  const raw = dragTimeMs(0, input.deltaPx, input.zoomPxPerSec);
+  const near = (timeMs: number) =>
+    snapEdgeMs({
+      timeMs,
+      zoomPxPerSec: input.zoomPxPerSec,
+      neighborMs,
+      playheadMs: input.playheadMs,
+      alt: input.alt,
+    });
+  const start = near(unit.startMs + raw);
+  const end = near(unit.endMs + raw);
+  const startPull = start.kind === null ? Infinity : Math.abs(start.timeMs - unit.startMs - raw);
+  const endPull = end.kind === null ? Infinity : Math.abs(end.timeMs - unit.endMs - raw);
+  let delta = raw;
+  let kind: SnapKind | null = null;
+  if (startPull <= endPull && start.kind !== null) {
+    delta = start.timeMs - unit.startMs;
+    kind = start.kind;
+  } else if (end.kind !== null) {
+    delta = end.timeMs - unit.endMs;
+    kind = end.kind;
+  }
+  delta = Math.max(delta, -unit.startMs);
+  return {
+    unitId: unit.id,
+    startMs: unit.startMs + delta,
+    endMs: unit.endMs + delta,
+    otherId: null,
+    otherStartMs: null,
+    otherEndMs: null,
+    timeMs: unit.startMs + delta,
+    kind,
+  };
+}
+
 export function edgeRejectKind(
   message: string,
 ):
   | 'overlap'
   | 'outside'
+  | 'outsideParent'
   | 'short'
   | 'createShort'
   | 'noParent'
+  | 'hasChildren'
   | 'apart'
   | 'order'
   | 'unknown'
@@ -236,6 +284,8 @@ export function edgeRejectKind(
   if (message.includes('same speaker intervals overlap')) return 'overlap';
   if (message.includes('edge is outside the media')) return 'outside';
   if (message.includes('edge span is under 10ms')) return 'short';
+  if (message.includes('unit has time subdivisions')) return 'hasChildren';
+  if (message.includes('time subdivision is outside its parent')) return 'outsideParent';
   if (message.includes('time subdivision')) return 'noParent';
   if (message.includes('boundary units are not adjacent')) return 'apart';
   if (message.includes('timed units are out of sort order')) return 'order';
