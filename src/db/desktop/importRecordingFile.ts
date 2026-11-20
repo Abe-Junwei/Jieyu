@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { copyFile } from 'node:fs/promises';
 import path from 'node:path';
+import { zhCNDictionary } from '../../i18n/dictionaries/zh-CN';
 
 const AUDIO_EXTENSIONS = new Set([
   '.wav',
@@ -40,7 +41,7 @@ export function projectFolderForNewImport(
   headerMatches: (sqliteFile: string) => boolean,
 ): string {
   const trimmed = baseName.replace(/[/:]/g, '').trim();
-  const safe = trimmed.length > 0 ? trimmed : '录音';
+  const safe = trimmed.length > 0 ? trimmed : zhCNDictionary['app.desktopRead.audio'];
   const base = path.resolve(root, safe);
   for (let n = 0; n < 100; n += 1) {
     const folder = n === 0 ? base : `${base} ${n + 1}`;

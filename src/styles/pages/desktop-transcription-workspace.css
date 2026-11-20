@@ -104,8 +104,8 @@
 }
 
 .desktop-tx-context__toggle:focus-visible {
-  outline: 1px solid var(--text-primary);
-  outline-offset: -1px;
+  outline: 1.5px solid var(--focus-color);
+  outline-offset: 2px;
 }
 
 .desktop-tx-context__chevron {
