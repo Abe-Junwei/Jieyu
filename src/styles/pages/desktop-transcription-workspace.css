@@ -422,6 +422,10 @@
   color: var(--text-primary);
 }
 
+.desktop-tx-readout__total {
+  color: var(--text-tertiary);
+}
+
 .desktop-tx-waveband {
   display: flex;
   height: 168px;
