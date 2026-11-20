@@ -1180,6 +1180,12 @@
   pointer-events: none;
 }
 
+.desktop-tx-snap--follow {
+  background: var(--state-info-bg-strong);
+  border: 1px solid var(--state-info-border);
+  color: var(--state-info-text);
+}
+
 .desktop-tx-menu-backdrop {
   position: fixed;
   inset: 0;

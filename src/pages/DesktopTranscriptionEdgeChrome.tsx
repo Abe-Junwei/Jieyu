@@ -31,11 +31,11 @@ export function DesktopTranscriptionEdgeChrome(props: {
   saved: boolean;
   hasMedia: boolean;
   reason: string | null;
-  tip: { text: string; x: number; y: number } | null;
+  tip: { text: string; x: number; y: number; follow?: boolean } | null;
   edgeFocus: ReturnType<typeof edgeFocusKind> | null;
   conflicts: Record<TimeEdge, TimeConflict | null>;
   stale: { action: 'undo' | 'redo' } | null;
-  menu: { x: number; y: number; layerName?: string; sub?: true } | null;
+  menu: { x: number; y: number; layerName?: string; sub?: true; canLink: boolean } | null;
   deletePrompt: UnitDeletePreview | null;
   onRebase: (edge: TimeEdge) => void;
   onDiscardDraft: (edge: TimeEdge) => void;
@@ -132,7 +132,14 @@ export function DesktopTranscriptionEdgeChrome(props: {
         </div>
       )}
       {props.tip === null ? null : (
-        <div className="desktop-tx-snap" style={{ left: props.tip.x, top: props.tip.y }}>
+        <div
+          className={
+            props.tip.follow === true
+              ? 'desktop-tx-snap desktop-tx-snap--follow'
+              : 'desktop-tx-snap'
+          }
+          style={{ left: props.tip.x, top: props.tip.y }}
+        >
           {props.tip.text}
         </div>
       )}
@@ -149,9 +156,11 @@ export function DesktopTranscriptionEdgeChrome(props: {
             style={{ left: props.menu.x, top: props.menu.y }}
             role="menu"
           >
-            <button type="button" role="menuitem" onClick={props.onLink}>
-              {t(locale, 'app.desktopTranscription.linkBoundary')}
-            </button>
+            {props.menu.canLink ? (
+              <button type="button" role="menuitem" onClick={props.onLink}>
+                {t(locale, 'app.desktopTranscription.linkBoundary')}
+              </button>
+            ) : null}
             {props.menu.layerName === undefined ? null : (
               <button type="button" role="menuitem" onClick={props.onClearText}>
                 {tf(locale, 'app.desktopTranscription.clearLayerText', {

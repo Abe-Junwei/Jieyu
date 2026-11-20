@@ -96,6 +96,8 @@ export interface EdgeUi {
     layerName?: string;
     /** A time-subdivision card: deleting removes only that child. */
     sub?: true;
+    /** Hidden when the unit has no touching neighbor to share a boundary with. */
+    canLink: boolean;
   } | null;
   deletePrompt: { unitId: string; counts: UnitDeletePreview } | null;
   raw: { unitId: string } & StoredTimes;
@@ -419,6 +421,7 @@ export function createEdgeActions(ctx: {
           unitId,
           x: event.clientX,
           y: event.clientY,
+          canLink: sharedEdge(rowOf(unitId), unitId) !== null,
           ...(layerId === undefined ? {} : { layerId, layerName: layerName ?? '' }),
           ...(sub === true ? { sub: true as const } : {}),
         },
