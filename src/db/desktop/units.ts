@@ -18,6 +18,7 @@ import {
 import { assertStoredCustomFields, writeUnitFieldValues } from './customFields';
 import { claimTextSave, finishTextSave, textSaveDigest } from './textSave';
 import { secToMs } from './timeMs';
+import { readUnitTextBody, resolveUnitTextContext } from './unitTextLayers';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -33,11 +34,13 @@ export interface Unit {
   createdAt: string;
   updatedAt: string;
   text: string;
-  textId: string;
+  textId: string | null;
+  textLayerId: string;
 }
 
 export interface UnitCreate {
   layerId: string;
+  textLayerId?: string;
   startMs: number | null;
   endMs: number | null;
   text: string;
@@ -56,30 +59,20 @@ interface UnitRow {
   created_at: string;
   updated_at: string;
   text: string;
-  text_id: string;
+  text_id: string | null;
+  text_layer_id: string;
 }
 
-const UNIT_SELECT = `
-SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id,
-       units.start_ms, units.end_ms, units.created_at, units.updated_at,
-       unit_texts.id AS text_id, unit_texts.body AS text
-FROM units
-JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
-`;
-
-const READ_STORED = `${UNIT_SELECT} WHERE units.id = ?`;
-
-const READ_VISIBLE = `
-${UNIT_SELECT}
-JOIN layers ON layers.id = units.layer_id
-JOIN manuscripts ON manuscripts.id = layers.manuscript_id
-WHERE units.id = ? AND manuscripts.deleted_at IS NULL
-`;
-
-export function assertUnitTextRoleFree(db: SqliteDatabase, unitId: string, role: string): void {
+export function assertUnitTextRoleFree(
+  db: SqliteDatabase,
+  unitId: string,
+  role: string,
+  textLayerId?: string,
+): void {
+  const context = resolveUnitTextContext(db, unitId, textLayerId);
   const row = db
-    .prepare('SELECT COUNT(*) AS n FROM unit_texts WHERE unit_id = ? AND role = ?')
-    .get(unitId, role) as { n: number };
+    .prepare('SELECT COUNT(*) AS n FROM unit_texts WHERE unit_id = ? AND layer_id = ? AND role = ?')
+    .get(unitId, context.textLayerId, role) as { n: number };
   if (row.n !== 0) throw new Error('unit text role is duplicated');
 }
 
@@ -148,6 +141,45 @@ function assertCreateInsideMedia(
   if (start < 0 || end > secToMs(row.duration)) throw new Error('edge is outside the media');
 }
 
+/**
+ * A time-subdivision unit sits fully inside a parent on one of its host layers and
+ * shares that parent's speaker. Returns the speaker to write.
+ */
+function subdivisionSpeaker(db: SqliteDatabase, input: UnitCreate): string | null | undefined {
+  const layer = db
+    .prepare('SELECT tier_type AS tierType FROM layers WHERE id = ?')
+    .get(input.layerId) as { tierType: string } | undefined;
+  if (layer?.tierType !== 'time-subdivision') return input.speakerId;
+  const parentId = input.parentUnitId;
+  const parent =
+    parentId != null && parentId.length > 0
+      ? (db
+          .prepare(
+            `SELECT units.speaker_id AS speakerId, units.start_ms AS startMs, units.end_ms AS endMs
+           FROM units
+           JOIN layer_links ON layer_links.host_layer_id = units.layer_id AND layer_links.layer_id = ?
+           WHERE units.id = ?`,
+          )
+          .get(input.layerId, parentId) as
+          { speakerId: string | null; startMs: number | null; endMs: number | null } | undefined)
+      : undefined;
+  if (!parent) throw new Error('time subdivision needs a parent on its host layer');
+  if (
+    input.startMs === null ||
+    input.endMs === null ||
+    parent.startMs === null ||
+    parent.endMs === null ||
+    input.startMs < parent.startMs ||
+    input.endMs > parent.endMs
+  ) {
+    throw new Error('time subdivision is outside its parent');
+  }
+  if (input.speakerId !== undefined && input.speakerId !== parent.speakerId) {
+    throw new Error('time subdivision speaker differs from its parent');
+  }
+  return parent.speakerId;
+}
+
 export function createUnit(
   db: SqliteDatabase,
   input: UnitCreate,
@@ -155,6 +187,7 @@ export function createUnit(
 ): Unit {
   assertUnitSpan(input.startMs, input.endMs);
   assertCreateInsideMedia(db, input.layerId, input.startMs, input.endMs);
+  const speakerId = subdivisionSpeaker(db, input);
   const id = randomUUID();
   const now = new Date().toISOString();
   const write = db.transaction(() => {
@@ -165,7 +198,7 @@ export function createUnit(
     ).run(
       id,
       input.layerId,
-      input.speakerId ?? null,
+      speakerId ?? null,
       input.parentUnitId ?? null,
       input.startMs,
       input.endMs,
@@ -174,45 +207,104 @@ export function createUnit(
       now,
     );
     afterUnitInsert?.();
-    assertUnitTextRoleFree(db, id, 'transcription');
-    db.prepare(
-      `INSERT INTO unit_texts (id, unit_id, role, body, updated_at) VALUES (?, ?, 'transcription', ?, ?)`,
-    ).run(randomUUID(), id, input.text, now);
+    const textContext = resolveUnitTextContext(db, id, input.textLayerId);
+    if (input.text.length > 0) {
+      assertUnitTextRoleFree(db, id, textContext.role, textContext.textLayerId);
+      db.prepare(
+        `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run(randomUUID(), id, textContext.textLayerId, textContext.role, input.text, now);
+    }
     writeUnitFieldValues(db, id, input.fieldValues);
-    const unit = getUnit(db, id);
+    const unit = getUnit(db, id, textContext.textLayerId);
     if (!unit) throw new Error('unit readback failed');
     return unit;
   });
   return write();
 }
 
-const LIST = `
-SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id,
-       units.start_ms, units.end_ms, units.created_at, units.updated_at,
-       unit_texts.id AS text_id, unit_texts.body AS text
-FROM units
-JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
-JOIN layers ON layers.id = units.layer_id
-JOIN manuscripts ON manuscripts.id = layers.manuscript_id
-WHERE units.layer_id = ? AND manuscripts.deleted_at IS NULL
-ORDER BY units.sort_order, units.id
-`;
-
 /** Includes a unit whose manuscript is deleted. Writers use this so the delete trigger still reports. */
-export function readStoredUnit(db: SqliteDatabase, id: string): Unit | null {
-  const row = db.prepare(READ_STORED).get(id) as UnitRow | undefined;
-  if (!row) return null;
-  return mapUnit(row);
+export function readStoredUnit(db: SqliteDatabase, id: string, textLayerId?: string): Unit | null {
+  return readUnit(db, id, textLayerId, false);
 }
 
-export function getUnit(db: SqliteDatabase, id: string): Unit | null {
-  const row = db.prepare(READ_VISIBLE).get(id) as UnitRow | undefined;
-  if (!row) return null;
-  return mapUnit(row);
+export function getUnit(db: SqliteDatabase, id: string, textLayerId?: string): Unit | null {
+  return readUnit(db, id, textLayerId, true);
+}
+
+function readUnit(
+  db: SqliteDatabase,
+  id: string,
+  textLayerId: string | undefined,
+  visible: boolean,
+): Unit | null {
+  if (db.prepare('SELECT 1 FROM units WHERE id = ?').get(id) === undefined) return null;
+  const context = resolveUnitTextContext(db, id, textLayerId, { allowDeleted: true });
+  const row = readUnitRow(db, id, context.textLayerId, visible);
+  return row ? mapUnit(row) : null;
+}
+
+function readUnitRow(
+  db: SqliteDatabase,
+  id: string,
+  textLayerId: string,
+  visible: boolean,
+): UnitRow | undefined {
+  return db
+    .prepare(
+      `SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id,
+              units.start_ms, units.end_ms, units.created_at, units.updated_at,
+              unit_texts.id AS text_id, COALESCE(unit_texts.body, '') AS text,
+              text_layer.id AS text_layer_id
+       FROM units
+       JOIN layers AS source_layer ON source_layer.id = units.layer_id
+       JOIN layers AS text_layer ON text_layer.id = ?
+       JOIN manuscripts ON manuscripts.id = source_layer.manuscript_id
+       LEFT JOIN unit_texts
+         ON unit_texts.unit_id = units.id
+        AND unit_texts.layer_id = text_layer.id
+        AND unit_texts.role = text_layer.content_type
+       WHERE units.id = ? ${visible ? 'AND manuscripts.deleted_at IS NULL' : ''}`,
+    )
+    .get(textLayerId, id) as UnitRow | undefined;
 }
 
 export function listUnits(db: SqliteDatabase, layerId: string): Unit[] {
-  return (db.prepare(LIST).all(layerId) as UnitRow[]).map(mapUnit);
+  const target = db
+    .prepare('SELECT tier_type AS tierType, content_type AS contentType FROM layers WHERE id = ?')
+    .get(layerId) as { tierType: string; contentType: string } | undefined;
+  if (!target || target.contentType === 'point') return [];
+  const sources =
+    target.tierType === 'symbolic-association'
+      ? (db
+          .prepare(
+            `SELECT host_layer_id AS id FROM layer_links
+             WHERE layer_id = ? ORDER BY is_preferred DESC, sort_order, host_layer_id`,
+          )
+          .all(layerId) as { id: string }[])
+      : [{ id: layerId }];
+  const sourceIds = [...new Set(sources.map((source) => source.id))];
+  if (sourceIds.length === 0) return [];
+  const rows = db
+    .prepare(
+      `SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id,
+              units.start_ms, units.end_ms, units.created_at, units.updated_at,
+              unit_texts.id AS text_id, COALESCE(unit_texts.body, '') AS text,
+              target.id AS text_layer_id
+       FROM units
+       JOIN layers AS source ON source.id = units.layer_id
+       JOIN layers AS target ON target.id = ?
+       JOIN manuscripts ON manuscripts.id = source.manuscript_id
+       LEFT JOIN unit_texts
+         ON unit_texts.unit_id = units.id
+        AND unit_texts.layer_id = target.id
+        AND unit_texts.role = target.content_type
+       WHERE units.layer_id IN (${sourceIds.map(() => '?').join(', ')})
+         AND manuscripts.deleted_at IS NULL
+       ORDER BY units.start_ms IS NULL, units.start_ms, units.layer_id, units.sort_order, units.id`,
+    )
+    .all(layerId, ...sourceIds) as UnitRow[];
+  return rows.map(mapUnit);
 }
 
 export function updateBoundary(
@@ -256,8 +348,11 @@ export function updateBoundary(
 
 export interface UnitTextUndo {
   unitId: string;
+  textLayerId: string;
+  analysisAffected: boolean;
   prior: {
     text: string;
+    textExists: boolean;
     graph: AnalysisGraphPayload | null;
     manuscriptId: string;
     links: AnalysisAssociationLink[];
@@ -266,6 +361,7 @@ export interface UnitTextUndo {
   };
   after: {
     text: string;
+    textExists: boolean;
     graphFingerprint: string;
     analysisGeneration: number;
     manuscriptGeneration: number;
@@ -274,49 +370,72 @@ export interface UnitTextUndo {
 
 export function updateUnitText(
   db: SqliteDatabase,
-  input: { unitId: string; text: string; operationId?: string },
+  input: {
+    unitId: string;
+    textLayerId?: string;
+    text: string;
+    operationId?: string;
+  },
   afterSnapshot?: () => void,
   remember?: (undo: UnitTextUndo) => void,
 ): Unit {
-  if (input.text.length === 0) throw new Error('unit text is empty');
-  const digest = input.operationId === undefined ? null : textSaveDigest(input.unitId, input.text);
+  const context = resolveUnitTextContext(db, input.unitId, input.textLayerId);
+  const digest =
+    input.operationId === undefined
+      ? null
+      : textSaveDigest(input.unitId, context.textLayerId, input.text);
+  const analysisAffected =
+    context.textLayerId === context.unitLayerId && context.role === 'transcription';
   let remembered: UnitTextUndo | null = null;
   const write = db.transaction(() => {
     if (input.operationId !== undefined && digest !== null) {
       if (claimTextSave(db, input.operationId, digest) === 'replay') {
-        const current = readStoredUnit(db, input.unitId);
+        const current = readStoredUnit(db, input.unitId, context.textLayerId);
         if (!current) throw new Error('unit is missing');
         return current;
       }
     }
-    const existing = readStoredUnit(db, input.unitId);
+    const existing = readStoredUnit(db, input.unitId, context.textLayerId);
     if (!existing) throw new Error('unit is missing');
     assertManuscriptEditable(db, input.unitId);
-    if (existing.text === input.text) {
+    const currentText = readUnitTextBody(db, context);
+    if (currentText.body === input.text) {
       if (input.operationId !== undefined && digest !== null) {
         finishTextSave(db, {
           operationId: input.operationId,
           digest,
           unitId: input.unitId,
+          textLayerId: context.textLayerId,
           text: input.text,
         });
       }
       return existing;
     }
     const material = readAnalysisMaterial(db, input.unitId);
-    if (material.graph !== null) {
+    if (analysisAffected && material.graph !== null) {
       insertReviewSnapshot(db, material);
       afterSnapshot?.();
     }
     const now = new Date().toISOString();
-    const texts = db
-      .prepare(`SELECT COUNT(*) AS n FROM unit_texts WHERE unit_id = ? AND role = 'transcription'`)
-      .get(input.unitId) as { n: number };
-    if (texts.n !== 1) throw new Error('unit text role is duplicated');
-    db.prepare(
-      `UPDATE unit_texts SET body = ?, updated_at = ? WHERE unit_id = ? AND role = 'transcription'`,
-    ).run(input.text, now, input.unitId);
-    if (material.graph !== null) {
+    if (input.text.length === 0) {
+      db.prepare('DELETE FROM unit_texts WHERE unit_id = ? AND layer_id = ? AND role = ?').run(
+        input.unitId,
+        context.textLayerId,
+        context.role,
+      );
+    } else if (currentText.id === null) {
+      db.prepare(
+        `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run(randomUUID(), input.unitId, context.textLayerId, context.role, input.text, now);
+    } else {
+      db.prepare('UPDATE unit_texts SET body = ?, updated_at = ? WHERE id = ?').run(
+        input.text,
+        now,
+        currentText.id,
+      );
+    }
+    if (analysisAffected && material.graph !== null) {
       db.prepare(
         `UPDATE units
          SET analysis_graph_json = NULL, graph_fingerprint = '', analysis_generation = analysis_generation + 1,
@@ -331,19 +450,23 @@ export function updateUnitText(
     db.prepare(
       'UPDATE manuscripts SET generation = generation + 1, updated_at = ? WHERE id = ?',
     ).run(now, material.manuscriptId);
-    const unit = readStoredUnit(db, input.unitId);
+    const unit = readStoredUnit(db, input.unitId, context.textLayerId);
     const manuscript = db
       .prepare('SELECT generation FROM manuscripts WHERE id = ?')
       .get(material.manuscriptId) as { generation: number } | undefined;
-    const root = getAnalysisRoot(db, input.unitId);
-    if (!unit || unit.text !== input.text || !manuscript || !root) {
+    const root = analysisAffected ? getAnalysisRoot(db, input.unitId) : null;
+    if (!unit || unit.text !== input.text || !manuscript || (analysisAffected && !root)) {
       throw new Error('unit text readback failed');
     }
     if (manuscript.generation !== material.manuscriptGeneration + 1) {
       throw new Error('unit text readback failed');
     }
-    if (material.graph !== null) {
-      if (root.graph !== null || root.analysisGeneration !== material.analysisGeneration + 1) {
+    if (analysisAffected && material.graph !== null) {
+      if (
+        !root ||
+        root.graph !== null ||
+        root.analysisGeneration !== material.analysisGeneration + 1
+      ) {
         throw new Error('unit text readback failed');
       }
     }
@@ -352,13 +475,17 @@ export function updateUnitText(
         operationId: input.operationId,
         digest,
         unitId: input.unitId,
+        textLayerId: context.textLayerId,
         text: input.text,
       });
     }
     remembered = {
       unitId: input.unitId,
+      textLayerId: context.textLayerId,
+      analysisAffected,
       prior: {
-        text: material.text,
+        text: currentText.body,
+        textExists: currentText.id !== null,
         graph: material.graph === null ? null : structuredClone(material.graph),
         manuscriptId: material.manuscriptId,
         links: structuredClone(material.links),
@@ -367,9 +494,13 @@ export function updateUnitText(
       },
       after: {
         text: input.text,
-        graphFingerprint: material.graph === null ? material.graphFingerprint : '',
+        textExists: input.text.length > 0,
+        graphFingerprint:
+          analysisAffected && material.graph !== null ? '' : material.graphFingerprint,
         analysisGeneration:
-          material.graph === null ? material.analysisGeneration : material.analysisGeneration + 1,
+          analysisAffected && material.graph !== null
+            ? material.analysisGeneration + 1
+            : material.analysisGeneration,
         manuscriptGeneration: material.manuscriptGeneration + 1,
       },
     };
@@ -396,9 +527,13 @@ interface AnalysisRootRow {
 
 const ANALYSIS_ROOT = `
 SELECT units.analysis_graph_json, units.analysis_generation, units.graph_fingerprint,
-       unit_texts.body AS text
+       COALESCE(unit_texts.body, '') AS text
 FROM units
-JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
+JOIN layers ON layers.id = units.layer_id
+LEFT JOIN unit_texts
+  ON unit_texts.unit_id = units.id
+ AND unit_texts.layer_id = units.layer_id
+ AND unit_texts.role = 'transcription'
 WHERE units.id = ?
 `;
 
@@ -485,5 +620,6 @@ function mapUnit(row: UnitRow): Unit {
     updatedAt: row.updated_at,
     text: row.text,
     textId: row.text_id,
+    textLayerId: row.text_layer_id,
   };
 }

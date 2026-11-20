@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import { secToMs } from './timeMs';
 import { writeUnitFieldValues } from './customFields';
-import { assertUnitTextRoleFree, sortOrderForInsert } from './units';
+import { sortOrderForInsert } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -348,7 +348,6 @@ export function acceptTranscriptionCandidate(
       throw new Error('transcription time is invalid');
     }
     const unitId = randomUUID();
-    assertUnitTextRoleFree(db, unitId, 'transcription');
     db.prepare(
       `INSERT INTO units (
         id, layer_id, start_ms, end_ms, sort_order, created_at, updated_at
@@ -363,9 +362,9 @@ export function acceptTranscriptionCandidate(
       now,
     );
     db.prepare(
-      `INSERT INTO unit_texts (id, unit_id, role, body, provenance_json, updated_at)
-       VALUES (?, ?, 'transcription', ?, ?, ?)`,
-    ).run(randomUUID(), unitId, input.text, provenanceJson(run, now), now);
+      `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, provenance_json, updated_at)
+       VALUES (?, ?, ?, 'transcription', ?, ?, ?)`,
+    ).run(randomUUID(), unitId, run.layerId, input.text, provenanceJson(run, now), now);
     writeUnitFieldValues(db, unitId, undefined);
     try {
       db.prepare(
@@ -528,13 +527,16 @@ export function readTranscriptionAcceptance(
               transcription_acceptances.run_id AS runId,
               transcription_acceptances.candidate_id AS candidateId,
               transcription_acceptances.unit_id AS unitId,
-              unit_texts.body AS text,
+              COALESCE(unit_texts.body, '') AS text,
               units.start_ms AS startMs,
               units.end_ms AS endMs,
               unit_texts.provenance_json AS provenanceJson
        FROM transcription_acceptances
        JOIN units ON units.id = transcription_acceptances.unit_id
-       JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
+       LEFT JOIN unit_texts
+         ON unit_texts.unit_id = units.id
+        AND unit_texts.layer_id = units.layer_id
+        AND unit_texts.role = 'transcription'
        WHERE transcription_acceptances.operation_id = ?`,
     )
     .get(operationId) as
@@ -628,9 +630,12 @@ function overlappingTexts(
 ): OverlapRow[] {
   return db
     .prepare(
-      `SELECT units.id, units.start_ms, units.end_ms, unit_texts.body
+      `SELECT units.id, units.start_ms, units.end_ms, COALESCE(unit_texts.body, '') AS body
        FROM units
-       JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
+       LEFT JOIN unit_texts
+         ON unit_texts.unit_id = units.id
+        AND unit_texts.layer_id = units.layer_id
+        AND unit_texts.role = 'transcription'
        WHERE units.layer_id = ? AND units.start_ms < ? AND units.end_ms > ?
        ORDER BY units.id`,
     )

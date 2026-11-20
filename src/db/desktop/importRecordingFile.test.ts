@@ -66,6 +66,7 @@ describe('copyRecordingIntoProject', () => {
       {
         listManuscripts: (sessionId) => client.listManuscripts(sessionId),
         listLayers: (sessionId, manuscriptId) => client.listLayers(sessionId, manuscriptId),
+        listLayerLinks: (sessionId, manuscriptId) => client.listLayerLinks(sessionId, manuscriptId),
         listUnits: (sessionId, layerId) => client.listUnits(sessionId, layerId),
         mediaPlayUrl: async (sessionId, mediaId) => desktopMediaPlayUrl(sessionId, mediaId).url,
       },

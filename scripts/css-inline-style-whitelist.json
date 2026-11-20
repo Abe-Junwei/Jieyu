@@ -114,8 +114,8 @@
     },
     {
       "file": "src/pages/DesktopTranscriptionLane.tsx",
-      "reason": "Lane track width, draft segment frame, and seam position follow live zoom and pointer time.",
-      "reviewer": "Cursor + junwei",
+      "reason": "Lane track width, draft frame, wave-stage preview, and seam position follow live zoom and pointer time.",
+      "reviewer": "Cursor cloud agent",
       "reviewedAt": "2026-11-20",
       "snippets": [
         {
@@ -123,12 +123,88 @@
           "reviewedSha256": "c2eb4a00f3721f29fa951e2a69bdc900b36113c7c2b8be1d7843480425a51fa3"
         },
         {
-          "anchor": "style={desktopSegmentFrame(",
-          "reviewedSha256": "46f10a047354bc12981116212004f3011a517780179bfb4bbb00a23adb504d8f"
+          "anchor": "position: 'absolute', top: 0, height: '100%'",
+          "reviewedSha256": "197adaed3f5257b68420e52076eaf3e0c5d3e73659f395c52997cd830d0a75a5"
+        },
+        {
+          "anchor": "style={previewFrame}",
+          "reviewedSha256": "7da5a8496052ba8db2f890badef400d3f824e342a44b6663085223ad0ee27035"
         },
         {
           "anchor": "left: seamLeft(",
           "reviewedSha256": "c0fba6a18c29c85606885c1629a33ded60dd42774ae251eae86121688f4c3fa8"
+        }
+      ]
+    },
+    {
+      "file": "src/pages/DesktopTranscriptionCreatePreview.tsx",
+      "reason": "The marching-ants frame position and size are the caller's live drag geometry. Fill and stroke stay in CSS.",
+      "reviewer": "Cursor cloud agent",
+      "reviewedAt": "2026-11-20",
+      "snippets": [
+        {
+          "anchor": "style={props.style}",
+          "reviewedSha256": "48e7be2b6eefea996ef210033c2de9eca4335a348379afd2f74299d80cb5cc69"
+        }
+      ]
+    },
+    {
+      "file": "src/pages/DesktopTranscriptionLayerLabel.tsx",
+      "reason": "Tree guide, elbow and side-lane offsets derive from each row's runtime depth and lane index; the context menu follows the live pointer and the node tooltip follows the node's on-screen box.",
+      "reviewer": "Copilot App",
+      "reviewedAt": "2026-11-20",
+      "snippets": [
+        {
+          "anchor": "levelX(level)",
+          "reviewedSha256": "223db34b227ee596bf3e78e99a37d027282da399dbeb8cebc993bd3276a6f922"
+        },
+        {
+          "anchor": "levelX(row.depth - 1)",
+          "reviewedSha256": "fe217391bd3ebcc6bcabe1b68858ea6e55471245989c797f36ab472c2a422b9e"
+        },
+        {
+          "anchor": "'--x': px(dotX) })",
+          "reviewedSha256": "2d665ad274b26b337b17689b043c92a68f8a49138a8098a4254837566fb58edf"
+        },
+        {
+          "anchor": "left: menu.x, top: menu.y",
+          "reviewedSha256": "0022b7ff6223889daac1da9d2249bbe069dd72469f20eb5f4b7da08f16452669"
+        },
+        {
+          "anchor": "'--x': px(x) })",
+          "reviewedSha256": "15909ff1b540de9c0b1ae3bb47a095bb2145809eb71e96957d3e6adbc8e6e2ff"
+        },
+        {
+          "anchor": "'--w': px(dotX - (lane.role",
+          "reviewedSha256": "1ec3d03256d5f3cd36b3816c0149231bd69cb29072854126edd2f278bcca7e21"
+        },
+        {
+          "anchor": "'--dot-x': px(levelX(row.depth))",
+          "reviewedSha256": "b10ef18d3f08a5325289dd1e006aee5bd44ef8a8d4cf43792821b2513970c909"
+        },
+        {
+          "anchor": "'--dot-x': px(levelX(props.row.depth))",
+          "reviewedSha256": "5f78cf263e0f851eefcb29f24b7e4446e8d54b1a2a4edcb082d977ff2ba849f1"
+        },
+        {
+          "anchor": "left: box.left",
+          "reviewedSha256": "2dbde1a15ddddddc99dad61df537dc5863b50e6fbc57353f135229139ff5973b"
+        }
+      ]
+    },
+    {
+      "file": "src/pages/DesktopTranscriptionLayerRows.tsx",
+      "reason": "Linked-layer track width and the create preview frame follow live zoom and drag time.",
+      "reviewer": "Cursor cloud agent",
+      "reviewedAt": "2026-11-20",
+      "snippets": [
+        {
+          "anchor": "width: props.duration * props.zoomPxPerSec",
+          "reviewedSha256": "c2eb4a00f3721f29fa951e2a69bdc900b36113c7c2b8be1d7843480425a51fa3"
+        },
+        {
+          "anchor": "style={props.createFrame}",
+          "reviewedSha256": "83b5e8922ce9a653fc88eadc91c3c98c946d3dfe45a03cc0491afd0d6ef20474"
         }
       ]
     },

@@ -31,6 +31,24 @@ export interface LayerCreate {
   parentId?: string | null;
   sortOrder?: number;
   fieldValues?: Record<string, unknown>;
+  /** Transcription layers this text layer reads units from. First preferred, else the first. */
+  hosts?: LayerHostInput[];
+}
+
+export type LayerLinkType = 'direct' | 'free' | 'literal' | 'pedagogical';
+
+export interface LayerHostInput {
+  hostLayerId: string;
+  linkType?: LayerLinkType;
+  preferred?: boolean;
+}
+
+export interface LayerLink {
+  layerId: string;
+  hostLayerId: string;
+  linkType: LayerLinkType;
+  isPreferred: boolean;
+  sortOrder: number;
 }
 
 interface LayerRow {
@@ -72,6 +90,7 @@ export function createLayer(db: SqliteDatabase, input: LayerCreate): Layer {
       now,
     );
     writeRequiredFieldValues(db, 'layer', id, input.fieldValues);
+    insertHostLinks(db, id, input.manuscriptId, input.hosts ?? [], now);
     const layer = getLayer(db, id);
     if (!layer) throw new Error('layer readback failed');
     return layer;
@@ -107,6 +126,63 @@ export function getLayer(db: SqliteDatabase, id: string): Layer | null {
     .get(id) as LayerRow | undefined;
   if (!row) return null;
   return mapLayer(row);
+}
+
+function insertHostLinks(
+  db: SqliteDatabase,
+  layerId: string,
+  manuscriptId: string,
+  hosts: LayerHostInput[],
+  now: string,
+): void {
+  if (hosts.length === 0) return;
+  const preferredCount = hosts.filter((host) => host.preferred === true).length;
+  if (preferredCount > 1) throw new Error('layer has more than one preferred host');
+  const preferredIndex =
+    preferredCount === 0 ? 0 : hosts.findIndex((host) => host.preferred === true);
+  const insert = db.prepare(
+    `INSERT INTO layer_links (
+      id, manuscript_id, layer_id, host_layer_id, link_type, is_preferred, sort_order, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  hosts.forEach((host, index) => {
+    insert.run(
+      randomUUID(),
+      manuscriptId,
+      layerId,
+      host.hostLayerId,
+      host.linkType ?? 'free',
+      index === preferredIndex ? 1 : 0,
+      index,
+      now,
+    );
+  });
+}
+
+export function listLayerLinks(db: SqliteDatabase, manuscriptId: string): LayerLink[] {
+  const rows = db
+    .prepare(
+      `SELECT layer_links.layer_id, layer_links.host_layer_id, layer_links.link_type,
+              layer_links.is_preferred, layer_links.sort_order
+       FROM layer_links
+       JOIN manuscripts ON manuscripts.id = layer_links.manuscript_id
+       WHERE layer_links.manuscript_id = ? AND manuscripts.deleted_at IS NULL
+       ORDER BY layer_links.layer_id, layer_links.sort_order, layer_links.host_layer_id`,
+    )
+    .all(manuscriptId) as Array<{
+    layer_id: string;
+    host_layer_id: string;
+    link_type: LayerLinkType;
+    is_preferred: number;
+    sort_order: number;
+  }>;
+  return rows.map((row) => ({
+    layerId: row.layer_id,
+    hostLayerId: row.host_layer_id,
+    linkType: row.link_type,
+    isPreferred: row.is_preferred === 1,
+    sortOrder: row.sort_order,
+  }));
 }
 
 function mapLayer(row: LayerRow): Layer {
