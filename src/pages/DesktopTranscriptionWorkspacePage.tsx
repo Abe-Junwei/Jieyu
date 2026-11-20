@@ -81,21 +81,6 @@ function DesktopTranscriptionWorkspace() {
     true,
     locate === null ? null : { manuscriptId: locate.manuscriptId, layerId: locate.layerId },
   );
-  const adoptSample = useRef(read.adoptOpenedSession);
-  adoptSample.current = read.adoptOpenedSession;
-  useEffect(() => {
-    if (host?.openBundledSample === undefined || read.sessionId !== null) return undefined;
-    let cancelled = false;
-    void host
-      .openBundledSample()
-      .then((opened) => {
-        if (!cancelled) adoptSample.current(opened.sessionId);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [host, read.sessionId]);
   const draft = useDesktopDraftGuard(
     (current, operationId) => read.saveText(current.unitId, current.text, operationId),
     {

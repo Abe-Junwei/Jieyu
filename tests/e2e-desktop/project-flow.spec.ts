@@ -81,6 +81,18 @@ test('transcription workspace seeks a segment and space starts playback', async 
   }
 });
 
+test('does not create a sample project on startup', async () => {
+  const app = await launch('no-sample');
+  try {
+    await app.firstWindow();
+    const userData = userDataOf.get(app);
+    if (userData === undefined) throw new Error('user data folder missing');
+    expect(existsSync(join(userData, 'sample-project'))).toBe(false);
+  } finally {
+    await app.close();
+  }
+});
+
 test('transcription edge writes survive close and reopen', async () => {
   if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
   const copy = mkdtempSync(join(tmpdir(), 'jieyu-m4c-edges-'));

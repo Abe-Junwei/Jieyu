@@ -9,7 +9,6 @@ const desktop = {
   writeProbe: (note: string) => ipcRenderer.invoke('skeleton:write-probe', note),
   openProject: (folder: string) => ipcRenderer.invoke('skeleton:open-project', folder),
   openDesktopSession: (folder: string) => ipcRenderer.invoke('desktop:open-session', folder),
-  openBundledSample: () => ipcRenderer.invoke('desktop:open-bundled-sample'),
   closeDesktopSession: (sessionId: string) =>
     ipcRenderer.invoke('desktop:close-session', sessionId),
   desktopCall: (sessionId: string, method: string, args: unknown) =>

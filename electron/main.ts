@@ -40,7 +40,6 @@ import {
   readRestoredProjectGrant,
 } from '../src/desktop/restoredProjectGrant';
 import { grantExchangePath } from '../src/desktop/exchangePathGrant';
-import { ensureBundledSample, SAMPLE_PROJECT_DIRNAME } from '../src/db/desktop/sampleProject';
 import { projectLibraryHeaderMatches } from '../src/db/desktop/openProject';
 import {
   copyRecordingIntoProject,
@@ -51,7 +50,6 @@ import {
   abandonDesktopSession,
   closeDesktopSession,
   desktopSessionFolder,
-  liveDesktopSession,
   openDesktopSession,
   openPreparedDesktopSession,
   resetDesktopSessions,
@@ -290,22 +288,6 @@ function registerIpc(): void {
   handle('skeleton:write-probe', (note: unknown) => {
     if (typeof note !== 'string' || note.length === 0) throw new Error('empty probe');
     return writeSkeletonProbe(app.getPath('temp'), note);
-  });
-
-  handle('desktop:open-bundled-sample', () => {
-    const folder = path.resolve(app.getPath('userData'), SAMPLE_PROJECT_DIRNAME);
-    const library = path.join(folder, 'project.sqlite');
-    if (!fs.existsSync(library) || !projectLibraryHeaderMatches(library)) {
-      ensureBundledSample(folder);
-    }
-    allowedProjectFolders.add(folder);
-    const live = liveDesktopSession();
-    const opened =
-      live !== null && path.resolve(live.folder) === folder
-        ? { sessionId: live.sessionId }
-        : openUserProjectSession(folder);
-    bindDesktopMediaSession(opened.sessionId);
-    return opened;
   });
 
   handle('desktop:open-session', (folder: unknown) => {
@@ -930,11 +912,6 @@ app
     installMediaProtocol();
     installAppProtocol();
     registerIpc();
-    try {
-      ensureBundledSample(path.join(app.getPath('userData'), SAMPLE_PROJECT_DIRNAME));
-    } catch (error) {
-      console.error(error);
-    }
     const win = await openWindow();
     if (process.argv.includes('--smoke')) {
       await runSmoke(win);

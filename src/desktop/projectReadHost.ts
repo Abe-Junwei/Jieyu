@@ -6,7 +6,6 @@ import type {
 export interface DesktopReadHost {
   projectReadEnabled: boolean;
   chooseDesktopFolder(): Promise<{ sessionId: string } | { cancelled: true }>;
-  openBundledSample?(): Promise<{ sessionId: string }>;
   importRecording?(
     sessionId: string | null,
   ): Promise<

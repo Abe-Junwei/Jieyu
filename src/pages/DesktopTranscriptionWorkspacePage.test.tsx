@@ -28,10 +28,12 @@ describe('DesktopTranscriptionWorkspacePage', () => {
     expect(featureFlags.desktopTranscriptionWorkspaceEnabled).toBe(true);
   });
 
-  it('renders the board-27 shell regions when a desktop host is present', () => {
+  it('keeps the empty state when a legacy host exposes a sample opener', async () => {
+    const openBundledSample = vi.fn(async () => ({ sessionId: 'sample-session' }));
     (globalThis as { jieyuDesktop?: unknown }).jieyuDesktop = {
       projectReadEnabled: true,
       chooseDesktopFolder: vi.fn(async () => ({ cancelled: true as const })),
+      openBundledSample,
       desktopCall: vi.fn(async () => {
         throw new Error('unused');
       }),
@@ -60,6 +62,7 @@ describe('DesktopTranscriptionWorkspacePage', () => {
     expect(screen.queryByText('转写')).toBeNull();
     expect(screen.queryByTestId('desktop-waveform')).toBeNull();
     expect(screen.queryByText('片段检查器')).toBeNull();
+    await waitFor(() => expect(openBundledSample).not.toHaveBeenCalled());
   });
 
   it('registers a picked recording on a manuscript and a transcription layer', async () => {
