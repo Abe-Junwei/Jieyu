@@ -15,7 +15,7 @@ source_of_truth: desktop-legacy-isolation-spec
 
 - **要做什么**：先拆掉两条混合边，再让桌面渲染层占用默认入口和构建、旧网页改名；三道门禁零容忍；旧功能按台账前移；#329 完成后删旧网页。
 - **为什么现在做**：Electron 加载的 `src/main.tsx` 静态就能到达 `db/engine`；`storagePort` 默认绑定 Dexie，`lexiconLiftImport` 把解析和 Dexie 写入混在一起，桌面目录经由它们到达 Dexie。
-- **不做什么**：不拆仓库、不搬 `src/features`；不迁移旧浏览器数据（#326 已取消）；不加产品功能；S8 前不删旧代码。
+- **不做什么**：不拆仓库、不搬 `src/features`；不迁移旧浏览器数据（#326 已取消）；不加产品功能；S8 前不删旧代码。不改 1b–7 和 #285 的产品顺序，不把第二程功能提前。不改写 ADR-0063，不改带日期的变更记录。
 
 ## 2. 用户场景
 
@@ -32,6 +32,7 @@ source_of_truth: desktop-legacy-isolation-spec
 - [ ] `npm run build` 产出的 `dist/` 里没有 `dexie`、`src/db/engine.ts`、旧区根模块和 service worker；出现时构建失败。
 - [ ] Electron E2E 断言 `indexedDB.databases()` 为空、界面形态为 `desktop`，三个平台都通过。
 - [ ] `old-path-exit.record.json` 有 `features` 数组，10 个旧路由页面都已登记；`check:old-path-exit` 校验 `ported`/`dropped` 字段。
+- [ ] S0b 起，主路线图登记本工程轨，且 1b–7 的顺序还在。S5 起，验证命令和入口切换一致。S7 每迁完一组，进度点名该组。S8 起，仍在描述现状的路线图句子改为浏览器构建已删，并写有第二程开工约束。
 
 ## 4. 受影响代码地图
 
@@ -44,7 +45,7 @@ source_of_truth: desktop-legacy-isolation-spec
 | E2E 接线 | `playwright.config.ts`、`playwright.session-sidecar.config.ts`、`.github/workflows/e2e-pr.yml`、`electron-smoke.yml` | 改用旧网页构建 / 加断言 |
 | 门禁 | `scripts/check-desktop-boundary.mjs`、`scripts/legacy-zone.json`、`scripts/vite-plugin-desktop-bundle-guard.ts` | 新增 |
 | 台账 | `scripts/old-path-exit.record.json`、`scripts/check-old-path-exit.mjs` | 扩展 |
-| 文档 | `AI_QUICKSTART.md`、`copilot-instructions.md` | 开发命令 |
+| 文档 | `AI_QUICKSTART.md`、`copilot-instructions.md`、`AGENTS.md`、主路线图、单库计划、试用地图、`docs/architecture/offline-pwa-first-visit-expectations.md` | 按 S0b / S5 / S7 / S8 分次改 |
 
 ## 5. 已知风险与依赖
 

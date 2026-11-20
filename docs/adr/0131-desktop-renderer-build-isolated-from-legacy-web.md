@@ -60,4 +60,5 @@ ADR-0063 定了只交付桌面。ADR-0064 定了 #329 把 E2E 迁到 Electron �
 - Dexie 实现挪到 `src/db/dexieStoragePort.ts`。`storagePort.ts` 不再导入 `engine`，未安装时抛错。旧入口和测试显式安装 `dexieStoragePort`。
 - Playwright 的 webServer、`e2e-pr.yml`、`test:e2e:session-sidecar-audit` 改用旧网页构建。
 - 并存期间有两份 Vite 配置；Chromium 用例按 #329 每迁一组删一组。
+- 路线图分四次改，不改 1b–7 和 #285 的产品顺序。S0b 登记工程轨；S5 改验证命令；S7 按组改 #329 进度；S8 改现状句并写入第二程开工约束。带日期的记录不改。
 - 执行细节见[规格](../execution/specs/desktop-legacy-isolation/requirements.md)。
