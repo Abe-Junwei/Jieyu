@@ -14,6 +14,7 @@ import { initLcpMetricObserver } from './observability/webVitals';
 import { createLogger } from './observability/logger';
 import { initTheme } from './utils/theme';
 import './styles/app-foundation.css';
+import './styles/pages/transcription-layout.css';
 
 const log = createLogger('main.desktop');
 

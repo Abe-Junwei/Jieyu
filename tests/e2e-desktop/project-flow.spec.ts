@@ -77,6 +77,13 @@ test('transcription workspace seeks a segment and space starts playback', async 
     await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
     await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
     await expect(page.getByRole('button', { name: /^(Play|播放)$/ })).toBeEnabled();
+    // 转写壳样式随桌面入口加载：主区铺满、侧栏顶对齐。
+    const shell = await page.evaluate(() => ({
+      main: getComputedStyle(document.querySelector('.app-main-transcription') as Element)
+        .paddingTop,
+      side: getComputedStyle(document.querySelector('.app-side-pane') as Element).top,
+    }));
+    expect(shell).toEqual({ main: '0px', side: '0px' });
     await waitForAudio(page);
     const segment = page.locator('.timeline-annotation', { hasText: 'two' });
     await segment.click();
