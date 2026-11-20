@@ -347,6 +347,18 @@ test('waveform handles resize a segment edge and the grip moves it with its chil
     const moved = await read(clip.layerId, parent.id);
     const child = await read(words.id, left.id);
     expect((child?.startMs ?? 0) - parent.startMs).toBe((moved?.startMs ?? 0) - parent.startMs);
+
+    const body = seg.getByTestId('desktop-wave-body');
+    await expect(body).toBeVisible();
+    const bb = await body.boundingBox();
+    if (bb === null) throw new Error('wave body missing');
+    await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(bb.x + bb.width / 2 - 10, bb.y + bb.height / 2, { steps: 6 });
+    await page.mouse.up();
+    await expect
+      .poll(async () => (await read(clip.layerId, parent.id))?.startMs ?? Infinity)
+      .toBeLessThan(moved?.startMs ?? 0);
   } finally {
     await app.close();
     rmSync(copy, { recursive: true, force: true });

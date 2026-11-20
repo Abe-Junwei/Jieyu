@@ -13,9 +13,16 @@ export function DesktopWaveformEdges(props: {
   zoomPxPerSec: number;
   scrollLeftPx: number;
   selectedUnitId: string | null;
+  selectedUnitIds: readonly string[];
   onEdge: (unitId: string, edge: TimeEdge, event: ReactPointerEvent<HTMLElement>) => void;
-  onMove: (unitId: string, event: ReactPointerEvent<HTMLElement>) => void;
+  /** `seekSec` is the media time under the press, for a press that never travels. */
+  onMove: (unitId: string, event: ReactPointerEvent<HTMLElement>, seekSec: number) => void;
 }) {
+  const secAt = (event: ReactPointerEvent<HTMLElement>) => {
+    const stage = event.currentTarget.closest('.desktop-tx-wave-edges')?.getBoundingClientRect();
+    const x = event.clientX - (stage?.left ?? 0) + props.scrollLeftPx;
+    return Math.max(0, x / props.zoomPxPerSec);
+  };
   const px = (ms: number) => (ms / 1000) * props.zoomPxPerSec - props.scrollLeftPx;
   const frame = (left: number, width: number) =>
     ({ '--wave-left': `${left}px`, '--wave-w': `${width}px` }) as CSSProperties;
@@ -34,14 +41,21 @@ export function DesktopWaveformEdges(props: {
         return (
           <div
             key={unit.id}
-            className={`desktop-tx-wave-seg${unit.id === props.selectedUnitId ? ' is-selected' : ''}`}
+            className={`desktop-tx-wave-seg${props.selectedUnitIds.includes(unit.id) ? ' is-selected' : ''}`}
             style={frame(px(unit.startMs), width)}
             data-wave-unit={unit.id}
           >
+            {unit.id === props.selectedUnitId ? (
+              <div
+                className="desktop-tx-wave-body"
+                data-testid="desktop-wave-body"
+                onPointerDown={(event) => props.onMove(unit.id, event, secAt(event))}
+              />
+            ) : null}
             <div
               className="desktop-tx-wave-grip"
               data-testid="desktop-wave-grip"
-              onPointerDown={(event) => props.onMove(unit.id, event)}
+              onPointerDown={(event) => props.onMove(unit.id, event, secAt(event))}
             />
             <div
               className="desktop-tx-wave-handle is-start"

@@ -69,11 +69,14 @@ export function DesktopTranscriptionLane(props: {
   duration: number;
   zoomPxPerSec: number;
   selectedUnitId: string | null;
+  selectedUnitIds: readonly string[];
   bodyDraft: { unitId: string; text: string } | null;
   onEditBody: (unitId: string, text: string, savedText: string) => void;
   onComposeBody: (composing: boolean) => void;
   onCommitBody: () => void;
   onSelectUnit: (unit: DesktopPlaybackUnit) => void;
+  onSelectUnits: (units: readonly DesktopPlaybackUnit[]) => void;
+  onSeek: (seconds: number) => void;
   reload: () => Promise<unknown>;
   tierRef: RefObject<HTMLDivElement | null>;
   scrollLeftPx: number;
@@ -139,8 +142,7 @@ export function DesktopTranscriptionLane(props: {
         ?.focus(),
     createRoute: { layers: props.layers ?? [], links: props.links ?? [] },
     selectUnits: (unitIds) => {
-      const hit = props.units.find((unit) => unitIds.includes(unit.id));
-      if (hit) props.onSelectUnit(hit);
+      props.onSelectUnits(props.units.filter((unit) => unitIds.includes(unit.id)));
     },
   });
   const keyOf = (unitId: string) =>
@@ -241,11 +243,17 @@ export function DesktopTranscriptionLane(props: {
             zoomPxPerSec={props.zoomPxPerSec}
             scrollLeftPx={props.scrollLeftPx}
             selectedUnitId={props.selectedUnitId}
+            selectedUnitIds={props.selectedUnitIds}
             onEdge={(unitId, edge, event) => {
               pickUnit(unitId);
               edges.beginDrag(unitId, edge, event);
             }}
-            onMove={(unitId, event) => edges.beginMove(unitId, event, () => pickUnit(unitId))}
+            onMove={(unitId, event, seekSec) =>
+              edges.beginMove(unitId, event, () => {
+                if (unitId === props.selectedUnitId) props.onSeek(seekSec);
+                else pickUnit(unitId);
+              })
+            }
           />,
           props.waveStage,
         )

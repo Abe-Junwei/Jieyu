@@ -1262,6 +1262,13 @@
   pointer-events: none;
 }
 
+.desktop-tx-wave-body {
+  position: absolute;
+  inset: 0;
+  cursor: grab;
+  pointer-events: auto;
+}
+
 .desktop-tx-wave-grip {
   position: absolute;
   top: 0;
