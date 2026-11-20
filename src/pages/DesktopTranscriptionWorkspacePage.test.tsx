@@ -184,6 +184,10 @@ describe('DesktopTranscriptionWorkspacePage', () => {
       'utf8',
     );
     expect(css).toMatch(
+      /\.desktop-tx-bar\s*\{[^}]*border-bottom:\s*1px solid var\(--divider-base\)/,
+    );
+    expect(css).not.toMatch(/\.desktop-tx-bar\s*\{[^}]*box-shadow/);
+    expect(css).toMatch(
       /\.desktop-tx-lane \.timeline-annotation\.timeline-annotation-selected[\s\S]*var\(--brand-tint\)[\s\S]*var\(--text-secondary\)[\s\S]*var\(--radius-md\)[\s\S]*var\(--focus-ring-soft\)/,
     );
     expect(css).not.toMatch(/\.desktop-tx-lane[^{]*timeline-annotation-selected[^{]*\{[^}]*rgb\(/);
