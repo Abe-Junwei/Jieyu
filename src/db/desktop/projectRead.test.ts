@@ -71,6 +71,7 @@ describe('desktop project read', () => {
       {
         listManuscripts: (sessionId) => client.listManuscripts(sessionId),
         listLayers: (sessionId, manuscriptId) => client.listLayers(sessionId, manuscriptId),
+        listLayerLinks: (sessionId, manuscriptId) => client.listLayerLinks(sessionId, manuscriptId),
         listUnits: (sessionId, layerId) => client.listUnits(sessionId, layerId),
         mediaPlayUrl: async (sessionId, mediaId) => desktopMediaPlayUrl(sessionId, mediaId).url,
       },
@@ -82,7 +83,7 @@ describe('desktop project read', () => {
     expect(model.audioUrl?.startsWith('jieyu-media://local/')).toBe(true);
     const token = model.audioUrl?.slice('jieyu-media://local/'.length) ?? '';
     expect(resolveDesktopMedia(token)?.endsWith('a.wav')).toBe(true);
-    expect(calls).toEqual(['manuscripts.list', 'layers.list', 'units.list']);
+    expect(calls).toEqual(['manuscripts.list', 'layers.list', 'units.list', 'layers.listLinks']);
     expect(model.layers.map((item) => item.id)).toEqual([layer.id]);
     expect(model.units[0]?.startMs).toBe(0);
     expect(model.units[0]?.endMs).toBe(1200);
@@ -141,6 +142,7 @@ describe('desktop project read', () => {
       {
         listManuscripts: (sessionId) => client.listManuscripts(sessionId),
         listLayers: (sessionId, manuscriptId) => client.listLayers(sessionId, manuscriptId),
+        listLayerLinks: (sessionId, manuscriptId) => client.listLayerLinks(sessionId, manuscriptId),
         listUnits: (sessionId, layerId) => client.listUnits(sessionId, layerId),
         mediaPlayUrl: async (sessionId, mediaId) => desktopMediaPlayUrl(sessionId, mediaId).url,
       },
@@ -164,6 +166,7 @@ describe('desktop project read', () => {
       {
         listManuscripts: (sessionId) => client.listManuscripts(sessionId),
         listLayers: (sessionId, manuscriptId) => client.listLayers(sessionId, manuscriptId),
+        listLayerLinks: (sessionId, manuscriptId) => client.listLayerLinks(sessionId, manuscriptId),
         listUnits: (sessionId, layerId) => client.listUnits(sessionId, layerId),
         mediaPlayUrl: async (sessionId, mediaId) => desktopMediaPlayUrl(sessionId, mediaId).url,
       },

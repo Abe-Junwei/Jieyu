@@ -32,6 +32,7 @@ import {
 import { assertRetargetedReferences } from './referenceState';
 import { convertSnapshotGraph } from './customFieldMigration';
 import { restoreAnalysisNote } from './notes';
+import { readUnitTextBody, resolveUnitTextContext } from './unitTextLayers';
 import { getAnalysisRoot, getUnit, type AnalysisRoot, type Unit, type UnitTextUndo } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -276,11 +277,29 @@ export function undoUnitText(db: SqliteDatabase, undo: UnitTextUndo, afterText?:
     const material = readAnalysisMaterial(db, undo.unitId);
     if (!unitTextStillAfter(db, material, undo)) throw new Error('unit text undo is stale');
     const now = new Date().toISOString();
-    db.prepare(
-      `UPDATE unit_texts SET body = ?, updated_at = ? WHERE unit_id = ? AND role = 'transcription'`,
-    ).run(undo.prior.text, now, undo.unitId);
+    const context = resolveUnitTextContext(db, undo.unitId, undo.textLayerId);
+    const currentText = readUnitTextBody(db, context);
+    if (undo.prior.textExists) {
+      if (currentText.id === null) {
+        db.prepare(
+          `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+        ).run(randomUUID(), undo.unitId, undo.textLayerId, context.role, undo.prior.text, now);
+      } else {
+        db.prepare('UPDATE unit_texts SET body = ?, updated_at = ? WHERE id = ?').run(
+          undo.prior.text,
+          now,
+          currentText.id,
+        );
+      }
+    } else {
+      db.prepare('DELETE FROM unit_texts WHERE unit_id = ? AND layer_id = ?').run(
+        undo.unitId,
+        undo.textLayerId,
+      );
+    }
     afterText?.();
-    if (undo.prior.graph !== null) {
+    if (undo.analysisAffected && undo.prior.graph !== null) {
       const refreshed = readAnalysisMaterial(db, undo.unitId);
       const written = writeGraph(db, refreshed, undo.prior.graph, true);
       reattach(
@@ -605,9 +624,12 @@ function unitTextStillAfter(
   material: AnalysisMaterial,
   undo: UnitTextUndo,
 ): boolean {
+  const context = resolveUnitTextContext(db, undo.unitId, undo.textLayerId);
+  const text = readUnitTextBody(db, context);
   if (
     material.unitId !== undo.unitId ||
-    material.text !== undo.after.text ||
+    text.body !== undo.after.text ||
+    (text.id !== null) !== undo.after.textExists ||
     material.graphFingerprint !== undo.after.graphFingerprint ||
     material.analysisGeneration !== undo.after.analysisGeneration ||
     material.manuscriptId !== undo.prior.manuscriptId ||
@@ -615,7 +637,7 @@ function unitTextStillAfter(
   ) {
     return false;
   }
-  if (undo.prior.graph === null) return true;
+  if (!undo.analysisAffected || undo.prior.graph === null) return true;
   if (material.graph !== null) return false;
   const tokens = db
     .prepare('SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?')
@@ -669,19 +691,23 @@ function unitTextStillAfter(
 }
 
 function readUnitTextUndo(db: SqliteDatabase, undo: UnitTextUndo): Unit {
-  const unit = getUnit(db, undo.unitId);
-  const root = getAnalysisRoot(db, undo.unitId);
+  const unit = getUnit(db, undo.unitId, undo.textLayerId);
+  const context = resolveUnitTextContext(db, undo.unitId, undo.textLayerId);
+  const text = readUnitTextBody(db, context);
   const generation = db
     .prepare('SELECT generation FROM manuscripts WHERE id = ?')
     .get(undo.prior.manuscriptId) as { generation: number } | undefined;
   if (
     !unit ||
     unit.text !== undo.prior.text ||
-    !root ||
+    (text.id !== null) !== undo.prior.textExists ||
     generation?.generation !== undo.after.manuscriptGeneration + 1
   ) {
     throw new Error('unit text undo readback failed');
   }
+  if (!undo.analysisAffected) return unit;
+  const root = getAnalysisRoot(db, undo.unitId);
+  if (!root) throw new Error('unit text undo readback failed');
   if (undo.prior.graph === null) {
     if (root.graph !== null || root.graphFingerprint !== undo.after.graphFingerprint) {
       throw new Error('unit text undo readback failed');

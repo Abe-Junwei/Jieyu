@@ -456,7 +456,7 @@ describe('corpus query', () => {
         'INSERT INTO units(id,layer_id,start_ms,end_ms,sort_order,created_at,updated_at) VALUES(?,?,?,?,?,?,?)',
       );
       const insertText = project.db.prepare(
-        "INSERT INTO unit_texts(id,unit_id,role,body,updated_at) VALUES(?,?,'transcription','ka',?)",
+        "INSERT INTO unit_texts(id,unit_id,layer_id,role,body,updated_at) VALUES(?,?,?,'transcription','ka',?)",
       );
       const insertToken = project.db.prepare(
         "INSERT INTO tokens(id,unit_id,token_index,form_json,gloss_json,created_at,updated_at) VALUES(?,?,0,?, '{}',?,?)",
@@ -465,7 +465,7 @@ describe('corpus query', () => {
         for (let i = 0; i < 33000; i++) {
           const id = `u${i}`;
           insertUnit.run(id, layer.id, i, i + 1, i, t, t);
-          insertText.run(`x${i}`, id, t);
+          insertText.run(`x${i}`, id, layer.id, t);
           insertToken.run(`k${i}`, id, JSON.stringify({ default: 'ka' }), t, t);
         }
       })();

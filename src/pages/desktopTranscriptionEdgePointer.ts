@@ -6,7 +6,6 @@ import {
   previewDrag,
   snapEdgeMs,
   touchingPair,
-  EDGE_MIN_MS,
   type EdgeSelection,
   type TimeEdge,
   type TimedEdgeUnit,
@@ -156,6 +155,7 @@ export function startCreate(input: {
   setPreview: (preview: ShownPreview | null) => void;
   commit: (startMs: number, endMs: number) => void;
   tooShort: (endMs: number) => void;
+  minMs: number;
 }) {
   const event = input.event;
   if (event.button !== 0 || !(input.zoomPxPerSec > 0)) return;
@@ -197,7 +197,7 @@ export function startCreate(input: {
       if (done === null) return;
       input.setPreview(null);
       swallowNextClick();
-      if (done.endMs - done.startMs < EDGE_MIN_MS) input.tooShort(done.endMs);
+      if (done.endMs - done.startMs < input.minMs) input.tooShort(done.endMs);
       else input.commit(done.startMs, done.endMs);
     },
   );

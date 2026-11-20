@@ -1,7 +1,7 @@
 ---
 title: desktop-4ws-slice1b-transcription-editing requirements
 doc_type: execution-spec-requirements
-status: draft
+status: active
 owner: repo
 last_reviewed: 2026-11-19
 source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
@@ -34,14 +34,16 @@ source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 - [ ] 拖动默认在 8 像素内吸附到邻段边与播放头，按住 Alt／Option 临时关闭
 - [ ] 键盘微调：方向键 10 ms，加 Shift 100 ms
 - [ ] 未关联媒体时仍可编辑时间，只是不查媒体范围，界面提示「未关联媒体」
-- [ ] 新建（空白处拖出）与删除单段（列出下级并确认）：复用单库 `createUnit`、`deleteUnitTree` 与旧时间轴交互，按 E06 审查后接入。新建按旧时间轴落位（`desktopTranscriptionCreateRouting.ts`）：独立层建在本层；时间细分层须落在包含该范围的上级语段内并继承其说话人，否则提示；符号层归到其时间轴宿主层；轨道空白处与波形区拖选都走同一路径
+- [ ] 新建（空白处拖出）与删除单段（列出下级并确认）：完整适配旧版 `useLasso` 与创建路由，不保留简化路由。空白处开始、拖过已有语段转为选择；点击仍走既有选择／定位。目标层取当前活动文本层，无指定时取默认转写层；按旧版宿主解析选择结构层。时间细分要求范围被父语段完整包含并继承说话人；独立边界层只在自身被选为目标时建段；符号层路由到其宿主结构层。拖建最短 50ms，既有边界编辑仍为 10ms；同层同说话人不重叠、异说话人可重叠，波形／文本轨道创建共用一条路由
+- [ ] 多层正文投影：同一时间语段只存一条 unit；关联文本层读取同一 unit 的时间与说话人，正文按 `layer_id` 区分，空正文不预建记录，首次输入才写。层关联使用显式多宿主链接，不把 `layers.parent_id` 当作文本匹配；草稿、正式保存、回执和撤销均按 `(unit_id, layer_id)` 隔离
+- [ ] 文本轨道拖选按鼠标所在说话人轨创建；同说话人不能与既有区间重叠，异说话人允许重叠。波形拖选不指定说话人时沿用旧路由的命中／继承规则
 - [ ] 拆分：有正文光标按光标分，否则全留左段；预览可拖正文分割点再确认
 - [ ] 合并：允许有空隙，确认框显示空隙长度，结果覆盖空隙；分隔默认一个空格，可改，记在 `project.settings_json`；保留下级内容、顺序、已有时间，层级冲突阻断（EF-018）
 - [ ] 多选：批量改说话人、批量删除（列出下级并确认）、多个相邻段一次合并（同一步撤销）
 - [ ] 撤销／重做按 E04：项目打开期间多步、各稿件独立，重开不保留
 - [ ] 拆合产生新身份并保留旧→新映射；唯一对应的分析保留，其余标待复核；拆合形成完整分析历史版本（E04）
 - [ ] 点层：点只带时刻与文字标签（无说话人、上级、下级）；同层同毫秒唯一，可增删改移
-- [ ] 每项写入：写 → 关闭 → 重开 → 读回；Electron 合成证据（`test:e2e:desktop-project`）
+- [ ] 每项写入：写 → 关闭 → 重开 → 读回；Electron 合成证据（`test:e2e:desktop-project`）。至少覆盖同一 unit 的两个 layer 正文与草稿互不覆盖
 - [ ] flag `desktopTranscriptionWorkspaceEnabled` 默认开；显式 `false` 时旧读页不变
 
 ## 4. 受影响代码地图
@@ -52,7 +54,7 @@ source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 | Controller | `src/pages/useDesktopTranscription*Controller.ts` | 新增（媒体、选择、句段编辑分开） |
 | Hook 复用 | `src/hooks/media/useWaveSurfer.ts`、`WaveformToolbar` | 复用，不改语义。选区按钮和速度滑杆的画法按 ADR-0127，旧页同一套类一起改 |
 | 组件复用 | `TranscriptionTimelineMediaTranscriptionLane`、`TimelineAnnotationItem` | 受控 props；不挂 `VerticalView`／`HorizontalMediaLanes` |
-| Schema / DB | `src/db/desktop/schema.ts`、`units.ts`、`unitSpan.ts`、新 `points.ts` | user_version 29；改写边界／拆分／合并 |
+| Schema / DB | `src/db/desktop/schema.ts`、`layers.ts`、`units.ts`、`textSave.ts`、`unitSpan.ts`、新 `points.ts` | v29 既有结构与 v32 layer-scoped 正文／宿主链接；改写边界／拆分／合并 |
 | 宿主 | `operationContract.ts`、`desktopCall.ts`、`client.ts` | 新操作 |
 | i18n | `dictKeys.ts`、`dictionaries/*` | 新键 |
 | 测试 | `src/db/desktop/*.test.ts`、`tests/e2e-desktop/` | 每片新增 |

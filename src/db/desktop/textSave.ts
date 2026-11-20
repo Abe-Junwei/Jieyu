@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import { resolveUnitTextContext } from './unitTextLayers';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
 export interface UnitTextDraft {
   unitId: string;
+  textLayerId: string;
   rawInput: string;
   baseBody: string;
   updatedAt: string;
@@ -12,9 +14,9 @@ export interface UnitTextDraft {
 
 export type TextSaveInspection = 'committed' | 'not-submitted' | 'conflict';
 
-/** kind + unit id + payload. Field revisions are not part of this digest yet. */
-export function textSaveDigest(unitId: string, text: string): string {
-  return createHash('sha256').update(`text\n${unitId}\n${text}`).digest('hex');
+/** kind + unit/text-layer identity + payload. Field revisions are not part of this digest yet. */
+export function textSaveDigest(unitId: string, textLayerId: string, text: string): string {
+  return createHash('sha256').update(`text\n${unitId}\n${textLayerId}\n${text}`).digest('hex');
 }
 
 /** Call inside the text-save transaction. A matching receipt is a replay; a different digest conflicts. */
@@ -34,14 +36,27 @@ export function claimTextSave(
 /** Call inside the same transaction as the text write. Drops a draft only when it is the text just saved. */
 export function finishTextSave(
   db: SqliteDatabase,
-  input: { operationId: string; digest: string; unitId: string; text: string },
+  input: {
+    operationId: string;
+    digest: string;
+    unitId: string;
+    textLayerId: string;
+    text: string;
+  },
 ): void {
   db.prepare(
-    `INSERT INTO text_save_receipts (operation_id, digest, unit_id, committed_at)
-     VALUES (?, ?, ?, ?)`,
-  ).run(input.operationId, input.digest, input.unitId, new Date().toISOString());
-  db.prepare('DELETE FROM unit_text_drafts WHERE unit_id = ? AND raw_input = ?').run(
+    `INSERT INTO text_save_receipts (operation_id, digest, unit_id, layer_id, committed_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).run(
+    input.operationId,
+    input.digest,
     input.unitId,
+    input.textLayerId,
+    new Date().toISOString(),
+  );
+  db.prepare('DELETE FROM unit_text_drafts WHERE unit_id = ? AND layer_id = ? AND raw_input = ?').run(
+    input.unitId,
+    input.textLayerId,
     input.text,
   );
 }
@@ -60,46 +75,74 @@ export function inspectUnitTextSave(
 
 export function putUnitTextDraft(
   db: SqliteDatabase,
-  input: { unitId: string; rawInput: string; baseBody: string },
+  input: {
+    unitId: string;
+    textLayerId?: string;
+    rawInput: string;
+    baseBody: string;
+  },
 ): UnitTextDraft | null {
+  const context = resolveUnitTextContext(db, input.unitId, input.textLayerId);
   const write = db.transaction(() => {
-    const unit = db.prepare('SELECT id FROM units WHERE id = ?').get(input.unitId) as
-      { id: string } | undefined;
-    if (unit === undefined) throw new Error('unit is missing');
     if (input.rawInput === input.baseBody) {
-      db.prepare('DELETE FROM unit_text_drafts WHERE unit_id = ?').run(input.unitId);
+      db.prepare('DELETE FROM unit_text_drafts WHERE unit_id = ? AND layer_id = ?').run(
+        input.unitId,
+        context.textLayerId,
+      );
       return null;
     }
     const updatedAt = new Date().toISOString();
     db.prepare(
-      `INSERT INTO unit_text_drafts (unit_id, raw_input, base_body, updated_at)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(unit_id) DO UPDATE SET
+      `INSERT INTO unit_text_drafts (unit_id, layer_id, raw_input, base_body, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(unit_id, layer_id) DO UPDATE SET
          raw_input = excluded.raw_input,
          base_body = excluded.base_body,
          updated_at = excluded.updated_at`,
-    ).run(input.unitId, input.rawInput, input.baseBody, updatedAt);
-    return readUnitTextDraft(db, input.unitId);
+    ).run(input.unitId, context.textLayerId, input.rawInput, input.baseBody, updatedAt);
+    return readUnitTextDraft(db, input.unitId, context.textLayerId);
   });
   return write();
 }
 
-export function readUnitTextDraft(db: SqliteDatabase, unitId: string): UnitTextDraft | null {
+export function readUnitTextDraft(
+  db: SqliteDatabase,
+  unitId: string,
+  textLayerId?: string,
+): UnitTextDraft | null {
+  const context = resolveUnitTextContext(db, unitId, textLayerId);
   const row = db
     .prepare(
-      'SELECT unit_id, raw_input, base_body, updated_at FROM unit_text_drafts WHERE unit_id = ?',
+      `SELECT unit_id, layer_id, raw_input, base_body, updated_at
+       FROM unit_text_drafts WHERE unit_id = ? AND layer_id = ?`,
     )
-    .get(unitId) as
-    { unit_id: string; raw_input: string; base_body: string; updated_at: string } | undefined;
+    .get(unitId, context.textLayerId) as
+    | {
+        unit_id: string;
+        layer_id: string;
+        raw_input: string;
+        base_body: string;
+        updated_at: string;
+      }
+    | undefined;
   if (row === undefined) return null;
   return {
     unitId: row.unit_id,
+    textLayerId: row.layer_id,
     rawInput: row.raw_input,
     baseBody: row.base_body,
     updatedAt: row.updated_at,
   };
 }
 
-export function discardUnitTextDraft(db: SqliteDatabase, unitId: string): void {
-  db.prepare('DELETE FROM unit_text_drafts WHERE unit_id = ?').run(unitId);
+export function discardUnitTextDraft(
+  db: SqliteDatabase,
+  unitId: string,
+  textLayerId?: string,
+): void {
+  const context = resolveUnitTextContext(db, unitId, textLayerId);
+  db.prepare('DELETE FROM unit_text_drafts WHERE unit_id = ? AND layer_id = ?').run(
+    unitId,
+    context.textLayerId,
+  );
 }

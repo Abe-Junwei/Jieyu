@@ -66,6 +66,7 @@ describe('desktop operation contract', () => {
     expect(unique(contract)).toEqual(contract);
     expect(contract).not.toContain('reopen');
     const addedAfterSnapshot = [
+      'layers.listLinks',
       'attachments.finishCleanup',
       'attachments.read',
       'manuscripts.retime',

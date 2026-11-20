@@ -331,9 +331,13 @@ function selectUnits(
   return db
     .prepare(
       `SELECT manuscripts.id AS manuscript_id, layers.id AS layer_id, units.id AS unit_id,
-              units.start_ms AS start_ms, units.end_ms AS end_ms, unit_texts.body AS text
+              units.start_ms AS start_ms, units.end_ms AS end_ms,
+              COALESCE(unit_texts.body, '') AS text
        FROM units
-       JOIN unit_texts ON unit_texts.unit_id = units.id AND unit_texts.role = 'transcription'
+       LEFT JOIN unit_texts
+         ON unit_texts.unit_id = units.id
+        AND unit_texts.layer_id = units.layer_id
+        AND unit_texts.role = 'transcription'
        JOIN layers ON layers.id = units.layer_id
        JOIN manuscripts ON manuscripts.id = layers.manuscript_id
        WHERE ${where.join(' AND ')}

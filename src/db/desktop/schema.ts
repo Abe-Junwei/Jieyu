@@ -2,8 +2,8 @@
 
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
-/** SQLite header offset 60. ADR-0129 moved this to 31. A later table change needs a new decision and a new freeze record. */
-export const DESKTOP_PROJECT_USER_VERSION = 31;
+/** SQLite header offset 60. ADR-0132 moved this to 32. A later table change needs a new decision and a new freeze record. */
+export const DESKTOP_PROJECT_USER_VERSION = 32;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -318,6 +318,24 @@ CREATE TABLE layers (
   CHECK (reminder_shown_at IS NULL OR deleted_at IS NOT NULL)
 );
 
+CREATE TABLE layer_links (
+  id TEXT PRIMARY KEY,
+  manuscript_id TEXT NOT NULL REFERENCES manuscripts(id),
+  layer_id TEXT NOT NULL,
+  host_layer_id TEXT NOT NULL,
+  link_type TEXT NOT NULL CHECK (link_type IN ('direct', 'free', 'literal', 'pedagogical')),
+  is_preferred INTEGER NOT NULL CHECK (is_preferred IN (0, 1)),
+  sort_order INTEGER NOT NULL CHECK (sort_order >= 0),
+  created_at TEXT NOT NULL,
+  UNIQUE (layer_id, host_layer_id),
+  FOREIGN KEY (layer_id, manuscript_id) REFERENCES layers (id, manuscript_id),
+  FOREIGN KEY (host_layer_id, manuscript_id) REFERENCES layers (id, manuscript_id),
+  CHECK (layer_id <> host_layer_id)
+);
+
+CREATE UNIQUE INDEX layer_links_one_preferred
+ON layer_links(layer_id) WHERE is_preferred = 1;
+
 CREATE TABLE units (
   id TEXT PRIMARY KEY,
   layer_id TEXT NOT NULL REFERENCES layers(id),
@@ -507,6 +525,7 @@ CREATE TABLE unit_span_maps (
 CREATE TABLE unit_texts (
   id TEXT PRIMARY KEY,
   unit_id TEXT NOT NULL REFERENCES units(id),
+  layer_id TEXT NOT NULL REFERENCES layers(id),
   role TEXT NOT NULL,
   body TEXT NOT NULL,
   audio_file_id TEXT CHECK (audio_file_id IS NULL OR length(audio_file_id) > 0),
@@ -515,7 +534,8 @@ CREATE TABLE unit_texts (
       json_valid(provenance_json) AND json_type(provenance_json) = 'object'
     )
   ),
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  UNIQUE (unit_id, layer_id, role)
 );
 
 CREATE TABLE tokens (
@@ -1036,9 +1056,15 @@ CREATE TRIGGER unit_texts_reject_deleted_manuscript_insert
 BEFORE INSERT ON unit_texts
 WHEN EXISTS (
   SELECT 1 FROM units
-  JOIN layers ON layers.id = units.layer_id
-  JOIN manuscripts ON manuscripts.id = layers.manuscript_id
-  WHERE units.id = NEW.unit_id AND manuscripts.deleted_at IS NOT NULL
+  JOIN layers AS source_layer ON source_layer.id = units.layer_id
+  JOIN manuscripts AS source_manuscript ON source_manuscript.id = source_layer.manuscript_id
+  JOIN layers AS text_layer ON text_layer.id = NEW.layer_id
+  JOIN manuscripts AS text_manuscript ON text_manuscript.id = text_layer.manuscript_id
+  WHERE units.id = NEW.unit_id
+    AND (
+      source_manuscript.deleted_at IS NOT NULL
+      OR text_manuscript.deleted_at IS NOT NULL
+    )
 )
 BEGIN
   SELECT RAISE(ABORT, 'manuscript is deleted');
@@ -1048,12 +1074,90 @@ CREATE TRIGGER unit_texts_reject_deleted_manuscript_update
 BEFORE UPDATE ON unit_texts
 WHEN EXISTS (
   SELECT 1 FROM units
-  JOIN layers ON layers.id = units.layer_id
-  JOIN manuscripts ON manuscripts.id = layers.manuscript_id
-  WHERE units.id = NEW.unit_id AND manuscripts.deleted_at IS NOT NULL
+  JOIN layers AS source_layer ON source_layer.id = units.layer_id
+  JOIN manuscripts AS source_manuscript ON source_manuscript.id = source_layer.manuscript_id
+  JOIN layers AS text_layer ON text_layer.id = NEW.layer_id
+  JOIN manuscripts AS text_manuscript ON text_manuscript.id = text_layer.manuscript_id
+  WHERE units.id = NEW.unit_id
+    AND (
+      source_manuscript.deleted_at IS NOT NULL
+      OR text_manuscript.deleted_at IS NOT NULL
+    )
 )
 BEGIN
   SELECT RAISE(ABORT, 'manuscript is deleted');
+END;
+
+CREATE TRIGGER unit_texts_validate_layer_insert
+BEFORE INSERT ON unit_texts
+WHEN NOT EXISTS (
+  SELECT 1
+  FROM units
+  JOIN layers AS source_layer ON source_layer.id = units.layer_id
+  JOIN layers AS text_layer ON text_layer.id = NEW.layer_id
+  WHERE units.id = NEW.unit_id
+    AND source_layer.manuscript_id = text_layer.manuscript_id
+    AND (
+      units.layer_id = NEW.layer_id
+      OR EXISTS (
+        SELECT 1 FROM layer_links
+        WHERE layer_links.layer_id = NEW.layer_id
+          AND layer_links.host_layer_id = units.layer_id
+      )
+    )
+)
+BEGIN
+  SELECT RAISE(ABORT, 'unit text layer is not linked to its unit');
+END;
+
+CREATE TRIGGER unit_texts_validate_layer_update
+BEFORE UPDATE OF unit_id, layer_id ON unit_texts
+WHEN NOT EXISTS (
+  SELECT 1
+  FROM units
+  JOIN layers AS source_layer ON source_layer.id = units.layer_id
+  JOIN layers AS text_layer ON text_layer.id = NEW.layer_id
+  WHERE units.id = NEW.unit_id
+    AND source_layer.manuscript_id = text_layer.manuscript_id
+    AND (
+      units.layer_id = NEW.layer_id
+      OR EXISTS (
+        SELECT 1 FROM layer_links
+        WHERE layer_links.layer_id = NEW.layer_id
+          AND layer_links.host_layer_id = units.layer_id
+      )
+    )
+)
+BEGIN
+  SELECT RAISE(ABORT, 'unit text layer is not linked to its unit');
+END;
+
+CREATE TRIGGER layer_links_validate_insert
+BEFORE INSERT ON layer_links
+WHEN NOT EXISTS (
+  SELECT 1 FROM layers AS target
+  JOIN layers AS host ON host.id = NEW.host_layer_id
+  WHERE target.id = NEW.layer_id
+    AND target.manuscript_id = NEW.manuscript_id
+    AND host.manuscript_id = NEW.manuscript_id
+    AND host.content_type = 'transcription'
+)
+BEGIN
+  SELECT RAISE(ABORT, 'layer link host is not a transcription layer');
+END;
+
+CREATE TRIGGER layer_links_validate_update
+BEFORE UPDATE OF layer_id, host_layer_id, manuscript_id ON layer_links
+WHEN NOT EXISTS (
+  SELECT 1 FROM layers AS target
+  JOIN layers AS host ON host.id = NEW.host_layer_id
+  WHERE target.id = NEW.layer_id
+    AND target.manuscript_id = NEW.manuscript_id
+    AND host.manuscript_id = NEW.manuscript_id
+    AND host.content_type = 'transcription'
+)
+BEGIN
+  SELECT RAISE(ABORT, 'layer link host is not a transcription layer');
 END;
 
 CREATE TRIGGER notes_reject_deleted_manuscript_insert
@@ -1306,17 +1410,20 @@ CREATE TABLE text_save_receipts (
   operation_id TEXT PRIMARY KEY CHECK (length(operation_id) > 0),
   digest TEXT NOT NULL CHECK (length(digest) = 64),
   unit_id TEXT NOT NULL REFERENCES units(id),
+  layer_id TEXT NOT NULL REFERENCES layers(id),
   committed_at TEXT NOT NULL
 );
 
-CREATE INDEX text_save_receipts_unit ON text_save_receipts(unit_id);
+CREATE INDEX text_save_receipts_unit_layer ON text_save_receipts(unit_id, layer_id);
 
 CREATE TABLE unit_text_drafts (
-  unit_id TEXT PRIMARY KEY REFERENCES units(id),
+  unit_id TEXT NOT NULL REFERENCES units(id),
+  layer_id TEXT NOT NULL REFERENCES layers(id),
   raw_input TEXT NOT NULL,
   base_body TEXT NOT NULL,
   updated_at TEXT NOT NULL,
-  CHECK (raw_input <> base_body)
+  CHECK (raw_input <> base_body),
+  PRIMARY KEY (unit_id, layer_id)
 );
 
 CREATE TABLE unit_time_drafts (

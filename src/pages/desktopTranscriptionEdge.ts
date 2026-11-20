@@ -222,11 +222,21 @@ export function previewDrag(input: {
 
 export function edgeRejectKind(
   message: string,
-): 'overlap' | 'outside' | 'short' | 'apart' | 'order' | 'unknown' | 'failed' {
+):
+  | 'overlap'
+  | 'outside'
+  | 'short'
+  | 'createShort'
+  | 'noParent'
+  | 'apart'
+  | 'order'
+  | 'unknown'
+  | 'failed' {
   if (message.includes(EDIT_OUTCOME_UNKNOWN)) return 'unknown';
   if (message.includes('same speaker intervals overlap')) return 'overlap';
   if (message.includes('edge is outside the media')) return 'outside';
   if (message.includes('edge span is under 10ms')) return 'short';
+  if (message.includes('time subdivision')) return 'noParent';
   if (message.includes('boundary units are not adjacent')) return 'apart';
   if (message.includes('timed units are out of sort order')) return 'order';
   return 'failed';

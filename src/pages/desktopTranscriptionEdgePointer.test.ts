@@ -30,6 +30,7 @@ function begin(clientX: number) {
     setPreview,
     commit,
     tooShort,
+    minMs: 10,
   });
   return { commit, tooShort, setPreview };
 }

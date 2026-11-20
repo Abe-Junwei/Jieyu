@@ -21,10 +21,40 @@ import {
   runEdgeStack,
   type StoredTimes,
 } from './desktopTranscriptionEdgeSession';
+import { formatPlaybackTime } from './useDesktopTranscriptionMediaController';
 import { startCreate, startEdgeDrag, type ShownPreview } from './desktopTranscriptionEdgePointer';
+import {
+  CREATE_MIN_MS,
+  routeCreate,
+  type RouteLayer,
+  type RouteLink,
+} from './desktopTranscriptionCreateRoute';
+
+const CREATE_REJECT = {
+  short: 'createShort',
+  'no-parent': 'noParent',
+  'no-layer': 'noLayer',
+} as const;
+
+/** Where a drag creates: the row's layer and units (defaults: the main layer), and the lane's speaker. */
+export interface CreateTarget {
+  layerId?: string;
+  units?: readonly TimedEdgeUnit[];
+  speakerId?: string | null;
+}
 
 export type EdgeNoticeKind =
-  'overlap' | 'outside' | 'short' | 'apart' | 'order' | 'unknown' | 'stale' | 'failed';
+  | 'overlap'
+  | 'outside'
+  | 'short'
+  | 'createShort'
+  | 'noParent'
+  | 'noLayer'
+  | 'apart'
+  | 'order'
+  | 'unknown'
+  | 'stale'
+  | 'failed';
 
 export interface EdgeControllerInput {
   sessionId: string | null;
@@ -43,6 +73,10 @@ export interface EdgeControllerInput {
   notify: (message: string, tone?: 'error' | 'info') => void;
   /** Gives keyboard focus back to the segment after the delete dialog closes. */
   focusUnit?: (unitId: string) => void;
+  /** Every layer of the manuscript and its explicit host links; a create routes through these (ADR-0132). */
+  createRoute?: { layers: readonly RouteLayer[]; links: readonly RouteLink[] };
+  /** A drag that crosses existing segments selects them instead of creating one. */
+  selectUnits?: (unitIds: string[]) => void;
 }
 
 export interface EdgeUi {
@@ -162,25 +196,60 @@ export function createEdgeActions(ctx: {
     if (!deleted) window.setTimeout(() => live.current.focusUnit?.(unitId), 0);
   }
 
-  function create(event: ReactPointerEvent<HTMLElement>, msAt: (clientX: number) => number) {
-    const layerId = live.current.layerId;
-    if (layerId === null) return;
+  function refuse(kind: EdgeNoticeKind, timeMs: number) {
+    const message = live.current.message(kind, formatPlaybackTime(timeMs / 1000));
+    setUi((current) => ({ ...current, preview: null }));
+    live.current.notify(message);
+  }
+
+  /** `speakerId` is the text-track lane under the press; the waveform passes nothing. */
+  function create(
+    event: ReactPointerEvent<HTMLElement>,
+    msAt: (clientX: number) => number,
+    target: CreateTarget = {},
+  ) {
+    const targetLayerId = target.layerId ?? live.current.layerId;
+    const speakerId = target.speakerId;
     startCreate({
       event,
       msAt,
       zoomPxPerSec: live.current.zoomPxPerSec,
-      units: live.current.units,
+      units: target.units ?? live.current.units,
       playheadMs: () => live.current.playheadMs(),
       snapMessage: (kind, time) => live.current.snapMessage(kind, time),
       setPreview,
-      tooShort: (endMs) => reject(layerId, new Error('edge span is under 10ms'), endMs),
+      minMs: CREATE_MIN_MS,
+      tooShort: (endMs) => refuse('createShort', endMs),
       commit: (startMs, endMs) => {
+        const route = routeCreate({
+          targetLayerId,
+          layers: live.current.createRoute?.layers ?? [],
+          links: live.current.createRoute?.links ?? [],
+          startMs,
+          endMs,
+          speakerId,
+        });
+        if (route.kind === 'select') {
+          live.current.selectUnits?.(route.unitIds);
+          return;
+        }
+        if (route.kind === 'reject') {
+          refuse(CREATE_REJECT[route.reason], endMs);
+          return;
+        }
         const session = call();
         if (!session) return;
         void session.api
-          .createUnit(session.sessionId, { layerId, startMs, endMs, text: '' })
+          .createUnit(session.sessionId, {
+            layerId: route.layerId,
+            startMs,
+            endMs,
+            text: '',
+            speakerId: route.speakerId,
+            parentUnitId: route.parentUnitId,
+          })
           .then(() => live.current.reload())
-          .catch((error: unknown) => reject(layerId, error, endMs));
+          .catch((error: unknown) => reject(route.layerId, error, endMs));
       },
     });
   }
@@ -286,18 +355,25 @@ export function createEdgeActions(ctx: {
         },
       });
     },
-    /** Lane track: only a press on the empty track itself. */
-    beginCreate(event: ReactPointerEvent<HTMLElement>) {
+    /** Lane track: only a press on the empty track itself; `speakerId` is that lane's speaker. */
+    beginCreate(event: ReactPointerEvent<HTMLElement>, target?: CreateTarget) {
       if (event.target !== event.currentTarget) return;
       const origin = event.currentTarget;
       create(
         event,
         (clientX) =>
           ((clientX - origin.getBoundingClientRect().left) / live.current.zoomPxPerSec) * 1000,
+        target,
       );
     },
     /** Waveform: a press inside an existing segment is ignored; a short press stays a click. */
-    beginWaveCreate: create,
+    beginWaveCreate(
+      event: ReactPointerEvent<HTMLElement>,
+      msAt: (clientX: number) => number,
+      layerId?: string | null,
+    ) {
+      create(event, msAt, layerId == null ? {} : { layerId });
+    },
     openMenu(unitId: string, event: MenuEvent) {
       event.preventDefault();
       setUi((current) => ({ ...current, menu: { unitId, x: event.clientX, y: event.clientY } }));

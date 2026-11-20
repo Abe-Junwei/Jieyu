@@ -181,6 +181,7 @@ function removeOwnedRows(db: SqliteDatabase, manuscriptId: string): void {
   db.prepare(
     `DELETE FROM points WHERE layer_id IN (SELECT id FROM layers WHERE manuscript_id = ?)`,
   ).run(manuscriptId);
+  db.prepare('DELETE FROM layer_links WHERE manuscript_id = ?').run(manuscriptId);
   const deleteLeaf = db.prepare(
     `DELETE FROM layers
      WHERE manuscript_id = ?
