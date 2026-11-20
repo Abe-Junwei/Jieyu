@@ -1,5 +1,5 @@
 ---
-title: ADR 0123 - 桌面渲染层单独入口与构建，旧网页靠门禁隔离
+title: ADR 0130 - 桌面渲染层单独入口与构建，旧网页靠门禁隔离
 doc_type: adr
 status: accepted
 owner: repo
@@ -12,7 +12,7 @@ depends_on:
   - ./0086-desktop-release-scope-and-format-freeze.md
 ---
 
-# ADR 0123：桌面渲染层单独入口与构建，旧网页靠门禁隔离
+# ADR 0130：桌面渲染层单独入口与构建，旧网页靠门禁隔离
 
 ## 背景
 

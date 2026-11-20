@@ -7,7 +7,7 @@ last_reviewed: 2026-11-20
 source_of_truth: desktop-legacy-isolation-spec
 depends_on:
   - ./requirements.md
-  - ../../../adr/0123-desktop-renderer-build-isolated-from-legacy-web.md
+  - ../../../adr/0130-desktop-renderer-build-isolated-from-legacy-web.md
 ---
 
 # Design — desktop-legacy-isolation
@@ -49,7 +49,7 @@ depends_on:
 
 ## 4. ADR 引用
 
-- 新建 [ADR-0123](../../../adr/0123-desktop-renderer-build-isolated-from-legacy-web.md)；依赖 ADR-0063、0064、0079、0086。
+- 新建 [ADR-0130](../../../adr/0130-desktop-renderer-build-isolated-from-legacy-web.md)；依赖 ADR-0063、0064、0079、0086。
 
 ## 5. Feature flag
 

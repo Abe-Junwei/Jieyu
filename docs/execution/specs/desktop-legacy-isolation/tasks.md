@@ -16,7 +16,7 @@ depends_on:
 
 ## Implementation tasks
 
-- [x] S0 决策落档：ADR-0123 + 本规格 → 验证：`npm run check:docs-governance`
+- [x] S0 决策落档：ADR-0130 + 本规格 → 验证：`npm run check:docs-governance`
 - [ ] S1 源码门禁：`scripts/check-desktop-boundary.mjs`（+ `.test.ts`）、`scripts/legacy-zone.json`，接入 `check:all`；当前桌面区（页面、`src/desktop`、`src/db/desktop`、`src/hooks/desktop`）应为 0 违规 → 验证：脚本单测（造桌面模块导入 `db/engine` 应失败）+ `npm run check:desktop-boundary`
 - [ ] S2a 列出 `App.tsx` 在桌面下实际渲染的组件与 effect，逐项定「搬 / 重写 / 不要」，写进本文件 → 验证：评审
 - [ ] S2b 拆出不含 Dexie 的桌面存储安装（`installSqliteIpcPort`） → 验证：`check:desktop-boundary` + 对应 vitest
@@ -26,7 +26,7 @@ depends_on:
 - [ ] S4 产物门禁插件 + 模块清单；桌面 E2E 加 IndexedDB 为空、形态为 `desktop` 断言；`electron-smoke.yml` 改跑桌面构建 → 验证：临时分支故意违规三道门禁都红，主干全绿
 - [ ] S5 开发命令与文档：`AI_QUICKSTART.md`、`copilot-instructions.md` 写明 `dev` 是旧网页、`dev:desktop` 是桌面 → 验证：`npm run check:docs-governance`
 - [ ] S6 台账：`old-path-exit.record.json` 增加 `surface: "feature"`（`status`、`oldTests`、`desktopTests`、`decision`），校验规则进 `check-old-path-exit.mjs` 并新增其单测；按功能登记 11 个旧页面 → 验证：`npx vitest run scripts/check-old-path-exit.test.ts`
-- [ ] S7 前移循环：每个功能先进 ADR-0086 白名单，再按 ADR-0123 第 4 条实现与关账；E2E 按 #329 分组迁到 Electron → 验证：每片 `check:desktop-boundary`、`test:e2e:desktop-project`
+- [ ] S7 前移循环：每个功能先进 ADR-0086 白名单，再按 ADR-0130 第 4 条实现与关账；E2E 按 #329 分组迁到 Electron → 验证：每片 `check:desktop-boundary`、`test:e2e:desktop-project`
 - [ ] S8 退场：前提为台账无 `planned`/`in-progress`、#329 完成、#328 已决定；打 tag `legacy-web-final` 后删旧入口、旧页面、Dexie、Chromium 门禁，`dist-desktop` 改回 `dist`，更新 AGENTS.md / copilot-instructions / AI_QUICKSTART → 验证：typecheck、全量 vitest、三平台桌面 E2E、`check:all`
 
 ## Pre-merge gates

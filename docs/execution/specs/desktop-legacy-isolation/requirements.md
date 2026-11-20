@@ -9,7 +9,7 @@ source_of_truth: desktop-legacy-isolation-spec
 
 # Requirements — desktop-legacy-isolation
 
-决定见 [ADR-0123](../../../adr/0123-desktop-renderer-build-isolated-from-legacy-web.md)。
+决定见 [ADR-0130](../../../adr/0130-desktop-renderer-build-isolated-from-legacy-web.md)。
 
 ## 1. What & Why
 
