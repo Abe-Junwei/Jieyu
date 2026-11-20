@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
   importMediaViaDialog,
   seedThreeSegmentsOnCurrentProject,
@@ -72,6 +72,30 @@ async function setupSidebarProject(page: Page, withAnnotations = true) {
   return `?textId=${project.textId}&mediaId=${project.mediaId}`;
 }
 
+async function pressSidePaneResizer(
+  resizer: Locator,
+  key: 'Home' | 'ArrowLeft' | 'ArrowRight',
+  shift = false,
+) {
+  // 转写页会在 Home 之后抢走焦点，page.keyboard 的方向键到不了分隔条，宽度就停在 272。
+  // The transcription page takes focus after Home, so page.keyboard never reaches the
+  // separator and the width stays 272.
+  await resizer.evaluate(
+    (el, spec) => {
+      el.focus();
+      el.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: spec.key,
+          bubbles: true,
+          cancelable: true,
+          shiftKey: spec.shift,
+        }),
+      );
+    },
+    { key, shift },
+  );
+}
+
 test('short desktop sidebar keeps segment navigation usable at minimum and maximum widths', async ({
   page,
 }, info) => {
@@ -88,19 +112,16 @@ test('short desktop sidebar keeps segment navigation usable at minimum and maxim
   ]) {
     await page.setViewportSize({ width: 1280, height: 720 });
     const resizer = page.locator('.app-side-pane-resizer');
-    // 与 sidebarHandle.spec 一致：先 focus 再 page.keyboard，避免 locator.press 丢键导致 flake
-    // Match sidebarHandle.spec: focus then page.keyboard so locator.press cannot drop the key.
-    await resizer.focus();
-    await page.keyboard.press('Home');
+    await pressSidePaneResizer(resizer, 'Home');
     await expect(resizer).toHaveAttribute('aria-valuenow', '272');
     if (width === 240) {
-      await page.keyboard.press('ArrowLeft');
+      await pressSidePaneResizer(resizer, 'ArrowLeft');
       await expect(resizer).toHaveAttribute('aria-valuenow', '248');
-      await page.keyboard.press('ArrowLeft');
+      await pressSidePaneResizer(resizer, 'ArrowLeft');
     } else if (width === 420) {
-      await page.keyboard.press('Shift+ArrowRight');
+      await pressSidePaneResizer(resizer, 'ArrowRight', true);
       await expect(resizer).toHaveAttribute('aria-valuenow', '352');
-      await page.keyboard.press('Shift+ArrowRight');
+      await pressSidePaneResizer(resizer, 'ArrowRight', true);
     }
     await expect(resizer).toHaveAttribute('aria-valuenow', String(width));
     await page.evaluate(
