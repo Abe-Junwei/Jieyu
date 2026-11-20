@@ -19,6 +19,7 @@ const SEGMENTATION_TABLES = new Set([
 
 // 允许直接访问 segmentation 真表的内部基础层文件 | Internal storage-layer files allowed to touch segmentation tables directly
 const ALLOWED_FILES = new Set([
+  'src/db/dexieStoragePort.ts',
   'src/db/dexieTranscriptionGraphStores.ts',
   'src/db/storagePort.ts',
   'src/db/storagePortChatSegments.ts',
