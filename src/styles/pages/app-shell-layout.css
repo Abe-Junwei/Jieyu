@@ -875,7 +875,3 @@
   gap: 10px;
   align-items: center;
 }
-
-.app-global-toast-host {
-  z-index: calc(var(--z-modal-topmost, 340) - 1);
-}

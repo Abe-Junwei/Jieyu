@@ -13,6 +13,7 @@ import {
   buildTranscriptionDeepLinkHref,
   readTranscriptionWorkspaceReturnHint,
 } from './utils/transcriptionUrlDeepLink';
+import { ToastProvider } from './contexts/ToastContext';
 import { AppGlobalToastHost } from './components/AppGlobalToastHost';
 import { AppOfflineStatusBanner } from './components/AppOfflineStatusBanner';
 import { WorkspaceReturnBanner } from './components/WorkspaceReturnBanner';
@@ -757,213 +758,223 @@ export function App() {
   return (
     <ErrorBoundary>
       <LocaleProvider locale={locale}>
-        <AppSidePaneProvider>
-          <div
-            className={`app-shell ${location.pathname === '/' ? 'app-shell-home' : ''} ${isTranscriptionRoute ? 'app-shell-transcription' : ''} ${isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
-            {...shellStyleProps}
-          >
-            <div role="region" aria-label={t(locale, 'app.shell.aria.notices')}>
-              <DevBuildBanner locale={locale} />
-              <AppOfflineStatusBanner locale={locale} />
-              <WorkspaceReturnBanner locale={locale} />
-            </div>
-            <div ref={shellBodyRef} className="app-shell-body">
-              <aside
-                className="app-left-rail"
-                aria-label={t(locale, 'app.leftRail.aria.navigation')}
-              >
-                <nav
-                  className="app-left-rail-group app-left-rail-primary"
-                  aria-label={t(locale, 'app.navGroup.core')}
+        <ToastProvider>
+          <AppSidePaneProvider>
+            <div
+              className={`app-shell ${location.pathname === '/' ? 'app-shell-home' : ''} ${isTranscriptionRoute ? 'app-shell-transcription' : ''} ${isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
+              {...shellStyleProps}
+            >
+              <div role="region" aria-label={t(locale, 'app.shell.aria.notices')}>
+                <DevBuildBanner locale={locale} />
+                <AppOfflineStatusBanner locale={locale} />
+                <WorkspaceReturnBanner locale={locale} />
+              </div>
+              <div ref={shellBodyRef} className="app-shell-body">
+                <aside
+                  className="app-left-rail"
+                  aria-label={t(locale, 'app.leftRail.aria.navigation')}
                 >
-                  {primaryNavItems.map((item) => (
-                    <NavLink
-                      key={item.to}
-                      to={resolveWorkspaceNavTo(item.to)}
-                      end={item.to === '/'}
-                      className={({ isActive }) =>
-                        isActive ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'
-                      }
-                      title={item.label}
-                      aria-label={item.label}
-                    >
-                      <JieyuIcon name={item.icon} aria-hidden className={JIEYU_ICON_NAV} />
-                      <span>{item.label}</span>
-                    </NavLink>
-                  ))}
-                </nav>
-                <div
-                  className="app-left-rail-bottom-slot"
-                  role="group"
-                  aria-hidden={!isTranscriptionRoute}
-                  {...(isTranscriptionRoute
-                    ? { 'aria-label': t(locale, 'app.leftRail.aria.contextSlot') }
-                    : {})}
-                >
-                  {isTranscriptionRoute ? (
-                    <div
-                      id={LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID}
-                      className="left-rail-context-actions-host"
-                      data-testid={LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID}
-                    />
-                  ) : null}
-                </div>
-                <div
-                  className="app-left-rail-footer"
-                  aria-label={t(locale, 'app.leftRail.aria.footer')}
-                >
-                  <div id="left-rail-project-hub-slot" className="left-rail-project-hub-anchor" />
-                  {isTranscriptionRoute ? (
+                  <nav
+                    className="app-left-rail-group app-left-rail-primary"
+                    aria-label={t(locale, 'app.navGroup.core')}
+                  >
+                    {primaryNavItems.map((item) => (
+                      <NavLink
+                        key={item.to}
+                        to={resolveWorkspaceNavTo(item.to)}
+                        end={item.to === '/'}
+                        className={({ isActive }) =>
+                          isActive ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'
+                        }
+                        title={item.label}
+                        aria-label={item.label}
+                      >
+                        <JieyuIcon name={item.icon} aria-hidden className={JIEYU_ICON_NAV} />
+                        <span>{item.label}</span>
+                      </NavLink>
+                    ))}
+                  </nav>
+                  <div
+                    className="app-left-rail-bottom-slot"
+                    role="group"
+                    aria-hidden={!isTranscriptionRoute}
+                    {...(isTranscriptionRoute
+                      ? { 'aria-label': t(locale, 'app.leftRail.aria.contextSlot') }
+                      : {})}
+                  >
+                    {isTranscriptionRoute ? (
+                      <div
+                        id={LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID}
+                        className="left-rail-context-actions-host"
+                        data-testid={LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID}
+                      />
+                    ) : null}
+                  </div>
+                  <div
+                    className="app-left-rail-footer"
+                    aria-label={t(locale, 'app.leftRail.aria.footer')}
+                  >
+                    <div id="left-rail-project-hub-slot" className="left-rail-project-hub-anchor" />
+                    {isTranscriptionRoute ? (
+                      <button
+                        type="button"
+                        className="left-rail-btn left-rail-btn-utility"
+                        aria-label={collaborationMessages.title}
+                        title={collaborationMessages.title}
+                        onClick={handleCollaborationEntryOpen}
+                      >
+                        <JieyuIcon name="CloudSync" aria-hidden className={JIEYU_ICON_NAV} />
+                        <span>{collaborationMessages.entryLabel}</span>
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="left-rail-btn left-rail-btn-utility"
-                      aria-label={collaborationMessages.title}
-                      title={collaborationMessages.title}
-                      onClick={handleCollaborationEntryOpen}
+                      aria-label={t(locale, 'transcription.voiceWidget.settings.button')}
+                      title={t(locale, 'transcription.voiceWidget.settings.button')}
+                      onClick={handleSettingsOpen}
                     >
-                      <JieyuIcon name="CloudSync" aria-hidden className={JIEYU_ICON_NAV} />
-                      <span>{collaborationMessages.entryLabel}</span>
+                      <JieyuIcon name="Settings" aria-hidden className={JIEYU_ICON_NAV} />
                     </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="left-rail-btn left-rail-btn-utility"
-                    aria-label={t(locale, 'transcription.voiceWidget.settings.button')}
-                    title={t(locale, 'transcription.voiceWidget.settings.button')}
-                    onClick={handleSettingsOpen}
-                  >
-                    <JieyuIcon name="Settings" aria-hidden className={JIEYU_ICON_NAV} />
-                  </button>
-                </div>
-              </aside>
+                  </div>
+                </aside>
 
-              <AppShellSidePane
+                <AppShellSidePane
+                  locale={locale}
+                  activeNavItem={activeNavItem}
+                  isTranscriptionRoute={isTranscriptionRoute}
+                  isSidePaneCollapsed={isSidePaneCollapsed}
+                  sidePaneWidth={sidePaneWidth}
+                  handleSidePaneResizeStart={handleSidePaneResizeStart}
+                  handleSidePaneResizeKeyDown={handleSidePaneResizeKeyDown}
+                  handleSidePaneResizeReset={handleSidePaneResizeReset}
+                  handleSidePaneToggle={handleSidePaneToggle}
+                />
+
+                <main
+                  className={`app-main ${isTranscriptionRoute ? 'app-main-transcription' : ''}`}
+                >
+                  <h1 className="app-main-screen-reader-heading">{activeNavItem?.label}</h1>
+                  <AiPanelProvider>
+                    <AssetPanelProvider value={assetPanelCtx}>
+                      <Suspense fallback={<div className="app-route-loading" aria-busy="true" />}>
+                        <Routes location={location}>
+                          <Route path="/" element={<HomePage />} />
+                          <Route path="/desktop-project" element={<Navigate to="/" replace />} />
+                          <Route path="/transcription" element={<TranscriptionPage />} />
+                          <Route path="/assets/language-metadata" element={<TranscriptionPage />} />
+                          <Route
+                            path="/assets/structural-profiles"
+                            element={<TranscriptionPage />}
+                          />
+                          <Route path="/assets/orthographies" element={<TranscriptionPage />} />
+                          <Route
+                            path="/assets/orthography-bridges"
+                            element={<TranscriptionPage />}
+                          />
+                          <Route path="/annotation" element={<AnnotationPage />} />
+                          <Route path="/analysis" element={<AnalysisPage />} />
+                          <Route path="/writing" element={<Navigate to="/corpus" replace />} />
+                          <Route path="/corpus" element={<CorpusLibraryPage />} />
+                          <Route
+                            path="/lexicon"
+                            element={
+                              <CatalogProjectGate>
+                                <LexiconPage />
+                              </CatalogProjectGate>
+                            }
+                          />
+                          <Route path="*" element={<NotFound locale={locale} />} />
+                        </Routes>
+                      </Suspense>
+                      <Suspense fallback={null}>
+                        <ModalPanel
+                          isOpen={openAssetPanel === 'language-metadata'}
+                          onClose={handleAssetPanelClose}
+                          ariaLabel={t(locale, 'app.nav.languageMetadata')}
+                          closeLabel={t(locale, 'transcription.importDialog.close')}
+                          renderShell={false}
+                          wide
+                        >
+                          <CatalogProjectGate onLeave={handleAssetPanelClose}>
+                            <LanguageMetadataWorkspacePage
+                              registerSidePane={false}
+                              onClose={handleAssetPanelClose}
+                            />
+                          </CatalogProjectGate>
+                        </ModalPanel>
+                        <ModalPanel
+                          isOpen={openAssetPanel === 'structural-profiles'}
+                          onClose={handleAssetPanelClose}
+                          ariaLabel={structuralTemplatePanelLabel(locale, location.search)}
+                          closeLabel={t(locale, 'transcription.importDialog.close')}
+                          renderShell={false}
+                          wide
+                        >
+                          <CatalogProjectGate onLeave={handleAssetPanelClose}>
+                            <StructuralProfileWorkspacePage
+                              registerSidePane={false}
+                              onClose={handleAssetPanelClose}
+                            />
+                          </CatalogProjectGate>
+                        </ModalPanel>
+                        <ModalPanel
+                          isOpen={openAssetPanel === 'orthographies'}
+                          onClose={handleAssetPanelClose}
+                          ariaLabel={t(locale, 'app.nav.orthographies')}
+                          closeLabel={t(locale, 'transcription.importDialog.close')}
+                          renderShell={false}
+                          wide
+                        >
+                          <CatalogProjectGate onLeave={handleAssetPanelClose}>
+                            <OrthographyManagerPage
+                              registerSidePane={false}
+                              onClose={handleAssetPanelClose}
+                            />
+                          </CatalogProjectGate>
+                        </ModalPanel>
+                        <ModalPanel
+                          isOpen={openAssetPanel === 'orthography-bridges'}
+                          onClose={handleAssetPanelClose}
+                          ariaLabel={t(locale, 'app.nav.orthographyBridges')}
+                          closeLabel={t(locale, 'transcription.importDialog.close')}
+                          renderShell={false}
+                          wide
+                        >
+                          <CatalogProjectGate onLeave={handleAssetPanelClose}>
+                            <OrthographyBridgeWorkspacePage
+                              registerSidePane={false}
+                              onClose={handleAssetPanelClose}
+                            />
+                          </CatalogProjectGate>
+                        </ModalPanel>
+                      </Suspense>
+                    </AssetPanelProvider>
+                  </AiPanelProvider>
+                </main>
+              </div>
+              {import.meta.env.DEV ? <DevErrorAggregationPanel /> : null}
+              <AppGlobalToastHost />
+              <LegacyDataResetDialog locale={locale} />
+              <DbMigrationGateOverlay locale={locale} />
+              <BrowserDataResilience locale={locale} />
+              <CollaborationLifecycleNotices locale={locale} />
+              <SettingsModal
+                isOpen={isSettingsOpen}
+                onClose={handleSettingsClose}
                 locale={locale}
-                activeNavItem={activeNavItem}
-                isTranscriptionRoute={isTranscriptionRoute}
-                isSidePaneCollapsed={isSidePaneCollapsed}
-                sidePaneWidth={sidePaneWidth}
-                handleSidePaneResizeStart={handleSidePaneResizeStart}
-                handleSidePaneResizeKeyDown={handleSidePaneResizeKeyDown}
-                handleSidePaneResizeReset={handleSidePaneResizeReset}
-                handleSidePaneToggle={handleSidePaneToggle}
+                themeMode={themeMode}
+                onThemeChange={setThemeMode}
+                onLocaleChange={handleLocaleChange}
+                fontScale={uiFontScale}
+                fontScaleMode={uiFontScaleMode}
+                onFontScaleChange={handleFontScaleChange}
+                onFontScaleModeChange={handleFontScaleModeChange}
+                version={resolveHostVersion()}
               />
-
-              <main className={`app-main ${isTranscriptionRoute ? 'app-main-transcription' : ''}`}>
-                <h1 className="app-main-screen-reader-heading">{activeNavItem?.label}</h1>
-                <AiPanelProvider>
-                  <AssetPanelProvider value={assetPanelCtx}>
-                    <Suspense fallback={<div className="app-route-loading" aria-busy="true" />}>
-                      <Routes location={location}>
-                        <Route path="/" element={<HomePage />} />
-                        <Route path="/desktop-project" element={<Navigate to="/" replace />} />
-                        <Route path="/transcription" element={<TranscriptionPage />} />
-                        <Route path="/assets/language-metadata" element={<TranscriptionPage />} />
-                        <Route path="/assets/structural-profiles" element={<TranscriptionPage />} />
-                        <Route path="/assets/orthographies" element={<TranscriptionPage />} />
-                        <Route path="/assets/orthography-bridges" element={<TranscriptionPage />} />
-                        <Route path="/annotation" element={<AnnotationPage />} />
-                        <Route path="/analysis" element={<AnalysisPage />} />
-                        <Route path="/writing" element={<Navigate to="/corpus" replace />} />
-                        <Route path="/corpus" element={<CorpusLibraryPage />} />
-                        <Route
-                          path="/lexicon"
-                          element={
-                            <CatalogProjectGate>
-                              <LexiconPage />
-                            </CatalogProjectGate>
-                          }
-                        />
-                        <Route path="*" element={<NotFound locale={locale} />} />
-                      </Routes>
-                    </Suspense>
-                    <Suspense fallback={null}>
-                      <ModalPanel
-                        isOpen={openAssetPanel === 'language-metadata'}
-                        onClose={handleAssetPanelClose}
-                        ariaLabel={t(locale, 'app.nav.languageMetadata')}
-                        closeLabel={t(locale, 'transcription.importDialog.close')}
-                        renderShell={false}
-                        wide
-                      >
-                        <CatalogProjectGate onLeave={handleAssetPanelClose}>
-                          <LanguageMetadataWorkspacePage
-                            registerSidePane={false}
-                            onClose={handleAssetPanelClose}
-                          />
-                        </CatalogProjectGate>
-                      </ModalPanel>
-                      <ModalPanel
-                        isOpen={openAssetPanel === 'structural-profiles'}
-                        onClose={handleAssetPanelClose}
-                        ariaLabel={structuralTemplatePanelLabel(locale, location.search)}
-                        closeLabel={t(locale, 'transcription.importDialog.close')}
-                        renderShell={false}
-                        wide
-                      >
-                        <CatalogProjectGate onLeave={handleAssetPanelClose}>
-                          <StructuralProfileWorkspacePage
-                            registerSidePane={false}
-                            onClose={handleAssetPanelClose}
-                          />
-                        </CatalogProjectGate>
-                      </ModalPanel>
-                      <ModalPanel
-                        isOpen={openAssetPanel === 'orthographies'}
-                        onClose={handleAssetPanelClose}
-                        ariaLabel={t(locale, 'app.nav.orthographies')}
-                        closeLabel={t(locale, 'transcription.importDialog.close')}
-                        renderShell={false}
-                        wide
-                      >
-                        <CatalogProjectGate onLeave={handleAssetPanelClose}>
-                          <OrthographyManagerPage
-                            registerSidePane={false}
-                            onClose={handleAssetPanelClose}
-                          />
-                        </CatalogProjectGate>
-                      </ModalPanel>
-                      <ModalPanel
-                        isOpen={openAssetPanel === 'orthography-bridges'}
-                        onClose={handleAssetPanelClose}
-                        ariaLabel={t(locale, 'app.nav.orthographyBridges')}
-                        closeLabel={t(locale, 'transcription.importDialog.close')}
-                        renderShell={false}
-                        wide
-                      >
-                        <CatalogProjectGate onLeave={handleAssetPanelClose}>
-                          <OrthographyBridgeWorkspacePage
-                            registerSidePane={false}
-                            onClose={handleAssetPanelClose}
-                          />
-                        </CatalogProjectGate>
-                      </ModalPanel>
-                    </Suspense>
-                  </AssetPanelProvider>
-                </AiPanelProvider>
-              </main>
             </div>
-            {import.meta.env.DEV ? <DevErrorAggregationPanel /> : null}
-            <AppGlobalToastHost />
-            <LegacyDataResetDialog locale={locale} />
-            <DbMigrationGateOverlay locale={locale} />
-            <BrowserDataResilience locale={locale} />
-            <CollaborationLifecycleNotices locale={locale} />
-            <SettingsModal
-              isOpen={isSettingsOpen}
-              onClose={handleSettingsClose}
-              locale={locale}
-              themeMode={themeMode}
-              onThemeChange={setThemeMode}
-              onLocaleChange={handleLocaleChange}
-              fontScale={uiFontScale}
-              fontScaleMode={uiFontScaleMode}
-              onFontScaleChange={handleFontScaleChange}
-              onFontScaleModeChange={handleFontScaleModeChange}
-              version={resolveHostVersion()}
-            />
-          </div>
-        </AppSidePaneProvider>
+          </AppSidePaneProvider>
+        </ToastProvider>
       </LocaleProvider>
     </ErrorBoundary>
   );
