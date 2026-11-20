@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-20T22:08:48.694Z",
-  "aggregate": "e19c8d038c0653bbef61b738579337b4dffb7a00d45dcfb66f620b7881232be3",
+  "generatedAt": "2026-11-20T22:48:05.505Z",
+  "aggregate": "b271863ba635fd82d2249148b1971d5b864425c6244be854323e23b6fb8480c9",
   "fileHashes": {
     "src/styles/ai-hub.css": "537be68d401399d5c7be152205f71c4c4f6949f861c9e34d22499005846034c7",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -24,7 +24,7 @@
     "src/styles/pages/ai-sidebar-shell.css": "2d56d94491ad22b5617d1409fa8c84e67e3dfad980be26f6e9530370db5cc069",
     "src/styles/pages/analysis-workspace.css": "b5f642234a4dedce82b42241ad12b9f1b2785db0380b94740b37e7973a0dc96f",
     "src/styles/pages/annotation-workspace.css": "8be15a6272632bc3c876611ae92a74bdfd54a99c658f408f04988cbd4e5d4947",
-    "src/styles/pages/app-shell-layout.css": "8b479b0877b2f3416c00b4775ded2d1b9fee0d402d1b491f8cc9a4566c73ec3a",
+    "src/styles/pages/app-shell-layout.css": "5519984e2a3b1040ca5d6fb4419b3e5214d6711146336c1191989a70bac3307d",
     "src/styles/pages/corpus-library-workspace.css": "c0e6c0eb4768333aa39fc2c97418c70769d1b00465f539e2b88085d9120313cf",
     "src/styles/pages/desktop-project-read.css": "3cccf8f60a1aac19eec9c014df395b3f73caea57031c4418d7714f2be86d7e79",
     "src/styles/pages/desktop-transcription-workspace.css": "bd46c572e5c119cce498df0b0384721b7233191fbeca1ee1ef01574b6454059d",
