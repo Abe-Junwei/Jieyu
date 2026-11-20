@@ -26,8 +26,20 @@ depends_on:
 - [x] S4 产物门禁插件（只挂在桌面配置上），并检查 `dist/` 里没有 service worker。`test:e2e:desktop-project` 在开发服务器里断言 `indexedDB.databases()` 为空、界面形态为 `desktop`。打包后的 `dist/` 只由这道产物门禁检查，这条 E2E 不覆盖 `loadFile` 和 `jieyu-app://`。平台范围是 Ubuntu CI 加本机 macOS → 验证：在故意违规的临时分支上三道门禁都失败，主干全绿
 - [x] S5 文档，与 S3b 同一个 PR：`AI_QUICKSTART.md`、`copilot-instructions.md` 写明 `dev` / `build` 是桌面，`dev:legacy` / `build:legacy` / `preview:legacy` 只给尚未迁走的 Chromium 用例。主路线图 §2.1 第 4 条和单库计划里「触交互仍一律 Chromium」改为：桌面页面、壳层和 `src/db/desktop` 跑 `test:e2e:desktop-project`（Ubuntu CI 加本机 macOS）；`test:e2e:chromium` 只覆盖仍走旧网页构建的组 → 验证：`npm run check:docs-governance`
 - [x] S6 台账：在 `old-path-exit.record.json` 新增 `features` 数组（`id`、`status`、`paths`、`oldTests`、`replacement`、`desktopTests`、`decision`）。不新增 `surface` 类别；记录没有 `surfaces` 字段，每条的 `surface` 仍是 `production`、`scripts`、`ci`、`e2e`、`keep` 之一。`desktop-routes` 补齐 10 个旧路由页面；`check-old-path-exit.mjs` 增加校验，并新增单测 → 验证：该单测和 `npm run check:old-path-exit`
-- [ ] S7 前移循环：每个功能先进 ADR-0086 白名单，再按 ADR-0131 第 5 条实现并关账；E2E 按 #329 分组迁到 Electron。每迁完一组，点名更新主路线图 #329 进度、单库计划 M7-C、试用地图顶部的「六组 keep」。未迁的组保持旧门槛。不删「Chromium 123 通过」这类已发生记录 → 验证：每片跑 `check:desktop-boundary`、`test:e2e:desktop-project`、`npm run check:docs-governance`
-- [ ] S8 退场：前提是台账没有 `planned` 和 `in-progress` 条目、#329 已完成、#328 已有决定。先打 tag `legacy-web-final`，再删旧入口（含 `legacy/`）、旧页面、Dexie、`vite.legacy.config.ts`、Chromium 门禁。同一个 PR 把 `entries` 里的 `desktop-routes` 和 `merge-gates` 从 `action: keep` 改成 `delete`，并按 delete 的规则核对旧页面和 `e2e-pr.yml` 已删除。同一个 PR 把仍在描述现状的句子改成已删除，并写入第二程开工约束。不改带日期的变更记录、已落地切片里的 Dexie 证据、写明不再往下补的存储端口旧记录，也不改 ADR-0063 正文 → 验证：typecheck、全量 vitest、Ubuntu CI 与本机 macOS 的 `test:e2e:desktop-project`、`check:all`、`npm run check:docs-governance`
+- [ ] S7 前移循环：首发切片已覆盖的页面不另进 ADR-0086 白名单，随对应产品切片关账（见下节「S7 台账关账对照」）；其余功能先进白名单，再按 ADR-0131 第 5 条实现并关账。E2E 按 #329 分组迁到 Electron，`playwright.session-sidecar.config.ts` 的用例算其中一组。每迁完一组，点名更新主路线图 #329 进度、单库计划 M7-C、试用地图顶部的「六组 keep」。未迁的组保持旧门槛。不删「Chromium 123 通过」这类已发生记录 → 验证：每片跑 `check:desktop-boundary`、`test:e2e:desktop-project`、`npm run check:docs-governance`
+- [ ] S8 退场：前提是台账没有 `planned` 和 `in-progress` 条目、#329 已完成、#328 已有决定。先打 tag `legacy-web-final`，再删旧入口（含 `legacy/`）、旧页面、Dexie、`vite.legacy.config.ts`、Chromium 门禁。同一个 PR 把 `entries` 里的 `desktop-routes`、`merge-gates` 和 `browser-e2e` 从 `action: keep` 改成 `delete`，并按 delete 的规则核对旧页面、`e2e-pr.yml` 和 `playwright.config.ts` 已删除。同一个 PR 把仍在描述现状的句子改成已删除，并写入第二程开工约束。不改带日期的变更记录、已落地切片里的 Dexie 证据、写明不再往下补的存储端口旧记录，也不改 ADR-0063 正文 → 验证：typecheck、全量 vitest、Ubuntu CI 与本机 macOS 的 `test:e2e:desktop-project`、`check:all`、`npm run check:docs-governance`
+
+## S7 台账关账对照
+
+2026-11-20 用户确认。下表的切片指主路线图唯一执行队列。关账由该切片的 PR 完成：把对应 `features` 条目改成 `ported`，填上桌面测试和决定，旧测试的业务断言要在桌面测试里有对应。各切片规格的 `tasks.md` 已有或建规格时补上这条任务。
+
+| 台账条目 | 关账切片 | 切片规格 |
+| --- | --- | --- |
+| `home`、`language-metadata`、`orthography`、`orthography-bridge` | 1b（1a 已验） | `desktop-4ws-slice1b-transcription-editing` |
+| `transcription` | 1b | 同上 |
+| `annotation`、`structural-profile` | 2 | 尚无规格，建规格时补。`structural-profile` 即旧「标注模板」页（结构规则、缩略、词类），缩略对应 ADR-0100 E07 项目标签；E07 写「不自动拆语素」，结构规则是否自动切分并投到分析图由切片 2 规格定 |
+| `lexicon` | 3 | `desktop-lexicon-complete-editor` |
+| `analysis`、`corpus` | 4 | `desktop-professional-query` |
 
 ## S3a 桌面壳取舍
 

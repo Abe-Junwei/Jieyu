@@ -18,4 +18,5 @@ depends_on:
 - [ ] AST + 文本／构建器往返测试 → 验证：vitest
 - [ ] 执行器 + 跨窗全项目写入锁／5秒取消升级／迟到结果拒收 → 验证：并发用例
 - [ ] Electron 有界跨段命中 UI → 验证：合成项目
+- [ ] 旧页台账关账（[S7 对照](../desktop-legacy-isolation/tasks.md#s7-台账关账对照)）：`features` 中 `analysis`、`corpus` 改为 `ported`，填桌面测试与决定；`AnalysisPage.test.tsx`、`CorpusLibraryPage.test.tsx` 的业务断言在桌面测试里有对应 → 验证：`npm run check:old-path-exit`
 - [x] 不适用：本门阶段不改产品代码

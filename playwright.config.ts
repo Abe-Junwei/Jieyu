@@ -23,7 +23,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    // CI workflows (e2e-pr, nightly) run `npm run build` before Playwright; avoid a second build inside the 30s webServer budget.
+    // The e2e-pr workflow runs `npm run build:legacy` before Playwright; avoid a second build inside the 30s webServer budget.
     // The legacy flag is baked at build time. The workflow build step sets the same variable.
     command: process.env.CI ? 'npm run preview:legacy' : 'npm run build:legacy && npm run preview:legacy',
     url: 'http://localhost:4173',
