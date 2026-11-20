@@ -7,15 +7,15 @@ export function electronDesktopPresent(): boolean {
   return 'jieyuDesktop' in globalThis;
 }
 
-/** Chromium E2E still builds the old web pages. `vite dev` does not. */
+/** Baked by `vite.legacy.config.ts`. Desktop `dev` and `build` leave this unset. */
 export function legacyWebSurfaceEnabled(): boolean {
   return import.meta.env.VITE_LEGACY_WEB_SURFACE === 'true';
 }
 
 /**
- * A null host only means the desktop bridge is not usable.
- * The browser then shows the desktop shell, not the old web pages.
- * Pass `legacyWeb` only from tests; the app reads `VITE_LEGACY_WEB_SURFACE`.
+ * A null host means the desktop bridge is not usable, so the desktop route shows unavailable.
+ * The old web pages come from the legacy build, not from this function.
+ * Pass `legacyWeb` only from tests; the legacy config sets `VITE_LEGACY_WEB_SURFACE`.
  */
 export function resolveDesktopSurface(
   host: DesktopReadHost | null,

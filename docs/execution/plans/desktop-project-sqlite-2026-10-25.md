@@ -283,7 +283,7 @@ D14 之后改表要新决定，只重建受控合成项目，不写迁移器。�
 ### 每步如何提交与验收
 
 每个可独立验证的实现片先补业务检查，再实现，执行 typecheck + 定向 vitest，检查 diff 后提交，提交附真实验证结果。一个 M 可以含多个提交；不把整个 M5 视为一张无需拆分的大任务。
-所有片跑适用的架构、agent-evals、workflow 门禁；文档变化跑 docs-governance。触交互/ReadyWorkspace/侧栏/时间轴继续遵守 Chromium E2E，迁至 Electron 的场景按 #329 门槛验收；不长期 skip。
+所有片跑适用的架构、agent-evals、workflow 门禁；文档变化跑 docs-governance。桌面页面、壳层和 `src/db/desktop` 跑 `npm run test:e2e:desktop-project`（Ubuntu CI 加本机 macOS）。`npm run test:e2e:chromium` 只覆盖仍走旧网页构建的组。不长期 skip。
 M1 验收仅单库函数和关闭重开，M3 增加真实 Electron，M4 增加用户入口与应用重启，M6 增加恢复播放；证据级别逐层增加，不能互相替代。
 本轮路线图更新只执行文档检查；实现验收以顶部 2026-10-30 实际证据为准，不因文档更新自动提交工作区或关闭远端单。
 

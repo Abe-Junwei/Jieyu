@@ -38,7 +38,7 @@ ReadyWorkspace 装配和主路线图不在每次必读里。碰到才读 §2 对
 | 改本地上下文工具 | `src/ai/chat/localContextTools.ts` | 定向 `vitest` |
 | 改 CSS / 面板视觉层级 | [copilot-instructions.md](copilot-instructions.md) §九 双层边框规则 | [CSS架构与模板复用规范.md](docs/architecture/CSS架构与模板复用规范.md) · [CSS浏览器兼容矩阵.md](docs/architecture/CSS浏览器兼容矩阵.md) |
 | 画桌面精稿，或改 `src/pages/Desktop*.tsx`、`src/styles/**/desktop*.css`、新建 `src/components/**` | [DESIGN.md](DESIGN.md) · Pixso 文件 `va44BZLBUSYRQ7KoiO3PJw`（MCP 读取画板；不通则停下） | [ADR-0118](docs/adr/0118-pixso-is-the-design-draft-workspace.md) · 非 draft spec 的「UI 精稿对照」· [design/jieyu-paper/SKILL.md](design/jieyu-paper/SKILL.md) |
-| 新用或敏感的 Web API | [ADR-0063](docs/adr/0063-desktop-only-after-electron-skeleton.md)（只交付桌面版；`browserslist` 为 Electron 44 的 Chromium 152） | #329 完成前 `npm run test:e2e:chromium` |
+| 新用或敏感的 Web API | [ADR-0063](docs/adr/0063-desktop-only-after-electron-skeleton.md)（只交付桌面版；`browserslist` 为 Electron 44 的 Chromium 152） | 桌面页面、壳层、`src/db/desktop`：`npm run test:e2e:desktop-project`。仍走旧网页的组：`npm run test:e2e:chromium` |
 | 改转写深链 / 语音 ActionId | `src/utils/transcriptionUrlDeepLink.ts` | [transcription-voice-action-id-registry-contract.md](docs/architecture/transcription-voice-action-id-registry-contract.md) |
 | 改层名 / tier / track / unitId | [术语表.md](docs/architecture/术语表.md) | [ADR-006](docs/adr/adr-006-linguistic-subgraph-unitid-utterances-retirement.md) |
 | 改词典 / 正字法互操作 | [dmlex/README.md](docs/architecture/dmlex/README.md) | [provider-neutral-orthography-interop-contract.md](docs/architecture/provider-neutral-orthography-interop-contract.md) |
@@ -70,7 +70,7 @@ ReadyWorkspace 装配和主路线图不在每次必读里。碰到才读 §2 对
 
 1. `npm run typecheck`
 2. 触及域的 `vitest`（例如 `npx vitest run src/hooks/transcription`）
-3. 触及交互 / ReadyWorkspace / 侧栏 / 时间轴时还要：`npm run test:e2e:chromium`；触及桌面页面、`src/desktop`、`src/db/desktop` 时还要 `npm run test:e2e:desktop-project`（CI 的 `desktop-flow`）
+3. `npm run dev` / `npm run build` 是桌面入口。`dev:legacy` / `build:legacy` / `preview:legacy` 只给尚未迁走的 Chromium 用例。桌面页面、壳层和 `src/db/desktop` 跑 `npm run test:e2e:desktop-project`（Ubuntu CI 加本机 macOS）。`npm run test:e2e:chromium` 只覆盖仍走旧网页构建的组。
 4. 触及编排 / 复杂度时还要：`npm run check:architecture-guard`
 
 **机器守卫（工具无关，未跑 = 不算完成）**：

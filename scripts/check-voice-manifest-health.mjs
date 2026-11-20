@@ -8,7 +8,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const manifestPath = join(__dirname, '../dist/manifest.webmanifest');
+const manifestPath = join(__dirname, '../dist-legacy/manifest.webmanifest');
 
 function fail(message) {
   process.stderr.write(`[voice-manifest-health] FAIL: ${message}\n`);

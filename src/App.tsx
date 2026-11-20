@@ -62,23 +62,9 @@ import { syncDocumentDataTheme, THEME_MODE_STORAGE_KEY } from './utils/theme';
 import { isTranscriptionWorkspacePathname } from './utils/transcriptionWorkspaceRoute';
 import { JIEYU_ICON_NAV, type LeftRailNavIconName } from './utils/jieyuIcon';
 import { CatalogProjectGate } from './components/CatalogProjectGate';
-import { DesktopRoute } from './components/DesktopRoute';
-import { electronDesktopPresent, legacyWebSurfaceEnabled } from './desktop/desktopSurface';
-import { featureFlags } from './ai/config/featureFlags';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
 const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
-const DesktopProjectReadPage = lazy(() =>
-  import('./pages/DesktopProjectReadPage').then((m) => ({ default: m.DesktopProjectReadPage })),
-);
-const DesktopTranscriptionWorkspacePage = lazy(() =>
-  import('./pages/DesktopTranscriptionWorkspacePage').then((m) => ({
-    default: m.DesktopTranscriptionWorkspacePage,
-  })),
-);
-const DesktopCorpusPage = lazy(() =>
-  import('./pages/DesktopCorpusPage').then((m) => ({ default: m.DesktopCorpusPage })),
-);
 const TranscriptionPage = lazy(() =>
   import('./pages/TranscriptionPage').then((m) => ({ default: m.TranscriptionPage })),
 );
@@ -93,18 +79,6 @@ const CorpusLibraryPage = lazy(() =>
 );
 const LexiconPage = lazy(() =>
   import('./pages/LexiconPage').then((m) => ({ default: m.LexiconPage })),
-);
-const DesktopAnnotationPage = lazy(() =>
-  import('./pages/DesktopAnnotationPage').then((m) => ({ default: m.DesktopAnnotationPage })),
-);
-const DesktopLexiconPage = lazy(() =>
-  import('./pages/DesktopLexiconPage').then((m) => ({ default: m.DesktopLexiconPage })),
-);
-const DesktopCatalogPage = lazy(() =>
-  import('./pages/DesktopCatalogPage').then((m) => ({ default: m.DesktopCatalogPage })),
-);
-const DesktopAnalysisPage = lazy(() =>
-  import('./pages/DesktopAnalysisPage').then((m) => ({ default: m.DesktopAnalysisPage })),
 );
 const LanguageMetadataWorkspacePage = lazy(() =>
   import('./pages/LanguageMetadataWorkspacePage').then((m) => ({
@@ -183,7 +157,6 @@ type NavGroup = {
 const SIDE_PANE_COLLAPSED_KEY = 'jieyu-side-pane-collapsed';
 const SIDE_PANE_WIDTH_KEY = 'jieyu-side-pane-width';
 const SIDE_PANE_DEFAULT_WIDTH = 272;
-const DESKTOP_CONTEXT_PANE_WIDTH = 232;
 const SIDE_PANE_MIN_WIDTH = 240;
 const SIDE_PANE_MAX_WIDTH = 420;
 
@@ -335,17 +308,6 @@ function AppShellSidePane({
   );
 }
 
-function DesktopCatalogRoute(props: {
-  section: 'language' | 'orthography' | 'bridge' | 'structure';
-}) {
-  return (
-    <DesktopRoute
-      desktop={(host) => <DesktopCatalogPage host={host} section={props.section} />}
-      legacy={<TranscriptionPage />}
-    />
-  );
-}
-
 function BrowserDataResilience({ locale }: { locale: Locale }) {
   const { dbGate, dbOverlayHandlers } = useAppDataResilienceEffects(locale);
   if (dbGate.kind !== 'failed') return null;
@@ -369,8 +331,6 @@ export function App() {
     [location.pathname],
   );
   const isTranscriptionRoute = isTranscriptionWorkspacePathname(location.pathname);
-  const desktopBuild = electronDesktopPresent();
-  const showLegacyWebChrome = !desktopBuild && legacyWebSurfaceEnabled();
   const [openAssetPanel, setOpenAssetPanel] = useState<LanguageAssetPanel>('none');
   const panelSearchRestoreRef = useRef<string | null>(null);
   const [locale, setLocale] = useState<Locale>(() => detectLocale());
@@ -753,24 +713,15 @@ export function App() {
     requestCollaborationCloudPanelOpen(window);
   }, [isTranscriptionRoute]);
 
-  const desktopContextPane =
-    isTranscriptionRoute &&
-    featureFlags.desktopTranscriptionWorkspaceEnabled &&
-    !showLegacyWebChrome;
-  const shownPaneWidth =
-    desktopContextPane && sidePaneWidth === SIDE_PANE_DEFAULT_WIDTH
-      ? DESKTOP_CONTEXT_PANE_WIDTH
-      : sidePaneWidth;
+  const shownPaneWidth = sidePaneWidth;
   const shellStyle = useMemo(
     () =>
       ({
         ['--side-pane-width' as '--side-pane-width']: isSidePaneCollapsed
-          ? desktopContextPane
-            ? '32px'
-            : '0px'
+          ? '0px'
           : `${shownPaneWidth}px`,
       }) as CSSProperties,
-    [desktopContextPane, isSidePaneCollapsed, shownPaneWidth],
+    [isSidePaneCollapsed, shownPaneWidth],
   );
   const shellStyleProps = { style: shellStyle };
 
@@ -796,7 +747,7 @@ export function App() {
         boundaryRef: shellBodyRef,
         dragCleanupRef: shellDragCleanupRef,
         side: 'left',
-        minWidth: desktopContextPane ? DESKTOP_CONTEXT_PANE_WIDTH : SIDE_PANE_MIN_WIDTH,
+        minWidth: SIDE_PANE_MIN_WIDTH,
         maxWidth: SIDE_PANE_MAX_WIDTH,
         maxWidthRatio: 0.45,
         defaultWidth: SIDE_PANE_DEFAULT_WIDTH,
@@ -808,11 +759,11 @@ export function App() {
       <LocaleProvider locale={locale}>
         <AppSidePaneProvider>
           <div
-            className={`app-shell ${location.pathname === '/' ? 'app-shell-home' : ''} ${isTranscriptionRoute ? 'app-shell-transcription' : ''} ${isTranscriptionRoute && featureFlags.desktopTranscriptionWorkspaceEnabled && !showLegacyWebChrome ? 'app-shell-desktop-transcription' : ''} ${isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
+            className={`app-shell ${location.pathname === '/' ? 'app-shell-home' : ''} ${isTranscriptionRoute ? 'app-shell-transcription' : ''} ${isSidePaneCollapsed ? 'app-shell-side-pane-collapsed' : ''}`}
             {...shellStyleProps}
           >
             <div role="region" aria-label={t(locale, 'app.shell.aria.notices')}>
-              {showLegacyWebChrome ? <DevBuildBanner locale={locale} /> : null}
+              <DevBuildBanner locale={locale} />
               <AppOfflineStatusBanner locale={locale} />
               <WorkspaceReturnBanner locale={locale} />
             </div>
@@ -862,7 +813,7 @@ export function App() {
                   aria-label={t(locale, 'app.leftRail.aria.footer')}
                 >
                   <div id="left-rail-project-hub-slot" className="left-rail-project-hub-anchor" />
-                  {isTranscriptionRoute && showLegacyWebChrome ? (
+                  {isTranscriptionRoute ? (
                     <button
                       type="button"
                       className="left-rail-btn left-rail-btn-utility"
@@ -904,179 +855,100 @@ export function App() {
                   <AssetPanelProvider value={assetPanelCtx}>
                     <Suspense fallback={<div className="app-route-loading" aria-busy="true" />}>
                       <Routes location={location}>
-                        <Route
-                          path="/"
-                          element={
-                            <DesktopRoute
-                              folder
-                              desktop={() => <DesktopProjectReadPage />}
-                              legacy={<HomePage />}
-                            />
-                          }
-                        />
-                        <Route
-                          path="/desktop-project"
-                          element={
-                            <DesktopRoute
-                              folder
-                              desktop={() => <DesktopProjectReadPage />}
-                              legacy={<Navigate to="/" replace />}
-                            />
-                          }
-                        />
-                        <Route
-                          path="/transcription"
-                          element={
-                            <DesktopRoute
-                              desktop={() =>
-                                featureFlags.desktopTranscriptionWorkspaceEnabled ? (
-                                  <DesktopTranscriptionWorkspacePage />
-                                ) : (
-                                  <DesktopProjectReadPage />
-                                )
-                              }
-                              legacy={<TranscriptionPage />}
-                            />
-                          }
-                        />
-                        <Route
-                          path="/assets/language-metadata"
-                          element={<DesktopCatalogRoute section="language" />}
-                        />
-                        <Route
-                          path="/assets/structural-profiles"
-                          element={<DesktopCatalogRoute section="structure" />}
-                        />
-                        <Route
-                          path="/assets/orthographies"
-                          element={<DesktopCatalogRoute section="orthography" />}
-                        />
-                        <Route
-                          path="/assets/orthography-bridges"
-                          element={<DesktopCatalogRoute section="bridge" />}
-                        />
-                        <Route
-                          path="/annotation"
-                          element={
-                            <DesktopRoute
-                              desktop={(host) => <DesktopAnnotationPage host={host} />}
-                              legacy={<AnnotationPage />}
-                            />
-                          }
-                        />
-                        <Route
-                          path="/analysis"
-                          element={
-                            <DesktopRoute
-                              desktop={(host) => <DesktopAnalysisPage host={host} />}
-                              legacy={<AnalysisPage />}
-                            />
-                          }
-                        />
+                        <Route path="/" element={<HomePage />} />
+                        <Route path="/desktop-project" element={<Navigate to="/" replace />} />
+                        <Route path="/transcription" element={<TranscriptionPage />} />
+                        <Route path="/assets/language-metadata" element={<TranscriptionPage />} />
+                        <Route path="/assets/structural-profiles" element={<TranscriptionPage />} />
+                        <Route path="/assets/orthographies" element={<TranscriptionPage />} />
+                        <Route path="/assets/orthography-bridges" element={<TranscriptionPage />} />
+                        <Route path="/annotation" element={<AnnotationPage />} />
+                        <Route path="/analysis" element={<AnalysisPage />} />
                         <Route path="/writing" element={<Navigate to="/corpus" replace />} />
-                        <Route
-                          path="/corpus"
-                          element={
-                            <DesktopRoute
-                              desktop={() => <DesktopCorpusPage />}
-                              legacy={<CorpusLibraryPage />}
-                            />
-                          }
-                        />
+                        <Route path="/corpus" element={<CorpusLibraryPage />} />
                         <Route
                           path="/lexicon"
                           element={
-                            <DesktopRoute
-                              desktop={(host) => <DesktopLexiconPage host={host} />}
-                              legacy={
-                                <CatalogProjectGate>
-                                  <LexiconPage />
-                                </CatalogProjectGate>
-                              }
-                            />
+                            <CatalogProjectGate>
+                              <LexiconPage />
+                            </CatalogProjectGate>
                           }
                         />
                         <Route path="*" element={<NotFound locale={locale} />} />
                       </Routes>
                     </Suspense>
-                    {showLegacyWebChrome ? (
-                      <Suspense fallback={null}>
-                        <ModalPanel
-                          isOpen={openAssetPanel === 'language-metadata'}
-                          onClose={handleAssetPanelClose}
-                          ariaLabel={t(locale, 'app.nav.languageMetadata')}
-                          closeLabel={t(locale, 'transcription.importDialog.close')}
-                          renderShell={false}
-                          wide
-                        >
-                          <CatalogProjectGate onLeave={handleAssetPanelClose}>
-                            <LanguageMetadataWorkspacePage
-                              registerSidePane={false}
-                              onClose={handleAssetPanelClose}
-                            />
-                          </CatalogProjectGate>
-                        </ModalPanel>
-                        <ModalPanel
-                          isOpen={openAssetPanel === 'structural-profiles'}
-                          onClose={handleAssetPanelClose}
-                          ariaLabel={structuralTemplatePanelLabel(locale, location.search)}
-                          closeLabel={t(locale, 'transcription.importDialog.close')}
-                          renderShell={false}
-                          wide
-                        >
-                          <CatalogProjectGate onLeave={handleAssetPanelClose}>
-                            <StructuralProfileWorkspacePage
-                              registerSidePane={false}
-                              onClose={handleAssetPanelClose}
-                            />
-                          </CatalogProjectGate>
-                        </ModalPanel>
-                        <ModalPanel
-                          isOpen={openAssetPanel === 'orthographies'}
-                          onClose={handleAssetPanelClose}
-                          ariaLabel={t(locale, 'app.nav.orthographies')}
-                          closeLabel={t(locale, 'transcription.importDialog.close')}
-                          renderShell={false}
-                          wide
-                        >
-                          <CatalogProjectGate onLeave={handleAssetPanelClose}>
-                            <OrthographyManagerPage
-                              registerSidePane={false}
-                              onClose={handleAssetPanelClose}
-                            />
-                          </CatalogProjectGate>
-                        </ModalPanel>
-                        <ModalPanel
-                          isOpen={openAssetPanel === 'orthography-bridges'}
-                          onClose={handleAssetPanelClose}
-                          ariaLabel={t(locale, 'app.nav.orthographyBridges')}
-                          closeLabel={t(locale, 'transcription.importDialog.close')}
-                          renderShell={false}
-                          wide
-                        >
-                          <CatalogProjectGate onLeave={handleAssetPanelClose}>
-                            <OrthographyBridgeWorkspacePage
-                              registerSidePane={false}
-                              onClose={handleAssetPanelClose}
-                            />
-                          </CatalogProjectGate>
-                        </ModalPanel>
-                      </Suspense>
-                    ) : null}
+                    <Suspense fallback={null}>
+                      <ModalPanel
+                        isOpen={openAssetPanel === 'language-metadata'}
+                        onClose={handleAssetPanelClose}
+                        ariaLabel={t(locale, 'app.nav.languageMetadata')}
+                        closeLabel={t(locale, 'transcription.importDialog.close')}
+                        renderShell={false}
+                        wide
+                      >
+                        <CatalogProjectGate onLeave={handleAssetPanelClose}>
+                          <LanguageMetadataWorkspacePage
+                            registerSidePane={false}
+                            onClose={handleAssetPanelClose}
+                          />
+                        </CatalogProjectGate>
+                      </ModalPanel>
+                      <ModalPanel
+                        isOpen={openAssetPanel === 'structural-profiles'}
+                        onClose={handleAssetPanelClose}
+                        ariaLabel={structuralTemplatePanelLabel(locale, location.search)}
+                        closeLabel={t(locale, 'transcription.importDialog.close')}
+                        renderShell={false}
+                        wide
+                      >
+                        <CatalogProjectGate onLeave={handleAssetPanelClose}>
+                          <StructuralProfileWorkspacePage
+                            registerSidePane={false}
+                            onClose={handleAssetPanelClose}
+                          />
+                        </CatalogProjectGate>
+                      </ModalPanel>
+                      <ModalPanel
+                        isOpen={openAssetPanel === 'orthographies'}
+                        onClose={handleAssetPanelClose}
+                        ariaLabel={t(locale, 'app.nav.orthographies')}
+                        closeLabel={t(locale, 'transcription.importDialog.close')}
+                        renderShell={false}
+                        wide
+                      >
+                        <CatalogProjectGate onLeave={handleAssetPanelClose}>
+                          <OrthographyManagerPage
+                            registerSidePane={false}
+                            onClose={handleAssetPanelClose}
+                          />
+                        </CatalogProjectGate>
+                      </ModalPanel>
+                      <ModalPanel
+                        isOpen={openAssetPanel === 'orthography-bridges'}
+                        onClose={handleAssetPanelClose}
+                        ariaLabel={t(locale, 'app.nav.orthographyBridges')}
+                        closeLabel={t(locale, 'transcription.importDialog.close')}
+                        renderShell={false}
+                        wide
+                      >
+                        <CatalogProjectGate onLeave={handleAssetPanelClose}>
+                          <OrthographyBridgeWorkspacePage
+                            registerSidePane={false}
+                            onClose={handleAssetPanelClose}
+                          />
+                        </CatalogProjectGate>
+                      </ModalPanel>
+                    </Suspense>
                   </AssetPanelProvider>
                 </AiPanelProvider>
               </main>
             </div>
             {import.meta.env.DEV ? <DevErrorAggregationPanel /> : null}
             <AppGlobalToastHost />
-            {showLegacyWebChrome ? (
-              <>
-                <LegacyDataResetDialog locale={locale} />
-                <DbMigrationGateOverlay locale={locale} />
-                <BrowserDataResilience locale={locale} />
-              </>
-            ) : null}
-            {showLegacyWebChrome ? <CollaborationLifecycleNotices locale={locale} /> : null}
+            <LegacyDataResetDialog locale={locale} />
+            <DbMigrationGateOverlay locale={locale} />
+            <BrowserDataResilience locale={locale} />
+            <CollaborationLifecycleNotices locale={locale} />
             <SettingsModal
               isOpen={isSettingsOpen}
               onClose={handleSettingsClose}

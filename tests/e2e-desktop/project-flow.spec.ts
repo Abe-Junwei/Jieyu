@@ -50,6 +50,22 @@ const purgeConfirm = /^(Confirm purge|确认清除)$/;
 const deletedClip = /Manuscript Clip|文稿 Clip/;
 const userDataOf = new WeakMap<ElectronApplication, string>();
 
+test('renderer has no IndexedDB databases and stays on the desktop surface', async () => {
+  const app = await launch('surface');
+  try {
+    const page = await app.firstWindow();
+    await expect(page.getByRole('button', { name: openFolder })).toBeVisible();
+    await expect(page.getByTestId('desktop-unavailable')).toHaveCount(0);
+    const names = await page.evaluate(async () => {
+      const listed = await indexedDB.databases();
+      return listed.map((item) => item.name ?? '').filter((name) => name !== '');
+    });
+    expect(names).toEqual([]);
+  } finally {
+    await app.close();
+  }
+});
+
 test('transcription workspace seeks a segment and space starts playback', async () => {
   if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
   const app = await launch('tx-readonly');

@@ -3,7 +3,7 @@ title: Knip 例外清单（2026-05-08）
 doc_type: execution-governance-ledger
 status: active
 owner: repo
-last_reviewed: 2026-10-29
+last_reviewed: 2026-11-20
 source_of_truth: knip-exceptions
 ---
 
@@ -86,6 +86,7 @@ source_of_truth: knip-exceptions
 | 2026-05-12 | 删除死文件 `src/components/layerActionPopoverFieldIds.ts`；CI 门禁切换为 `check:knip:ci`（窄范围：files/dependencies/binaries/unlisted），`check:knip:full` 保留为本地宽范围参考；`ignoreBinaries` 清空、`ignoreDependencies` 收敛至仅 `cross-env` |
 | 2026-05-12 | `knip.json` 新增 `exclude: ["types"]`（unused types 规模 547 以假阳性为主，与 `--include-entry-exports` 口径一致；窄门禁已排除 types）；批量清理 AI chat / services / pages / db / extensions 共 64 个未使用导出，移除 `export` 或删除死代码；`ignoreIssues` 增补 12 项（动态 import、re-export、内部组织导出） | 技术债修复方案 |
 | 2026-10-29 | `ignoreDependencies` 增加 `linkedom`：运行时仅在缺少 `DOMParser` 时 `eval('require')` 加载，静态分析不可见（#427 / #440） | review-bugs |
+| 2026-11-20 | `entry` 增加 `vite.shared.ts`。桌面配置把 Sentry、rolldown、compression 的导入从 `vite.config.ts` 拆到该文件后，Knip 的 `project` 只扫 `src/`，这三个 devDependency 被报成未使用 | repo |
 
 ---
 

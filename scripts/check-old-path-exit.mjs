@@ -1,9 +1,25 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const root = process.cwd();
 const recordPath = 'scripts/old-path-exit.record.json';
 const surfaces = ['production', 'scripts', 'ci', 'e2e', 'keep'];
+const featureStatuses = ['planned', 'in-progress', 'ported', 'dropped'];
+// ADR-0134 §8: every legacy sub-feature names a slice, #285, C4, a drop, or the desktop file that already took it over.
+const subFeatureOwners = ['1b', '1c', '1d', '2', '3', '3b', '4', '5a', '5b', '6', '7', '#285', 'C4', 'drop', 'ported'];
+const legacyRoutePages = [
+  'src/pages/HomePage.tsx',
+  'src/pages/TranscriptionPage.tsx',
+  'src/pages/AnnotationPage.tsx',
+  'src/pages/AnalysisPage.tsx',
+  'src/pages/CorpusLibraryPage.tsx',
+  'src/pages/LexiconPage.tsx',
+  'src/pages/LanguageMetadataWorkspacePage.tsx',
+  'src/pages/OrthographyManagerPage.tsx',
+  'src/pages/OrthographyBridgeWorkspacePage.tsx',
+  'src/pages/StructuralProfileWorkspacePage.tsx',
+];
 
 function safeName(name) {
   return (
@@ -70,6 +86,110 @@ export function oldPathExitViolations(record, exists, read) {
   }
   for (const surface of surfaces) {
     if (!seen.has(surface)) violations.push(`missing ${surface}`);
+  }
+  return violations;
+}
+
+function namedList(value) {
+  return Array.isArray(value) ? value : null;
+}
+
+export function featureViolations(features, exists) {
+  if (!Array.isArray(features)) return ['old-path features are missing'];
+  const violations = [];
+  for (const feature of features) {
+    if (typeof feature !== 'object' || feature === null) {
+      violations.push('(unnamed) has a missing feature field');
+      continue;
+    }
+    const id = typeof feature.id === 'string' && feature.id.length > 0 ? feature.id : '(unnamed)';
+    if (!featureStatuses.includes(feature.status)) violations.push(`${id} has no feature status`);
+    const paths = namedList(feature.paths);
+    const oldTests = namedList(feature.oldTests);
+    const replacement = namedList(feature.replacement);
+    const desktopTests = namedList(feature.desktopTests);
+    if (!paths || !oldTests || !replacement || !desktopTests) {
+      violations.push(`${id} has a missing feature field`);
+      continue;
+    }
+    if (typeof feature.decision !== 'string') violations.push(`${id} has no decision`);
+    if (paths.length === 0) violations.push(`${id} names no path`);
+    const open = feature.status === 'planned' || feature.status === 'in-progress';
+    for (const name of [...paths, ...oldTests]) {
+      if (!safeName(name)) violations.push(`${id} has an unsafe path`);
+      else if (open && !exists(name)) violations.push(`${id} missing ${name}`);
+    }
+    for (const name of [...replacement, ...desktopTests]) {
+      if (!safeName(name)) violations.push(`${id} has an unsafe path`);
+      else if (!exists(name)) violations.push(`${id} missing ${name}`);
+    }
+    if (feature.status === 'ported') {
+      if (replacement.length === 0) violations.push(`${id} ported without replacement`);
+      if (desktopTests.length === 0) violations.push(`${id} ported without desktop tests`);
+      if (feature.decision === '') violations.push(`${id} ported without decision`);
+    }
+    if (feature.status === 'dropped') {
+      if (feature.decision === '') violations.push(`${id} dropped without decision`);
+      if (replacement.length > 0 || desktopTests.length > 0) violations.push(`${id} dropped with a port`);
+    }
+  }
+  return violations;
+}
+
+export function subFeatureViolations(features, exists) {
+  if (!Array.isArray(features)) return [];
+  const violations = [];
+  const seen = new Set();
+  for (const feature of features) {
+    if (typeof feature !== 'object' || feature === null) continue;
+    const featureId = typeof feature.id === 'string' && feature.id.length > 0 ? feature.id : '(unnamed)';
+    if (!Array.isArray(feature.subFeatures) || feature.subFeatures.length === 0) {
+      violations.push(`${featureId} lists no sub-features`);
+      continue;
+    }
+    for (const sub of feature.subFeatures) {
+      if (typeof sub !== 'object' || sub === null) {
+        violations.push(`${featureId}/(unnamed) has no owner`);
+        continue;
+      }
+      const id = `${featureId}/${typeof sub.id === 'string' && sub.id.length > 0 ? sub.id : '(unnamed)'}`;
+      if (seen.has(id)) violations.push(`${id} is listed twice`);
+      seen.add(id);
+      if (typeof sub.name !== 'string' || sub.name.length === 0) violations.push(`${id} has no name`);
+      if (!subFeatureOwners.includes(sub.owner)) {
+        violations.push(`${id} has no owner`);
+        continue;
+      }
+      if (typeof sub.ref !== 'string' || sub.ref.length === 0) {
+        violations.push(`${id} has no ref`);
+      } else if (sub.owner === 'ported') {
+        if (!/^(?:src|electron)\//.test(sub.ref) || !safeName(sub.ref) || !exists(sub.ref)) {
+          violations.push(`${id} ported to missing ${sub.ref}`);
+        }
+      } else if (!/^ADR-\d{4}\b/.test(sub.ref) && (!safeName(sub.ref) || !exists(sub.ref))) {
+        violations.push(`${id} points to missing ${sub.ref}`);
+      }
+    }
+  }
+  return violations;
+}
+
+export function legacyRouteGaps(record) {
+  const violations = [];
+  if (typeof record === 'object' && record !== null && 'surfaces' in record) {
+    violations.push('old-path record has surfaces');
+  }
+  const entries = Array.isArray(record?.entries) ? record.entries : [];
+  const routes = entries.find((entry) => entry.id === 'desktop-routes');
+  const routePaths = new Set(Array.isArray(routes?.paths) ? routes.paths : []);
+  const featurePaths = new Set(
+    (Array.isArray(record?.features) ? record.features : []).flatMap((feature) =>
+      Array.isArray(feature.paths) ? feature.paths : [],
+    ),
+  );
+  for (const page of legacyRoutePages) {
+    if (!routePaths.has(page)) violations.push(`desktop-routes missing ${page}`);
+    if (!featurePaths.has(page)) violations.push(`feature missing ${page}`);
   }
   return violations;
 }
@@ -174,15 +294,21 @@ function selfCheck() {
   }
 }
 
-selfCheck();
-const record = JSON.parse(fs.readFileSync(path.join(root, recordPath), 'utf8'));
-const violations = oldPathExitViolations(
-  record,
-  (name) => fs.existsSync(path.join(root, name)),
-  (name) => fs.readFileSync(path.join(root, name), 'utf8'),
-);
-if (violations.length > 0) {
-  for (const violation of violations) console.error(violation);
-  process.exit(1);
+function main() {
+  selfCheck();
+  const record = JSON.parse(fs.readFileSync(path.join(root, recordPath), 'utf8'));
+  const exists = (name) => fs.existsSync(path.join(root, name));
+  const violations = [
+    ...oldPathExitViolations(record, exists, (name) => fs.readFileSync(path.join(root, name), 'utf8')),
+    ...featureViolations(record.features, exists),
+    ...subFeatureViolations(record.features, exists),
+    ...legacyRouteGaps(record),
+  ];
+  if (violations.length > 0) {
+    for (const violation of violations) console.error(violation);
+    process.exit(1);
+  }
+  console.log('[check-old-path-exit] OK');
 }
-console.log('[check-old-path-exit] OK');
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) main();

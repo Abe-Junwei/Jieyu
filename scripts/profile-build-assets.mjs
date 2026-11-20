@@ -3,7 +3,7 @@ import path from 'node:path';
 import { buildBudgets, profileLargeJsHintThresholdBytes } from './build-budget-config.mjs';
 
 const workspaceRoot = process.cwd();
-const assetsDir = path.join(workspaceRoot, 'dist', 'assets');
+const assetsDir = path.join(workspaceRoot, 'dist-legacy', 'assets');
 
 function formatKiB(bytes) {
   return `${(bytes / 1024).toFixed(2)} kB`;
@@ -81,6 +81,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error('[build-profile] Failed to summarize dist/assets', error);
+  console.error('[build-profile] Failed to summarize dist-legacy/assets', error);
   process.exitCode = 1;
 });
