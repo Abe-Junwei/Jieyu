@@ -71,6 +71,7 @@ source_of_truth: decision-index
 
 ## 本轮范围与生命周期
 
+- [0134：旧网页功能缺口逐项归属，首发白名单补入 AI 助手、1c、3b](./0134-legacy-feature-gaps-assigned-to-slices.md)
 - [0131：桌面渲染层单独入口与构建，旧网页靠门禁隔离](./0131-desktop-renderer-build-isolated-from-legacy-web.md)
 - [0129：编辑回执、撤销阻断与时间码草稿冲突](./0129-edit-receipts-and-undo-guard.md)
 - [0128：时间码草稿进项目库，边界编辑按稿件撤销](./0128-time-drafts-and-edge-undo.md)
