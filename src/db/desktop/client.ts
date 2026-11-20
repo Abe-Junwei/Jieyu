@@ -23,6 +23,7 @@ type EditMethod =
   | 'units.create'
   | 'units.moveEdge'
   | 'units.moveSharedBoundary'
+  | 'units.moveUnit'
   | 'units.delete'
   | 'units.undo'
   | 'units.redo';
@@ -31,6 +32,7 @@ const EDIT_KINDS: Record<EditMethod, EditReceiptKind> = {
   'units.create': 'create',
   'units.moveEdge': 'moveEdge',
   'units.moveSharedBoundary': 'moveSharedBoundary',
+  'units.moveUnit': 'moveUnit',
   'units.delete': 'delete',
   'units.undo': 'undo',
   'units.redo': 'redo',
@@ -168,6 +170,8 @@ export function createDesktopClient(bridge: DesktopBridge) {
       sessionId: string,
       input: { leftId: string; rightId: string; time: number },
     ) => receipted(sessionId, 'units.moveSharedBoundary', { ...input }),
+    moveUnit: (sessionId: string, input: { unitId: string; delta: number }) =>
+      receipted(sessionId, 'units.moveUnit', { ...input }),
     previewUnitDelete: (sessionId: string, unitId: string) =>
       once(sessionId, 'units.deletePreview', { unitId }),
     deleteUnit: (sessionId: string, unitId: string) =>

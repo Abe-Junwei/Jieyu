@@ -540,6 +540,7 @@ describe('DesktopTranscriptionWorkspacePage edge gaps (#562)', () => {
       if (method === 'units.readTimeDraft') return [];
       if (method === 'units.deletePreview') {
         return {
+          linkedTexts: 0,
           tokens: 2,
           morphemes: 0,
           notes: 1,

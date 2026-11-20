@@ -28,6 +28,7 @@ export function useDesktopTranscriptionMediaController(input: {
   mediaUrl: string | null;
   units: readonly DesktopPlaybackUnit[];
   selectedUnitId: string | null;
+  selectedUnitIds?: readonly string[];
   tierContainerRef: RefObject<HTMLDivElement | null>;
   waveformWheelCaptureRootRef?: RefObject<HTMLElement | null>;
   onSelectUnit: (unitId: string) => void;
@@ -52,8 +53,8 @@ export function useDesktopTranscriptionMediaController(input: {
     [input.units],
   );
   const activeRegionIds = useMemo(
-    () => new Set(input.selectedUnitId ? [input.selectedUnitId] : []),
-    [input.selectedUnitId],
+    () => new Set(input.selectedUnitIds ?? (input.selectedUnitId ? [input.selectedUnitId] : [])),
+    [input.selectedUnitId, input.selectedUnitIds],
   );
 
   const seekToRef = useRef<(time: number) => void>(() => undefined);

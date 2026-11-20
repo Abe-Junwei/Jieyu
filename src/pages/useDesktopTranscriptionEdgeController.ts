@@ -54,7 +54,6 @@ export function useDesktopTranscriptionEdgeController(input: EdgeControllerInput
             ? current.edge
             : null,
         raw: { ...EMPTY_EDGE_UI.raw, unitId: unitId ?? '' },
-        reason: current.reason?.unitId === unitId ? current.reason : null,
       }));
     }
     return watchTimeDraft({

@@ -160,7 +160,9 @@ import {
   manuscriptIdOf,
   moveSharedBoundary,
   moveUnitEdge,
+  moveUnitSpan,
   previewUnitDeletion,
+  timedDescendants,
   removeUnit,
 } from './unitEdges';
 import { inspectEditReceipt, withEditReceipt, type EditReceiptKind } from './editReceipts';
@@ -194,6 +196,7 @@ const EDIT_METHODS = {
   create: 'units.create',
   moveEdge: 'units.moveEdge',
   moveSharedBoundary: 'units.moveSharedBoundary',
+  moveUnit: 'units.moveUnit',
   delete: 'units.delete',
   undo: 'units.undo',
   redo: 'units.redo',
@@ -530,6 +533,9 @@ const operationHandlers = {
           if (moved.move) {
             rememberSessionEdit(ctx.sessionId, { kind: 'edge', undo: moved.move });
             discardUnitTimeDraft(ctx.db, move.unitId, move.edge);
+            for (const follower of moved.move.followers ?? []) {
+              discardUnitTimeDraft(ctx.db, follower.unitId);
+            }
           }
           return moved.unit;
         },
@@ -558,6 +564,31 @@ const operationHandlers = {
             discardUnitTimeDraft(ctx.db, move.rightId, 'start');
           }
           return { left: moved.left, right: moved.right };
+        },
+      );
+    },
+  },
+  'units.moveUnit': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.moveUnit']['check']>) => {
+      const { operationId, ...move } = input;
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'moveUnit',
+          payload: move,
+          manuscriptId: () => manuscriptIdOf(ctx.db, move.unitId),
+        },
+        () => {
+          const moved = moveUnitSpan(ctx.db, move);
+          if (moved.move) {
+            rememberSessionEdit(ctx.sessionId, { kind: 'span', undo: moved.move });
+            discardUnitTimeDraft(ctx.db, move.unitId);
+            for (const child of timedDescendants(ctx.db, move.unitId)) {
+              discardUnitTimeDraft(ctx.db, child.id);
+            }
+          }
+          return moved.unit;
         },
       );
     },

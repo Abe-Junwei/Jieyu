@@ -4,6 +4,7 @@ import { formatPlaybackTime } from './useDesktopTranscriptionMediaController';
 import {
   neighborTargets,
   previewDrag,
+  previewMove,
   snapEdgeMs,
   touchingPair,
   type EdgeSelection,
@@ -18,6 +19,8 @@ export interface ShownPreview {
   otherStartMs: number | null;
   otherEndMs: number | null;
   tip: string | null;
+  /** A whole-segment move: the children shift too, so no "children follow" tip. */
+  moving?: true;
   x: number;
   y: number;
 }
@@ -124,6 +127,57 @@ export function startEdgeDrag(input: {
     () => {
       input.setPreview(null);
       input.commit(shared, time, originMs);
+    },
+  );
+}
+
+/** Drag a whole segment along the time axis; a press that never travels is a click. */
+export function startMoveDrag(input: {
+  unitId: string;
+  event: ReactPointerEvent<HTMLElement>;
+  units: readonly TimedEdgeUnit[];
+  readZoom: () => number;
+  playheadMs: () => number | null;
+  snapMessage: (kind: 'neighbor' | 'playhead', time: string) => string;
+  setPreview: (preview: ShownPreview | null) => void;
+  commit: (deltaMs: number) => void;
+  onClick: () => void;
+}) {
+  const event = input.event;
+  if (event.button !== 0) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const unit = input.units.find((item) => item.id === input.unitId);
+  if (!unit) return;
+  const originX = event.clientX;
+  let delta = 0;
+  let moved = false;
+  listen(
+    (pointer) => {
+      if (!moved && Math.abs(pointer.clientX - originX) <= CREATE_DRAG_PX) return;
+      moved = true;
+      const next = previewMove({
+        unit,
+        deltaPx: pointer.clientX - originX,
+        zoomPxPerSec: input.readZoom(),
+        units: input.units,
+        playheadMs: input.playheadMs(),
+        alt: pointer.altKey,
+      });
+      delta = next.startMs - unit.startMs;
+      const tip =
+        next.kind === null
+          ? null
+          : input.snapMessage(next.kind, formatPlaybackTime(next.timeMs / 1000));
+      input.setPreview({ ...next, tip, moving: true, x: pointer.clientX, y: pointer.clientY });
+    },
+    () => {
+      input.setPreview(null);
+      if (!moved) input.onClick();
+      else {
+        swallowNextClick();
+        if (delta !== 0) input.commit(delta);
+      }
     },
   );
 }
