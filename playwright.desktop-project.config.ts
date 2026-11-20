@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
-// Test Electron windows stay hidden and never take focus; set to 0 to watch them.
-process.env.JIEYU_DESKTOP_HIDE_WINDOW ??= '1';
+// Local runs hide the window so it does not take focus. CI keeps it shown under Xvfb.
+if (process.env.CI !== 'true') process.env.JIEYU_DESKTOP_HIDE_WINDOW ??= '1';
 
 /** Electron proof for the one-sqlite folder flow. Runs in CI as `desktop-flow` (electron-smoke.yml). */
 export default defineConfig({
