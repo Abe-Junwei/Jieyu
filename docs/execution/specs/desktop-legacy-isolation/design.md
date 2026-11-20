@@ -19,7 +19,7 @@ depends_on:
 - 同类产品 / 标杆实现：VS Code 的 desktop 与 web 入口各自构建；Electron renderer 单独打包；Strangler Fig 迁移中新系统先有自己的入口。
 - 业内 best practice：dependency-cruiser、eslint-plugin-boundaries、Nx module boundaries 都是按区禁止导入；源码检查配合产物检查（rolldown `generateBundle` 读取模块列表）。
 - 公认不可行 / 反模式：只靠运行时分支；长期 allowlist；先拆壳再切入口；拆仓库。
-- 潜在的坑：type-only 导入不计；`import.meta.glob` 和副作用导入只能靠产物门禁兜底；共享 Vite 配置如果带上 `VitePWA`，桌面包就会有 service worker；`navigator.webdriver` 分支会把迁移探针装进渲染层；同一根目录下的第二份 HTML 不会被 `/` 使用，`vite preview` 的子路由回落到 `index.html`；wasm 复制若写死 `dist/`，旧网页构建会进桌面安装包。
+- 潜在的坑：`import type` 不计，但 `import { type X }` 在 `verbatimModuleSyntax` 下会留下空导入，要计；`.js` 源文件也在图里。`import.meta.glob` 和副作用导入只能靠产物门禁兜底；共享 Vite 配置如果带上 `VitePWA`，桌面包就会有 service worker；`navigator.webdriver` 分支会把迁移探针装进渲染层；同一根目录下的第二份 HTML 不会被 `/` 使用，`vite preview` 的子路由回落到 `index.html`；wasm 复制若写死 `dist/`，旧网页构建会进桌面安装包。
 - 决定：**适配**。门禁用 TypeScript 编译器 API 实现，不新增依赖；台账在现有记录上扩展；构建沿用 Vite。
 
 ## 2. 架构选择

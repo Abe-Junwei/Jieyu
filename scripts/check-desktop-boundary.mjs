@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
- * 桌面渲染层不得到达旧区（ADR-0131）。值导入和动态 import() 算边，type-only 不算。
- * Desktop renderer must not reach the legacy zone. Value imports and dynamic import() count; type-only does not.
+ * 桌面渲染层不得到达旧区（ADR-0131）。值导入、动态 import()、以及 `import { type X }` 算边。
+ * `import type` 会被删掉，不算。`.js` 源文件在图里。
+ * Desktop renderer must not reach the legacy zone. Value imports, dynamic import(), and
+ * `import { type X }` count. `import type` is erased and does not. `.js` sources are in the graph.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
@@ -12,8 +14,12 @@ function relPosix(root, file) {
   return relative(root, file).split(sep).join('/');
 }
 
+function isSourceName(name) {
+  return /\.(tsx?|js)$/.test(name) && !name.endsWith('.d.ts');
+}
+
 function isTestPath(rel) {
-  return /\.(test|spec)\.tsx?$/.test(rel);
+  return /\.(test|spec)\.(tsx?|js)$/.test(rel);
 }
 
 function listSources(dir) {
@@ -24,7 +30,7 @@ function listSources(dir) {
       out.push(...listSources(full));
       continue;
     }
-    if (!/\.tsx?$/.test(name) || name.endsWith('.d.ts')) continue;
+    if (!isSourceName(name)) continue;
     out.push(full);
   }
   return out;
@@ -47,16 +53,14 @@ export function readLegacyRoots(repoRoot = process.cwd()) {
   return zone.roots;
 }
 
+export function missingLegacyRoots(repoRoot, roots) {
+  return roots.filter((root) => root.includes('/') && !existsSync(join(repoRoot, root)));
+}
+
 function isValueImport(node) {
+  // `import type` is erased. `import { type X }` still emits `import {}` under verbatimModuleSyntax.
   if (node.isTypeOnly) return false;
-  const clause = node.importClause;
-  if (!clause) return true;
-  if (clause.isTypeOnly) return false;
-  if (clause.name) return true;
-  const named = clause.namedBindings;
-  if (!named) return false;
-  if (ts.isNamespaceImport(named)) return true;
-  return named.elements.some((element) => !element.isTypeOnly);
+  return node.importClause?.isTypeOnly !== true;
 }
 
 function isValueExport(node) {
@@ -67,7 +71,11 @@ function isValueExport(node) {
 }
 
 function specifiersOf(filePath) {
-  const kind = filePath.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const kind = filePath.endsWith('.tsx')
+    ? ts.ScriptKind.TSX
+    : filePath.endsWith('.js')
+      ? ts.ScriptKind.JS
+      : ts.ScriptKind.TS;
   const source = ts.createSourceFile(filePath, readFileSync(filePath, 'utf8'), ts.ScriptTarget.Latest, true, kind);
   const specs = [];
   const visit = (node) => {
@@ -91,7 +99,8 @@ function specifiersOf(filePath) {
 }
 
 function asSource(repoRoot, candidate) {
-  if (!existsSync(candidate) || !/\.tsx?$/.test(candidate) || candidate.endsWith('.d.ts')) return null;
+  const name = candidate.split(sep).pop();
+  if (!existsSync(candidate) || !isSourceName(name)) return null;
   const rel = relPosix(repoRoot, candidate);
   return isTestPath(rel) ? null : rel;
 }
@@ -102,11 +111,11 @@ export function resolveImportSpec(repoRoot, fromFull, spec) {
   if (spec.startsWith('~/')) base = join(repoRoot, 'src', spec.slice(2));
   else if (spec.startsWith('.')) base = resolve(dirname(fromFull), spec);
   if (base === null) return null;
-  if (base.endsWith('.js')) base = base.slice(0, -3);
   const direct = asSource(repoRoot, base);
   if (direct) return direct;
-  for (const suffix of ['.ts', '.tsx']) {
-    const hit = asSource(repoRoot, `${base}${suffix}`) ?? asSource(repoRoot, join(base, `index${suffix}`));
+  const stripped = base.endsWith('.js') ? base.slice(0, -3) : base;
+  for (const suffix of ['.ts', '.tsx', '.js']) {
+    const hit = asSource(repoRoot, `${stripped}${suffix}`) ?? asSource(repoRoot, join(stripped, `index${suffix}`));
     if (hit) return hit;
   }
   return null;
@@ -162,6 +171,11 @@ function main() {
   const repoRoot = process.cwd();
   const roots = desktopRoots(repoRoot);
   const legacy = readLegacyRoots(repoRoot);
+  const missing = missingLegacyRoots(repoRoot, legacy);
+  if (missing.length > 0) {
+    console.error(`legacy zone root missing:\n  ${missing.join('\n  ')}`);
+    process.exit(1);
+  }
   const violations = findBoundaryViolations(collectImports(repoRoot, roots), roots, legacy);
   if (violations.length === 0) {
     console.log(`desktop boundary: 0 (${roots.length} roots)`);
