@@ -74,13 +74,17 @@
     },
     {
       "file": "src/components/transcription/RegionActionOverlay.tsx",
-      "reason": "Selected-region action overlay follows runtime waveform x-position.",
+      "reason": "Selected-region action overlay follows runtime waveform x-position, and its speed slider fill is a runtime percentage.",
       "reviewer": "GitHub Copilot + junwei",
-      "reviewedAt": "2026-04-26",
+      "reviewedAt": "2026-11-20",
       "snippets": [
         {
           "anchor": "left: Math.max(0, leftPx)",
           "reviewedSha256": "636538aa21c63d1e17a2c092a74fbab8afbd934f548271b6fd91aad4b914d970"
+        },
+        {
+          "anchor": "'--speed-fill'",
+          "reviewedSha256": "a88b8f60ecee0ba70f8f879035581b770a06f7a7a04178c4e7109e930171749b"
         }
       ]
     },
@@ -97,14 +101,70 @@
       ]
     },
     {
-      "file": "src/components/TimeRuler.tsx",
-      "reason": "Overview viewport position and width depend on the live waveform window geometry.",
-      "reviewer": "GitHub Copilot + junwei",
-      "reviewedAt": "2026-04-26",
+      "file": "src/components/TimeRulerOverview.tsx",
+      "reason": "Overview viewport position and width follow the live waveform window.",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-20",
       "snippets": [
         {
-          "anchor": "left: overviewViewportLeft, width: overviewViewportWidth",
-          "reviewedSha256": "a4fb4360fbe33f6f68b3bdf0661f93260cf259dd2b71f0869d01eba823144695"
+          "anchor": "style={{ left, width }}",
+          "reviewedSha256": "d9f32ee9ff486563437cf192bfd165dad17075a22284ea44560f1f6169a5c4a0"
+        }
+      ]
+    },
+    {
+      "file": "src/pages/DesktopTranscriptionLane.tsx",
+      "reason": "Lane track width, draft segment frame, and seam position follow live zoom and pointer time.",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-20",
+      "snippets": [
+        {
+          "anchor": "width: props.duration * props.zoomPxPerSec",
+          "reviewedSha256": "c2eb4a00f3721f29fa951e2a69bdc900b36113c7c2b8be1d7843480425a51fa3"
+        },
+        {
+          "anchor": "style={desktopSegmentFrame(",
+          "reviewedSha256": "46f10a047354bc12981116212004f3011a517780179bfb4bbb00a23adb504d8f"
+        },
+        {
+          "anchor": "left: seamLeft(",
+          "reviewedSha256": "c0fba6a18c29c85606885c1629a33ded60dd42774ae251eae86121688f4c3fa8"
+        }
+      ]
+    },
+    {
+      "file": "src/pages/DesktopTranscriptionWorkspacePage.tsx",
+      "reason": "Volume fill, zoom fill, and waveform band heights are runtime values.",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-20",
+      "snippets": [
+        {
+          "anchor": "'--volume-fill'",
+          "reviewedSha256": "874807b3c5082f2997f2c890053e6e8e6bd3ebcf7900bd53c22ec05f6dc90536"
+        },
+        {
+          "anchor": "'--desktop-wave-primary'",
+          "reviewedSha256": "db366265c99aa93248b4ed55d29f573da1b8e53c49b16b91c24541b5b197673e"
+        },
+        {
+          "anchor": "'--zoom-fill'",
+          "reviewedSha256": "8d9e3589d2c4bcdcb02682dda7ff0fe57d9af9bd2fe28d896c7c167a91b2b94f"
+        }
+      ]
+    },
+    {
+      "file": "src/pages/DesktopTranscriptionEdgeChrome.tsx",
+      "reason": "Snap tip and edge menu follow live pointer coordinates.",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-20",
+      "snippets": [
+        {
+          "anchor": "left: props.tip.x, top: props.tip.y",
+          "reviewedSha256": "c8091f96f8ee5b9ccbcfa9e50946a1be7b4fadd98eacbeef8bcfa72f47cffa1b"
+        },
+        {
+          "anchor": "left: props.menu.x, top: props.menu.y",
+          "reviewedSha256": "fb298bfdf3f71a460bc0d1a04864df06d18918a15f4eda0138d9c9f578d7532b"
         }
       ]
     },
