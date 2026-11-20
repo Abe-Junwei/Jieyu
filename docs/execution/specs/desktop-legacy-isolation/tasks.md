@@ -56,7 +56,7 @@ depends_on:
 
 | 项 | 决定 | 文件 |
 | --- | --- | --- |
-| `ErrorBoundary`、`LocaleProvider`、`AppSidePaneProvider` | 搬 | `src/components/ErrorBoundary.tsx`、`src/i18n`、`src/contexts/AppSidePaneContext.tsx` |
+| `ErrorBoundary`、`LocaleProvider`、`AppSidePaneProvider` | 搬 | `src/components/ErrorBoundary.tsx`、`src/i18n`、`src/contexts/AppSidePaneContext.tsx`。`ErrorBoundary` 导入 `devRuntimeRecovery.ts` 的 `reloadOnceForStaleDevReact`，所以该文件不进旧区 |
 | `AppOfflineStatusBanner`、`WorkspaceReturnBanner`、`AppGlobalToastHost` | 搬 | 同名组件文件 |
 | 左栏主导航、设置按钮 | 搬 | `App.tsx` 内部 |
 | `AppShellSidePane`、侧栏折叠/宽度、`usePanelAutoCollapse`、`usePanelResize` | 搬 | 侧栏函数在 `App.tsx` 内部；hook 在 `src/hooks/panel/` |
@@ -83,15 +83,21 @@ depends_on:
 
 ### `main.tsx` 启动
 
-桌面入口不复制这些。`e2eMigrationHarness` 已在 S2 名单。
+`e2eMigrationHarness` 已在 S2 名单。下面这些文件都到不了旧区，除非另注。
 
 | 启动项 | 决定 | 文件 |
 | --- | --- | --- |
+| `@vitejs/plugin-react/preamble` | 搬 | 开发热更新需要它 |
+| `app-foundation.css` | 搬 | `src/styles/app-foundation.css` |
+| `initGlobalErrorHandlers` | 搬 | `main.tsx` 内部 |
+| OTel、Sentry、LCP 观测 | 搬 | `src/observability/otel.ts`、`src/observability/sentry.ts`、`src/observability/webVitals.ts` |
+| `initTheme` | 搬 | `src/utils/theme.ts` |
+| `requestPersistAtStartup` | 不要 | `src/utils/storageDurability.ts`。这是浏览器存储持久化；桌面用 SQLite。启动不调用，文件不列入旧区根 |
 | `navigator.webdriver` 下安装迁移探针 | 不要 | `src/db/migration/e2eMigrationHarness.ts` |
 | `resumeProjectCleanupJobs` | 不要 | `src/services/projectLocalCleanupJobs.ts`（到达 `dexie`） |
-| 开发态 service worker 恢复 | 不要 | `src/utils/devRuntimeRecovery.ts` |
+| `dropDevServiceWorkerRegistration` | 不要 | `main.desktop.tsx` 不调用。`devRuntimeRecovery.ts` 不进旧区，否则搬 `ErrorBoundary` 会违规 |
 | `QueryClient` 与 `connectDesktopInvalidation` | 搬 | 已是桌面查询失效 |
-| 界面语言词表预热 | 搬 | `src/data/iso6393Seed.ts`、`src/data/languageCatalogRuntimeCache.ts` 到不了旧区 |
+| 界面语言词表预热 | 搬 | `src/data/iso6393Seed.ts`、`src/data/languageCatalogRuntimeCache.ts` |
 | 预载 `VadMediaBackend.browser` | 不要 | 启动不预载。文件不列入旧区根 |
 
 ### S3b 要补进 `legacy-zone.json` 的路径
@@ -108,7 +114,6 @@ S2 名单里还没有的不要项：
 - `src/components/transcription/TranscriptionLeftRailLayerActions.tsx`
 - `src/services/LinguisticService.ts`
 - `src/services/projectLocalCleanupJobs.ts`
-- `src/utils/devRuntimeRecovery.ts`
 
 S8 要改的现状句：
 
