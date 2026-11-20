@@ -212,6 +212,7 @@ const DOC_LOCATIONS = [
   /^docs\/execution\/release-gates\/release-evidence\/[^/]+\.md$/,
   /^docs\/execution\/specs\/(README\.md|[^/]+\/(requirements|design|tasks)\.md)$/,
   /^docs\/wayfinder\/[^/]+\/.+\.md$/,
+  /^docs\/history\/[^/]+\.md$/,
 ];
 
 /** Every docs markdown file belongs to a type in ADR-0051. */
@@ -226,6 +227,44 @@ export function specTasksFailures(relativePath, source) {
   if (!match || match[1] === '_template') return [];
   if (/^\s*[-*] \[ \]/m.test(source)) return [];
   return [`${relativePath}: every task is checked; delete docs/execution/specs/${match[1]}/ (ADR-0051)`];
+}
+
+const HISTORY_DOC = /^docs\/history\/[^/]+\.md$/;
+const LIVE_PLAN_DOC = /^docs\/execution\/plans\/(?!README\.md$)[^/]+\.md$/;
+
+/** A history snapshot is split from a plan that still exists (ADR-0135). */
+export function historyDocFailures(relativePath, source, exists = fs.existsSync) {
+  if (!HISTORY_DOC.test(relativePath)) return [];
+  const frontmatter = parseFrontmatter(source);
+  const failures = [];
+  if (unquote(frontmatter?.get('doc_type')) !== 'history') {
+    failures.push(`${relativePath}: history snapshot needs \`doc_type: history\` (ADR-0135)`);
+  }
+  const splitFrom = unquote(frontmatter?.get('split_from'));
+  if (!splitFrom) {
+    failures.push(`${relativePath}: history snapshot needs \`split_from:\` (ADR-0135)`);
+  } else if (!LIVE_PLAN_DOC.test(splitFrom)) {
+    failures.push(`${relativePath}: split_from \`${splitFrom}\` must be a plan in \`docs/execution/plans/\` (ADR-0135)`);
+  } else if (!exists(path.join(workspaceRoot, splitFrom))) {
+    failures.push(`${relativePath}: split_from \`${splitFrom}\` does not exist; delete the snapshot or move what is still needed into a live doc (ADR-0135)`);
+  }
+  return failures;
+}
+
+/** A history snapshot nothing links to has no reader left (ADR-0135). */
+export function unlinkedHistoryFailures(historyPaths, sourcesByPath) {
+  return historyPaths
+    .filter((historyPath) => {
+      const name = path.posix.basename(historyPath);
+      const encoded = encodeURIComponent(name);
+      return ![...sourcesByPath].some(
+        ([rel, source]) =>
+          rel !== historyPath &&
+          !/^docs\/(?:adr|history)\//.test(rel) &&
+          (source.includes(name) || source.includes(encoded)),
+      );
+    })
+    .map((historyPath) => `${historyPath}: no file links to this history snapshot; delete it (ADR-0135)`);
 }
 
 const CODE_PATH_PATTERN = /`((?:src|scripts|docs|tests|\.github|\.cursor)\/[^`\s]+?\.[A-Za-z0-9]+)(?:[:#][^`]*)?`/g;
@@ -301,7 +340,7 @@ export function codeDriftWarnings(changedFiles, docs) {
 
 export function listPathCheckedDocs() {
   return [
-    ...listMarkdownFiles(docsRoot).filter((fullPath) => !toPosix(path.relative(workspaceRoot, fullPath)).startsWith('docs/adr/')),
+    ...listMarkdownFiles(docsRoot).filter((fullPath) => !/^docs\/(adr|history)\//.test(toPosix(path.relative(workspaceRoot, fullPath)))),
     ...listEntryLinkFiles(),
   ]
     .filter((fullPath) => fs.existsSync(fullPath))
@@ -329,13 +368,17 @@ function run() {
   const warnings = [];
   const markdownFiles = listMarkdownFiles(docsRoot);
   const citationCandidates = [];
+  const historyPaths = [];
+  const docSources = new Map();
 
   for (const fullPath of markdownFiles) {
     const relativePath = toPosix(path.relative(workspaceRoot, fullPath));
     const source = fs.readFileSync(fullPath, 'utf8');
     const frontmatter = parseFrontmatter(source);
 
-    failures.push(...docLocationFailures(relativePath), ...specTasksFailures(relativePath, source));
+    failures.push(...docLocationFailures(relativePath), ...specTasksFailures(relativePath, source), ...historyDocFailures(relativePath, source));
+    docSources.set(relativePath, source);
+    if (HISTORY_DOC.test(relativePath)) historyPaths.push(relativePath);
     if (requiresCitation(relativePath)) citationCandidates.push(relativePath);
 
     if (requiresStableFrontmatter(relativePath)) {
@@ -380,7 +423,10 @@ function run() {
     (isStrictCodePathFile(relativePath) ? failures : warnings).push(...pathFailures);
   }
 
-  failures.push(...uncitedDocFailures(citationCandidates, readCiterSources()));
+  const citerSources = readCiterSources();
+  failures.push(...uncitedDocFailures(citationCandidates, citerSources));
+  citerSources.forEach((source, index) => docSources.set(`#citer-${index}`, source));
+  failures.push(...unlinkedHistoryFailures(historyPaths, docSources));
 
   for (const warning of warnings) console.warn(`[check-docs-governance] WARN: ${warning}`);
 
