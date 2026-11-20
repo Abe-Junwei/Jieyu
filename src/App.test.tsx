@@ -299,7 +299,7 @@ describe('App shell', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByTestId('desktop-folder-page')).toBeTruthy();
+    expect(await screen.findByTestId('desktop-transcription-workspace')).toBeTruthy();
     expect(screen.getByRole('link', { name: /转写|Transcription/ }).className).toContain(
       'left-rail-btn-active',
     );
@@ -662,7 +662,7 @@ describe('App shell', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByTestId('desktop-folder-page')).toBeTruthy();
+    expect(await screen.findByTestId('desktop-transcription-workspace')).toBeTruthy();
     expect(screen.queryByTestId('transcription-page')).toBeNull();
     expect(getActiveProjectTextId()).toBe('');
   });

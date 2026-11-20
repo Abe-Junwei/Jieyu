@@ -10,7 +10,24 @@ import { forgetOpenProjectSession } from '../desktop/openProjectSession';
 import { DesktopPageRouter, resetDesktopPageRouters } from '../test/desktopPageRouter';
 import { DesktopTranscriptionWorkspacePage } from './DesktopTranscriptionWorkspacePage';
 
-vi.mock('wavesurfer.js', () => ({ default: { create: vi.fn() } }));
+vi.mock('wavesurfer.js', () => ({
+  default: {
+    create: vi.fn(() => ({
+      on: vi.fn(),
+      un: vi.fn(),
+      load: vi.fn(() => Promise.resolve()),
+      setVolume: vi.fn(),
+      setPlaybackRate: vi.fn(),
+      destroy: vi.fn(),
+      getDecodedData: vi.fn(() => null),
+      getDuration: vi.fn(() => 0),
+      getCurrentTime: vi.fn(() => 0),
+      isPlaying: vi.fn(() => false),
+      zoom: vi.fn(),
+      getScroll: vi.fn(() => 0),
+    })),
+  },
+}));
 vi.mock('wavesurfer.js/dist/plugins/regions.esm.js', () => ({
   default: { create: vi.fn(() => ({ on: vi.fn(), destroy: vi.fn(), clearRegions: vi.fn() })) },
 }));
