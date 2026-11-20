@@ -3,7 +3,7 @@ title: desktop-4ws-slice1b-transcription-editing requirements
 doc_type: execution-spec-requirements
 status: draft
 owner: repo
-last_reviewed: 2026-11-18
+last_reviewed: 2026-11-19
 source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 ---
 
@@ -13,7 +13,7 @@ source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 
 - **要做什么**：在桌面转写工作区接上波形、播放、时间轴，按 ADR-0100 E06 交付边界、拆分、合并、点层与撤销，写入单库并可重开读回。
 - **为什么现在做**：主路线图 2026-11-02 唯一执行队列 1b；1a（[#556](https://github.com/Abe-Junwei/Jieyu/issues/556)）合入后开工。现有单库写操作与 E06 有差额（design §1）。
-- **不做什么**：VAD／自动分段（FR-072）、自动对齐、口译轨、相邻合并候选扫描（EF-018 推荐半片，第二程）、按参与者复制层（EF-017）、右栏检查器（精稿已撤回）、ELAN 推土机／平移模式、给没录音的句段编造时间。
+- **不做什么**：自动对齐、相邻合并候选扫描（EF-018 推荐半片，第二程）、按参与者复制层（EF-017）、右栏检查器（精稿已撤回）、ELAN 推土机／平移模式、给没录音的句段编造时间。自动分段（FR-072）与口译轨（译文录音、播放、删除、语音转文字）在 2026-11-19 排入本切片，见 tasks.md。
 
 ## 2. 用户场景
 
@@ -25,7 +25,10 @@ source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 
 - [ ] 内部时间为整数毫秒并改名（`startMs`／`endMs`、`timeMs`、`rangeStartMs`／`rangeEndMs`），开始早于结束；导入取整经 `timeMs.ts`（恰半毫秒向时间轴正方向）
 - [ ] 文稿可以不挂录音：按 `sort_order` 和字数排版，时间可空；部分对齐时已对齐段的时间与顺序一致，未对齐段夹在中间。没录音不能新建点层。解除录音关联保留已有句段时间和点（ADR-0122）
-- [ ] 同层区间不重叠、可相接；不同说话人／层的跨轨重叠合法（R04）；超出媒体范围按文献轴映射判断后拒绝
+- [ ] 同层内同说话人（或均未指定说话人）区间禁止重叠、可相接；不同说话人（分轨显示）及不同层的跨轨重叠合法（E06／R04）；超出媒体范围按范围判断后拒绝
+- [ ] 层结构与分轨：层支持按 E06 迁移或 90 天软删（入统一已删除列表）；层高与显示字体存 `layers` 表；说话人分轨锁定存 `layer_lane_locks` 子表，不入 `project.settings_json`
+- [ ] 口译轨：译文短录音走 `attachments/objects/<sha256>` 内容寻址存储并与 `unit_texts` 关联；语音转文字本机 Whisper 优先，云端遵守 E11 项目授权不静默回退，识别文本进候选待人工确认后再写入译文
+- [ ] 自动分段（FR-072）：仅在当前转写层空白区间生成新段（严格 0 ms 不重叠、不改已有段），整批一次事务提交且同一步可撤销
 - [ ] 拖动到非法位置按 E06 回退；时间码框里的半成品按 E02 存为草稿，不回退
 - [ ] 默认单边移动；Shift 拖动联动共用边界，右键菜单同一动作；键盘先选中共用边界再用方向键移；同一步保存与撤销
 - [ ] 拖动默认在 8 像素内吸附到邻段边与播放头，按住 Alt／Option 临时关闭
@@ -39,7 +42,7 @@ source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 - [ ] 拆合产生新身份并保留旧→新映射；唯一对应的分析保留，其余标待复核；拆合形成完整分析历史版本（E04）
 - [ ] 点层：点只带时刻与文字标签（无说话人、上级、下级）；同层同毫秒唯一，可增删改移
 - [ ] 每项写入：写 → 关闭 → 重开 → 读回；Electron 合成证据（`test:e2e:desktop-project`）
-- [ ] flag `desktopTranscriptionWorkspaceEnabled` 默认 false；关时旧读页不变
+- [ ] flag `desktopTranscriptionWorkspaceEnabled` 默认开；显式 `false` 时旧读页不变
 
 ## 4. 受影响代码地图
 
@@ -47,7 +50,7 @@ source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 | --- | --- | --- |
 | 页面 | `src/pages/DesktopTranscriptionWorkspacePage.tsx` | 仅装配；去检查器 |
 | Controller | `src/pages/useDesktopTranscription*Controller.ts` | 新增（媒体、选择、句段编辑分开） |
-| Hook 复用 | `src/hooks/media/useWaveSurfer.ts`、`WaveformToolbar` | 复用，不改语义 |
+| Hook 复用 | `src/hooks/media/useWaveSurfer.ts`、`WaveformToolbar` | 复用，不改语义。选区按钮和速度滑杆的画法按 ADR-0127，旧页同一套类一起改 |
 | 组件复用 | `TranscriptionTimelineMediaTranscriptionLane`、`TimelineAnnotationItem` | 受控 props；不挂 `VerticalView`／`HorizontalMediaLanes` |
 | Schema / DB | `src/db/desktop/schema.ts`、`units.ts`、`unitSpan.ts`、新 `points.ts` | user_version 29；改写边界／拆分／合并 |
 | 宿主 | `operationContract.ts`、`desktopCall.ts`、`client.ts` | 新操作 |

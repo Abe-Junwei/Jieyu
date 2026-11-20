@@ -6,6 +6,12 @@ import type {
 export interface DesktopReadHost {
   projectReadEnabled: boolean;
   chooseDesktopFolder(): Promise<{ sessionId: string } | { cancelled: true }>;
+  importRecording?(
+    sessionId: string | null,
+  ): Promise<
+    | { cancelled: true }
+    | { relpath: string; sha256: string; filename: string; url: string; sessionId: string }
+  >;
   chooseImportFile?(
     sessionId: string,
   ): Promise<{ grantId: string; rolesGrantId?: string } | { cancelled: true }>;

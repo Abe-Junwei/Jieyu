@@ -68,19 +68,31 @@ describe('desktop operation contract', () => {
     const addedAfterSnapshot = [
       'attachments.finishCleanup',
       'attachments.read',
-      'manuscripts.retime',
       'media.listDeleted',
       'sources.create',
       'units.discardTextDraft',
       'units.inspectTextSave',
       'units.putTextDraft',
       'units.readTextDraft',
+      'recordings.register',
+      'units.moveEdge',
+      'units.moveSharedBoundary',
+      'units.delete',
+      'units.deletePreview',
+      'units.inspectEdit',
+      'units.dropUndo',
+      'units.dropRedo',
+      'units.redo',
+      'units.putTimeDraft',
+      'units.readTimeDraft',
+      'units.discardTimeDraft',
     ];
     for (const key of addedAfterSnapshot) {
       expect(DESKTOP_METHODS_AT_5fbc66f8).not.toContain(key);
       expect(contract).toContain(key);
     }
-    expect(unique(['reopen', ...contract]).sort()).toEqual(
+    const removedByAdr0122 = ['manuscripts.rollbackTimeMapping', 'manuscripts.setTimeMapping'];
+    expect(unique(['reopen', ...contract, ...removedByAdr0122]).sort()).toEqual(
       unique([...DESKTOP_METHODS_AT_5fbc66f8, ...addedAfterSnapshot]).sort(),
     );
     expect(Object.keys(desktopOperations).sort()).toEqual([...contract].sort());

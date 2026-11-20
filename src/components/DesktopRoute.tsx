@@ -1,19 +1,25 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
-import { sessionExpiredMessage, resolveDesktopSurface } from '../desktop/desktopSurface';
+import {
+  electronDesktopPresent,
+  sessionExpiredMessage,
+  resolveDesktopSurface,
+} from '../desktop/desktopSurface';
 import { forgetOpenProjectSession, readOpenProjectSession } from '../desktop/openProjectSession';
 import { readDesktopProjectHost, type DesktopReadHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
 
 export function DesktopUnavailable() {
   const locale = useLocale();
-  return <p data-testid="desktop-unavailable">{t(locale, 'app.desktopRead.unavailable')}</p>;
+  const key = electronDesktopPresent()
+    ? 'app.desktopRead.unavailable'
+    : 'app.desktopRead.openInApp';
+  return <p data-testid="desktop-unavailable">{t(locale, key)}</p>;
 }
 
 export function DesktopRoute(props: {
   desktop: (host: DesktopReadHost) => ReactNode;
   legacy: ReactNode;
-  /** The folder page is the place a missing session returns to, so it does not require one. */
+  /** Folder and home skip the open-project session check. */
   folder?: boolean;
 }) {
   const host = readDesktopProjectHost();
@@ -56,7 +62,7 @@ function DesktopSessionGate(props: {
   }, [props.host, sessionId]);
 
   if (sessionId === null || phase === 'folder') {
-    return <Navigate to="/desktop-project" replace />;
+    return props.desktop(props.host);
   }
   if (phase === 'unavailable') return <DesktopUnavailable />;
   if (phase !== 'ready') return null;

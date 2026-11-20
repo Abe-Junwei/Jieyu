@@ -48,7 +48,7 @@ describe('manuscript mark delete', () => {
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'keep',
     }) as { id: string };
     const words = callDesktopSession(session.sessionId, 'analysis.segmentWords', {
@@ -97,13 +97,13 @@ describe('manuscript mark delete', () => {
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: first.layerId,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'keep',
     }) as { id: string };
     const other = callDesktopSession(session.sessionId, 'units.create', {
       layerId: second.layerId,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'stay',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'notes.create', {
@@ -200,7 +200,7 @@ describe('manuscript mark delete', () => {
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'keep',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
@@ -231,7 +231,7 @@ describe('manuscript mark delete', () => {
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'keep',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
@@ -255,7 +255,7 @@ describe('manuscript mark delete', () => {
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'keep',
     }) as { id: string };
     const note = callDesktopSession(session.sessionId, 'notes.create', {
@@ -299,7 +299,7 @@ describe('manuscript mark delete', () => {
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'keep',
     }) as { id: string };
     const field = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
@@ -355,7 +355,7 @@ describe('manuscript mark delete', () => {
     const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: run.id,
       candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 0, mediaEnd: 1 }],
-    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    }) as { candidates: { targetFingerprint: string }[] };
     const candidate = preview.candidates[0];
     if (candidate === undefined) throw new Error('preview missing');
     const db = requireDesktopSession(session.sessionId).db;
@@ -461,13 +461,13 @@ describe('manuscript mark delete', () => {
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'keep',
     }) as { id: string };
     const otherUnit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: other.layerId,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'stay',
     }) as { id: string };
     const word = (
@@ -541,7 +541,7 @@ describe('manuscript mark delete', () => {
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'keep',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
@@ -571,7 +571,7 @@ describe('manuscript mark delete', () => {
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'keep',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId: unit.id });
@@ -651,7 +651,7 @@ describe('manuscript mark delete', () => {
     const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: run.id,
       candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 0, mediaEnd: 1 }],
-    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    }) as { candidates: { targetFingerprint: string }[] };
     const candidate = preview.candidates[0];
     if (candidate === undefined) throw new Error('preview missing');
     const deleted = callDesktopSession(session.sessionId, 'manuscripts.delete', {
@@ -684,7 +684,7 @@ describe('manuscript mark delete', () => {
     const fresh = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: next.id,
       candidates: [{ chunkIndex: 1, segmentIndex: 0, mediaStart: 2, mediaEnd: 3 }],
-    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    }) as { candidates: { targetFingerprint: string }[] };
     const freshCandidate = fresh.candidates[0];
     if (freshCandidate === undefined) throw new Error('preview missing');
     expect(
@@ -701,8 +701,8 @@ describe('manuscript mark delete', () => {
     ).toMatchObject({ text: 'after' });
     const written = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startMs: 4,
-      endMs: 5,
+      startMs: 4000,
+      endMs: 5000,
       text: 'hand',
     }) as { id: string };
     expect(
@@ -812,7 +812,7 @@ describe('manuscript mark delete', () => {
     callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'secret-body',
     });
     callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
@@ -928,13 +928,13 @@ describe('manuscript mark delete', () => {
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'saved',
     }) as { id: string };
     const otherUnit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: other.layerId,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'other',
     }) as { id: string };
     const running = start(session.sessionId, seeded);
@@ -977,7 +977,7 @@ describe('manuscript mark delete', () => {
     const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: run.id,
       candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 0, mediaEnd: 1 }],
-    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    }) as { candidates: { targetFingerprint: string }[] };
     const candidate = preview.candidates[0];
     if (candidate === undefined) throw new Error('preview missing');
     callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
@@ -1026,7 +1026,7 @@ describe('manuscript mark delete', () => {
     const fresh = callDesktopSession(reopened.sessionId, 'modelRuns.preview', {
       runId: next.id,
       candidates: [{ chunkIndex: 1, segmentIndex: 0, mediaStart: 2, mediaEnd: 3 }],
-    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    }) as { candidates: { targetFingerprint: string }[] };
     const freshCandidate = fresh.candidates[0];
     if (freshCandidate === undefined) throw new Error('preview missing');
     expect(
@@ -1059,13 +1059,13 @@ describe('manuscript mark delete', () => {
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'keep',
     }) as { id: string };
     const otherUnit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: other.layerId,
       startMs: 0,
-      endMs: 1,
+      endMs: 1000,
       text: 'stay',
     }) as { id: string };
     const word = (
@@ -1239,8 +1239,8 @@ describe('manuscript mark delete', () => {
     const pending = submitAnalysis(db, suggestion);
     callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
     const rejected: [string, Record<string, unknown>][] = [
-      ['units.create', { layerId: seeded.layerId, startMs: 2, endMs: 3, text: 'late' }],
-      ['units.updateBoundary', { leftId: left.id, rightId: right.id, time: 1 }],
+      ['units.create', { layerId: seeded.layerId, startMs: 2000, endMs: 3000, text: 'late' }],
+      ['units.updateBoundary', { leftId: left.id, rightId: right.id, time: 500 }],
       ['units.split', { unitId: left.id, time: 500 }],
       ['units.merge', { keepId: left.id, removeId: right.id }],
       ['notes.create', { anchor: { kind: 'unit', unitId: left.id }, content: { zh: '迟到' } }],
@@ -1265,9 +1265,9 @@ describe('manuscript mark delete', () => {
       );
     }
     expect(() =>
-      createUnit(db, { layerId: seeded.layerId, startMs: 2, endMs: 3, text: 'late' }),
+      createUnit(db, { layerId: seeded.layerId, startMs: 2000, endMs: 3000, text: 'late' }),
     ).toThrow('manuscript is deleted');
-    expect(() => updateBoundary(db, { leftId: left.id, rightId: right.id, time: 1 })).toThrow(
+    expect(() => updateBoundary(db, { leftId: left.id, rightId: right.id, time: 500 })).toThrow(
       'manuscript is deleted',
     );
     expect(() => splitUnit(db, { unitId: left.id, time: 500 })).toThrow('manuscript is deleted');
@@ -1338,8 +1338,8 @@ describe('manuscript mark delete', () => {
     expect(
       callDesktopSession(closed.sessionId, 'units.create', {
         layerId: seeded.layerId,
-        startMs: 2,
-        endMs: 3,
+        startMs: 2000,
+        endMs: 3000,
         text: 'after',
       }),
     ).toMatchObject({ text: 'after' });

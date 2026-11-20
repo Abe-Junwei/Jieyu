@@ -69,7 +69,7 @@ it('cancels the HTTP request and leaves a cancelled run with no candidate text',
     pendingCount: 0,
   });
 });
-it('refuses fresh preview credentials after text changes in flight', async () => {
+it('refuses a fresh preview after a unit is created in flight', async () => {
   let release!: () => void;
   let arrived!: () => void;
   const started = new Promise<void>((r) => (arrived = r));

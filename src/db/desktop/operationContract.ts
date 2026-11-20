@@ -38,6 +38,7 @@ import type {
   ContentNoteWrite,
 } from './notes';
 import type { CorpusQuery, CorpusQueryCursor, CorpusQueryPage } from './corpusQuery';
+import type { EditInspection, EditReceiptKind } from './editReceipts';
 import type { Layer, LayerCreate } from './layers';
 import type {
   AcceptableRun,
@@ -57,6 +58,7 @@ import type {
   RecordingDeletion,
 } from './manuscripts';
 import type { DeletedMedia, Media, MediaCreate } from './media';
+import type { RecordingRegistration, RegisteredRecording } from './registerRecording';
 import type { MediaCleanup } from './mediaCleanup';
 import type { MediaReregistration } from './mediaReregister';
 import type { ProjectIdentity } from './projectIdentity';
@@ -79,6 +81,7 @@ import type {
   UnitMorpheme,
   UnitWord,
 } from './analysisRestore';
+import type { UnitDeletePreview } from './unitEdges';
 import type { AnalysisRoot, Unit, UnitCreate } from './units';
 
 type UndoPolicy = 'keep' | 'clear' | 'replace-on-success';
@@ -173,6 +176,7 @@ function checkLayerCreate(input: Record<string, unknown>): LayerCreate {
     ...('parentId' in input ? { parentId: optionalString(input.parentId, 'parentId') } : {}),
     ...('sortOrder' in input ? { sortOrder: requiredNumber(input.sortOrder, 'sortOrder') } : {}),
     ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+    ...editOperationId(input),
   };
 }
 
@@ -460,6 +464,18 @@ function requiredIndex(value: unknown, name: string): number {
   return value;
 }
 
+function requiredMs(value: unknown, name: string): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw new Error(`desktop call ${name} must be a whole millisecond`);
+  }
+  return value;
+}
+
+function optionalMs(value: unknown, name: string): number | null {
+  if (value === undefined || value === null) return null;
+  return requiredMs(value, name);
+}
+
 function modelRunStart(input: Record<string, unknown>): ModelRunStart {
   knownKeys(input, [
     'manuscriptId',
@@ -478,8 +494,8 @@ function modelRunStart(input: Record<string, unknown>): ModelRunStart {
     modelVersion: requiredString(input.modelVersion, 'modelVersion'),
     manifestSha256: requiredString(input.manifestSha256, 'manifestSha256'),
     params: objectArg(input.params),
-    rangeStartMs: requiredIndex(input.rangeStartMs, 'rangeStartMs'),
-    rangeEndMs: requiredIndex(input.rangeEndMs, 'rangeEndMs'),
+    rangeStartMs: requiredMs(input.rangeStartMs, 'rangeStartMs'),
+    rangeEndMs: requiredMs(input.rangeEndMs, 'rangeEndMs'),
   };
 }
 
@@ -574,11 +590,13 @@ function requiredLimit(value: unknown): number {
 function corpusCursor(value: unknown): CorpusQueryCursor | null {
   if (value === undefined || value === null) return null;
   const cursor = objectArg(value);
-  knownKeys(cursor, ['manuscriptId', 'layerId', 'startMs', 'unitId']);
+  knownKeys(cursor, ['manuscriptId', 'layerId', 'startTime', 'unitId']);
+  if (!('startTime' in cursor))
+    throw new Error('desktop call startTime must be a whole millisecond');
   return {
     manuscriptId: requiredString(cursor.manuscriptId, 'manuscriptId'),
     layerId: requiredString(cursor.layerId, 'layerId'),
-    startMs: requiredNumber(cursor.startMs, 'startMs'),
+    startTime: optionalMs(cursor.startTime, 'startTime'),
     unitId: requiredString(cursor.unitId, 'unitId'),
   };
 }
@@ -613,8 +631,15 @@ function corpusQuery(input: Record<string, unknown>): CorpusQuery {
   };
 }
 
-function unitCreate(input: Record<string, unknown>): UnitCreate {
+/** ADR-0129: optional so older callers keep working; the desktop page always sends one. */
+function editOperationId(input: Record<string, unknown>): { operationId?: string } {
+  if (input.operationId === undefined) return {};
+  return { operationId: requiredString(input.operationId, 'operationId') };
+}
+
+function unitCreate(input: Record<string, unknown>): UnitCreate & { operationId?: string } {
   knownKeys(input, [
+    'operationId',
     'layerId',
     'startMs',
     'endMs',
@@ -623,16 +648,20 @@ function unitCreate(input: Record<string, unknown>): UnitCreate {
     'parentUnitId',
     'fieldValues',
   ]);
+  const startMs = optionalMs(input.startMs, 'startMs');
+  const endMs = optionalMs(input.endMs, 'endMs');
+  if ((startMs === null) !== (endMs === null)) throw new Error('unit time is invalid');
   return {
     layerId: requiredString(input.layerId, 'layerId'),
-    startMs: requiredIndex(input.startMs, 'startMs'),
-    endMs: requiredIndex(input.endMs, 'endMs'),
-    text: requiredString(input.text, 'text'),
+    startMs,
+    endMs,
+    text: typeof input.text === 'string' ? input.text : requiredString(input.text, 'text'),
     ...('speakerId' in input ? { speakerId: optionalString(input.speakerId, 'speakerId') } : {}),
     ...('parentUnitId' in input
       ? { parentUnitId: optionalString(input.parentUnitId, 'parentUnitId') }
       : {}),
     ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
+    ...editOperationId(input),
   };
 }
 
@@ -659,6 +688,97 @@ function unitBoundary(input: Record<string, unknown>): {
     leftId: requiredString(input.leftId, 'leftId'),
     rightId: requiredString(input.rightId, 'rightId'),
     time: requiredNumber(input.time, 'time'),
+  };
+}
+
+function unitSharedBoundary(input: Record<string, unknown>): {
+  leftId: string;
+  rightId: string;
+  time: number;
+  operationId?: string;
+} {
+  knownKeys(input, ['leftId', 'rightId', 'time', 'operationId']);
+  return { ...unitBoundary(input), ...editOperationId(input) };
+}
+
+function timeEdge(value: unknown): 'start' | 'end' {
+  if (value === 'start' || value === 'end') return value;
+  throw new Error('desktop call edge is invalid');
+}
+
+function unitEdge(input: Record<string, unknown>): {
+  unitId: string;
+  edge: 'start' | 'end';
+  time: number;
+  operationId?: string;
+} {
+  knownKeys(input, ['unitId', 'edge', 'time', 'operationId']);
+  return {
+    unitId: requiredString(input.unitId, 'unitId'),
+    edge: timeEdge(input.edge),
+    time: requiredNumber(input.time, 'time'),
+    ...editOperationId(input),
+  };
+}
+
+function unitStack(input: Record<string, unknown>): {
+  manuscriptId?: string;
+  operationId?: string;
+} {
+  knownKeys(input, ['manuscriptId', 'operationId']);
+  return {
+    ...(input.manuscriptId === undefined
+      ? {}
+      : { manuscriptId: requiredString(input.manuscriptId, 'manuscriptId') }),
+    ...editOperationId(input),
+  };
+}
+
+function unitStackDrop(input: Record<string, unknown>): { manuscriptId?: string } {
+  knownKeys(input, ['manuscriptId']);
+  if (input.manuscriptId === undefined) return {};
+  return { manuscriptId: requiredString(input.manuscriptId, 'manuscriptId') };
+}
+
+const EDIT_RECEIPT_KINDS: readonly EditReceiptKind[] = [
+  'create',
+  'moveEdge',
+  'moveSharedBoundary',
+  'delete',
+  'undo',
+  'redo',
+];
+
+function editInspect(input: Record<string, unknown>): {
+  operationId: string;
+  kind: EditReceiptKind;
+  payload: Record<string, unknown>;
+} {
+  knownKeys(input, ['operationId', 'kind', 'payload']);
+  const kind = EDIT_RECEIPT_KINDS.find((item) => item === input.kind);
+  if (kind === undefined) throw new Error('desktop call kind is invalid');
+  return {
+    operationId: requiredString(input.operationId, 'operationId'),
+    kind,
+    payload: objectArg(input.payload),
+  };
+}
+
+function unitTimeDraft(input: Record<string, unknown>): {
+  unitId: string;
+  edge: 'start' | 'end';
+  rawInput: string;
+  baseMs: number;
+  issue: string | null;
+} {
+  knownKeys(input, ['unitId', 'edge', 'rawInput', 'baseMs', 'issue']);
+  if (typeof input.rawInput !== 'string') throw new Error('desktop call rawInput must be a string');
+  return {
+    unitId: requiredString(input.unitId, 'unitId'),
+    edge: timeEdge(input.edge),
+    rawInput: input.rawInput,
+    baseMs: requiredNumber(input.baseMs, 'baseMs'),
+    issue: input.issue === null ? null : requiredString(input.issue, 'issue'),
   };
 }
 
@@ -1392,6 +1512,31 @@ export const desktopOperations = {
     duration: requiredNumber(input.duration, 'duration'),
     ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   })),
+  'recordings.register': spec<'clear', RecordingRegistration, RegisteredRecording>(
+    'clear',
+    (input) => {
+      knownKeys(input, [
+        'relpath',
+        'sha256',
+        'duration',
+        'title',
+        'layerKey',
+        'layerName',
+        'tierType',
+        'contentType',
+      ]);
+      return {
+        relpath: requiredString(input.relpath, 'relpath'),
+        sha256: requiredString(input.sha256, 'sha256'),
+        duration: requiredNumber(input.duration, 'duration'),
+        title: stringMap(input.title, 'title'),
+        layerKey: requiredString(input.layerKey, 'layerKey'),
+        layerName: stringMap(input.layerName, 'layerName'),
+        tierType: requiredString(input.tierType, 'tierType'),
+        contentType: requiredString(input.contentType, 'contentType'),
+      };
+    },
+  ),
   'media.delete': spec<'clear', { id: string }, RecordingDeletion>('clear', (input) => {
     knownKeys(input, ['id']);
     return { id: requiredString(input.id, 'id') };
@@ -1428,7 +1573,10 @@ export const desktopOperations = {
   }),
   'manuscripts.create': spec<'clear', ManuscriptCreate, Manuscript>('clear', (input) => ({
     title: stringMap(input.title, 'title'),
-    mediaId: requiredString(input.mediaId, 'mediaId'),
+    mediaId:
+      input.mediaId === undefined || input.mediaId === null
+        ? null
+        : requiredString(input.mediaId, 'mediaId'),
     ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
   })),
   'manuscripts.list': spec<'keep', Record<string, never>, Manuscript[]>(
@@ -1457,18 +1605,6 @@ export const desktopOperations = {
   'manuscripts.showReminder': spec<'clear', { id: string }, DeletionReminder>('clear', (input) => {
     knownKeys(input, ['id']);
     return { id: requiredString(input.id, 'id') };
-  }),
-  'manuscripts.retime': spec<
-    'clear',
-    { manuscriptId: string; offsetMs: number; scale: number },
-    { count: number }
-  >('clear', (input) => {
-    knownKeys(input, ['manuscriptId', 'offsetMs', 'scale']);
-    return {
-      manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
-      offsetMs: requiredNumber(input.offsetMs, 'offsetMs'),
-      scale: requiredNumber(input.scale, 'scale'),
-    };
   }),
   'manuscripts.purge': spec<'clear', { id: string }, { id: string }>('clear', (input) => {
     knownKeys(input, ['id']);
@@ -1676,7 +1812,7 @@ export const desktopOperations = {
     },
   ),
   'corpus.query': spec<'keep', CorpusQuery, CorpusQueryPage>('keep', corpusQuery),
-  'units.create': spec<'clear', UnitCreate, Unit>('clear', unitCreate),
+  'units.create': spec<'keep', UnitCreate & { operationId?: string }, Unit>('keep', unitCreate),
   'units.get': spec<'keep', { id: string }, Unit | null>('keep', (input) => ({
     id: requiredString(input.id, 'id'),
   })),
@@ -1687,20 +1823,103 @@ export const desktopOperations = {
     'keep',
     () => ({}) as Record<string, never>,
   ),
-  'units.undo': spec<'keep', Record<string, never>, Unit | Unit[]>(
+  'units.undo': spec<'keep', { manuscriptId?: string; operationId?: string }, Unit | Unit[]>(
     'keep',
-    () => ({}) as Record<string, never>,
+    unitStack,
   ),
+  'units.redo': spec<'keep', { manuscriptId?: string; operationId?: string }, Unit | Unit[]>(
+    'keep',
+    unitStack,
+  ),
+  'units.dropUndo': spec<'keep', { manuscriptId?: string }, { dropped: boolean }>(
+    'keep',
+    unitStackDrop,
+  ),
+  'units.dropRedo': spec<'keep', { manuscriptId?: string }, { dropped: boolean }>(
+    'keep',
+    unitStackDrop,
+  ),
+  'units.inspectEdit': spec<
+    'keep',
+    { operationId: string; kind: EditReceiptKind; payload: Record<string, unknown> },
+    EditInspection
+  >('keep', editInspect),
   'units.split': spec<'keep', { unitId: string; time: number }, { left: Unit; right: Unit }>(
     'keep',
     unitSplit,
   ),
   'units.merge': spec<'clear', { keepId: string; removeId: string }, Unit>('clear', unitMerge),
   'units.updateBoundary': spec<
-    'clear',
+    'keep',
     { leftId: string; rightId: string; time: number },
     { left: Unit; right: Unit }
-  >('clear', unitBoundary),
+  >('keep', unitBoundary),
+  'units.moveEdge': spec<
+    'keep',
+    { unitId: string; edge: 'start' | 'end'; time: number; operationId?: string },
+    Unit
+  >('keep', unitEdge),
+  'units.moveSharedBoundary': spec<
+    'keep',
+    { leftId: string; rightId: string; time: number; operationId?: string },
+    { left: Unit; right: Unit }
+  >('keep', unitSharedBoundary),
+  'units.deletePreview': spec<'keep', { unitId: string }, UnitDeletePreview>('keep', (input) => {
+    knownKeys(input, ['unitId']);
+    return { unitId: requiredString(input.unitId, 'unitId') };
+  }),
+  'units.delete': spec<'keep', { unitId: string; operationId?: string }, { id: string }>(
+    'keep',
+    (input) => {
+      knownKeys(input, ['unitId', 'operationId']);
+      return { unitId: requiredString(input.unitId, 'unitId'), ...editOperationId(input) };
+    },
+  ),
+  'units.readTimeDraft': spec<
+    'keep',
+    { unitId: string },
+    {
+      unitId: string;
+      edge: 'start' | 'end';
+      rawInput: string;
+      baseMs: number;
+      issue: string | null;
+      updatedAt: string;
+      currentMs: number | null;
+      conflict: boolean;
+    }[]
+  >('keep', (input) => {
+    knownKeys(input, ['unitId']);
+    return { unitId: requiredString(input.unitId, 'unitId') };
+  }),
+  'units.putTimeDraft': spec<
+    'keep',
+    {
+      unitId: string;
+      edge: 'start' | 'end';
+      rawInput: string;
+      baseMs: number;
+      issue: string | null;
+    },
+    {
+      unitId: string;
+      edge: 'start' | 'end';
+      rawInput: string;
+      baseMs: number;
+      issue: string | null;
+      updatedAt: string;
+    }
+  >('keep', unitTimeDraft),
+  'units.discardTimeDraft': spec<'keep', { unitId: string; edge?: 'start' | 'end' }, null>(
+    'keep',
+    (input) => {
+      knownKeys(input, ['unitId', 'edge']);
+      return {
+        unitId: requiredString(input.unitId, 'unitId'),
+        ...(input.edge === undefined ? {} : { edge: timeEdge(input.edge) }),
+      };
+    },
+  ),
   'deletion.listDue': spec<'keep', Record<string, never>, DueDeletionReminder[]>(
     'keep',
     (input) => {

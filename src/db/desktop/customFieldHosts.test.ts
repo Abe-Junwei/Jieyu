@@ -104,6 +104,11 @@ describe('custom field hosts', () => {
       expect(missingFields(db, targetType, targetId)).toEqual([defined.id]);
       return defined;
     });
+    db.prepare('UPDATE manuscripts SET title_json = ?, updated_at = ? WHERE id = ?').run(
+      '{"zh":"改"}',
+      '2026-11-19T00:00:00.000Z',
+      manuscript.id,
+    );
     expect(replaceSettings(db, 'p1', { characterVariantLines: 'keep' })).toEqual({
       characterVariantLines: 'keep',
     });

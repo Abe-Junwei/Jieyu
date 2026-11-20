@@ -205,10 +205,7 @@ export function removeAttachmentLink(db: SqliteDatabase, linkId: string): Attach
       { file_id: string } | undefined;
     if (link === undefined) throw new Error('attachment link is missing');
     db.prepare('DELETE FROM attachment_links WHERE id = ?').run(linkId);
-    const count = db
-      .prepare('SELECT COUNT(*) AS n FROM attachment_links WHERE file_id = ?')
-      .get(link.file_id) as { n: number };
-    if (count.n === 0) {
+    if (!attachmentReferenced(db, link.file_id)) {
       db.prepare(
         `UPDATE attachment_files SET state = 'cleanup_pending'
          WHERE id = ? AND state = 'ready'`,
@@ -230,10 +227,7 @@ export async function finishAttachmentCleanup(
   const row = readFile(db, fileId);
   if (row === undefined || !isState(row.state)) throw new Error('attachment file is missing');
   if (row.state !== 'cleanup_pending') return { fileId, state: row.state };
-  const links = db
-    .prepare('SELECT COUNT(*) AS n FROM attachment_links WHERE file_id = ?')
-    .get(fileId) as { n: number };
-  if (links.n > 0) {
+  if (attachmentReferenced(db, fileId)) {
     markState(db, fileId, 'ready');
     return { fileId, state: 'ready' };
   }
@@ -257,10 +251,7 @@ export async function finishAttachmentCleanup(
   }
   const deleted = db.transaction(() => {
     const current = readFile(db, fileId);
-    const count = db
-      .prepare('SELECT COUNT(*) AS n FROM attachment_links WHERE file_id = ?')
-      .get(fileId) as { n: number };
-    if (current?.state !== 'cleanup_unknown' || count.n !== 0) return false;
+    if (current?.state !== 'cleanup_unknown' || attachmentReferenced(db, fileId)) return false;
     db.prepare('DELETE FROM attachment_files WHERE id = ?').run(fileId);
     return true;
   })();
@@ -325,6 +316,17 @@ function containedDir(root: string, dir: string): string {
   const real = realpathSync(dir);
   if (!isInside(root, real)) throw new Error(ESCAPE);
   return real;
+}
+
+function attachmentReferenced(db: SqliteDatabase, fileId: string): boolean {
+  const links = db
+    .prepare('SELECT COUNT(*) AS n FROM attachment_links WHERE file_id = ?')
+    .get(fileId) as { n: number };
+  if (links.n > 0) return true;
+  const texts = db
+    .prepare('SELECT COUNT(*) AS n FROM unit_texts WHERE audio_file_id = ?')
+    .get(fileId) as { n: number };
+  return texts.n > 0;
 }
 
 function readFile(db: SqliteDatabase, fileId: string): FileRow | undefined {

@@ -12,9 +12,9 @@ import {
   interruptUnfinishedRuns,
 } from '../db/desktop/modelRuns';
 import { requireDesktopSession, desktopSessionFolder } from '../db/desktop/projectSession';
+import { secToMs } from '../db/desktop/timeMs';
 import { loadModelDeclaration, runModelTranscribe, cancelModelTranscribe } from './modelHost';
 import { pcmWav } from './transcriptionAudio';
-import { secondsToMs } from '../db/desktop/timeMs';
 import type {
   TranscriptionModel,
   ProjectTranscriptionInput,
@@ -112,8 +112,8 @@ export async function transcribeProject(
       modelVersion: manifest.version,
       manifestSha256: manifest.manifestSha256,
       params: {},
-      rangeStartMs: secondsToMs(input.start),
-      rangeEndMs: secondsToMs(input.end),
+      rangeStartMs: secToMs(input.start),
+      rangeEndMs: secToMs(input.end),
     });
     return { run, target: modelRunTarget(db, run.id) };
   })();

@@ -2,8 +2,8 @@ import { featureFlags } from '../ai/config/featureFlags';
 import { DesktopModelCandidates } from './DesktopModelCandidates';
 import { useEffect, useState } from 'react';
 import { createDesktopClient } from '../app/desktopProjectReadPageAccess';
+import { msToSec } from '../utils/timeMs';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
-import { msToSeconds } from '../desktop/timeMs';
 import { t, useLocale } from '../i18n';
 
 interface TranscriptRow {
@@ -85,8 +85,8 @@ function ManualTranscriptionCandidates(props: AcceptProps) {
           if (!wholeRun && (row.start.trim() === '' || row.end.trim() === '')) {
             throw new Error('transcription range is invalid');
           }
-          const mediaStart = wholeRun ? msToSeconds(run.rangeStartMs) : Number(row.start);
-          const mediaEnd = wholeRun ? msToSeconds(run.rangeEndMs) : Number(row.end);
+          const mediaStart = wholeRun ? msToSec(run.rangeStartMs) : Number(row.start);
+          const mediaEnd = wholeRun ? msToSec(run.rangeEndMs) : Number(row.end);
           if (
             !Number.isFinite(mediaStart) ||
             !Number.isFinite(mediaEnd) ||

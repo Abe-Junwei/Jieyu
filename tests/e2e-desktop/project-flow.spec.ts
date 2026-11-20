@@ -33,7 +33,6 @@ const saveText = /^(Save text|保存正文|app\.desktopRead\.saveText)$/;
 const boundaryLabel = /^(Literature boundary|文献边界|app\.desktopRead\.boundary)$/;
 const moveBoundary = /^(Move boundary|移动边界|app\.desktopRead\.moveBoundary)$/;
 const edited = '0.0–0.2 edited';
-const played = '0.0–0.2';
 const restoreAction = /^(Restore|恢复)$/;
 const confirmRestore = /^(Continue restore|继续恢复)$/;
 const cancelRestore = /^(Cancel|取消)$/;
@@ -50,6 +49,163 @@ const purgeConfirmTitle = /^(Purge this manuscript|清除这篇文稿)$/;
 const purgeConfirm = /^(Confirm purge|确认清除)$/;
 const deletedClip = /Manuscript Clip|文稿 Clip/;
 const userDataOf = new WeakMap<ElectronApplication, string>();
+
+test('transcription workspace seeks a segment and space starts playback', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const app = await launch('tx-readonly');
+  try {
+    await stubFolderDialog(app, folder);
+    const page = await app.firstWindow();
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    await expect(page.getByRole('button', { name: /^(Play|播放)$/ })).toBeEnabled();
+    await waitForAudio(page);
+    const segment = page.locator('.timeline-annotation', { hasText: 'two' });
+    await segment.click();
+    await expect(segment).toHaveClass(/timeline-annotation-selected/);
+    const audio = page.locator('audio');
+    await expect
+      .poll(() => audio.evaluate((element) => (element as HTMLAudioElement).currentTime))
+      .toBeGreaterThan(0.3);
+    await expect
+      .poll(() => audio.evaluate((element) => (element as HTMLAudioElement).paused))
+      .toBe(true);
+    await page.keyboard.press('Space');
+    await expect
+      .poll(() => audio.evaluate((element) => (element as HTMLAudioElement).paused))
+      .toBe(false);
+  } finally {
+    await app.close();
+  }
+});
+
+test('does not create a sample project on startup', async () => {
+  const app = await launch('no-sample');
+  try {
+    await app.firstWindow();
+    const userData = userDataOf.get(app);
+    if (userData === undefined) throw new Error('user data folder missing');
+    expect(existsSync(join(userData, 'sample-project'))).toBe(false);
+  } finally {
+    await app.close();
+  }
+});
+
+test('transcription edge writes survive close and reopen', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-m4c-edges-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  let app: ElectronApplication | undefined = await launch('edges');
+  let again: ElectronApplication | undefined;
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const clip = await clipLayer(page, sessionId);
+    const units = await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', {
+      layerId: clip.layerId,
+    });
+    const one = units.find((unit) => unit.text === 'one');
+    const two = units.find((unit) => unit.text === 'two');
+    if (one === undefined || two === undefined) throw new Error('clip units missing');
+    await desktopCall(page, sessionId, 'units.moveSharedBoundary', {
+      leftId: one.id,
+      rightId: two.id,
+      time: 500,
+      operationId: 'e2e-shared',
+    });
+    await desktopCall(page, sessionId, 'units.moveEdge', {
+      unitId: two.id,
+      edge: 'end',
+      time: 900,
+      operationId: 'e2e-edge',
+    });
+    const made = await desktopCall<{ id: string }>(page, sessionId, 'units.create', {
+      layerId: clip.layerId,
+      startMs: 1000,
+      endMs: 1400,
+      text: 'made',
+      operationId: 'e2e-create',
+    });
+    await desktopCall(page, sessionId, 'units.putTimeDraft', {
+      unitId: made.id,
+      edge: 'end',
+      rawInput: '00:00:01.',
+      baseMs: 1400,
+      issue: null,
+    });
+    await desktopCall(page, sessionId, 'units.delete', {
+      unitId: one.id,
+      operationId: 'e2e-delete',
+    });
+    const receipt = await desktopCall<{ status: string }>(page, sessionId, 'units.inspectEdit', {
+      operationId: 'e2e-create',
+      kind: 'create',
+      payload: { layerId: clip.layerId, startMs: 1000, endMs: 1400, text: 'made' },
+    });
+    expect(receipt.status).toBe('committed');
+
+    await app.close();
+    app = undefined;
+    again = await launch('edges-again');
+    await stubFolderDialog(again, copy);
+    const reopened = await again.firstWindow();
+    await rememberChosenSession(again);
+    await reopened.getByRole('button', { name: openFolder }).click();
+    await expect(reopened.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const nextSession = await chosenSessionId(again);
+    const nextClip = await clipLayer(reopened, nextSession);
+    const readBack = await desktopCall<ListedUnit[]>(reopened, nextSession, 'units.list', {
+      layerId: nextClip.layerId,
+    });
+    expect(readBack.map((unit) => unit.text).sort()).toEqual(['made', 'two']);
+    expect(readBack.find((unit) => unit.text === 'two')).toMatchObject({
+      startMs: 500,
+      endMs: 900,
+    });
+    const kept = readBack.find((unit) => unit.text === 'made');
+    if (kept === undefined) throw new Error('created unit missing');
+    const drafts = await desktopCall<TimeDraftRow[]>(reopened, nextSession, 'units.readTimeDraft', {
+      unitId: kept.id,
+    });
+    expect(drafts).toEqual([
+      expect.objectContaining({
+        edge: 'end',
+        rawInput: '00:00:01.',
+        baseMs: 1400,
+        conflict: false,
+      }),
+    ]);
+    const replay = await desktopCall<{ status: string }>(
+      reopened,
+      nextSession,
+      'units.inspectEdit',
+      {
+        operationId: 'e2e-create',
+        kind: 'create',
+        payload: { layerId: nextClip.layerId, startMs: 1000, endMs: 1400, text: 'made' },
+      },
+    );
+    expect(replay.status).toBe('committed');
+    const deleted = await desktopCall<{ status: string }>(
+      reopened,
+      nextSession,
+      'units.inspectEdit',
+      { operationId: 'e2e-delete', kind: 'delete', payload: { unitId: one.id } },
+    );
+    expect(deleted.status).toBe('committed');
+  } finally {
+    await again?.close();
+    await app?.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
 
 test('the read page does not call the old storage port', () => {
   const sources = [
@@ -289,7 +445,6 @@ test('opens, plays, edits, refuses a second process, and reads the edit back', a
     await again.getByRole('button', { name: openFolder }).click();
     await expect(again.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
     await expect(again.getByRole('button', { name: edited })).toBeVisible();
-    await expect(again.getByText(played, { exact: true })).toBeVisible();
   } finally {
     await second?.close();
     await third?.close();
@@ -574,7 +729,10 @@ async function editProject(app: ElectronApplication, projectFolder: string): Pro
   await page.getByRole('textbox', { name: boundaryLabel }).fill('0.2');
   await page.getByRole('button', { name: moveBoundary }).click();
   await expect(page.getByRole('button', { name: edited })).toBeVisible();
-  await expect(page.getByText(played, { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: edited }).click();
+  await expect
+    .poll(() => audio.evaluate((element) => (element as HTMLAudioElement).currentTime))
+    .toBeLessThan(0.05);
   await page.getByRole('button', { name: '0.2–0.8 two' }).click();
   await expect
     .poll(() => audio.evaluate((element) => (element as HTMLAudioElement).currentTime))
@@ -588,6 +746,62 @@ function flowReady(value: string | undefined): value is string {
     value.length > 0 &&
     (devServer !== undefined || packagedApp !== undefined)
   );
+}
+
+type ListedUnit = { id: string; text: string; startMs: number | null; endMs: number | null };
+type TimeDraftRow = { edge: string; rawInput: string; baseMs: number; conflict: boolean };
+
+function desktopCall<T>(page: Page, sessionId: string, method: string, args: unknown): Promise<T> {
+  return page.evaluate(
+    async (input) => {
+      const host = (window as unknown as FlowWindow).jieyuDesktop;
+      return host.desktopCall(input.sessionId, input.method, input.args);
+    },
+    { sessionId, method, args },
+  ) as Promise<T>;
+}
+
+async function rememberChosenSession(app: ElectronApplication): Promise<void> {
+  await app.evaluate((main) => {
+    const electron = main as unknown as {
+      ipcMain: { _invokeHandlers: Map<string, (...args: unknown[]) => Promise<unknown>> };
+    };
+    const original = electron.ipcMain._invokeHandlers.get('desktop:choose-folder');
+    if (original === undefined) throw new Error('choose-folder handler missing');
+    electron.ipcMain._invokeHandlers.set('desktop:choose-folder', async (...args) => {
+      const opened = await original(...args);
+      (globalThis as { flowSession?: unknown }).flowSession = opened;
+      return opened;
+    });
+  });
+}
+
+function chosenSessionId(app: ElectronApplication): Promise<string> {
+  return app.evaluate(() => {
+    const opened = (globalThis as { flowSession?: { sessionId?: string; cancelled?: boolean } })
+      .flowSession;
+    if (opened === undefined || opened.cancelled === true || typeof opened.sessionId !== 'string') {
+      throw new Error('opened session missing');
+    }
+    return opened.sessionId;
+  });
+}
+
+async function clipLayer(page: Page, sessionId: string): Promise<{ layerId: string }> {
+  const manuscripts = await desktopCall<{ id: string; title: Record<string, string> }[]>(
+    page,
+    sessionId,
+    'manuscripts.list',
+    {},
+  );
+  const clip = manuscripts.find((item) => item.title.und === 'Clip');
+  if (clip === undefined) throw new Error('clip manuscript missing');
+  const layers = await desktopCall<{ id: string }[]>(page, sessionId, 'layers.list', {
+    manuscriptId: clip.id,
+  });
+  const layer = layers[0];
+  if (layer === undefined) throw new Error('clip layer missing');
+  return { layerId: layer.id };
 }
 
 async function launch(

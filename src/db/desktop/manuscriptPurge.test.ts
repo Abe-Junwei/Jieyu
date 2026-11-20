@@ -275,15 +275,15 @@ describe('manuscript reminder and purge', () => {
       manuscriptId: seeded.manuscriptId,
       key: 'pt',
       name: { zh: '点' },
-      tierType: 'point',
-      contentType: 'custom',
+      tierType: 'time-aligned',
+      contentType: 'point',
     }) as { id: string };
     const otherPointLayer = callDesktopSession(session.sessionId, 'layers.create', {
       manuscriptId: other.manuscriptId,
       key: 'pt',
       name: { zh: '点' },
-      tierType: 'point',
-      contentType: 'custom',
+      tierType: 'time-aligned',
+      contentType: 'point',
     }) as { id: string };
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
@@ -298,17 +298,17 @@ describe('manuscript reminder and purge', () => {
       text: '留',
     }) as { id: string };
     const insertPoint = db.prepare(
-      'INSERT INTO points (id, layer_id, time_ms, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO points (id, layer_id, time_ms, label, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
     );
-    insertPoint.run('point-gone', pointLayer.id, 100, PAST, PAST);
-    insertPoint.run('point-stay', otherPointLayer.id, 200, PAST, PAST);
+    insertPoint.run('point-gone', pointLayer.id, 100, '点', PAST, PAST);
+    insertPoint.run('point-stay', otherPointLayer.id, 200, '点', PAST, PAST);
     const insertLink = db.prepare(
-      `INSERT INTO unit_identity_links (id, operation_id, kind, old_unit_id, new_unit_id, created_at)
-       VALUES (?, ?, 'split', ?, ?, ?)`,
+      `INSERT INTO unit_span_maps (operation_id, kind, old_id, new_id, created_at)
+       VALUES (?, 'split', ?, ?, ?)`,
     );
-    insertLink.run('link-live', 'op-live', 'old-live', unit.id, PAST);
-    insertLink.run('link-other', 'op-other', 'old-other', otherUnit.id, PAST);
-    insertLink.run('link-detached', 'op-detached', 'gone-old', 'gone-new', PAST);
+    insertLink.run('op-live', 'old-live', unit.id, PAST);
+    insertLink.run('op-other', 'old-other', otherUnit.id, PAST);
+    insertLink.run('op-detached', 'gone-old', 'gone-new', PAST);
 
     callDesktopSession(session.sessionId, 'manuscripts.delete', { id: seeded.manuscriptId });
     backdate(session.sessionId, seeded.manuscriptId, PAST, PAST);
@@ -326,10 +326,9 @@ describe('manuscript reminder and purge', () => {
     );
     expect(stored.prepare('SELECT id FROM units').all()).toEqual([{ id: otherUnit.id }]);
     expect(stored.prepare('SELECT id FROM points').all()).toEqual([{ id: 'point-stay' }]);
-    expect(stored.prepare('SELECT id FROM unit_identity_links ORDER BY id').all()).toEqual([
-      { id: 'link-detached' },
-      { id: 'link-other' },
-    ]);
+    expect(
+      stored.prepare('SELECT operation_id FROM unit_span_maps ORDER BY operation_id').all(),
+    ).toEqual([{ operation_id: 'op-detached' }, { operation_id: 'op-other' }]);
   });
 });
 

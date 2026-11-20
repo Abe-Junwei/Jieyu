@@ -303,8 +303,8 @@ function seed(dir: string): void {
     ) VALUES (?, ?, ?, '{"en":"Transcription"}', 'time-aligned', 'transcription', 0, ?, ?)`,
   ).run('ly1', 'ms1', 'tx', T, T);
   db.prepare(
-    'INSERT INTO units (id, layer_id, sort_order, start_ms, end_ms, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-  ).run('u1', 'ly1', 0, 0, 1, T, T);
+    'INSERT INTO units (id, layer_id, start_ms, end_ms, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?)',
+  ).run('u1', 'ly1', 0, 1, T, T);
   db.prepare(
     `INSERT INTO tokens (
       id, unit_id, token_index, form_json, gloss_json, created_at, updated_at

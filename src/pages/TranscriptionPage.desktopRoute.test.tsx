@@ -28,7 +28,7 @@ describe('TranscriptionPage desktop route', () => {
     expect(screen.getByTestId('desktop-unavailable')).toBeTruthy();
   });
 
-  it('returns to the folder page before the language list loader when the host is ready', () => {
+  it('stays on the transcription route when the host is ready but no session is open', () => {
     (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = {
       projectReadEnabled: true,
       chooseDesktopFolder: () => Promise.resolve({ cancelled: true }),
@@ -44,7 +44,8 @@ describe('TranscriptionPage desktop route', () => {
         </Routes>
       </MemoryRouter>,
     );
-    expect(screen.getByTestId('folder-page')).toBeTruthy();
-    expect(screen.getByTestId('location').textContent).toBe('/desktop-project');
+    expect(screen.getByTestId('desktop-unavailable')).toBeTruthy();
+    expect(screen.getByTestId('location').textContent).toBe('/transcription');
+    expect(screen.queryByTestId('folder-page')).toBeNull();
   });
 });

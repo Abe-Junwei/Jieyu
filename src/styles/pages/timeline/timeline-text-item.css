@@ -350,7 +350,7 @@
 }
 
 .timeline-text-item-status-dot-action:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--state-info-solid) 55%, transparent);
+  outline: 1.5px solid var(--focus-color);
   outline-offset: 2px;
 }
 

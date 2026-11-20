@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import { secToMs } from './timeMs';
 import { writeUnitFieldValues } from './customFields';
-import { allocateUnitSort, assertUnitTextRoleFree } from './units';
-import { secondsToMs } from './timeMs';
+import { assertUnitTextRoleFree, sortOrderForInsert } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -126,9 +126,10 @@ export function startModelRun(db: SqliteDatabase, input: ModelRunStart): ModelRu
          FROM manuscripts WHERE id = ?`,
       )
       .get(input.manuscriptId) as
-      { mediaId: string; lifecycleGeneration: number; deletedAt: string | null } | undefined;
+      { mediaId: string | null; lifecycleGeneration: number; deletedAt: string | null } | undefined;
     if (!manuscript) throw new Error('transcription manuscript is missing');
     if (manuscript.deletedAt !== null) throw new Error('manuscript is deleted');
+    if (manuscript.mediaId === null) throw new Error('transcription manuscript has no recording');
     const layer = db
       .prepare(
         'SELECT manuscript_id AS manuscriptId, content_type AS contentType FROM layers WHERE id = ?',
@@ -232,7 +233,12 @@ export function previewModelRun(
       const candidateId = candidateIdentity(candidate.chunkIndex, candidate.segmentIndex);
       if (seen.has(candidateId)) throw new Error('transcription candidate is duplicated');
       seen.add(candidateId);
-      if (!orderedRange(candidate.mediaStart, candidate.mediaEnd)) {
+      if (
+        !Number.isFinite(candidate.mediaStart) ||
+        !Number.isFinite(candidate.mediaEnd) ||
+        candidate.mediaStart < 0 ||
+        !(candidate.mediaEnd > candidate.mediaStart)
+      ) {
         throw new Error('transcription range is invalid');
       }
     }
@@ -316,8 +322,8 @@ export function acceptTranscriptionCandidate(
     assertInsideRun(run, input.mediaStart, input.mediaEnd);
     if (run.pendingCount < 1) throw new Error('transcription run has no pending candidate');
     requireCurrentLifecycle(db, run);
-    const startMs = secondsToMs(input.mediaStart);
-    const endMs = secondsToMs(input.mediaEnd);
+    const startMs = secToMs(input.mediaStart);
+    const endMs = secToMs(input.mediaEnd);
     if (!(endMs > startMs)) throw new Error('transcription time is invalid');
     const overlaps = overlappingTexts(db, run.layerId, startMs, endMs);
     if (overlaps.length > 0) throw new Error('transcription target is occupied');
@@ -345,14 +351,14 @@ export function acceptTranscriptionCandidate(
     assertUnitTextRoleFree(db, unitId, 'transcription');
     db.prepare(
       `INSERT INTO units (
-        id, layer_id, sort_order, start_ms, end_ms, created_at, updated_at
+        id, layer_id, start_ms, end_ms, sort_order, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       unitId,
       run.layerId,
-      allocateUnitSort(db, run.layerId, startMs),
       startMs,
       endMs,
+      sortOrderForInsert(db, run.layerId, startMs),
       now,
       now,
     );
@@ -566,10 +572,10 @@ function requireRun(db: SqliteDatabase, id: string): ModelRun {
   return run;
 }
 
-function assertInsideRun(run: ModelRun, start: number, end: number): void {
-  const startMs = secondsToMs(start);
-  const endMs = secondsToMs(end);
-  if (startMs < run.rangeStartMs || endMs > run.rangeEndMs) {
+function assertInsideRun(run: ModelRun, startSec: number, endSec: number): void {
+  const start = secToMs(startSec);
+  const end = secToMs(endSec);
+  if (start < run.rangeStartMs || end > run.rangeEndMs) {
     throw new Error('transcription range is outside the run');
   }
 }
@@ -597,8 +603,8 @@ function placeCandidate(
   run: ModelRun,
   candidate: PreviewCandidateInput,
 ): PreviewCandidate {
-  const startMs = secondsToMs(candidate.mediaStart);
-  const endMs = secondsToMs(candidate.mediaEnd);
+  const startMs = secToMs(candidate.mediaStart);
+  const endMs = secToMs(candidate.mediaEnd);
   if (!(endMs > startMs)) throw new Error('transcription time is invalid');
   const overlaps = overlappingTexts(db, run.layerId, startMs, endMs);
   return {
@@ -643,7 +649,7 @@ function candidateIdentity(chunkIndex: number, segmentIndex: number): string {
 }
 
 function orderedRange(start: number, end: number): boolean {
-  return Number.isFinite(start) && Number.isFinite(end) && end >= start;
+  return Number.isInteger(start) && Number.isInteger(end) && start >= 0 && end >= start;
 }
 
 function provenanceJson(run: ModelRun, now: string): string {

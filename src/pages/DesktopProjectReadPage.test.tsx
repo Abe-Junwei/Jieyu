@@ -262,7 +262,7 @@ describe('DesktopProjectReadPage', () => {
     mount(session.sessionId);
     fireEvent.click(await screen.findByRole('button', { name: /原句/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Split' }));
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–0.5 原句' }));
+    expect(await screen.findByRole('button', { name: '0.0–0.5 原句' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '0.5–1.0 原句' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     expect(await screen.findByRole('button', { name: '0.0–1.0 原句' })).toBeTruthy();
@@ -289,7 +289,7 @@ describe('DesktopProjectReadPage', () => {
     mount(session.sessionId);
     fireEvent.click(await screen.findByRole('button', { name: /甲/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Merge next' }));
-    fireEvent.click(await screen.findByRole('button', { name: '0.0–2.0 甲' }));
+    expect(await screen.findByRole('button', { name: '0.0–2.0 甲' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /乙/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     expect(await screen.findByRole('button', { name: /乙/ })).toBeTruthy();
@@ -1864,8 +1864,8 @@ function seedReadUnit(
   }) as { id: string };
   return callDesktopSession(sessionId, 'units.create', {
     layerId: layer.id,
-    startMs: Math.round(startTime * 1000),
-    endMs: Math.round(endTime * 1000),
+    startMs: startTime * 1000,
+    endMs: endTime * 1000,
     text,
   }) as { id: string; layerId: string };
 }

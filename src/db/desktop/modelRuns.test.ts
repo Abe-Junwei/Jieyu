@@ -86,8 +86,8 @@ describe('transcription run storage', () => {
     });
     const beside = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,
-      startMs: 10000,
-      endMs: 11000,
+      startMs: 2000,
+      endMs: 3000,
       text: 'keep',
     }) as { id: string };
     callDesktopSession(session.sessionId, 'units.updateText', { unitId: beside.id, text: 'kept' });
@@ -203,18 +203,27 @@ describe('transcription run storage', () => {
     const stale = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: staleRun.id,
       candidates: [{ chunkIndex: 1, segmentIndex: 0, mediaStart: 6, mediaEnd: 8 }],
-    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    }) as { candidates: { targetFingerprint: string }[] };
     const staleCandidate = stale.candidates[0];
     if (staleCandidate === undefined) throw new Error('preview missing');
+    expect(() =>
+      callDesktopSession(session.sessionId, 'modelRuns.accept', {
+        operationId: 'op-stale',
+        runId: staleRun.id,
+        chunkIndex: 1,
+        segmentIndex: 0,
+        mediaStart: 6,
+        mediaEnd: 8,
+        targetFingerprint: '0'.repeat(64),
+        text: 'old',
+      }),
+    ).toThrow('transcription preview is stale');
     const fresh = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: staleRun.id,
       candidates: [{ chunkIndex: 1, segmentIndex: 0, mediaStart: 6, mediaEnd: 8 }],
-    }) as {
-      candidates: { manuscriptStart: number; manuscriptEnd: number; targetFingerprint: string }[];
-    };
+    }) as { candidates: { targetFingerprint: string }[] };
     const freshCandidate = fresh.candidates[0];
     if (freshCandidate === undefined) throw new Error('preview missing');
-    expect(freshCandidate).toMatchObject({ startMs: 6000, endMs: 8000 });
     expect(
       callDesktopSession(session.sessionId, 'modelRuns.accept', {
         operationId: 'op-fresh',
@@ -314,7 +323,7 @@ describe('transcription run storage', () => {
     const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: run.id,
       candidates: [{ chunkIndex: 2, segmentIndex: 0, mediaStart: 4, mediaEnd: 5 }],
-    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    }) as { candidates: { targetFingerprint: string }[] };
     const candidate = preview.candidates[0];
     if (candidate === undefined) throw new Error('preview missing');
     resetDesktopSessions();
@@ -377,7 +386,7 @@ describe('transcription run storage', () => {
     const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: next.id,
       candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 2, mediaEnd: 3 }],
-    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    }) as { candidates: { targetFingerprint: string }[] };
     const candidate = preview.candidates[0];
     if (candidate === undefined) throw new Error('preview missing');
     expect(
@@ -402,7 +411,7 @@ describe('transcription run storage', () => {
     const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: run.id,
       candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 0, mediaEnd: 1 }],
-    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    }) as { candidates: { targetFingerprint: string }[] };
     const candidate = preview.candidates[0];
     if (candidate === undefined) throw new Error('preview missing');
     callDesktopSession(session.sessionId, 'customFields.createDefinition', {
@@ -534,7 +543,7 @@ describe('transcription run storage', () => {
     const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: run.id,
       candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 2, mediaEnd: 3 }],
-    }) as { timeMappingRevision: number; candidates: { targetFingerprint: string }[] };
+    }) as { candidates: { targetFingerprint: string }[] };
     const candidate = preview.candidates[0];
     if (candidate === undefined) throw new Error('preview missing');
     expect(() =>

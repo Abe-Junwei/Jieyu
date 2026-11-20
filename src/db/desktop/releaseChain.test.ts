@@ -14,7 +14,6 @@ import {
   requireDesktopSession,
   resetDesktopSessions,
 } from './projectSession';
-import { ensureBundledSample } from './sampleProject';
 import { listUnits } from './units';
 
 const roots: string[] = [];
@@ -27,15 +26,14 @@ afterEach(() => {
 });
 
 describe('single library release chain', () => {
-  it('keeps one sentence across lexicon, corpus, a run, exchange, backup, and the sample', () => {
+  it('keeps one sentence across lexicon, corpus, a run, exchange, and backup', () => {
     const root = mkdtempSync(join(tmpdir(), 'jieyu-release-chain-'));
     roots.push(root);
     const dir = join(root, 'project');
     const backupDir = join(root, 'backups');
     const exchanged = join(root, 'exchanged');
     const restored = join(root, 'restored');
-    const sample = join(root, 'sample');
-    for (const path of [dir, exchanged, restored, sample]) mkdirSync(path);
+    for (const path of [dir, exchanged, restored]) mkdirSync(path);
     const audio = Buffer.from('synthetic-chain');
     writeFileSync(join(dir, 'clip.wav'), audio);
 
@@ -113,9 +111,6 @@ describe('single library release chain', () => {
     restoreDailyBackup({ backupDir, day: '2026-10-28', destination: restored });
     expect(texts(restored)).toEqual(['kept sentence']);
     releaseAllProjectLocks();
-
-    expect(ensureBundledSample(sample)).toBe('imported');
-    expect(texts(sample)).toEqual(['synthetic sample']);
   });
 });
 

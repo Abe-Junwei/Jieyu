@@ -17,15 +17,17 @@ import {
 } from './analysisCandidates';
 import { assertStoredCustomFields, writeUnitFieldValues } from './customFields';
 import { claimTextSave, finishTextSave, textSaveDigest } from './textSave';
+import { secToMs } from './timeMs';
 
 type SqliteDatabase = InstanceType<typeof Database>;
+
+export type UnitSelfCertainty = 'not_understood' | 'uncertain' | 'certain';
 
 export interface Unit {
   id: string;
   layerId: string;
   speakerId: string | null;
   parentUnitId: string | null;
-  sortOrder: number;
   startMs: number | null;
   endMs: number | null;
   createdAt: string;
@@ -39,7 +41,6 @@ export interface UnitCreate {
   startMs: number | null;
   endMs: number | null;
   text: string;
-  sortOrder?: number;
   speakerId?: string | null;
   parentUnitId?: string | null;
   fieldValues?: Record<string, unknown>;
@@ -50,7 +51,6 @@ interface UnitRow {
   layer_id: string;
   speaker_id: string | null;
   parent_unit_id: string | null;
-  sort_order: number;
   start_ms: number | null;
   end_ms: number | null;
   created_at: string;
@@ -60,7 +60,7 @@ interface UnitRow {
 }
 
 const UNIT_SELECT = `
-SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id, units.sort_order,
+SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id,
        units.start_ms, units.end_ms, units.created_at, units.updated_at,
        unit_texts.id AS text_id, unit_texts.body AS text
 FROM units
@@ -91,7 +91,7 @@ function assertUnitSpan(start: number | null, end: number | null): void {
     !Number.isInteger(start) ||
     !Number.isInteger(end) ||
     start < 0 ||
-    start >= end
+    end <= start
   ) {
     throw new Error('unit time is invalid');
   }
@@ -99,13 +99,12 @@ function assertUnitSpan(start: number | null, end: number | null): void {
 
 function nextSortOrder(db: SqliteDatabase, layerId: string): number {
   const row = db
-    .prepare('SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM units WHERE layer_id = ?')
-    .get(layerId) as { n: number };
-  return row.n;
+    .prepare('SELECT COALESCE(MAX(sort_order), -1) AS sortOrder FROM units WHERE layer_id = ?')
+    .get(layerId) as { sortOrder: number };
+  return row.sortOrder + 1;
 }
 
-/** Keep aligned times in sort_order. Untimed units append. */
-export function allocateUnitSort(
+export function sortOrderForInsert(
   db: SqliteDatabase,
   layerId: string,
   startMs: number | null,
@@ -113,16 +112,40 @@ export function allocateUnitSort(
   if (startMs === null) return nextSortOrder(db, layerId);
   const next = db
     .prepare(
-      `SELECT sort_order AS n FROM units
+      `SELECT sort_order AS sortOrder FROM units
        WHERE layer_id = ? AND start_ms IS NOT NULL AND start_ms > ?
        ORDER BY sort_order LIMIT 1`,
     )
-    .get(layerId, startMs) as { n: number } | undefined;
+    .get(layerId, startMs) as { sortOrder: number } | undefined;
   if (next === undefined) return nextSortOrder(db, layerId);
+  // ponytail: two-step shift avoids a unique collision. Breaks if one layer exceeds 1000000 units.
   db.prepare(
-    'UPDATE units SET sort_order = sort_order + 1 WHERE layer_id = ? AND sort_order >= ?',
-  ).run(layerId, next.n);
-  return next.n;
+    'UPDATE units SET sort_order = sort_order + 1000000 WHERE layer_id = ? AND sort_order >= ?',
+  ).run(layerId, next.sortOrder);
+  db.prepare(
+    'UPDATE units SET sort_order = sort_order - 999999 WHERE layer_id = ? AND sort_order >= 1000000',
+  ).run(layerId);
+  return next.sortOrder;
+}
+
+function assertCreateInsideMedia(
+  db: SqliteDatabase,
+  layerId: string,
+  start: number | null,
+  end: number | null,
+): void {
+  if (start === null || end === null) return;
+  const row = db
+    .prepare(
+      `SELECT media.duration AS duration
+       FROM layers
+       JOIN manuscripts ON manuscripts.id = layers.manuscript_id
+       LEFT JOIN media ON media.id = manuscripts.media_id AND media.deleted_at IS NULL
+       WHERE layers.id = ?`,
+    )
+    .get(layerId) as { duration: number | null } | undefined;
+  if (!row || row.duration === null) return;
+  if (start < 0 || end > secToMs(row.duration)) throw new Error('edge is outside the media');
 }
 
 export function createUnit(
@@ -131,21 +154,22 @@ export function createUnit(
   afterUnitInsert?: () => void,
 ): Unit {
   assertUnitSpan(input.startMs, input.endMs);
+  assertCreateInsideMedia(db, input.layerId, input.startMs, input.endMs);
   const id = randomUUID();
   const now = new Date().toISOString();
   const write = db.transaction(() => {
     db.prepare(
       `INSERT INTO units (
-        id, layer_id, speaker_id, parent_unit_id, sort_order, start_ms, end_ms, created_at, updated_at
+        id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, sort_order, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       id,
       input.layerId,
       input.speakerId ?? null,
       input.parentUnitId ?? null,
-      input.sortOrder ?? allocateUnitSort(db, input.layerId, input.startMs),
       input.startMs,
       input.endMs,
+      sortOrderForInsert(db, input.layerId, input.startMs),
       now,
       now,
     );
@@ -163,7 +187,7 @@ export function createUnit(
 }
 
 const LIST = `
-SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id, units.sort_order,
+SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id,
        units.start_ms, units.end_ms, units.created_at, units.updated_at,
        unit_texts.id AS text_id, unit_texts.body AS text
 FROM units
@@ -201,31 +225,27 @@ export function updateBoundary(
     const right = readStoredUnit(db, input.rightId);
     if (!left || !right) throw new Error('boundary units are missing');
     if (
+      left.layerId !== right.layerId ||
       left.startMs === null ||
       left.endMs === null ||
       right.startMs === null ||
-      right.endMs === null
+      right.endMs === null ||
+      left.endMs !== right.startMs
     ) {
-      throw new Error('boundary units are not aligned');
-    }
-    if (left.layerId !== right.layerId || left.endMs !== right.startMs) {
       throw new Error('boundary units are not adjacent');
     }
     if (!Number.isInteger(input.time) || input.time <= left.startMs || input.time >= right.endMs) {
       throw new Error('boundary is outside the pair');
     }
     const now = new Date().toISOString();
-    db.prepare('UPDATE units SET end_ms = ?, updated_at = ? WHERE id = ?').run(
-      input.time,
-      now,
-      left.id,
-    );
+    const extend = input.time > left.endMs;
+    const setEnd = db.prepare('UPDATE units SET end_ms = ?, updated_at = ? WHERE id = ?');
+    const setStart = db.prepare('UPDATE units SET start_ms = ?, updated_at = ? WHERE id = ?');
+    if (extend) setStart.run(input.time, now, right.id);
+    else setEnd.run(input.time, now, left.id);
     afterLeftUpdate?.();
-    db.prepare('UPDATE units SET start_ms = ?, updated_at = ? WHERE id = ?').run(
-      input.time,
-      now,
-      right.id,
-    );
+    if (extend) setEnd.run(input.time, now, left.id);
+    else setStart.run(input.time, now, right.id);
     const nextLeft = readStoredUnit(db, left.id);
     const nextRight = readStoredUnit(db, right.id);
     if (!nextLeft || !nextRight) throw new Error('boundary readback failed');
@@ -459,7 +479,6 @@ function mapUnit(row: UnitRow): Unit {
     layerId: row.layer_id,
     speakerId: row.speaker_id,
     parentUnitId: row.parent_unit_id,
-    sortOrder: row.sort_order,
     startMs: row.start_ms,
     endMs: row.end_ms,
     createdAt: row.created_at,

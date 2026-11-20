@@ -5,7 +5,7 @@
  * Overlays speed slider, loop toggle, and play/stop button above the selected region
  */
 
-import type { FC } from 'react';
+import type { CSSProperties, FC } from 'react';
 import { JieyuIcon } from '../ui/JieyuIcon';
 import { JIEYU_ICON_INLINE_TIGHT } from '../../utils/jieyuIcon';
 import { t, tf, useLocale } from '../../i18n';
@@ -73,6 +73,11 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
             max={2}
             step={0.05}
             value={segmentPlaybackRate}
+            style={
+              {
+                '--speed-fill': `${Math.min(100, Math.max(0, ((segmentPlaybackRate - 0.25) / 1.75) * 100))}%`,
+              } as CSSProperties
+            }
             onChange={(e) => onPlaybackRateChange(Number(e.target.value))}
             title={tf(locale, 'transcription.wave.segmentSpeed', {
               rate: segmentPlaybackRate.toFixed(2),

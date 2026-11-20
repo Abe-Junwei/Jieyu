@@ -14,8 +14,13 @@ afterEach(() => {
 });
 
 describe('resolveDesktopSurface', () => {
-  it('keeps browser regression routes available without a desktop host', () => {
-    expect(resolveDesktopSurface(null)).toBe('legacy');
+  it('keeps the browser on the desktop shell unless the legacy test flag is set', () => {
+    expect(resolveDesktopSurface(null)).toBe('unavailable');
+    expect(resolveDesktopSurface(null, false)).toBe('unavailable');
+  });
+
+  it('opens the old web pages only for the legacy test build', () => {
+    expect(resolveDesktopSurface(null, true)).toBe('legacy');
   });
 
   it('uses the desktop page when the host is ready', () => {
@@ -26,7 +31,7 @@ describe('resolveDesktopSurface', () => {
     (globalThis as { jieyuDesktop?: { projectReadEnabled: boolean } }).jieyuDesktop = {
       projectReadEnabled: false,
     };
-    expect(resolveDesktopSurface(null)).toBe('unavailable');
+    expect(resolveDesktopSurface(null, true)).toBe('unavailable');
   });
 
   it('recognises an expired project session', () => {
