@@ -19,9 +19,9 @@
   initial-value: 148px;
 }
 
-/* 层头折叠：层名列宽归零，波形、时间尺与各层轨道一起贴上下文侧栏。 */
+/* 层头折叠：层名列收成 16px 竖条，只放展开钮；波形、时间尺与各层轨道一起从竖条右侧起。 */
 .desktop-tx-workspace.is-header-folded {
-  --lane-label-width: 0px;
+  --lane-label-width: 16px;
 }
 
 .desktop-tx-workspace.is-header-folded .desktop-tx-band-label {
@@ -593,10 +593,18 @@
 }
 
 .is-header-folded .desktop-tx-header-fold {
-  left: 4px;
-  width: 24px;
-  height: 22px;
-  border: 1px solid color-mix(in srgb, var(--brand-solid) 40%, transparent);
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--lane-label-width);
+  height: auto;
+  border-right: 1px solid var(--border-soft);
+  border-radius: 0;
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+}
+
+.is-header-folded .desktop-tx-header-fold:hover {
   background: color-mix(in srgb, var(--brand-solid) 10%, var(--surface-panel));
   color: var(--brand-solid);
 }
@@ -617,7 +625,7 @@
   transform: translateX(-1px) rotate(-135deg);
 }
 
-/* 层树：缩进表从属，线表关系，点表节点；其他宿主走最左侧走线槽。 */
+/* 层树：缩进表从属，线表关系，点表节点；多宿主层的点加环，悬停列出其他宿主。 */
 .desktop-tx-layer-label {
   --tree-line: var(--border-strong);
   --dot-x: 30px;
@@ -667,47 +675,6 @@
   bottom: 50%;
   border-bottom: 1px solid var(--tree-line);
   background: none;
-}
-
-.lane-run,
-.lane-stub {
-  --dash-v: repeating-linear-gradient(to bottom, var(--tree-line) 0 3px, transparent 3px 6px);
-  --dash-h: repeating-linear-gradient(to right, var(--tree-line) 0 3px, transparent 3px 6px);
-}
-
-.lane-run {
-  left: var(--x);
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--dash-v);
-}
-
-.lane-run.is-first {
-  top: 50%;
-}
-
-.lane-run.is-last {
-  bottom: 50%;
-}
-
-.lane-stub {
-  left: var(--x);
-  top: 50%;
-  width: var(--w);
-  height: 1px;
-  background: var(--dash-h);
-}
-
-.lane-stub.is-child::before {
-  content: '';
-  position: absolute;
-  left: -2px;
-  top: -2px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--tree-line);
 }
 
 .desktop-tx-layer-label.is-side-host .desktop-tx-layer-dot {

@@ -11,15 +11,13 @@ import type { LayerTreeRow } from './desktopTranscriptionLayerTree';
 const INDENT_BASE = 30;
 const INDENT_STEP = 16;
 const INDENT_LEVELS = 3;
-const LANE_BASE = 6;
-const LANE_STEP = 4;
 
 /** Dot centre for a depth; deeper than three levels only lengthens the guides. */
 const levelX = (depth: number) => INDENT_BASE + INDENT_STEP * Math.min(depth, INDENT_LEVELS);
 const px = (value: number) => `${value}px`;
 const cssVars = (vars: Record<string, string>) => vars as CSSProperties;
 
-/** Tree guides and the side-lane runs; drawn only, hidden from assistive tech. */
+/** Tree guides; drawn only, hidden from assistive tech. */
 function TreeLines(props: { row: LayerTreeRow }) {
   const { row } = props;
   const dotX = levelX(row.depth);
@@ -46,23 +44,6 @@ function TreeLines(props: { row: LayerTreeRow }) {
       {row.childCount > 0 && !row.groupCollapsed ? (
         <i className="tree-guide is-own" style={cssVars({ '--x': px(dotX) })} />
       ) : null}
-      {row.lanes.map((lane) => {
-        const x = LANE_BASE + LANE_STEP * lane.lane;
-        return (
-          <span key={`${lane.lane}`}>
-            <i className={`lane-run is-${lane.span}`} style={cssVars({ '--x': px(x) })} />
-            {lane.role === 'through' ? null : (
-              <i
-                className={`lane-stub is-${lane.role}`}
-                style={cssVars({
-                  '--x': px(x),
-                  '--w': px(dotX - (lane.role === 'host' ? 6 : 4) - x),
-                })}
-              />
-            )}
-          </span>
-        );
-      })}
     </span>
   );
 }
@@ -75,6 +56,8 @@ export function DesktopTranscriptionLayerLabel(props: {
   locale: Locale;
   name: string;
   row: LayerTreeRow;
+  /** Names of the hosts beyond the preferred one, for the marker's hover text. */
+  otherHosts?: readonly string[];
   focused: boolean;
   onToggleGroup: () => void;
   onCollapse: () => void;
@@ -104,6 +87,13 @@ export function DesktopTranscriptionLayerLabel(props: {
     const box = event.currentTarget.getBoundingClientRect();
     setMenu({ x: box.left + 8, y: box.bottom });
   };
+  const otherHosts = props.otherHosts ?? [];
+  const sideNote =
+    otherHosts.length > 0
+      ? tf(locale, 'app.desktopTranscription.layerOtherHosts', {
+          names: new Intl.ListFormat(locale, { type: 'conjunction' }).format(otherHosts),
+        })
+      : undefined;
   const groupLabel = tf(
     locale,
     row.groupCollapsed
@@ -113,12 +103,12 @@ export function DesktopTranscriptionLayerLabel(props: {
   );
   return (
     <div
-      className={`desktop-tx-band-label desktop-tx-layer-label${row.lanes.some((lane) => lane.role === 'host') ? ' is-side-host' : ''}${
+      className={`desktop-tx-band-label desktop-tx-layer-label${otherHosts.length > 0 ? ' is-side-host' : ''}${
         props.focused ? ' is-focused' : ''
       }`}
       style={cssVars({ '--dot-x': px(levelX(row.depth)) })}
       tabIndex={0}
-      title={props.name}
+      title={sideNote ? `${props.name}\n${sideNote}` : props.name}
       onContextMenu={open}
       onKeyDown={onKeyDown}
     >
@@ -128,11 +118,6 @@ export function DesktopTranscriptionLayerLabel(props: {
       {row.groupCollapsed ? (
         <span className="desktop-tx-layer-more">
           {tf(locale, 'app.desktopTranscription.layerGroupMore', { count: row.childCount })}
-        </span>
-      ) : null}
-      {row.moreHosts > 0 ? (
-        <span aria-hidden className="desktop-tx-layer-more">
-          +{row.moreHosts}
         </span>
       ) : null}
       {row.childCount > 0 ? (

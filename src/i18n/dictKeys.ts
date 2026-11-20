@@ -51,6 +51,7 @@ export const DICT_KEYS = [
   'app.desktopTranscription.layerGroupCollapse',
   'app.desktopTranscription.layerGroupExpand',
   'app.desktopTranscription.layerGroupMore',
+  'app.desktopTranscription.layerOtherHosts',
   'app.desktopTranscription.layerCollapse',
   'app.desktopTranscription.layerExpand',
   'app.desktopTranscription.layerSegmentCount',

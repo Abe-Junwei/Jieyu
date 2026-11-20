@@ -58,6 +58,7 @@ export const enUSDictionary = {
   'app.desktopTranscription.layerGroupCollapse': 'Collapse layers under {name}',
   'app.desktopTranscription.layerGroupExpand': 'Expand layers under {name}',
   'app.desktopTranscription.layerGroupMore': '+{count} layers',
+  'app.desktopTranscription.layerOtherHosts': 'Also hosted by: {names}',
   'app.desktopTranscription.layerCollapse': 'Collapse this layer',
   'app.desktopTranscription.layerExpand': 'Expand',
   'app.desktopTranscription.layerSegmentCount': '{count} segments',

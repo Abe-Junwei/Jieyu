@@ -54,6 +54,7 @@ export const zhCNDictionary = {
   'app.desktopTranscription.layerGroupCollapse': '收起 {name} 的从属层',
   'app.desktopTranscription.layerGroupExpand': '展开 {name} 的从属层',
   'app.desktopTranscription.layerGroupMore': '+{count} 层',
+  'app.desktopTranscription.layerOtherHosts': '同时依附于：{names}',
   'app.desktopTranscription.layerCollapse': '收起该层',
   'app.desktopTranscription.layerExpand': '展开',
   'app.desktopTranscription.layerSegmentCount': '{count} 段',

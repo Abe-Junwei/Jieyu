@@ -74,8 +74,7 @@ export function DesktopTranscriptionLayerRows(props: {
     groupCollapsed: false,
     folded: false,
     guides: [],
-    lanes: [],
-    moreHosts: 0,
+    otherHostIds: [],
   };
   const rows = props.tree.flatMap((row) => {
     const layer = props.layers.find((item) => item.id === row.layerId);
@@ -120,6 +119,9 @@ export function DesktopTranscriptionLayerRows(props: {
           locale={props.locale}
           name={name}
           row={row}
+          otherHosts={row.otherHostIds.map((id) =>
+            layerLabel(props.layers.find((item) => item.id === id)?.name, props.locale, ''),
+          )}
           focused={props.focus?.layerId === layer.id}
           onToggleGroup={() => props.onToggleGroup(layer.id)}
           onCollapse={() => props.onCollapse(layer.id)}

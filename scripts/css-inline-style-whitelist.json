@@ -150,7 +150,7 @@
     },
     {
       "file": "src/pages/DesktopTranscriptionLayerLabel.tsx",
-      "reason": "Tree guide, elbow and side-lane offsets derive from each row's runtime depth and lane index; the context menu follows the live pointer.",
+      "reason": "Tree guide and elbow offsets derive from each row's runtime depth; the context menu follows the live pointer.",
       "reviewer": "Copilot App",
       "reviewedAt": "2026-11-20",
       "snippets": [
@@ -165,14 +165,6 @@
         {
           "anchor": "'--x': px(dotX) })",
           "reviewedSha256": "2d665ad274b26b337b17689b043c92a68f8a49138a8098a4254837566fb58edf"
-        },
-        {
-          "anchor": "'--x': px(x) })",
-          "reviewedSha256": "15909ff1b540de9c0b1ae3bb47a095bb2145809eb71e96957d3e6adbc8e6e2ff"
-        },
-        {
-          "anchor": "'--w': px(dotX - (lane.role",
-          "reviewedSha256": "1ec3d03256d5f3cd36b3816c0149231bd69cb29072854126edd2f278bcca7e21"
         },
         {
           "anchor": "'--dot-x'",

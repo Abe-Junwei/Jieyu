@@ -31,48 +31,20 @@ describe('buildLayerTree', () => {
     expect(rows[0]).toMatchObject({ groupCollapsed: true, childCount: 2 });
   });
 
-  it('runs other hosts through side lanes docking a hidden end to its visible ancestor and skipping squeezed rows', () => {
-    const links = [link('c', 'a', true), link('c', 'b', false)];
-    const rows = buildLayerTree(layers, links, emptyFold());
-    expect(rows.map((row) => row.layerId)).toEqual(['a', 'c', 'b', 'd']);
-    expect(rows[1]?.lanes).toEqual([{ lane: 0, role: 'child', span: 'first' }]);
-    expect(rows[2]?.lanes).toEqual([{ lane: 0, role: 'host', span: 'last' }]);
-    expect(rows[3]?.lanes).toEqual([]);
-    const hidden = buildLayerTree(layers, links, { groups: ['a'], rows: [] });
-    expect(hidden.map((row) => [row.layerId, row.lanes.map((lane) => lane.role)])).toEqual([
-      ['a', ['child']],
-      ['b', ['host']],
-      ['d', []],
+  it('lists hosts beyond the preferred one without moving the layer', () => {
+    const rows = buildLayerTree(
+      layers,
+      [link('c', 'b', false, 0), link('c', 'a', true, 1), link('c', 'd', false, 2)],
+      emptyFold(),
+    );
+    expect(rows.map((row) => [row.layerId, row.hostId])).toEqual([
+      ['a', null],
+      ['c', 'a'],
+      ['b', null],
+      ['d', null],
     ]);
-    const folded = buildLayerTree(layers, links, { groups: [], rows: ['b'] });
-    expect(folded.every((row) => row.lanes.length === 0)).toBe(true);
-  });
-
-  it('reuses a lane once its run ended and counts runs beyond the lane cap', () => {
-    const many = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((id, index) => ({
-      id,
-      sortOrder: index,
-    }));
-    const overlapping = buildLayerTree(
-      many,
-      [
-        link('g', 'a', true),
-        link('g', 'b', false),
-        link('g', 'c', false),
-        link('g', 'd', false),
-        link('g', 'e', false),
-      ],
-      emptyFold(),
-    );
-    const g = overlapping.find((row) => row.layerId === 'g');
-    expect(g?.lanes.map((lane) => lane.lane)).toEqual([0, 1, 2]);
-    expect(g?.moreHosts).toBe(1);
-    const sequential = buildLayerTree(
-      many,
-      [link('b', 'a', true), link('b', 'c', false), link('e', 'd', true), link('e', 'f', false)],
-      emptyFold(),
-    );
-    expect(sequential.flatMap((row) => row.lanes.map((lane) => lane.lane))).toEqual([0, 0, 0, 0]);
+    expect(rows[1]?.otherHostIds).toEqual(['b', 'd']);
+    expect(rows[0]?.otherHostIds).toEqual([]);
   });
 
   it('keeps the real depth and a subtree right after its host, never split by a sibling', () => {

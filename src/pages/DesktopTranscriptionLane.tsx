@@ -244,6 +244,10 @@ export function DesktopTranscriptionLane(props: {
     props.locale,
     t(props.locale, 'app.desktopTranscription.contextLayerTranscription'),
   );
+  const otherHostNames = (row: LayerTreeRow) =>
+    row.otherHostIds.map((id) =>
+      layerLabel(props.layers?.find((layer) => layer.id === id)?.name, props.locale, ''),
+    );
   const renderMain = (row: LayerTreeRow) =>
     props.hasAudio || props.units.length > 0 ? (
       <>
@@ -265,6 +269,7 @@ export function DesktopTranscriptionLane(props: {
             locale={props.locale}
             name={mainName}
             row={row}
+            otherHosts={otherHostNames(row)}
             focused={focus === null}
             onToggleGroup={() => toggleGroup(row.layerId)}
             onCollapse={() => collapseLayer(row.layerId)}
