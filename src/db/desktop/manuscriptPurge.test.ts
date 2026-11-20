@@ -275,15 +275,15 @@ describe('manuscript reminder and purge', () => {
       manuscriptId: seeded.manuscriptId,
       key: 'pt',
       name: { zh: '点' },
-      tierType: 'point',
-      contentType: 'custom',
+      tierType: 'time-aligned',
+      contentType: 'point',
     }) as { id: string };
     const otherPointLayer = callDesktopSession(session.sessionId, 'layers.create', {
       manuscriptId: other.manuscriptId,
       key: 'pt',
       name: { zh: '点' },
-      tierType: 'point',
-      contentType: 'custom',
+      tierType: 'time-aligned',
+      contentType: 'point',
     }) as { id: string };
     const unit = callDesktopSession(session.sessionId, 'units.create', {
       layerId: seeded.layerId,

@@ -1,7 +1,7 @@
 {
   "userVersion": 31,
   "applicationId": 1247367242,
-  "schemaSha256": "73dde4ff666705921872f30d4a67c13947e7d60f0af6b859fe4b7e005ebf8e9f",
+  "schemaSha256": "bdc2055a7cd60921f445b5af5d46f5c9f9fcf75d7b639056ebd0d37105519498",
   "journalMode": "delete",
   "migrator": false,
   "rejection": "project.sqlite is not a Jieyu project library",

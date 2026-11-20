@@ -224,15 +224,15 @@ describe('desktop JYT exchange', () => {
       manuscriptId: selected.id,
       key: 'pt',
       name: { zh: '点' },
-      tierType: 'point',
-      contentType: 'custom',
+      tierType: 'time-aligned',
+      contentType: 'point',
     });
     const otherPointLayer = source.layers.create({
       manuscriptId: other.id,
       key: 'pt',
       name: { zh: '点' },
-      tierType: 'point',
-      contentType: 'custom',
+      tierType: 'time-aligned',
+      contentType: 'point',
     });
     const selectedUnit = source.units.create({
       layerId: selectedLayer.id,
