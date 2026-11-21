@@ -71,6 +71,9 @@ describe('Transcription layout guard', () => {
     const cssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-layout.css');
     const cssCode = fs.readFileSync(cssPath, 'utf8');
 
+    expect(cssCode).toContain(
+      '.app-shell-desktop-transcription:not(:has(.desktop-tx-workspace)) .app-side-pane',
+    );
     const selector = '.app-shell-transcription .app-main-transcription {';
     const start = cssCode.indexOf(selector);
 

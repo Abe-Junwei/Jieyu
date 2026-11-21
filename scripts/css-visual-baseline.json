@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-21T01:42:02.068Z",
-  "aggregate": "b9a8978181937aadb534a7cfee4d0fd2a8db318f38bec6c1c43f44e8d9a2a7a8",
+  "generatedAt": "2026-11-21T01:44:08.063Z",
+  "aggregate": "360bf857ca02fcb5ec3ce3992c7b02cce1d98beee17f546f2e2a4c47157bee92",
   "fileHashes": {
     "src/styles/ai-hub.css": "537be68d401399d5c7be152205f71c4c4f6949f861c9e34d22499005846034c7",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -48,7 +48,7 @@
     "src/styles/pages/timeline/timeline-segment-narrow.css": "16da99a7fe61c770d8a13b2c37c81a821af544300c851a2af204e2a567b79b27",
     "src/styles/pages/timeline/timeline-text-item.css": "7cb3eec60365ae036b895cd2e2eba25506d7f105176ba3ae5ae6ca66457e5ade",
     "src/styles/pages/timeline/timeline-translation-audio.css": "077453a23737ff562b2cd8ad808feefe17ec83d863676418c5a7189db26cf105",
-    "src/styles/pages/transcription-layout.css": "13f8f8c8f6d9a239f36cce9bbd03cbb29bea6195c3f8e46c29bf82098b4402dd",
+    "src/styles/pages/transcription-layout.css": "bd2b532d339b3e3ce6080c48d186a9e5ed3186260de989104e2222ddda834a80",
     "src/styles/pages/transcription-timeline.css": "a6e9ae7c512fb7bec801198bc7e9caf5d938bcc5f28e6737a8c9526f8087cb35",
     "src/styles/pages/transcription-toolbar.css": "c1c7ff5cec42ddcbca5946da3fb032d3a71ad6d09cc85161b5d6e368d2517e79",
     "src/styles/pages/transcription-waveform-shell.css": "6efcc9716d3d80152a89112f9f34e6b6f196def207ac9321f9d48a80494e8acb",

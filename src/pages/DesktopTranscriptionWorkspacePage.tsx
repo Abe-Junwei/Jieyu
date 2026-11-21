@@ -205,7 +205,11 @@ function DesktopTranscriptionWorkspace() {
     ),
     [hasAudio, locale, playbackDuration, readModel, selectedUnitId, speakerCount, units],
   );
-  useRegisterAppSidePane({ subtitle: '', content: manuscriptList });
+  useRegisterAppSidePane({
+    subtitle: '',
+    content: manuscriptList,
+    enabled: hasAudio || units.length > 0,
+  });
 
   if (host === null) return <Navigate to="/" replace />;
 
