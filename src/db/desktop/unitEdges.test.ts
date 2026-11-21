@@ -259,7 +259,7 @@ describe('desktop unit edges', () => {
         manuscriptId,
         key: 'tl',
         name: { zh: '翻译' },
-        tierType: 'time-aligned',
+        tierType: 'symbolic-association',
         contentType: 'translation',
         hosts: [{ hostLayerId: tx }],
       }) as { id: string }

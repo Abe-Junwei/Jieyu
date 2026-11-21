@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { buildLayerTree, emptyFold, type TreeLink } from './desktopTranscriptionLayerTree';
 import {
@@ -59,6 +65,8 @@ interface DragPoint {
 }
 
 const HOLD_MS: Record<LayerDragSurface, number> = { sidebar: 200, timeline: 500 };
+const NO_DRAG_IDS: readonly string[] = [];
+const NO_SHIFTS = new Map<string, number>();
 
 /** Press-hold drag for layer headers. Writes happen on release, never while the pointer moves. */
 export function useDesktopTranscriptionLayerDragController(input: {
@@ -164,7 +172,7 @@ export function useDesktopTranscriptionLayerDragController(input: {
     };
   }, [active, tick]);
 
-  const draggedIds = active && point.current ? movingIds(point.current.layerId) : [];
+  const draggedIds = active && point.current ? movingIds(point.current.layerId) : NO_DRAG_IDS;
   const decision =
     active && point.current?.drop
       ? resolveDesktopLayerDrop({
@@ -181,70 +189,75 @@ export function useDesktopTranscriptionLayerDragController(input: {
   const shifts =
     active && current
       ? dragShiftPixels(current.surface, draggedIds, decision, input.layers, input.links)
-      : new Map<string, number>();
+      : NO_SHIFTS;
 
-  return {
-    draggedIds,
-    mark: (layerId: string) => dragMark(draggedIds, layerId),
-    offset: current && !reduce ? current.y - current.originY : 0,
-    dropLayerId: current?.drop?.kind === 'header' ? current.drop.layerId : null,
-    dropKind: dropKind(decision),
-    reasonKey: decision && !decision.ok ? layerDropReasonKey(decision.reason) : null,
-    x: current?.x ?? 0,
-    y: current?.y ?? 0,
-    shift: (layerId) => shifts.get(layerId) ?? 0,
-    onPointerDown: (layerId, surface, event) => {
-      if (event.button !== 0) return;
-      const el = event.currentTarget;
-      const pointerId = event.pointerId;
-      const origin = { x: event.clientX, y: event.clientY };
-      if (timer.current !== null) window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(() => {
+  return useMemo(
+    () => ({
+      draggedIds,
+      mark: (layerId: string) => dragMark(draggedIds, layerId),
+      offset: current && !reduce ? current.y - current.originY : 0,
+      dropLayerId: current?.drop?.kind === 'header' ? current.drop.layerId : null,
+      dropKind: dropKind(decision),
+      reasonKey: decision && !decision.ok ? layerDropReasonKey(decision.reason) : null,
+      x: current?.x ?? 0,
+      y: current?.y ?? 0,
+      shift: (layerId) => shifts.get(layerId) ?? 0,
+      onPointerDown: (layerId, surface, event) => {
+        if (event.button !== 0) return;
+        const el = event.currentTarget;
+        const pointerId = event.pointerId;
+        const origin = { x: event.clientX, y: event.clientY };
+        if (timer.current !== null) window.clearTimeout(timer.current);
+        timer.current = window.setTimeout(() => {
+          timer.current = null;
+          if (el instanceof HTMLElement && typeof el.setPointerCapture === 'function') {
+            el.setPointerCapture(pointerId);
+          }
+          publish({
+            layerId,
+            surface,
+            originY: origin.y,
+            x: origin.x,
+            y: origin.y,
+            drop: null,
+          });
+          setActive(true);
+        }, HOLD_MS[surface]);
+      },
+      onPointerUp: () => {
+        if (timer.current === null) return;
+        window.clearTimeout(timer.current);
         timer.current = null;
-        if (el instanceof HTMLElement && typeof el.setPointerCapture === 'function') {
-          el.setPointerCapture(pointerId);
-        }
-        publish({
-          layerId,
-          surface,
-          originY: origin.y,
-          x: origin.x,
-          y: origin.y,
-          drop: null,
+      },
+      attachReason: (layerId) => attachReason(latest.current, layerId),
+      returnReason: (layerId) => returnReason(latest.current, layerId),
+      showReturn: (layerId) => {
+        const layer = latest.current.layers.find((item) => item.id === layerId);
+        return layer?.contentType === 'transcription' && layer.tierType === 'time-aligned';
+      },
+      attachToCurrent: (layerId) => {
+        const live = latest.current;
+        if (attachReason(live, layerId) !== null || live.currentLayerId === null) return;
+        const next = resolveDesktopLayerDrop({
+          dragId: layerId,
+          target: { kind: 'header', layerId: live.currentLayerId },
+          layers: live.layers,
+          links: live.links,
         });
-        setActive(true);
-      }, HOLD_MS[surface]);
-    },
-    onPointerUp: () => {
-      if (timer.current === null) return;
-      window.clearTimeout(timer.current);
-      timer.current = null;
-    },
-    attachReason: (layerId) => attachReason(input, layerId),
-    returnReason: (layerId) => returnReason(input, layerId),
-    showReturn: (layerId) => {
-      const layer = input.layers.find((item) => item.id === layerId);
-      return layer?.contentType === 'transcription' && layer.tierType === 'time-aligned';
-    },
-    attachToCurrent: (layerId) => {
-      if (attachReason(input, layerId) !== null || input.currentLayerId === null) return;
-      const next = resolveDesktopLayerDrop({
-        dragId: layerId,
-        target: { kind: 'header', layerId: input.currentLayerId },
-        layers: input.layers,
-        links: input.links,
-      });
-      if (next.ok) void writeDrop(input, next);
-    },
-    returnToRoot: (layerId) => {
-      if (returnReason(input, layerId) !== null) return;
-      const next = resolveDesktopLayerDrop({
-        dragId: layerId,
-        target: { kind: 'root', index: Number.MAX_SAFE_INTEGER },
-        layers: input.layers,
-        links: input.links,
-      });
-      if (next.ok) void writeDrop(input, next);
-    },
-  };
+        if (next.ok) void writeDrop(live, next);
+      },
+      returnToRoot: (layerId) => {
+        const live = latest.current;
+        if (returnReason(live, layerId) !== null) return;
+        const next = resolveDesktopLayerDrop({
+          dragId: layerId,
+          target: { kind: 'root', index: Number.MAX_SAFE_INTEGER },
+          layers: live.layers,
+          links: live.links,
+        });
+        if (next.ok) void writeDrop(live, next);
+      },
+    }),
+    [draggedIds, decision, shifts, current, reduce],
+  );
 }

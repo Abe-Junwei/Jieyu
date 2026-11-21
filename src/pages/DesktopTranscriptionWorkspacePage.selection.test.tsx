@@ -13,7 +13,15 @@ const readState = vi.hoisted(() => {
   const base = () => ({
     manuscriptId: 'ms-1',
     manuscripts: [{ id: 'ms-1', title: { und: 'Story' }, timeMapping: null }],
-    layers: [] as {
+    layers: [
+      {
+        id: 'layer-1',
+        name: { zh: '转写' },
+        contentType: 'transcription',
+        tierType: 'time-aligned',
+        units: [] as { id: string; startMs: number; endMs: number; text: string }[],
+      },
+    ] as {
       id: string;
       key?: string;
       name: Record<string, string>;
@@ -22,7 +30,7 @@ const readState = vi.hoisted(() => {
       sortOrder?: number;
       units: { id: string; startMs: number; endMs: number; text: string }[];
     }[],
-    layerId: null as string | null,
+    layerId: 'layer-1' as string | null,
     links: [] as {
       layerId: string;
       hostLayerId: string;
@@ -295,7 +303,7 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     fireEvent.change(again, { target: { value: 'alpha beta' } });
     fireEvent.blur(again);
     await waitFor(() => {
-      expect(saveText).toHaveBeenCalledWith('u-a', 'alpha beta', expect.any(String));
+      expect(saveText).toHaveBeenCalledWith('u-a', 'alpha beta', expect.any(String), 'layer-1');
     });
   });
 
@@ -313,7 +321,7 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     fireEvent.change(input, { target: { value: '你' }, isComposing: true });
     fireEvent.compositionEnd(input);
     await waitFor(() => {
-      expect(saveText).toHaveBeenCalledWith('u-a', '你', expect.any(String));
+      expect(saveText).toHaveBeenCalledWith('u-a', '你', expect.any(String), 'layer-1');
     });
   });
 
