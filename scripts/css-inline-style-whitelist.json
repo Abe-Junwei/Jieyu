@@ -210,9 +210,9 @@
     },
     {
       "file": "src/pages/DesktopTranscriptionWorkspacePage.tsx",
-      "reason": "Volume fill, zoom fill, and waveform band heights are runtime values.",
+      "reason": "Volume fill, zoom fill, and waveform band heights are runtime values. The empty-waveform menu follows the pointer.",
       "reviewer": "Cursor + junwei",
-      "reviewedAt": "2026-11-20",
+      "reviewedAt": "2026-11-21",
       "snippets": [
         {
           "anchor": "'--volume-fill'",
@@ -221,6 +221,10 @@
         {
           "anchor": "'--desktop-wave-primary'",
           "reviewedSha256": "db366265c99aa93248b4ed55d29f573da1b8e53c49b16b91c24541b5b197673e"
+        },
+        {
+          "anchor": "left: waveMenu.x, top: waveMenu.y",
+          "reviewedSha256": "a6aa3a719d46a4efe1d6a08e13a1630e91569b027d2572bbb91945301c7ebfd5"
         },
         {
           "anchor": "'--zoom-fill'",
