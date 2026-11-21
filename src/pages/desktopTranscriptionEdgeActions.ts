@@ -88,6 +88,8 @@ export interface EdgeControllerInput {
   createRoute?: { layers: readonly RouteLayer[]; links: readonly RouteLink[] };
   /** A drag that crosses existing segments selects them instead of creating one. */
   selectUnits?: (unitIds: string[]) => void;
+  /** A click on empty time, without a drag. */
+  onEmptyClick?: () => void;
 }
 
 export interface EdgeUi {
@@ -251,6 +253,7 @@ export function createEdgeActions(ctx: {
       setPreview,
       minMs: CREATE_MIN_MS,
       tooShort: (endMs) => refuse('createShort', endMs),
+      onEmptyClick: () => live.current.onEmptyClick?.(),
       commit: (startMs, endMs) => {
         const route = routeCreate({
           targetLayerId,

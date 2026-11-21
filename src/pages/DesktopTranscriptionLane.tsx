@@ -76,6 +76,7 @@ export function DesktopTranscriptionLane(props: {
   onCommitBody: () => void;
   onSelectUnit: (unit: DesktopPlaybackUnit) => void;
   onSelectUnits: (units: readonly DesktopPlaybackUnit[]) => void;
+  onClearSelection: () => void;
   onSeek: (seconds: number) => void;
   reload: () => Promise<unknown>;
   tierRef: RefObject<HTMLDivElement | null>;
@@ -144,6 +145,7 @@ export function DesktopTranscriptionLane(props: {
     selectUnits: (unitIds) => {
       props.onSelectUnits(props.units.filter((unit) => unitIds.includes(unit.id)));
     },
+    onEmptyClick: () => props.onLeave(() => props.onClearSelection()),
   });
   const keyOf = (unitId: string) =>
     props.layerId === null ? unitId : textKey(props.layerId, unitId);

@@ -20,6 +20,7 @@ function begin(clientX: number) {
   const commit = vi.fn();
   const tooShort = vi.fn();
   const setPreview = vi.fn();
+  const onEmptyClick = vi.fn();
   startCreate({
     event: press(clientX),
     msAt: (x) => x * 10,
@@ -31,8 +32,9 @@ function begin(clientX: number) {
     commit,
     tooShort,
     minMs: 10,
+    onEmptyClick,
   });
-  return { commit, tooShort, setPreview };
+  return { commit, tooShort, setPreview, onEmptyClick };
 }
 
 describe('startCreate (waveform and lane drag-to-create)', () => {
@@ -42,6 +44,7 @@ describe('startCreate (waveform and lane drag-to-create)', () => {
     window.dispatchEvent(new Event('pointerup'));
     expect(run.setPreview).not.toHaveBeenCalled();
     expect(run.commit).not.toHaveBeenCalled();
+    expect(run.onEmptyClick).toHaveBeenCalledOnce();
     const click = vi.fn();
     window.addEventListener('click', click);
     window.dispatchEvent(new MouseEvent('click'));
@@ -57,6 +60,7 @@ describe('startCreate (waveform and lane drag-to-create)', () => {
     );
     window.dispatchEvent(new Event('pointerup'));
     expect(run.commit).toHaveBeenCalledWith(1500, 3000);
+    expect(run.onEmptyClick).not.toHaveBeenCalled();
     const click = vi.fn();
     window.addEventListener('click', click);
     window.dispatchEvent(new MouseEvent('click'));
@@ -77,5 +81,6 @@ describe('startCreate (waveform and lane drag-to-create)', () => {
     window.dispatchEvent(new Event('pointerup'));
     expect(run.setPreview).not.toHaveBeenCalled();
     expect(run.commit).not.toHaveBeenCalled();
+    expect(run.onEmptyClick).not.toHaveBeenCalled();
   });
 });

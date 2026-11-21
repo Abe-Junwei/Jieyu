@@ -48,6 +48,17 @@
   background: var(--gray-3);
 }
 
+.app-shell-desktop-transcription:not(:has(.desktop-tx-workspace)) .app-shell-body,
+.app-shell-desktop-transcription:has(.desktop-tx-no-audio) .app-shell-body {
+  --side-pane-width: 0px;
+}
+
+.app-shell-desktop-transcription:not(:has(.desktop-tx-workspace)) .app-side-pane,
+.app-shell-desktop-transcription:has(.desktop-tx-no-audio) .app-side-pane {
+  display: none;
+  transition: none;
+}
+
 .app-shell-desktop-transcription.app-shell-transcription .app-main-transcription {
   transition: padding-left var(--shell-motion-base) ease;
 }

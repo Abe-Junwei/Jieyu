@@ -5,6 +5,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { featureFlags } from '../ai/config/featureFlags';
+import {
+  AppSidePaneProvider,
+  useAppSidePaneRegistrationSnapshot,
+} from '../contexts/AppSidePaneContext';
 import { LocaleProvider } from '../i18n';
 import { forgetOpenProjectSession } from '../desktop/openProjectSession';
 import { DesktopPageRouter, resetDesktopPageRouters } from '../test/desktopPageRouter';
@@ -40,6 +44,11 @@ afterEach(() => {
   delete (globalThis as { jieyuDesktop?: unknown }).jieyuDesktop;
 });
 
+function SidePaneProbe() {
+  const registration = useAppSidePaneRegistrationSnapshot();
+  return <div data-testid="side-pane-probe">{registration === null ? 'absent' : 'registered'}</div>;
+}
+
 describe('DesktopTranscriptionWorkspacePage', () => {
   it('opens the transcription workspace unless the flag is forced off', () => {
     expect(featureFlags.desktopTranscriptionWorkspaceEnabled).toBe(true);
@@ -58,14 +67,17 @@ describe('DesktopTranscriptionWorkspacePage', () => {
     };
 
     render(
-      <LocaleProvider locale="zh-CN">
-        <DesktopPageRouter initialEntries={['/transcription']}>
-          <Routes>
-            <Route path="/" element={<div>home</div>} />
-            <Route path="/transcription" element={<DesktopTranscriptionWorkspacePage />} />
-          </Routes>
-        </DesktopPageRouter>
-      </LocaleProvider>,
+      <AppSidePaneProvider>
+        <LocaleProvider locale="zh-CN">
+          <SidePaneProbe />
+          <DesktopPageRouter initialEntries={['/transcription']}>
+            <Routes>
+              <Route path="/" element={<div>home</div>} />
+              <Route path="/transcription" element={<DesktopTranscriptionWorkspacePage />} />
+            </Routes>
+          </DesktopPageRouter>
+        </LocaleProvider>
+      </AppSidePaneProvider>,
     );
 
     expect(screen.getByTestId('desktop-transcription-workspace')).toBeTruthy();
@@ -75,6 +87,7 @@ describe('DesktopTranscriptionWorkspacePage', () => {
     expect(screen.queryByTestId('desktop-no-audio-bar')).toBeNull();
     expect(screen.getByTestId('desktop-no-audio')).toBeTruthy();
     expect(screen.getByText('还没有录音')).toBeTruthy();
+    expect(screen.getByTestId('side-pane-probe').textContent).toBe('absent');
     expect(screen.getByRole('button', { name: '导入录音…' })).toBeTruthy();
     expect(screen.queryByText('转写')).toBeNull();
     expect(screen.queryByTestId('desktop-waveform')).toBeNull();

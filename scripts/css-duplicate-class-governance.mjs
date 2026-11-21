@@ -29,12 +29,8 @@ function collectClassNamesFromNode(node, classNames) {
     return;
   }
 
-  if (node.type === 'PseudoClassSelector' || node.type === 'PseudoElementSelector') {
-    if (node.children) {
-      for (const child of node.children) collectClassNamesFromNode(child, classNames);
-    }
-    return;
-  }
+  // :has() / :not() / :is() name another element. They are not a second definition of that class.
+  if (node.type === 'PseudoClassSelector' || node.type === 'PseudoElementSelector') return;
 
   if (node.children) {
     for (const child of node.children) collectClassNamesFromNode(child, classNames);

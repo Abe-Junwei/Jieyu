@@ -210,6 +210,8 @@ export function startCreate(input: {
   commit: (startMs: number, endMs: number) => void;
   tooShort: (endMs: number) => void;
   minMs: number;
+  /** A press that never becomes a drag. The press is already known to miss every unit. */
+  onEmptyClick?: () => void;
 }) {
   const event = input.event;
   if (event.button !== 0 || !(input.zoomPxPerSec > 0)) return;
@@ -248,7 +250,10 @@ export function startCreate(input: {
     },
     () => {
       const done = range;
-      if (done === null) return;
+      if (done === null) {
+        input.onEmptyClick?.();
+        return;
+      }
       input.setPreview(null);
       swallowNextClick();
       if (done.endMs - done.startMs < input.minMs) input.tooShort(done.endMs);

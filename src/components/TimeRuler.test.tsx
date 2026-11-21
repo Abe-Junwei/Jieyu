@@ -24,5 +24,6 @@ describe('TimeRuler', () => {
     );
     expect(container.querySelector('.time-ruler-label-text')?.textContent).toBe('0:00');
     expect(container.querySelector('.time-ruler-overview')).toBeTruthy();
+    expect(container.querySelector('.time-ruler-cursor-line')?.getAttribute('y2')).toBe('100%');
   });
 });
