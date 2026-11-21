@@ -17,6 +17,7 @@ const unit = {
 
 function renderView(
   overrides: {
+    units?: (typeof unit)[];
     onSaveNote?: (unitId: string, text: string) => void | Promise<void>;
     onSaveTierNote?: (
       unitId: string,
@@ -31,7 +32,7 @@ function renderView(
     <DesktopProjectReadView
       manuscripts={[{ id: 'm1', title: { zh: '文稿' } }]}
       manuscriptId="m1"
-      units={[unit]}
+      units={overrides.units ?? [unit]}
       notes={[]}
       audioUrl={null}
       emptyLabel="empty"
@@ -64,6 +65,13 @@ function renderView(
   );
   return { onSaveNote, onSaveTierNote };
 }
+
+describe('DesktopProjectReadView span label', () => {
+  it('keeps a span under 100 ms distinguishable from zero length (#588)', () => {
+    renderView({ units: [{ ...unit, startMs: 40, endMs: 90 }] });
+    expect(screen.getByRole('button', { name: '0.04–0.09 sentence' })).toBeTruthy();
+  });
+});
 
 describe('DesktopProjectReadView note draft', () => {
   it('keeps the note draft when save rejects', async () => {

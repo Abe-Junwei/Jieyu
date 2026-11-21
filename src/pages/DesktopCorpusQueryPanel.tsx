@@ -1,6 +1,6 @@
 import type { CorpusQueryHit, CorpusTextSpan } from '../app/desktopProjectReadPageAccess';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
-import { msToSec } from '../utils/timeMs';
+import { formatMsSpan } from '../utils/timeMs';
 import { t, tf, useLocale } from '../i18n';
 import { useDesktopCorpusQuery } from './useDesktopCorpusQuery';
 
@@ -113,7 +113,7 @@ function Highlighted(props: { text: string; spans: readonly CorpusTextSpan[] }) 
 
 function querySpan(start: number | null, end: number | null): string {
   if (start === null || end === null) return '—';
-  return `${msToSec(start).toFixed(1)}–${msToSec(end).toFixed(1)}`;
+  return formatMsSpan(start, end);
 }
 
 function hitLabel(hit: CorpusQueryHit): string {

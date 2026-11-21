@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
-import { msToSec } from '../utils/timeMs';
+import { formatMsSpan } from '../utils/timeMs';
 import { t, tf, useLocale } from '../i18n';
 import { useDesktopAnalysisReview } from './useDesktopAnalysisReview';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';
@@ -54,7 +54,7 @@ export function DesktopAnalysisPage({ host }: { host: DesktopReadHost }) {
               >
                 {unit.startMs === null || unit.endMs === null
                   ? unit.text
-                  : `${msToSec(unit.startMs).toFixed(1)}–${msToSec(unit.endMs).toFixed(1)} ${unit.text}`}
+                  : `${formatMsSpan(unit.startMs, unit.endMs)} ${unit.text}`}
               </button>
             ))}
           </div>
