@@ -6,6 +6,8 @@
 export interface TreeLayer {
   id: string;
   sortOrder?: number;
+  /** Structural parent. A recording layer's text child sits under that recording layer. */
+  parentId?: string | null;
 }
 
 export interface TreeLink {
@@ -77,6 +79,14 @@ export function buildLayerTree(
   for (const layer of layers) {
     const preferred = hostLinks(layer.id)[0];
     if (preferred) parentOf.set(layer.id, preferred.hostLayerId);
+  }
+  for (const layer of layers) {
+    const structural = layer.parentId;
+    if (structural === undefined || structural === null || structural === layer.id) continue;
+    if (!byId.has(structural)) continue;
+    const host = parentOf.get(layer.id);
+    if (host === undefined || parentOf.get(structural) !== host) continue;
+    parentOf.set(layer.id, structural);
   }
   const sorted = [...layers].sort(order);
   const roots = sorted.filter((layer) => !parentOf.has(layer.id) && !hasAnyLink(layer.id));

@@ -117,4 +117,27 @@ describe('DesktopTranscriptionLayerList', () => {
     expect(onCreate).toHaveBeenNthCalledWith(3, 'transcription', '转写 2');
     expect(onCreate).toHaveBeenNthCalledWith(4, 'translation', '译文 2');
   });
+
+  it('asks for one recording pair at a time', () => {
+    const onCreatePair = vi.fn();
+    render(
+      <DesktopTranscriptionLayerList
+        locale="zh-CN"
+        layers={[layer]}
+        links={[]}
+        currentId="layer-1"
+        error=""
+        onSelect={vi.fn()}
+        onCreate={vi.fn()}
+        onCreatePair={onCreatePair}
+        onRename={vi.fn()}
+        onMove={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: '新建语音转写' }));
+    fireEvent.click(screen.getByRole('button', { name: '新建口译' }));
+    expect(onCreatePair).toHaveBeenNthCalledWith(1, 'voice', '语音转写', '语音转写文本');
+    expect(onCreatePair).toHaveBeenNthCalledWith(2, 'oral', '口译', '口译文');
+  });
 });

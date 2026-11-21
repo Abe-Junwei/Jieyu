@@ -6,6 +6,7 @@ import {
   type ChangeEvent,
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
   type RefObject,
 } from 'react';
 import { createPortal } from 'react-dom';
@@ -97,6 +98,7 @@ export function DesktopTranscriptionLane(props: {
   /** A body editor opened on `layerId`'s text of `unitId`: bring back its stored draft. */
   onOpenBody: (layerId: string, unitId: string, savedText: string) => void;
   onLaneHeight?: (layerId: string, height: number) => void;
+  audioTools?: (layerId: string, unitId: string) => ReactNode;
 }) {
   const toast = useToast();
   const [editing, setEditing] = useState<LayerCardRef | null>(null);
@@ -527,6 +529,7 @@ export function DesktopTranscriptionLane(props: {
           onCommitBody={props.onCommitBody}
           onStopEdit={() => setEditing(null)}
           {...(props.onLaneHeight === undefined ? {} : { onLaneHeight: props.onLaneHeight })}
+          {...(props.audioTools === undefined ? {} : { audioTools: props.audioTools })}
           onCreate={(event, layerId, units) => {
             setCreateLayerId(layerId);
             setWaveDrag(false);

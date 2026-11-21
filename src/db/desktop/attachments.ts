@@ -130,6 +130,31 @@ export function readAttachmentLink(
   return { mimeType: row.mimeType, bytes };
 }
 
+function assertAttachmentBytesReady(db: SqliteDatabase, digest: string): void {
+  const unresolved = db
+    .prepare('SELECT state FROM attachment_files WHERE sha256 = ?')
+    .get(digest) as { state: string } | undefined;
+  if (unresolved?.state === 'cleanup_unknown') throw new Error('attachment file is unresolved');
+}
+
+function placeAttachmentBytes(
+  folder: string,
+  operationId: string,
+  bytes: Uint8Array,
+  digest: string,
+): void {
+  const tempFile = path.join(attachmentDir(folder, 'tmp'), operationId);
+  const stored = path.join(attachmentDir(folder, 'objects'), digest);
+  writeFileSync(tempFile, bytes, { flag: 'wx' });
+  try {
+    if (sha256(readFileSync(tempFile)) !== digest) throw new Error('attachment hash conflicts');
+    placeObject(tempFile, stored, digest);
+    if (sha256(readFileSync(stored)) !== digest) throw new Error('attachment hash conflicts');
+  } finally {
+    rmSync(tempFile, { force: true });
+  }
+}
+
 export function publishAttachment(
   db: SqliteDatabase,
   folder: string,
@@ -148,55 +173,119 @@ export function publishAttachment(
     throw new Error('attachment display name is invalid');
   }
   const digest = sha256(input.bytes);
-  const unresolved = db
-    .prepare('SELECT state FROM attachment_files WHERE sha256 = ?')
-    .get(digest) as { state: string } | undefined;
-  if (unresolved?.state === 'cleanup_unknown') throw new Error('attachment file is unresolved');
+  assertAttachmentBytesReady(db, digest);
   const relpath = `attachments/objects/${digest}`;
-  const tempDir = attachmentDir(folder, 'tmp');
-  const objectDir = attachmentDir(folder, 'objects');
-  const tempFile = path.join(tempDir, input.operationId);
-  const objectFile = path.join(objectDir, digest);
-  writeFileSync(tempFile, input.bytes, { flag: 'wx' });
-  try {
-    if (sha256(readFileSync(tempFile)) !== digest) throw new Error('attachment hash conflicts');
-    placeObject(tempFile, objectFile, digest);
-    if (sha256(readFileSync(objectFile)) !== digest) throw new Error('attachment hash conflicts');
-    return db.transaction(() => {
-      const lexeme = db.prepare('SELECT kind FROM lexemes WHERE id = ?').get(input.lexemeId) as
-        { kind: string } | undefined;
-      if (lexeme?.kind !== 'entry') throw new Error('lexeme is missing');
-      const existing = db
-        .prepare('SELECT id, state FROM attachment_files WHERE sha256 = ?')
-        .get(digest) as { id: string; state: string } | undefined;
-      const now = new Date().toISOString();
-      const fileId = existing?.id ?? randomUUID();
-      if (existing === undefined) {
-        db.prepare(
-          `INSERT INTO attachment_files (
+  placeAttachmentBytes(folder, input.operationId, input.bytes, digest);
+  return db.transaction(() => {
+    const lexeme = db.prepare('SELECT kind FROM lexemes WHERE id = ?').get(input.lexemeId) as
+      { kind: string } | undefined;
+    if (lexeme?.kind !== 'entry') throw new Error('lexeme is missing');
+    const existing = db
+      .prepare('SELECT id, state FROM attachment_files WHERE sha256 = ?')
+      .get(digest) as { id: string; state: string } | undefined;
+    const now = new Date().toISOString();
+    const fileId = existing?.id ?? randomUUID();
+    if (existing === undefined) {
+      db.prepare(
+        `INSERT INTO attachment_files (
             id, sha256, relpath, byte_size, kind, mime_type, state, created_at
           ) VALUES (?, ?, ?, ?, ?, ?, 'ready', ?)`,
-        ).run(fileId, digest, relpath, input.bytes.byteLength, input.kind, input.mimeType, now);
-      } else if (existing.state === 'cleanup_pending') {
-        db.prepare(`UPDATE attachment_files SET state = 'ready' WHERE id = ?`).run(fileId);
-      } else if (existing.state !== 'ready') {
-        throw new Error('attachment file is unresolved');
-      }
-      const link = db
-        .prepare('SELECT id FROM attachment_links WHERE file_id = ? AND lexeme_id = ?')
-        .get(fileId, input.lexemeId) as { id: string } | undefined;
-      const linkId = link?.id ?? randomUUID();
-      if (link === undefined) {
-        db.prepare(
-          `INSERT INTO attachment_links (id, file_id, lexeme_id, display_name, created_at)
+      ).run(fileId, digest, relpath, input.bytes.byteLength, input.kind, input.mimeType, now);
+    } else if (existing.state === 'cleanup_pending') {
+      db.prepare(`UPDATE attachment_files SET state = 'ready' WHERE id = ?`).run(fileId);
+    } else if (existing.state !== 'ready') {
+      throw new Error('attachment file is unresolved');
+    }
+    const link = db
+      .prepare('SELECT id FROM attachment_links WHERE file_id = ? AND lexeme_id = ?')
+      .get(fileId, input.lexemeId) as { id: string } | undefined;
+    const linkId = link?.id ?? randomUUID();
+    if (link === undefined) {
+      db.prepare(
+        `INSERT INTO attachment_links (id, file_id, lexeme_id, display_name, created_at)
            VALUES (?, ?, ?, ?, ?)`,
-        ).run(linkId, fileId, input.lexemeId, input.displayName, now);
-      }
-      return { fileId, linkId, sha256: digest, relpath, state: 'ready' as const };
-    })();
-  } finally {
-    rmSync(tempFile, { force: true });
+      ).run(linkId, fileId, input.lexemeId, input.displayName, now);
+    }
+    return { fileId, linkId, sha256: digest, relpath, state: 'ready' as const };
+  })();
+}
+
+/** File row only. A lexeme link stays in `publishAttachment`. */
+export function storeAttachmentFile(
+  db: SqliteDatabase,
+  folder: string,
+  input: { kind: AttachmentKind; mimeType: string; bytes: Uint8Array; operationId: string },
+): { fileId: string; sha256: string } {
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(input.operationId)) {
+    throw new Error('attachment operation id is invalid');
   }
+  if (input.kind !== 'image' && input.kind !== 'audio' && input.kind !== 'document') {
+    throw new Error('attachment kind is invalid');
+  }
+  if (input.mimeType.length === 0 || input.mimeType.includes('\0')) {
+    throw new Error('attachment mime type is invalid');
+  }
+  const digest = sha256(input.bytes);
+  assertAttachmentBytesReady(db, digest);
+  placeAttachmentBytes(folder, input.operationId, input.bytes, digest);
+  const relpath = `attachments/objects/${digest}`;
+  return db.transaction(() => {
+    const existing = db
+      .prepare('SELECT id, state FROM attachment_files WHERE sha256 = ?')
+      .get(digest) as { id: string; state: string } | undefined;
+    const fileId = existing?.id ?? randomUUID();
+    if (existing === undefined) {
+      db.prepare(
+        `INSERT INTO attachment_files (
+          id, sha256, relpath, byte_size, kind, mime_type, state, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, 'ready', ?)`,
+      ).run(
+        fileId,
+        digest,
+        relpath,
+        input.bytes.byteLength,
+        input.kind,
+        input.mimeType,
+        new Date().toISOString(),
+      );
+    } else if (existing.state === 'cleanup_pending') {
+      db.prepare(`UPDATE attachment_files SET state = 'ready' WHERE id = ?`).run(fileId);
+    } else if (existing.state !== 'ready') {
+      throw new Error('attachment file is unresolved');
+    }
+    return { fileId, sha256: digest };
+  })();
+}
+
+export function readAttachmentFile(
+  db: SqliteDatabase,
+  folder: string,
+  fileId: string,
+): AttachmentBytes {
+  const row = db
+    .prepare(
+      `SELECT sha256, relpath, state, mime_type AS mimeType FROM attachment_files WHERE id = ?`,
+    )
+    .get(fileId) as
+    { sha256: string; relpath: string; state: string; mimeType: string } | undefined;
+  if (row === undefined || row.state !== 'ready') throw new Error('attachment file is missing');
+  const absolute = objectFile(folder, {
+    id: fileId,
+    sha256: row.sha256,
+    relpath: row.relpath,
+    state: row.state,
+  });
+  if (absolute === undefined) throw new Error('attachment file is missing');
+  const bytes = readFileSync(absolute);
+  if (sha256(bytes) !== row.sha256) throw new Error('attachment hash does not match');
+  return { mimeType: row.mimeType, bytes };
+}
+
+export function queueUnreferencedAttachment(db: SqliteDatabase, fileId: string): void {
+  if (attachmentReferenced(db, fileId)) return;
+  db.prepare(
+    `UPDATE attachment_files SET state = 'cleanup_pending' WHERE id = ? AND state = 'ready'`,
+  ).run(fileId);
 }
 
 export function removeAttachmentLink(db: SqliteDatabase, linkId: string): AttachmentLinkRemoval {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { TimeRuler } from '../components/TimeRuler';
+import { TimelineTranslationAudioControls } from '../components/TimelineTranslationAudioControls';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
 import { JieyuIcon } from '../components/ui/JieyuIcon';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
@@ -34,6 +35,7 @@ import {
 } from '../hooks/transcription/transcriptionPlaybackClock';
 import { useDesktopLayerView } from './useDesktopLayerView';
 import { useDesktopTranscriptionLayerController } from './useDesktopTranscriptionLayerController';
+import { useDesktopTranscriptionOralController } from './useDesktopTranscriptionOralController';
 import {
   DesktopTranscriptionLane,
   type WaveCreate,
@@ -211,6 +213,14 @@ function DesktopTranscriptionWorkspace() {
     layers: read.model?.layers,
     links: read.model?.links,
     currentLayerId: read.model?.layerId ?? null,
+    refresh: () => read.refresh(),
+  });
+  const oral = useDesktopTranscriptionOralController({
+    sessionId: read.sessionId,
+    desktopCall: host?.desktopCall,
+    audioLayerIds: (read.model?.layers ?? []).flatMap((layer) =>
+      layer.modality === 'audio' ? [layer.id] : [],
+    ),
     refresh: () => read.refresh(),
   });
   const playbackDuration = playback.duration;
@@ -569,6 +579,17 @@ function DesktopTranscriptionWorkspace() {
             waveStage={waveStage}
             onWaveSegmentMenu={(unitId, x, y) => openWaveRegionMenu.current(unitId, x, y)}
             onLaneHeight={(layerId, height) => layerActions.setHeight(layerId, height)}
+            audioTools={(layerId, unitId) => (
+              <TimelineTranslationAudioControls
+                audioSrc={oral.src(layerId, unitId)}
+                isRecording={oral.isRecording(layerId, unitId)}
+                disabled={oral.busy && !oral.isRecording(layerId, unitId)}
+                onStartRecording={() => void oral.start(layerId, unitId)}
+                onStopRecording={oral.stop}
+                onDeleteRecording={() => void oral.remove(layerId, unitId)}
+                onTranscribeRecording={() => oral.transcribe(layerId, unitId)}
+              />
+            )}
             onLeave={(go) => draft.leave(go)}
             onOpenBody={(layerId, unitId, saved) => {
               const key = textKey(layerId, unitId);

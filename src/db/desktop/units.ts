@@ -369,6 +369,7 @@ export interface UnitTextUndo {
   prior: {
     text: string;
     textExists: boolean;
+    provenanceJson: string | null;
     graph: AnalysisGraphPayload | null;
     manuscriptId: string;
     links: AnalysisAssociationLink[];
@@ -378,6 +379,7 @@ export interface UnitTextUndo {
   after: {
     text: string;
     textExists: boolean;
+    provenanceJson: string | null;
     graphFingerprint: string;
     analysisGeneration: number;
     manuscriptGeneration: number;
@@ -391,6 +393,7 @@ export function updateUnitText(
     textLayerId?: string;
     text: string;
     operationId?: string;
+    provenanceJson?: string | null;
   },
   afterSnapshot?: () => void,
   remember?: (undo: UnitTextUndo) => void,
@@ -441,9 +444,21 @@ export function updateUnitText(
       );
     } else if (currentText.id === null) {
       db.prepare(
-        `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-      ).run(randomUUID(), input.unitId, context.textLayerId, context.role, input.text, now);
+        `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, provenance_json, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        randomUUID(),
+        input.unitId,
+        context.textLayerId,
+        context.role,
+        input.text,
+        input.provenanceJson ?? null,
+        now,
+      );
+    } else if (input.provenanceJson !== undefined) {
+      db.prepare(
+        'UPDATE unit_texts SET body = ?, provenance_json = ?, updated_at = ? WHERE id = ?',
+      ).run(input.text, input.provenanceJson, now, currentText.id);
     } else {
       db.prepare('UPDATE unit_texts SET body = ?, updated_at = ? WHERE id = ?').run(
         input.text,
@@ -502,6 +517,7 @@ export function updateUnitText(
       prior: {
         text: currentText.body,
         textExists: currentText.id !== null,
+        provenanceJson: currentText.provenanceJson,
         graph: material.graph === null ? null : structuredClone(material.graph),
         manuscriptId: material.manuscriptId,
         links: structuredClone(material.links),
@@ -511,6 +527,12 @@ export function updateUnitText(
       after: {
         text: input.text,
         textExists: input.text.length > 0,
+        provenanceJson:
+          input.text.length === 0
+            ? null
+            : input.provenanceJson !== undefined
+              ? input.provenanceJson
+              : currentText.provenanceJson,
         graphFingerprint:
           analysisAffected && material.graph !== null ? '' : material.graphFingerprint,
         analysisGeneration:

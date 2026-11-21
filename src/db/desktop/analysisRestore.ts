@@ -282,15 +282,21 @@ export function undoUnitText(db: SqliteDatabase, undo: UnitTextUndo, afterText?:
     if (undo.prior.textExists) {
       if (currentText.id === null) {
         db.prepare(
-          `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-        ).run(randomUUID(), undo.unitId, undo.textLayerId, context.role, undo.prior.text, now);
-      } else {
-        db.prepare('UPDATE unit_texts SET body = ?, updated_at = ? WHERE id = ?').run(
+          `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, provenance_json, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ).run(
+          randomUUID(),
+          undo.unitId,
+          undo.textLayerId,
+          context.role,
           undo.prior.text,
+          undo.prior.provenanceJson,
           now,
-          currentText.id,
         );
+      } else {
+        db.prepare(
+          'UPDATE unit_texts SET body = ?, provenance_json = ?, updated_at = ? WHERE id = ?',
+        ).run(undo.prior.text, undo.prior.provenanceJson, now, currentText.id);
       }
     } else {
       db.prepare('DELETE FROM unit_texts WHERE unit_id = ? AND layer_id = ?').run(
