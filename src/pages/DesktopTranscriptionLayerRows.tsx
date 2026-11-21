@@ -7,8 +7,9 @@ import {
   type ReactNode,
 } from 'react';
 import { TimelineAnnotationItem } from '../components/TimelineAnnotationItem';
-import type { Locale } from '../i18n';
+import { t, type Locale } from '../i18n';
 import { DesktopTranscriptionCreatePreview } from './DesktopTranscriptionCreatePreview';
+import { DesktopTranscriptionLaneResize } from './DesktopTranscriptionLaneResize';
 import {
   DesktopTranscriptionFoldedStrip,
   DesktopTranscriptionLayerLabel,
@@ -24,6 +25,7 @@ export interface LayerRowLayer {
   id: string;
   name: Record<string, string>;
   sortOrder?: number;
+  laneHeight?: number | null;
   units: readonly {
     id: string;
     startMs: number | null;
@@ -82,6 +84,7 @@ export function DesktopTranscriptionLayerRows(props: {
     layerId: string,
     units: readonly TimedEdgeUnit[],
   ) => void;
+  onLaneHeight?: (layerId: string, height: number) => void;
 }) {
   const mainInTree = props.tree.some((row) => row.layerId === props.mainLayerId);
   const mainRow: LayerTreeRow = {
@@ -144,7 +147,12 @@ export function DesktopTranscriptionLayerRows(props: {
       );
     }
     return (
-      <div key={layer.id} className="desktop-tx-lane" data-layer-id={layer.id}>
+      <div
+        key={layer.id}
+        className="desktop-tx-lane"
+        data-layer-id={layer.id}
+        style={laneHeightStyle(layer.laneHeight)}
+      >
         <DesktopTranscriptionLayerLabel
           locale={props.locale}
           name={name}
@@ -216,6 +224,12 @@ export function DesktopTranscriptionLayerRows(props: {
             ) : null}
           </div>
         </div>
+        {props.onLaneHeight === undefined ? null : (
+          <DesktopTranscriptionLaneResize
+            label={t(props.locale, 'app.desktopTranscription.layerHeight')}
+            onCommit={(height) => props.onLaneHeight?.(layer.id, height)}
+          />
+        )}
       </div>
     );
   });
@@ -246,6 +260,11 @@ export function restoreBody(
   event.preventDefault();
   onEditBody(key, unit.text, unit.text);
   stop();
+}
+
+export function laneHeightStyle(height: number | null | undefined): CSSProperties | undefined {
+  if (height == null) return undefined;
+  return { '--lane-height': `${height}px` } as CSSProperties;
 }
 
 export function layerLabel(

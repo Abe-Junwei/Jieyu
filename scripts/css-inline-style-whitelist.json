@@ -229,6 +229,18 @@
       ]
     },
     {
+      "file": "src/pages/DesktopTranscriptionLayerList.tsx",
+      "reason": "The layer row menu opens under its button.",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-21",
+      "snippets": [
+        {
+          "anchor": "left: menu.x, top: menu.y",
+          "reviewedSha256": "725f0effad3b8ba68e7e7c6a46980a6adae11a17800940ce7777bda38a3c103a"
+        }
+      ]
+    },
+    {
       "file": "src/pages/DesktopTranscriptionWaveMenu.tsx",
       "reason": "The waveform context menu follows the pointer.",
       "reviewer": "Cursor + junwei",

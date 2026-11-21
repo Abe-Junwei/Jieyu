@@ -77,6 +77,15 @@
   .app-shell-transcription .app-main-transcription {
     padding-left: 0;
   }
+
+  /* 桌面转写的上下文栏在默认窗口宽度下仍要在，窄屏规则不能把它藏掉。 */
+  .app-shell-desktop-transcription .app-side-pane {
+    display: flex;
+  }
+
+  .app-shell-desktop-transcription .app-main-transcription {
+    padding-left: var(--side-pane-width);
+  }
 }
 
 .app-main-transcription .transcription-screen,

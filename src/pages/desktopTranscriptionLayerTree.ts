@@ -13,6 +13,7 @@ export interface TreeLink {
   hostLayerId: string;
   isPreferred: boolean;
   sortOrder: number;
+  linkType?: 'direct' | 'free' | 'literal' | 'pedagogical';
 }
 
 /** Local view preference: layers whose children are hidden, and layers squeezed to a strip. */

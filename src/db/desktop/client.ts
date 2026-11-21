@@ -116,6 +116,36 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once(sessionId, 'layers.list', { manuscriptId }),
     listLayerLinks: (sessionId: string, manuscriptId: string) =>
       once(sessionId, 'layers.listLinks', { manuscriptId }),
+    previewLayerHosts: (
+      sessionId: string,
+      input: {
+        layerId: string;
+        hostLayerIds: string[];
+        preferredHostLayerId: string;
+        linkType: 'direct' | 'free' | 'literal' | 'pedagogical';
+      },
+    ) => once(sessionId, 'layers.previewHosts', input),
+    setLayerHosts: (
+      sessionId: string,
+      input: {
+        layerId: string;
+        hostLayerIds: string[];
+        preferredHostLayerId: string;
+        linkType: 'direct' | 'free' | 'literal' | 'pedagogical';
+      },
+    ) => once(sessionId, 'layers.setHosts', input),
+    renameLayer: (sessionId: string, input: { id: string; name: Record<string, string> }) =>
+      once(sessionId, 'layers.rename', input),
+    setLayerHeight: (sessionId: string, input: { id: string; laneHeight: number }) =>
+      once(sessionId, 'layers.setHeight', input),
+    moveLayer: (sessionId: string, input: { id: string; direction: 'up' | 'down' }) =>
+      once(sessionId, 'layers.move', input),
+    deleteLayer: (
+      sessionId: string,
+      input: { id: string; mode: 'soft' | 'migrate' | 'purge'; targetLayerId?: string },
+    ) => once(sessionId, 'layers.delete', input),
+    listDeletedLayers: (sessionId: string) => once(sessionId, 'layers.listDeleted', {}),
+    restoreLayer: (sessionId: string, id: string) => once(sessionId, 'layers.restore', { id }),
     listUnits: (sessionId: string, layerId: string) => once(sessionId, 'units.list', { layerId }),
     queryCorpus: (
       sessionId: string,

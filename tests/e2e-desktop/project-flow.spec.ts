@@ -104,6 +104,172 @@ test('transcription workspace seeks a segment and space starts playback', async 
   }
 });
 
+test('layer structure creates a translation layer and reads it back', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-layer-structure-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  let app: ElectronApplication | undefined = await launch('layer-structure');
+  let again: ElectronApplication | undefined;
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    const layers = page.getByRole('button', { name: /^(层|Layers)\s*\d*$/ });
+    const expand = page.getByRole('button', { name: /^(展开功能面板|Expand feature panel)$/ });
+    await expect(async () => {
+      if (await layers.isVisible()) return;
+      await expand.first().click();
+      await expect(layers).toBeVisible();
+    }).toPass();
+    await layers.click();
+    await page.getByRole('button', { name: /^(新建翻译层|New translation layer)$/ }).click();
+    const created = page.locator('.desktop-tx-layer-name', {
+      hasText: /^(新建翻译层|New translation layer)$/,
+    });
+    await expect(created).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const listed = await desktopCall<{ key: string; contentType: string }[]>(
+      page,
+      sessionId,
+      'layers.list',
+      {
+        manuscriptId: (
+          await desktopCall<{ id: string; title: Record<string, string> }[]>(
+            page,
+            sessionId,
+            'manuscripts.list',
+            {},
+          )
+        ).find((item) => item.title.und === 'Clip')?.id,
+      },
+    );
+    expect(listed.some((item) => item.contentType === 'translation')).toBe(true);
+    await app.close();
+    app = undefined;
+    again = await launch('layer-structure-again');
+    await stubFolderDialog(again, copy);
+    const reopened = await again.firstWindow();
+    await reopened.getByRole('button', { name: openFolder }).click();
+    await expect(reopened.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    await reopened.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(
+      reopened.locator('.desktop-tx-layer-name', {
+        hasText: /^(新建翻译层|New translation layer)$/,
+      }),
+    ).toBeVisible();
+  } finally {
+    await app?.close();
+    await again?.close();
+  }
+});
+
+test('layer hosts moves a translation layer to another host', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-layer-hosts-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  let app: ElectronApplication | undefined = await launch('layer-hosts');
+  let again: ElectronApplication | undefined;
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const manuscriptId = (
+      await desktopCall<{ id: string; title: Record<string, string> }[]>(
+        page,
+        sessionId,
+        'manuscripts.list',
+        {},
+      )
+    ).find((item) => item.title.und === 'Clip')?.id;
+    const listed = await desktopCall<{ id: string; contentType: string }[]>(
+      page,
+      sessionId,
+      'layers.list',
+      { manuscriptId },
+    );
+    const host = listed.find((item) => item.contentType === 'transcription');
+    if (manuscriptId === undefined || host === undefined) throw new Error('clip layer missing');
+    const second = await desktopCall<{ id: string }>(page, sessionId, 'layers.create', {
+      manuscriptId,
+      key: 'tx-hanzi',
+      name: { zh: '汉字转写', en: 'Hanzi', und: 'Hanzi' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+      sortOrder: 1,
+    });
+    const translation = await desktopCall<{ id: string }>(page, sessionId, 'layers.create', {
+      manuscriptId,
+      key: 'tl-en',
+      name: { zh: '英语', en: 'English', und: 'English' },
+      tierType: 'symbolic-association',
+      contentType: 'translation',
+      hosts: [{ hostLayerId: host.id, preferred: true }],
+    });
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    const layers = page.getByRole('button', { name: /^(层|Layers)\s*\d*$/ });
+    const expand = page.getByRole('button', { name: /^(展开功能面板|Expand feature panel)$/ });
+    await expect(async () => {
+      if (await layers.isVisible()) return;
+      await expand.first().click();
+      await expect(layers).toBeVisible();
+    }).toPass();
+    await layers.click();
+    const row = page.locator('.desktop-tx-layer-list__line', { hasText: /英语|English/ });
+    await row.getByRole('button', { name: /^(更多|More)$/ }).click();
+    await page.getByRole('menuitem', { name: /^(依附关系…|Hosts…)$/ }).click();
+    await page.getByRole('checkbox', { name: /^(汉字转写|Hanzi)$/ }).click();
+    await page.getByRole('radio', { name: /^(汉字转写 首选|Hanzi Preferred)$/ }).click();
+    await page.getByRole('button', { name: /^(保存|Save)$/ }).click();
+    const names = page.locator('.desktop-tx-layer-list__line .desktop-tx-context__name');
+    await expect(names.nth(2)).toHaveText(/^(英语|English)$/);
+    const saved = await desktopCall<{ hostLayerId: string; isPreferred: boolean }[]>(
+      page,
+      sessionId,
+      'layers.listLinks',
+      { manuscriptId },
+    );
+    expect(saved).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ hostLayerId: second.id, isPreferred: true }),
+      ]),
+    );
+    await app.close();
+    app = undefined;
+    again = await launch('layer-hosts-again');
+    await stubFolderDialog(again, copy);
+    const reopened = await again.firstWindow();
+    await reopened.getByRole('button', { name: openFolder }).click();
+    await reopened.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    const againLayers = reopened.getByRole('button', { name: /^(层|Layers)\s*\d*$/ });
+    const againExpand = reopened.getByRole('button', {
+      name: /^(展开功能面板|Expand feature panel)$/,
+    });
+    await expect(async () => {
+      if (await againLayers.isVisible()) return;
+      await againExpand.first().click();
+      await expect(againLayers).toBeVisible();
+    }).toPass();
+    await againLayers.click();
+    await expect(reopened.locator('.desktop-tx-layer-list__line .desktop-tx-context__name').nth(2)).toHaveText(
+      /^(英语|English)$/,
+    );
+    expect(translation.id).not.toBe(second.id);
+  } finally {
+    await app?.close();
+    await again?.close();
+  }
+});
+
 test('drags create on the waveform and on a linked layer row, and texts stay per layer', async () => {
   if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
   const copy = mkdtempSync(join(tmpdir(), 'jieyu-create-'));

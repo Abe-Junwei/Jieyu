@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import type { ReactElement } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -14,7 +15,10 @@ const readState = vi.hoisted(() => {
     manuscripts: [{ id: 'ms-1', title: { und: 'Story' }, timeMapping: null }],
     layers: [] as {
       id: string;
+      key?: string;
       name: Record<string, string>;
+      contentType?: string;
+      tierType?: string;
       sortOrder?: number;
       units: { id: string; startMs: number; endMs: number; text: string }[];
     }[],
@@ -628,5 +632,142 @@ describe('DesktopTranscriptionWorkspacePage edge gaps (#562)', () => {
       expect(calls).toContainEqual({ method: 'units.dropUndo', args: { manuscriptId: 'ms-1' } });
     });
     await waitFor(() => expect(screen.queryByTestId('desktop-edge-stale')).toBeNull());
+  });
+});
+
+describe('DesktopTranscriptionWorkspacePage layers (#597)', () => {
+  it('lists both layers and creates a translation layer on the transcription host', async () => {
+    const calls: { method: string; args: unknown }[] = [];
+    readState.model = {
+      ...readState.base(),
+      layerId: 'layer-1',
+      layers: [
+        {
+          id: 'layer-1',
+          key: 'tx',
+          name: { zh: '转写' },
+          contentType: 'transcription',
+          tierType: 'time-aligned',
+          units: [],
+        },
+        {
+          id: 'layer-tl',
+          key: 'tl',
+          name: { zh: '翻译' },
+          contentType: 'translation',
+          tierType: 'symbolic-association',
+          units: [{ id: 'u-a', startMs: 0, endMs: 1000, text: 'gloss-a' }],
+        },
+      ],
+    };
+    renderWorkspace('/transcription', async (_sessionId, method, args) => {
+      calls.push({ method, args });
+      return { id: 'new-layer' };
+    });
+    expect(screen.getAllByRole('button', { name: '调整层高' }).length).toBeGreaterThan(0);
+    const pane = sidePaneContents.at(-1);
+    if (pane === undefined) throw new Error('missing context column');
+    render(pane as ReactElement);
+    fireEvent.click(screen.getByRole('button', { name: /^层\d+$/ }));
+    expect(screen.getByRole('button', { name: /^译文翻译$/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '新建翻译层' }));
+    await waitFor(() => {
+      expect(calls).toContainEqual({
+        method: 'layers.create',
+        args: expect.objectContaining({
+          contentType: 'translation',
+          tierType: 'symbolic-association',
+          hosts: [{ hostLayerId: 'layer-1', preferred: true }],
+        }),
+      });
+    });
+  });
+
+  it('hosts a new translation layer on the current transcription layer', async () => {
+    const calls: { method: string; args: unknown }[] = [];
+    readState.model = {
+      ...readState.base(),
+      layerId: 'layer-tl',
+      links: [{ layerId: 'layer-tl', hostLayerId: 'layer-2', isPreferred: true, sortOrder: 0 }],
+      layers: [
+        {
+          id: 'layer-1',
+          key: 'tx',
+          name: { zh: '转写' },
+          contentType: 'transcription',
+          tierType: 'time-aligned',
+          units: [],
+        },
+        {
+          id: 'layer-2',
+          key: 'tx-2',
+          name: { zh: '转写二' },
+          contentType: 'transcription',
+          tierType: 'time-aligned',
+          units: [],
+        },
+        {
+          id: 'layer-tl',
+          key: 'tl',
+          name: { zh: '翻译' },
+          contentType: 'translation',
+          tierType: 'symbolic-association',
+          units: [],
+        },
+      ],
+    };
+    renderWorkspace('/transcription', async (_sessionId, method, args) => {
+      calls.push({ method, args });
+      return { id: 'new-layer' };
+    });
+    const pane = sidePaneContents.at(-1);
+    if (pane === undefined) throw new Error('missing context column');
+    render(pane as ReactElement);
+    fireEvent.click(screen.getByRole('button', { name: /^层\d+$/ }));
+    fireEvent.click(screen.getByRole('button', { name: '新建翻译层' }));
+    await waitFor(() => {
+      expect(calls).toContainEqual({
+        method: 'layers.create',
+        args: expect.objectContaining({
+          hosts: [{ hostLayerId: 'layer-2', preferred: true }],
+        }),
+      });
+    });
+  });
+
+  it('skips a deleted layer key when creating the next translation layer', async () => {
+    const calls: { method: string; args: unknown }[] = [];
+    readState.model = {
+      ...readState.base(),
+      layerId: 'layer-1',
+      layers: [
+        {
+          id: 'layer-1',
+          key: 'tx',
+          name: { zh: '转写' },
+          contentType: 'transcription',
+          tierType: 'time-aligned',
+          units: [],
+        },
+      ],
+    };
+    renderWorkspace('/transcription', async (_sessionId, method, args) => {
+      calls.push({ method, args });
+      if (method === 'layers.listDeleted') {
+        return [{ manuscriptId: 'ms-1', key: 'tl-2' }];
+      }
+      return { id: 'new-layer' };
+    });
+    const pane = sidePaneContents.at(-1);
+    if (pane === undefined) throw new Error('missing context column');
+    render(pane as ReactElement);
+    fireEvent.click(screen.getByRole('button', { name: /^层\d+$/ }));
+    fireEvent.click(screen.getByRole('button', { name: '新建翻译层' }));
+    await waitFor(() => {
+      expect(calls).toContainEqual({
+        method: 'layers.create',
+        args: expect.objectContaining({ key: 'tl-3' }),
+      });
+    });
   });
 });
