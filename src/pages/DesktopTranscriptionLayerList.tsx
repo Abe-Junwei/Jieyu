@@ -6,6 +6,7 @@ import { JIEYU_ICON_INLINE_TIGHT } from '../utils/jieyuIcon';
 import { DesktopTranscriptionLayerHostsDialog } from './DesktopTranscriptionLayerHostsDialog';
 import { layerLabel } from './DesktopTranscriptionLayerRows';
 import { buildLayerTree, emptyFold } from './desktopTranscriptionLayerTree';
+import type { DesktopLayerDrag } from './useDesktopTranscriptionLayerDragController';
 
 export interface ContextLayer {
   id: string;
@@ -61,6 +62,7 @@ export function DesktopTranscriptionLayerList(props: {
   } | null>;
   onSetHosts?: (input: LayerHostsInput) => void;
   onClearError?: () => void;
+  drag?: DesktopLayerDrag;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -118,7 +120,22 @@ export function DesktopTranscriptionLayerList(props: {
         </p>
       ) : null}
       <ul className="desktop-tx-context__rows">
+        {props.drag ? (
+          <li
+            className={
+              props.drag.dropKind === 'root'
+                ? 'desktop-tx-drop-root is-active'
+                : 'desktop-tx-drop-root'
+            }
+            data-drop="root"
+            data-drop-index="0"
+            data-drag-surface="sidebar"
+          />
+        ) : null}
         {ordered.map(({ layer, depth }) => {
+          const moving = props.drag?.mark(layer.id);
+          const dropHost = props.drag?.dropLayerId === layer.id && props.drag.dropKind === 'host';
+          const dropLine = props.drag?.dropLayerId === layer.id && props.drag.dropKind === 'line';
           const name = layerLabel(layer.name, props.locale, layer.id);
           const kind =
             layer.contentType === 'translation'
@@ -128,8 +145,13 @@ export function DesktopTranscriptionLayerList(props: {
             <li
               key={layer.id}
               className="desktop-tx-layer-list__line"
+              data-layer-id={layer.id}
+              data-drag-surface="sidebar"
               data-current={layer.id === props.currentId ? 'true' : 'false'}
               data-depth={Math.min(depth, 3)}
+              {...(moving && props.drag
+                ? { style: { transform: `translateY(${props.drag.offset}px)` } }
+                : {})}
             >
               {editingId === layer.id ? (
                 <form
@@ -156,9 +178,18 @@ export function DesktopTranscriptionLayerList(props: {
               ) : (
                 <button
                   type="button"
-                  className="desktop-tx-context__row"
+                  className={`desktop-tx-context__row${moving ? ` is-drag-${moving}` : ''}${
+                    dropHost ? ' is-drop-host' : ''
+                  }${dropLine ? ' is-drop-line' : ''}`}
                   aria-current={layer.id === props.currentId ? 'true' : undefined}
                   onClick={() => props.onSelect(layer.id)}
+                  {...(props.drag
+                    ? {
+                        onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) =>
+                          props.drag?.onPointerDown(layer.id, 'sidebar', event),
+                        onPointerUp: () => props.drag?.onPointerUp(),
+                      }
+                    : {})}
                 >
                   <span className="desktop-tx-context__kind">{t(props.locale, kind)}</span>
                   <span className="desktop-tx-context__name">{name}</span>
@@ -321,6 +352,50 @@ export function DesktopTranscriptionLayerList(props: {
                 {t(props.locale, key)}
               </button>
             ))}
+            {props.drag ? (
+              <button
+                type="button"
+                role="menuitem"
+                disabled={props.drag.attachReason(menu.layerId) !== null}
+                {...(props.drag.attachReason(menu.layerId) === null
+                  ? {}
+                  : {
+                      title: t(
+                        props.locale,
+                        props.drag.attachReason(menu.layerId) ??
+                          'app.desktopTranscription.layerDropNotHost',
+                      ),
+                    })}
+                onClick={() => {
+                  props.drag?.attachToCurrent(menu.layerId);
+                  setMenu(null);
+                }}
+              >
+                {t(props.locale, 'app.desktopTranscription.layerAttachCurrent')}
+              </button>
+            ) : null}
+            {props.drag?.showReturn(menu.layerId) ? (
+              <button
+                type="button"
+                role="menuitem"
+                disabled={props.drag.returnReason(menu.layerId) !== null}
+                {...(props.drag.returnReason(menu.layerId) === null
+                  ? {}
+                  : {
+                      title: t(
+                        props.locale,
+                        props.drag.returnReason(menu.layerId) ??
+                          'app.desktopTranscription.layerAlreadyRoot',
+                      ),
+                    })}
+                onClick={() => {
+                  props.drag?.returnToRoot(menu.layerId);
+                  setMenu(null);
+                }}
+              >
+                {t(props.locale, 'app.desktopTranscription.layerReturnRoot')}
+              </button>
+            ) : null}
             {props.onPreviewHosts !== undefined &&
             props.onSetHosts !== undefined &&
             props.layers.find((item) => item.id === menu.layerId)?.tierType ===

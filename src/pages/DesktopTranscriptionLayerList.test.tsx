@@ -140,4 +140,59 @@ describe('DesktopTranscriptionLayerList', () => {
     expect(onCreatePair).toHaveBeenNthCalledWith(1, 'voice', '语音转写', '语音转写文本');
     expect(onCreatePair).toHaveBeenNthCalledWith(2, 'oral', '口译', '口译文');
   });
+
+  it('offers return-to-root only on a transcription layer', () => {
+    render(
+      <DesktopTranscriptionLayerList
+        locale="zh-CN"
+        layers={[
+          {
+            id: 'tx',
+            name: { zh: '木雅语' },
+            contentType: 'transcription',
+            tierType: 'time-aligned',
+            contentCount: 0,
+          },
+          {
+            id: 'tr',
+            name: { zh: '汉语' },
+            contentType: 'translation',
+            tierType: 'symbolic-association',
+            contentCount: 0,
+          },
+        ]}
+        links={[{ layerId: 'tr', hostLayerId: 'tx', isPreferred: true, sortOrder: 0 }]}
+        currentId="tx"
+        error=""
+        onSelect={vi.fn()}
+        onCreate={vi.fn()}
+        onRename={vi.fn()}
+        onMove={vi.fn()}
+        onDelete={vi.fn()}
+        drag={{
+          draggedIds: [],
+          mark: () => null,
+          offset: 0,
+          dropLayerId: null,
+          dropKind: null,
+          reasonKey: null,
+          x: 0,
+          y: 0,
+          onPointerDown: vi.fn(),
+          onPointerUp: vi.fn(),
+          attachReason: () => null,
+          returnReason: () => null,
+          showReturn: (id) => id === 'tx',
+          attachToCurrent: vi.fn(),
+          returnToRoot: vi.fn(),
+        }}
+      />,
+    );
+    const menus = screen.getAllByRole('button', { name: '更多' });
+    fireEvent.click(menus[1]!);
+    expect(screen.queryByRole('menuitem', { name: '回到顶层' })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: '挂到当前转写层' })).toBeTruthy();
+    fireEvent.click(menus[0]!);
+    expect(screen.getByRole('menuitem', { name: '回到顶层' })).toBeTruthy();
+  });
 });

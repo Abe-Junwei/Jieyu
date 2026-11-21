@@ -310,4 +310,162 @@ describe('layer hosts', () => {
       ]),
     );
   });
+
+  it('links a time-aligned transcription without taking the host units or parent id', () => {
+    const { sessionId, manuscriptId } = openManuscript();
+    const host = layer(sessionId, manuscriptId, 'tx', 'transcription');
+    const child = layer(sessionId, manuscriptId, 'tx-child', 'transcription');
+    const hostUnit = callDesktopSession(sessionId, 'units.create', {
+      layerId: host.id,
+      text: '宿主',
+    }) as { id: string };
+    const childUnit = callDesktopSession(sessionId, 'units.create', {
+      layerId: child.id,
+      text: '自己',
+    }) as { id: string; startMs: number | null; endMs: number | null };
+    callDesktopSession(sessionId, 'layers.setHosts', {
+      ...hosts(child.id, [host.id], host.id, 'direct'),
+      append: true,
+    });
+    callDesktopSession(sessionId, 'reopen', {});
+    const own = callDesktopSession(sessionId, 'units.list', { layerId: child.id }) as {
+      id: string;
+      layerId: string;
+      startMs: number | null;
+      endMs: number | null;
+      text: string;
+    }[];
+    expect(own).toEqual([
+      expect.objectContaining({
+        id: childUnit.id,
+        layerId: child.id,
+        startMs: childUnit.startMs,
+        endMs: childUnit.endMs,
+      }),
+    ]);
+    const rows = callDesktopSession(sessionId, 'layers.list', { manuscriptId }) as {
+      id: string;
+      parentId: string | null;
+    }[];
+    expect(rows.find((row) => row.id === child.id)?.parentId ?? null).toBeNull();
+    callDesktopSession(sessionId, 'units.updateText', { unitId: childUnit.id, text: '改过' });
+    const hostRows = callDesktopSession(sessionId, 'units.list', { layerId: host.id }) as {
+      id: string;
+      text: string;
+    }[];
+    expect(hostRows.find((row) => row.id === hostUnit.id)?.text).toBe('宿主');
+    expect(own.length).toBe(1);
+    const saved = callDesktopSession(sessionId, 'units.list', { layerId: child.id }) as {
+      text: string;
+    }[];
+    expect(saved[0]?.text).toBe('改过');
+    expect(() =>
+      callDesktopSession(sessionId, 'units.updateText', {
+        unitId: hostUnit.id,
+        textLayerId: child.id,
+        text: '写到宿主',
+      }),
+    ).toThrow('unit text stays on its layer');
+    const after = callDesktopSession(sessionId, 'units.list', { layerId: host.id }) as {
+      id: string;
+      text: string;
+    }[];
+    expect(after.find((row) => row.id === hostUnit.id)?.text).toBe('宿主');
+  });
+
+  it('returns only a time-aligned transcription to the root, and reorders siblings in one write', () => {
+    const { sessionId, manuscriptId } = openManuscript();
+    const host = layer(sessionId, manuscriptId, 'tx', 'transcription');
+    const child = layer(sessionId, manuscriptId, 'tx-child', 'transcription');
+    const translation = layer(sessionId, manuscriptId, 'tl', 'translation', {
+      hosts: [{ hostLayerId: host.id, preferred: true, linkType: 'direct' }],
+    });
+    const second = layer(sessionId, manuscriptId, 'tl-2', 'translation', {
+      hosts: [{ hostLayerId: host.id, preferred: true }],
+    });
+    const third = layer(sessionId, manuscriptId, 'tl-3', 'translation', {
+      hosts: [{ hostLayerId: host.id, preferred: true }],
+    });
+    callDesktopSession(sessionId, 'layers.setHosts', hosts(child.id, [host.id], host.id, 'direct'));
+    const before = linksOf(sessionId, manuscriptId, translation.id);
+    expect(() =>
+      callDesktopSession(sessionId, 'layers.clearHosts', { layerId: translation.id, sortOrder: 0 }),
+    ).toThrow('layer cannot leave its host');
+    expect(linksOf(sessionId, manuscriptId, translation.id)).toEqual(before);
+    callDesktopSession(sessionId, 'layers.clearHosts', { layerId: child.id, sortOrder: 0 });
+    expect(linksOf(sessionId, manuscriptId, child.id)).toEqual([]);
+    const rows = callDesktopSession(sessionId, 'layers.list', { manuscriptId }) as {
+      id: string;
+      parentId: string | null;
+      sortOrder: number;
+    }[];
+    expect(rows.find((row) => row.id === child.id)?.parentId ?? null).toBeNull();
+    callDesktopSession(sessionId, 'layers.place', {
+      layerId: translation.id,
+      hostLayerId: host.id,
+    });
+    const sorts = [translation.id, second.id, third.id].map(
+      (id) => linksOf(sessionId, manuscriptId, id).find((link) => link.isPreferred)?.sortOrder,
+    );
+    expect(sorts).toEqual([2, 0, 1]);
+  });
+
+  it('places a cleared transcription among roots and leaves a parent-linked subdivision in place', () => {
+    const { sessionId, manuscriptId } = openManuscript();
+    const first = layer(sessionId, manuscriptId, 'tx', 'transcription');
+    const second = layer(sessionId, manuscriptId, 'tx2', 'transcription');
+    const subdivision = callDesktopSession(sessionId, 'layers.create', {
+      manuscriptId,
+      key: 'sub',
+      name: { zh: '词' },
+      tierType: 'time-subdivision',
+      contentType: 'transcription',
+      parentId: first.id,
+    }) as { id: string };
+    const child = layer(sessionId, manuscriptId, 'tx-child', 'transcription');
+    const listed = () =>
+      callDesktopSession(sessionId, 'layers.list', { manuscriptId }) as {
+        id: string;
+        parentId: string | null;
+        sortOrder: number;
+      }[];
+    const before = listed().find((row) => row.id === subdivision.id);
+    callDesktopSession(
+      sessionId,
+      'layers.setHosts',
+      hosts(child.id, [first.id], first.id, 'direct'),
+    );
+    const linked = () =>
+      new Set(
+        (
+          callDesktopSession(sessionId, 'layers.listLinks', { manuscriptId }) as {
+            layerId: string;
+          }[]
+        ).map((link) => link.layerId),
+      );
+    const byRoot = (rows: { id: string; parentId: string | null; sortOrder: number }[]) => {
+      const hosts = linked();
+      return rows
+        .filter((row) => row.parentId === null && !hosts.has(row.id))
+        .sort((a, b) =>
+          a.sortOrder === b.sortOrder ? a.id.localeCompare(b.id) : a.sortOrder - b.sortOrder,
+        )
+        .map((row) => row.id);
+    };
+    const roots = byRoot(listed());
+    expect(roots).toHaveLength(2);
+    expect(roots).toEqual(expect.arrayContaining([first.id, second.id]));
+    expect(roots).not.toContain(subdivision.id);
+    const expected = [...roots];
+    expected.splice(1, 0, child.id);
+    callDesktopSession(sessionId, 'layers.clearHosts', { layerId: child.id, sortOrder: 1 });
+    const rows = listed();
+    expect(rows.find((row) => row.id === subdivision.id)).toEqual(
+      expect.objectContaining({
+        parentId: first.id,
+        sortOrder: before?.sortOrder,
+      }),
+    );
+    expect(byRoot(rows)).toEqual(expected);
+  });
 });

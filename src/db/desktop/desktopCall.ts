@@ -70,7 +70,7 @@ import { patchSpeaker, redeliverSpeaker } from './speakerFields';
 import { createSpeaker, listSpeakers } from './speakers';
 import { createSource, patchSource, redeliverSource } from './sourceFields';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
-import { previewLayerHosts, setLayerHosts } from './layerHosts';
+import { clearLayerHosts, placeLayer, previewLayerHosts, setLayerHosts } from './layerHosts';
 import { createLayer, listLayerLinks, listLayers } from './layers';
 import {
   deleteLayer,
@@ -247,6 +247,18 @@ const operationHandlers = {
   'layers.setHosts': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.setHosts']['check']>) =>
       setLayerHosts(ctx.db, input),
+  },
+  'layers.clearHosts': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.clearHosts']['check']>) => {
+      clearLayerHosts(ctx.db, input);
+      return { layerId: input.layerId };
+    },
+  },
+  'layers.place': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.place']['check']>) => {
+      placeLayer(ctx.db, input);
+      return { layerId: input.layerId };
+    },
   },
   'layers.rename': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.rename']['check']>) =>

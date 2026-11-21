@@ -39,7 +39,7 @@ import type {
 } from './notes';
 import type { CorpusQuery, CorpusQueryCursor, CorpusQueryPage } from './corpusQuery';
 import type { EditInspection, EditReceiptKind } from './editReceipts';
-import type { LayerHostsPreview, LayerHostsSet } from './layerHosts';
+import type { LayerHostsClear, LayerHostsPreview, LayerHostsSet, LayerPlace } from './layerHosts';
 import type {
   DeletedLayer,
   LayerDelete,
@@ -219,7 +219,10 @@ function checkLayerMove(input: Record<string, unknown>): LayerMove {
 }
 
 function checkLayerHostsSet(input: Record<string, unknown>): LayerHostsSet {
-  knownKeys(input, ['layerId', 'hostLayerIds', 'preferredHostLayerId', 'linkType']);
+  knownKeys(input, ['layerId', 'hostLayerIds', 'preferredHostLayerId', 'linkType', 'append']);
+  if (input.append !== undefined && input.append !== true && input.append !== false) {
+    throw new Error('desktop call append is not supported');
+  }
   if (!Array.isArray(input.hostLayerIds) || input.hostLayerIds.length === 0) {
     throw new Error('desktop call hosts must be an array');
   }
@@ -239,6 +242,28 @@ function checkLayerHostsSet(input: Record<string, unknown>): LayerHostsSet {
     hostLayerIds,
     preferredHostLayerId,
     linkType: input.linkType as LayerLinkType,
+    ...(input.append === true ? { append: true } : {}),
+  };
+}
+
+function checkLayerHostsClear(input: Record<string, unknown>): LayerHostsClear {
+  knownKeys(input, ['layerId', 'sortOrder']);
+  return {
+    layerId: requiredString(input.layerId, 'layerId'),
+    sortOrder: requiredNumber(input.sortOrder, 'sortOrder'),
+  };
+}
+
+function checkLayerPlace(input: Record<string, unknown>): LayerPlace {
+  knownKeys(input, ['layerId', 'hostLayerId', 'beforeId']);
+  const hostLayerId =
+    input.hostLayerId === undefined ? undefined : requiredString(input.hostLayerId, 'hostLayerId');
+  const beforeId =
+    input.beforeId === undefined ? undefined : requiredString(input.beforeId, 'beforeId');
+  return {
+    layerId: requiredString(input.layerId, 'layerId'),
+    ...(hostLayerId === undefined ? {} : { hostLayerId }),
+    ...(beforeId === undefined ? {} : { beforeId }),
   };
 }
 
@@ -1583,6 +1608,11 @@ export const desktopOperations = {
   }),
   'layers.previewHosts': spec<'keep', LayerHostsSet, LayerHostsPreview>('keep', checkLayerHostsSet),
   'layers.setHosts': spec<'clear', LayerHostsSet, LayerLink[]>('clear', checkLayerHostsSet),
+  'layers.clearHosts': spec<'clear', LayerHostsClear, { layerId: string }>(
+    'clear',
+    checkLayerHostsClear,
+  ),
+  'layers.place': spec<'clear', LayerPlace, { layerId: string }>('clear', checkLayerPlace),
   'layers.rename': spec<'clear', LayerRename, Layer>('clear', checkLayerRename),
   'layers.setHeight': spec<'clear', LayerHeight, Layer>('clear', checkLayerHeight),
   'layers.move': spec<'clear', LayerMove, Layer>('clear', checkLayerMove),

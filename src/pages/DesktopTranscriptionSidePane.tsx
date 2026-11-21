@@ -77,6 +77,7 @@ export function DesktopTranscriptionSidePane(props: {
       }
       onPreviewHosts={(input) => props.actions.previewHosts(input)}
       onSetHosts={(input) => props.actions.setHosts(input)}
+      drag={props.actions.drag}
       onClearLayerError={props.actions.clearError}
       onSelectLayer={(layerId) => {
         if (model?.manuscriptId) props.onOpen(model.manuscriptId, layerId);

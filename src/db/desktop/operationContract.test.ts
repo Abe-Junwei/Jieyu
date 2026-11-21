@@ -98,6 +98,8 @@ describe('desktop operation contract', () => {
       'layers.restore',
       'layers.previewHosts',
       'layers.setHosts',
+      'layers.clearHosts',
+      'layers.place',
       'recordings.createPair',
       'recordings.attach',
       'recordings.detach',

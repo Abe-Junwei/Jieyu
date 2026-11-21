@@ -35,6 +35,7 @@ import {
 } from '../hooks/transcription/transcriptionPlaybackClock';
 import { useDesktopLayerView } from './useDesktopLayerView';
 import { useDesktopTranscriptionLayerController } from './useDesktopTranscriptionLayerController';
+import { DesktopLayerDragReason } from './useDesktopTranscriptionLayerDragController';
 import { useDesktopTranscriptionOralController } from './useDesktopTranscriptionOralController';
 import {
   DesktopTranscriptionLane,
@@ -546,6 +547,7 @@ function DesktopTranscriptionWorkspace() {
               </button>
             </div>
           ) : null}
+          <DesktopLayerDragReason locale={locale} drag={layerActions.drag} />
           <DesktopTranscriptionLane
             locale={locale}
             sessionId={read.sessionId}
@@ -579,6 +581,7 @@ function DesktopTranscriptionWorkspace() {
             waveStage={waveStage}
             onWaveSegmentMenu={(unitId, x, y) => openWaveRegionMenu.current(unitId, x, y)}
             onLaneHeight={(layerId, height) => layerActions.setHeight(layerId, height)}
+            layerDrag={layerActions.drag}
             audioTools={(layerId, unitId) => (
               <TimelineTranslationAudioControls
                 audioSrc={oral.src(layerId, unitId)}
