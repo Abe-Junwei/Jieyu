@@ -114,9 +114,9 @@
     },
     {
       "file": "src/pages/DesktopTranscriptionLane.tsx",
-      "reason": "Lane height, track width, draft frame, wave-stage preview, and seam position follow the saved height, live zoom, and pointer time.",
+      "reason": "Lane height, track width, draft frame, wave-stage preview, and seam position follow the saved height, live zoom, and pointer time. A dragged or shifted lane adds translateY.",
       "reviewer": "Cursor + junwei",
-      "reviewedAt": "2026-11-21",
+      "reviewedAt": "2026-11-22",
       "snippets": [
         {
           "anchor": "width: props.duration * props.zoomPxPerSec",
@@ -135,8 +135,8 @@
           "reviewedSha256": "c0fba6a18c29c85606885c1629a33ded60dd42774ae251eae86121688f4c3fa8"
         },
         {
-          "anchor": "style={laneHeightStyle(",
-          "reviewedSha256": "7e8b70cac934c0bc4704cea2ef2a1ef0f6579d124c07f545bf154ff3ace37fc9"
+          "anchor": "...dragBits.laneStyle",
+          "reviewedSha256": "515cb1c8dcb637f95b4bb5733b699f69cab9bf2ede70a4256a2a24e41b1c62d5"
         }
       ]
     },
@@ -154,9 +154,9 @@
     },
     {
       "file": "src/pages/DesktopTranscriptionLayerLabel.tsx",
-      "reason": "Tree guide, elbow and side-lane offsets derive from each row's runtime depth and lane index; the context menu follows the live pointer and the node tooltip follows the node's on-screen box.",
-      "reviewer": "Copilot App",
-      "reviewedAt": "2026-11-20",
+      "reason": "Tree guide, elbow and side-lane offsets derive from each row's runtime depth and lane index; the context menu follows the live pointer and the node tooltip follows the node's on-screen box. A dragged label adds translateY.",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-22",
       "snippets": [
         {
           "anchor": "levelX(level)",
@@ -184,7 +184,7 @@
         },
         {
           "anchor": "'--dot-x': px(levelX(row.depth))",
-          "reviewedSha256": "b10ef18d3f08a5325289dd1e006aee5bd44ef8a8d4cf43792821b2513970c909"
+          "reviewedSha256": "93a572bfb9ff9251fec4f372a5b751ec275a6d8058912d30e9013ead846a68a3"
         },
         {
           "anchor": "'--dot-x': px(levelX(props.row.depth))",
@@ -198,9 +198,9 @@
     },
     {
       "file": "src/pages/DesktopTranscriptionLayerRows.tsx",
-      "reason": "Linked-layer height, track width, and the create preview frame follow the saved height, live zoom, and drag time.",
+      "reason": "Linked-layer height, track width, and the create preview frame follow the saved height, live zoom, and drag time. A dragged or shifted lane adds translateY.",
       "reviewer": "Cursor + junwei",
-      "reviewedAt": "2026-11-21",
+      "reviewedAt": "2026-11-22",
       "snippets": [
         {
           "anchor": "width: props.duration * props.zoomPxPerSec",
@@ -211,8 +211,8 @@
           "reviewedSha256": "83b5e8922ce9a653fc88eadc91c3c98c946d3dfe45a03cc0491afd0d6ef20474"
         },
         {
-          "anchor": "style={laneHeightStyle(layer.laneHeight)}",
-          "reviewedSha256": "232c64758838bdb39ae725b0a6ec59a082aeff87d17121204959af458cb246e8"
+          "anchor": "...dragBits.laneStyle",
+          "reviewedSha256": "d9f0bc2571d1d2619152e4eb1e79ab0669b60431ad6e91bfe676b3d33ad6b929"
         }
       ]
     },
@@ -385,6 +385,30 @@
         {
           "anchor": "style={width ? { width, maxWidth: '100%' } : { maxWidth: '100%' }}",
           "reviewedSha256": "e073647d0b1b68c7cac1c6a9b34a9f0c723f91cd0eae6b7091e51b8d301890be"
+        }
+      ]
+    },
+    {
+      "file": "src/pages/desktopTranscriptionLayerDrag.tsx",
+      "reason": "The drop-reason chip follows the live pointer.",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-22",
+      "snippets": [
+        {
+          "anchor": "left: props.drag.x + 12",
+          "reviewedSha256": "4ecf13dd590a0ac2479c4d522d707c601f6788aedb103a4953a9c600c39a9310"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TimelineTranslationAudioControls.tsx",
+      "reason": "Each input-level bar height follows the live microphone level.",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-22",
+      "snippets": [
+        {
+          "anchor": "height: level >= step",
+          "reviewedSha256": "288d3709ae0d224b19c3f10e66caed2ef870bf68da56bf6de14634f6590de2e3"
         }
       ]
     }
