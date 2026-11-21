@@ -87,8 +87,8 @@
     },
     {
       "file": "src/styles/pages/timeline/timeline-annotation.css",
-      "snippet": "box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-warning-solid) 10%, transparent) !important;",
-      "reason": "Skipped annotation inset ring override"
+      "snippet": "box-shadow: none !important;",
+      "reason": "Skipped annotation clears the selection ring so the stripe stays the only cue"
     },
     {
       "file": "src/styles/pages/timeline/timeline-paired-reading.css",
@@ -107,8 +107,8 @@
     },
     {
       "file": "src/styles/pages/timeline/timeline-text-item.css",
-      "snippet": "box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-warning-solid) 10%, transparent) !important;",
-      "reason": "Skipped text item inset ring override"
+      "snippet": "box-shadow: none !important;",
+      "reason": "Skipped text item clears the selection ring so the stripe stays the only cue"
     }
   ]
 }
