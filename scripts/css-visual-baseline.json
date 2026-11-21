@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-20T23:23:03.717Z",
-  "aggregate": "b271863ba635fd82d2249148b1971d5b864425c6244be854323e23b6fb8480c9",
+  "generatedAt": "2026-11-21T01:42:02.068Z",
+  "aggregate": "b9a8978181937aadb534a7cfee4d0fd2a8db318f38bec6c1c43f44e8d9a2a7a8",
   "fileHashes": {
     "src/styles/ai-hub.css": "537be68d401399d5c7be152205f71c4c4f6949f861c9e34d22499005846034c7",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -27,7 +27,7 @@
     "src/styles/pages/app-shell-layout.css": "5519984e2a3b1040ca5d6fb4419b3e5214d6711146336c1191989a70bac3307d",
     "src/styles/pages/corpus-library-workspace.css": "c0e6c0eb4768333aa39fc2c97418c70769d1b00465f539e2b88085d9120313cf",
     "src/styles/pages/desktop-project-read.css": "3cccf8f60a1aac19eec9c014df395b3f73caea57031c4418d7714f2be86d7e79",
-    "src/styles/pages/desktop-transcription-workspace.css": "bd46c572e5c119cce498df0b0384721b7233191fbeca1ee1ef01574b6454059d",
+    "src/styles/pages/desktop-transcription-workspace.css": "ac23294d21e69df129ad0133d47589ceeb05b6394eaaa5c436ace42e59984c85",
     "src/styles/pages/feature-availability.css": "0b1b70d72e9e53b4db43165630b58d3b7c5e44b8440a4d04b4f088327a69463a",
     "src/styles/pages/home-page.css": "c793e6c1c814df8d8ada7e7f3fe45c86c6430a26b1980b1d74fc0f57c6db0f5b",
     "src/styles/pages/language-metadata-workspace.css": "920a61a590082eeb16c266158d43ed4fb01039e831553bd3d40e6b55547b93ec",
@@ -35,7 +35,7 @@
     "src/styles/pages/orthography-bridge-workspace.css": "1e2d2c4f21c6604ef99fea464abd772dee86ad311c0838222129c20a374dee61",
     "src/styles/pages/orthography-manager-panel.css": "0d45339a278403612a046d2696814914d104a604e73724a7464799c500e25cf2",
     "src/styles/pages/project-custom-fields.css": "acc41907c585d272d30692818dc7d553ba0f1c0df280ea106cebe607d83f6f97",
-    "src/styles/pages/timeline/time-ruler.css": "51d4a8316c4ed9bf2d42fc026cf63c63f3e1183a44bee9970f1d4ed5eec274b4",
+    "src/styles/pages/timeline/time-ruler.css": "8ef913e411aa99d29e26d90a598d907d84bb7010bfe43619ec2273f91c49224b",
     "src/styles/pages/timeline/timeline-a11y.css": "3e0cd93cae83f98f4dc552159e7a4a0856d0b55587dd64e1e039bc29949f1b80",
     "src/styles/pages/timeline/timeline-annotation.css": "93925fbc0addd7f252722181fe83a29823da1cf2c24a916535558794dd8bcae8",
     "src/styles/pages/timeline/timeline-axis-status.css": "ab9cbfa5d37fc6c431145b19426cf331bd95b76654b492d5132330cf76301114",

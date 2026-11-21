@@ -229,7 +229,8 @@
   justify-content: flex-start;
   gap: 8px;
   width: 100%;
-  height: 49px;
+  /* 底边对齐上下文栏第一条分隔线：侧栏顶留白 4px + 稿件行 49px + 段距 8px。 */
+  height: 61px;
   padding: 0 12px;
   box-sizing: border-box;
   background: var(--surface-panel);
@@ -409,7 +410,7 @@
 
 .desktop-tx-waveband {
   display: flex;
-  height: 168px;
+  height: 224px;
 }
 
 .desktop-tx-band-label {
@@ -434,7 +435,7 @@
   flex-direction: column;
   flex: 1;
   min-width: 0;
-  height: 168px;
+  height: 224px;
 }
 
 .desktop-tx-wave-stage {
@@ -474,13 +475,13 @@
 }
 
 .desktop-tx-wave-host-split .desktop-tx-wave-stage {
-  flex: 0 0 var(--desktop-wave-primary, 71px);
-  height: var(--desktop-wave-primary, 71px);
+  flex: 0 0 var(--desktop-wave-primary, 96px);
+  height: var(--desktop-wave-primary, 96px);
 }
 
 .desktop-tx-wave-host-split .desktop-tx-spectrogram {
   flex: 1 1 auto;
-  height: var(--desktop-wave-spec, 91px);
+  height: var(--desktop-wave-spec, 122px);
 }
 
 .desktop-tx-view {
@@ -574,10 +575,11 @@
   position: relative;
 }
 
+/* 精稿 20×22、离层名列右缘 8px；纵向中心对齐标尺刻度字。 */
 .desktop-tx-header-fold {
   position: absolute;
-  top: 3px;
-  left: calc(var(--lane-label-width) - 26px);
+  top: 1px;
+  left: calc(var(--lane-label-width) - 28px);
   z-index: calc(var(--z-timeline-sticky) + 8);
   display: flex;
   align-items: center;
@@ -598,7 +600,6 @@
   left: 0;
   width: var(--lane-label-width);
   height: auto;
-  border-right: 1px solid var(--border-soft);
   border-radius: 0;
   background: var(--surface-panel);
   color: var(--text-secondary);

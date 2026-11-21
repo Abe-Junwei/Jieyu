@@ -63,7 +63,7 @@ export function useDesktopTranscriptionMediaController(input: {
     regions,
     activeRegionIds,
     globalLoop: loop,
-    waveformHeight: 168,
+    waveformHeight: 224,
     cursorWidth: 2,
     waveColor: 'color-mix(in srgb, var(--text-secondary) 42%, transparent)',
     progressColor: 'color-mix(in srgb, var(--text-secondary) 42%, transparent)',

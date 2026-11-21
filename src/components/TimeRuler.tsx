@@ -30,7 +30,6 @@ interface TimeRulerProps {
 
 const NICE_STEPS = [0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
 const SUB_DIVS = [10, 5, 4, 2, 1];
-const RULER_HEIGHT_PX = 22;
 const RULER_MINOR_TICK_Y2_PX = 4;
 const RULER_MAJOR_TICK_Y2_PX = 8;
 const RULER_LABEL_Y_PX = 16;
@@ -57,7 +56,7 @@ function TimeRulerCursorLine(props: {
       x1={`${((playheadTime - start) / windowSec) * 100}%`}
       x2={`${((playheadTime - start) / windowSec) * 100}%`}
       y1={cursorLineTopY}
-      y2={RULER_HEIGHT_PX}
+      y2="100%"
     />
   );
 }

@@ -168,7 +168,7 @@ function DesktopTranscriptionWorkspace() {
       if (row) textSync.current.restore({ ...row, unitId: key }, saved);
     });
   }, [selectedUnit, selection.selectedUnitId, textLayerId]);
-  const waveHeights = getWaveformDisplayHeights(168, playback.waveformDisplayMode);
+  const waveHeights = getWaveformDisplayHeights(224, playback.waveformDisplayMode);
 
   const speakerCount = new Set(
     (sourceUnits ?? []).map((unit) => unit.speakerId).filter((id) => id !== null),
