@@ -77,6 +77,7 @@ function DesktopTranscriptionWorkspace() {
   const waveHostRef = useRef<HTMLDivElement | null>(null);
   const waveCreateRef = useRef<WaveCreate | null>(null);
   const [waveStage, setWaveStage] = useState<HTMLDivElement | null>(null);
+  const [waveMenu, setWaveMenu] = useState<{ x: number; y: number; time: number } | null>(null);
   const [searchParams] = useSearchParams();
   const locate = readDesktopCorpusLocate(searchParams);
   const read = useDesktopProjectReadController(
@@ -337,6 +338,21 @@ function DesktopTranscriptionWorkspace() {
                         (clientX) => ((clientX - left + playback.scrollLeftPx) / zoom) * 1000,
                       );
                     }}
+                    onContextMenu={(event) => {
+                      const wave = playback.waveformRef.current;
+                      const zoom = playback.zoomPxPerSec;
+                      if (!wave || !(event.target instanceof Node) || !wave.contains(event.target))
+                        return;
+                      event.preventDefault();
+                      if (!(zoom > 0)) return;
+                      if (playback.isPlaying) playback.togglePlayback();
+                      const left = wave.getBoundingClientRect().left;
+                      setWaveMenu({
+                        x: event.clientX,
+                        y: event.clientY,
+                        time: (event.clientX - left + playback.scrollLeftPx) / zoom,
+                      });
+                    }}
                   >
                     <div
                       ref={playback.waveformRef}
@@ -463,6 +479,7 @@ function DesktopTranscriptionWorkspace() {
             onCommitBody={() => void draft.commit()}
             onSelectUnit={selectPlaybackUnit}
             onSelectUnits={selectPlaybackUnits}
+            onClearSelection={() => selection.clearSelection()}
             onSeek={playback.seekTo}
             reload={() => read.refresh()}
             tierRef={tierRef}
@@ -481,6 +498,35 @@ function DesktopTranscriptionWorkspace() {
         </div>
       </div>
 
+      {waveMenu === null ? null : (
+        <>
+          <button
+            type="button"
+            className="desktop-tx-menu-backdrop"
+            aria-label={t(locale, 'app.desktopTranscription.cancel')}
+            onClick={() => setWaveMenu(null)}
+          />
+          <div
+            className="desktop-tx-menu desktop-tx-menu-fixed"
+            style={{ left: waveMenu.x, top: waveMenu.y }}
+            role="menu"
+            data-testid="desktop-wave-menu"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                const time = waveMenu.time;
+                setWaveMenu(null);
+                playback.seekTo(time);
+                if (!playback.isPlaying) playback.togglePlayback();
+              }}
+            >
+              {t(locale, 'transcription.ctxMenu.playFromHere')}
+            </button>
+          </div>
+        </>
+      )}
       {draft.prompt === null ? null : (
         <DesktopDraftLeaveDialog
           failed={draft.prompt.failed}
