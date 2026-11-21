@@ -71,6 +71,7 @@ export async function searchUnits(
           ? { layerId: segmentMetaScope.layerId, mediaId: segmentMetaScope.mediaId }
           : {}),
         ...(segmentMetaScope.kind === 'media' ? { mediaId: segmentMetaScope.mediaId } : {}),
+        ...(segmentMetaScope.kind === 'all' ? { textId: segmentMetaScope.textId } : {}),
         ...(query.length > 0 ? { query } : {}),
         ...(speakerId ? { speakerId } : {}),
         ...(noteCategory ? { noteCategory: noteCategory as NoteCategory } : {}),
@@ -267,8 +268,7 @@ function persistentListQuery(
 ): ListUnitsPersistentQuery | null {
   const resolved = resolveSegmentReadQueryScope(context, scope);
   if (!resolved) return null;
-  // textId comes only from this resolver. #589 will start supplying workspaceTextId here;
-  // keep the field on the stored query and do not read workspaceTextId in this file.
+  // textId comes only from this resolver (workspaceTextId first).
   return {
     ...(resolved.textId ? { textId: resolved.textId } : {}),
     ...(resolved.mediaId ? { mediaId: resolved.mediaId } : {}),
