@@ -71,6 +71,7 @@ source_of_truth: decision-index
 
 ## 本轮范围与生命周期
 
+- [0136：机器转写置信度用正文颜色，不再用下划线](./0136-transcription-confidence-is-text-color.md)
 - [0135：仍在用的计划可把历史段剥到 docs/history/ 只读快照](./0135-history-snapshots-split-from-live-plans.md)
 - [0134：旧网页功能缺口逐项归属，首发白名单补入 AI 助手、1c、3b](./0134-legacy-feature-gaps-assigned-to-slices.md)
 - [0131：桌面渲染层单独入口与构建，旧网页靠门禁隔离](./0131-desktop-renderer-build-isolated-from-legacy-web.md)

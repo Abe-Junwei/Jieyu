@@ -131,6 +131,8 @@ export function createDesktopClient(bridge: DesktopBridge) {
         cursor?: CorpusQueryCursor;
       },
     ) => once(sessionId, 'corpus.query', input),
+    setUnitSkipProcessing: (sessionId: string, input: { unitId: string; skip: boolean }) =>
+      once(sessionId, 'units.setSkipProcessing', input),
     updateUnitText: (
       sessionId: string,
       input: { unitId: string; textLayerId?: string; text: string; operationId?: string },

@@ -36,6 +36,9 @@ export interface Unit {
   text: string;
   textId: string | null;
   textLayerId: string;
+  /** Machine-transcription confidence, 0–1. Null when none was stored. */
+  confidence: number | null;
+  skipProcessing: boolean;
 }
 
 export interface UnitCreate {
@@ -61,6 +64,8 @@ interface UnitRow {
   text: string;
   text_id: string | null;
   text_layer_id: string;
+  confidence: number | null;
+  skip_processing: number;
 }
 
 export function assertUnitTextRoleFree(
@@ -253,7 +258,8 @@ function readUnitRow(
   return db
     .prepare(
       `SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id,
-              units.start_ms, units.end_ms, units.created_at, units.updated_at,
+              units.start_ms, units.end_ms, units.confidence, units.skip_processing,
+              units.created_at, units.updated_at,
               unit_texts.id AS text_id, COALESCE(unit_texts.body, '') AS text,
               text_layer.id AS text_layer_id
        FROM units
@@ -288,7 +294,8 @@ export function listUnits(db: SqliteDatabase, layerId: string): Unit[] {
   const rows = db
     .prepare(
       `SELECT units.id, units.layer_id, units.speaker_id, units.parent_unit_id,
-              units.start_ms, units.end_ms, units.created_at, units.updated_at,
+              units.start_ms, units.end_ms, units.confidence, units.skip_processing,
+              units.created_at, units.updated_at,
               unit_texts.id AS text_id, COALESCE(unit_texts.body, '') AS text,
               target.id AS text_layer_id
        FROM units
@@ -621,5 +628,26 @@ function mapUnit(row: UnitRow): Unit {
     text: row.text,
     textId: row.text_id,
     textLayerId: row.text_layer_id,
+    confidence: row.confidence,
+    skipProcessing: row.skip_processing === 1,
   };
+}
+
+export function setUnitSkipProcessing(
+  db: SqliteDatabase,
+  input: { unitId: string; skip: boolean },
+): Unit {
+  const write = db.transaction(() => {
+    assertManuscriptEditable(db, input.unitId);
+    const now = new Date().toISOString();
+    db.prepare('UPDATE units SET skip_processing = ?, updated_at = ? WHERE id = ?').run(
+      input.skip ? 1 : 0,
+      now,
+      input.unitId,
+    );
+    const unit = getUnit(db, input.unitId);
+    if (!unit || unit.skipProcessing !== input.skip) throw new Error('unit skip readback failed');
+    return unit;
+  });
+  return write();
 }

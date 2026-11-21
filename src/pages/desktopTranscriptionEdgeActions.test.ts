@@ -38,6 +38,7 @@ function setup() {
     message: (kind) => kind,
     snapMessage: () => '',
     draftSavedMessage: '',
+    skipped: () => false,
     notify,
     createRoute: { layers: [tx, tr], links },
     selectUnits,

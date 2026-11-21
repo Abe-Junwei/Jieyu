@@ -129,6 +129,29 @@ describe('model host', () => {
     });
   });
 
+  it('keeps a segment confidence inside 0 to 1 and drops one outside', () => {
+    const expected = {
+      requestId: 'req-1',
+      id: 'org.example.nxq-asr',
+      version: '3.0.1',
+      range: { start: 0, end: 2 },
+    };
+    const body = (confidence: number) =>
+      JSON.stringify({
+        jieyu: '1',
+        requestId: 'req-1',
+        status: 'ok',
+        model: { id: 'org.example.nxq-asr', version: '3.0.1' },
+        result: { segments: [{ start: 0, end: 1, text: 'ka', confidence }] },
+      });
+    expect(parseTranscribeBody(body(0.42), expected).segments).toEqual([
+      { start: 0, end: 1, text: 'ka', confidence: 0.42 },
+    ]);
+    expect(parseTranscribeBody(body(1.4), expected).segments).toEqual([
+      { start: 0, end: 1, text: 'ka' },
+    ]);
+  });
+
   it('drops a segment outside the range, an oversized body, and a mismatched request', async () => {
     expect(
       parseTranscribeBody(

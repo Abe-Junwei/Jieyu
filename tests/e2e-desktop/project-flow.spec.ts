@@ -233,6 +233,28 @@ test('a subdivision card becomes the edge target and its menu deletes only that 
     const row = page.locator(`[data-layer-id="${words.id}"]`);
     await expect(row.locator('.timeline-annotation')).toHaveCount(2);
     const card = row.locator('.timeline-annotation').first();
+    const other = row.locator('.timeline-annotation').nth(1);
+    await other.click({ button: 'right' });
+    await page.getByRole('menuitem', { name: /标记为跳过处理|Mark to skip processing/ }).click();
+    await expect(other).toHaveClass(/timeline-annotation-skipped/);
+    expect(
+      (
+        await desktopCall<(ListedUnit & { skipProcessing?: boolean })[]>(
+          page,
+          sessionId,
+          'units.list',
+          {
+            layerId: words.id,
+          },
+        )
+      ).filter((unit) => unit.skipProcessing === true),
+    ).toHaveLength(1);
+    // The card itself shows the state; a toast here would cover cards and swallow the next click.
+    await page.waitForTimeout(500);
+    expect(await page.locator('.transcription-toast-container').count()).toBe(0);
+    await other.click({ button: 'right', timeout: 3000 });
+    await page.getByRole('menuitem', { name: /取消跳过处理|Resume processing/ }).click();
+    await expect(other).not.toHaveClass(/timeline-annotation-skipped/);
     await card.click({ button: 'right' });
     await page.getByRole('menuitem', { name: /联动共用边界|Link the shared boundary/ }).waitFor();
     await page.getByRole('menuitem', { name: /删除本子段|Delete this sub-segment/ }).click();

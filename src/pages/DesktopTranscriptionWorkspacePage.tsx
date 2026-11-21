@@ -18,6 +18,11 @@ import {
 import { msToSec } from '../utils/timeMs';
 import { DesktopTranscriptionContextColumn } from './DesktopTranscriptionContextColumn';
 import { DesktopDraftLeaveDialog } from './DesktopDraftLeaveDialog';
+import {
+  DesktopTranscriptionWaveMenu,
+  waveMenuUnitAt,
+  type WaveMenuState,
+} from './DesktopTranscriptionWaveMenu';
 import { readDesktopCorpusLocate } from './desktopCorpusLocate';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';
 import { useDesktopTranscriptionSelectionController } from './useDesktopTranscriptionSelectionController';
@@ -26,7 +31,11 @@ import {
   subscribeTranscriptionPlaybackClock,
 } from '../hooks/transcription/transcriptionPlaybackClock';
 import { useDesktopLayerView } from './useDesktopLayerView';
-import { DesktopTranscriptionLane, type WaveCreate } from './DesktopTranscriptionLane';
+import {
+  DesktopTranscriptionLane,
+  type WaveCreate,
+  type WaveSkip,
+} from './DesktopTranscriptionLane';
 import {
   formatPlaybackTime,
   useDesktopTranscriptionMediaController,
@@ -76,8 +85,10 @@ function DesktopTranscriptionWorkspace() {
   const tierRef = useRef<HTMLDivElement | null>(null);
   const waveHostRef = useRef<HTMLDivElement | null>(null);
   const waveCreateRef = useRef<WaveCreate | null>(null);
+  const waveSkipRef = useRef<WaveSkip | null>(null);
+  const waveDeleteRef = useRef<WaveSkip | null>(null);
   const [waveStage, setWaveStage] = useState<HTMLDivElement | null>(null);
-  const [waveMenu, setWaveMenu] = useState<{ x: number; y: number; time: number } | null>(null);
+  const [waveMenu, setWaveMenu] = useState<WaveMenuState | null>(null);
   const [searchParams] = useSearchParams();
   const locate = readDesktopCorpusLocate(searchParams);
   const read = useDesktopProjectReadController(
@@ -113,6 +124,8 @@ function DesktopTranscriptionWorkspace() {
                 startTime: msToSec(unit.startMs),
                 endTime: msToSec(unit.endMs),
                 text: unit.text,
+                confidence: unit.confidence,
+                skipProcessing: unit.skipProcessing,
               },
             ],
       ),
@@ -134,6 +147,9 @@ function DesktopTranscriptionWorkspace() {
   };
   const selectPlaybackUnitRef = useRef(selectPlaybackUnit);
   selectPlaybackUnitRef.current = selectPlaybackUnit;
+  const openWaveRegionMenu = useRef<(unitId: string, x: number, y: number) => void>(
+    () => undefined,
+  );
   const playback = useDesktopTranscriptionMediaController({
     mediaUrl: read.model?.audioUrl ?? null,
     units,
@@ -145,7 +161,16 @@ function DesktopTranscriptionWorkspace() {
       const unit = units.find((item) => item.id === unitId);
       if (unit) selectPlaybackUnit(unit);
     },
+    onRegionContextMenu: (unitId, x, y) => openWaveRegionMenu.current(unitId, x, y),
   });
+  openWaveRegionMenu.current = (unitId, x, y) => {
+    if (playback.isPlaying) playback.togglePlayback();
+    const wave = playback.waveformRef.current;
+    const zoom = playback.zoomPxPerSec;
+    const time =
+      wave && zoom > 0 ? (x - wave.getBoundingClientRect().left + playback.scrollLeftPx) / zoom : 0;
+    setWaveMenu({ x, y, time, unitId });
+  };
   selection.seekToRef.current = playback.seekTo;
   const selectedUnit = units.find((unit) => unit.id === selection.selectedUnitId) ?? null;
   const textSync = useRef({
@@ -216,7 +241,7 @@ function DesktopTranscriptionWorkspace() {
 
   return (
     <section
-      className={`desktop-tx-workspace${layerView.headerFolded ? ' is-header-folded' : ''}`}
+      className={`desktop-tx-workspace${layerView.headerFolded ? ' is-header-folded' : ''}${layerView.compact ? ' is-compact' : ''}`}
       data-testid="desktop-transcription-workspace"
     >
       <div className="desktop-tx-workspace__body">
@@ -306,6 +331,28 @@ function DesktopTranscriptionWorkspace() {
                 mode={playback.waveformDisplayMode}
                 onChange={playback.setWaveformDisplayMode}
               />
+              <button
+                type="button"
+                className="desktop-tx-icon desktop-tx-compact"
+                aria-pressed={layerView.compact}
+                aria-label={t(
+                  locale,
+                  layerView.compact
+                    ? 'app.desktopTranscription.compactOff'
+                    : 'app.desktopTranscription.compactOn',
+                )}
+                onClick={layerView.toggleCompact}
+              >
+                <JieyuIcon name="Rows3" aria-hidden className={JIEYU_ICON_INLINE} />
+                <span className="desktop-tx-zoom-tip" aria-hidden>
+                  {t(
+                    locale,
+                    layerView.compact
+                      ? 'app.desktopTranscription.compactOff'
+                      : 'app.desktopTranscription.compactOn',
+                  )}
+                </span>
+              </button>
             </div>
           ) : null}
           {hasAudio ? (
@@ -341,16 +388,27 @@ function DesktopTranscriptionWorkspace() {
                     onContextMenu={(event) => {
                       const wave = playback.waveformRef.current;
                       const zoom = playback.zoomPxPerSec;
-                      if (!wave || !(event.target instanceof Node) || !wave.contains(event.target))
+                      if (
+                        !wave ||
+                        !(event.target instanceof Node) ||
+                        !event.currentTarget.contains(event.target)
+                      )
+                        return;
+                      if (
+                        event.target instanceof Element &&
+                        event.target.closest('.desktop-tx-zoom-dock')
+                      )
                         return;
                       event.preventDefault();
                       if (!(zoom > 0)) return;
                       if (playback.isPlaying) playback.togglePlayback();
                       const left = wave.getBoundingClientRect().left;
+                      const time = (event.clientX - left + playback.scrollLeftPx) / zoom;
                       setWaveMenu({
                         x: event.clientX,
                         y: event.clientY,
-                        time: (event.clientX - left + playback.scrollLeftPx) / zoom,
+                        time,
+                        unitId: waveMenuUnitAt(units, time, event.target, selection.selectedUnitId),
                       });
                     }}
                   >
@@ -375,7 +433,7 @@ function DesktopTranscriptionWorkspace() {
                         isPlaying={playback.isPlaying}
                         segmentPlaybackRate={playback.playbackRate}
                         segmentLoopPlayback={playback.loop}
-                        skipProcessing={false}
+                        skipProcessing={selectedUnit.skipProcessing === true}
                         onPlaybackRateChange={playback.setPlaybackRate}
                         onToggleLoop={() => playback.setLoop(!playback.loop)}
                         onTogglePlay={() =>
@@ -485,7 +543,10 @@ function DesktopTranscriptionWorkspace() {
             tierRef={tierRef}
             scrollLeftPx={playback.scrollLeftPx}
             waveCreateRef={waveCreateRef}
+            waveSkipRef={waveSkipRef}
+            waveDeleteRef={waveDeleteRef}
             waveStage={waveStage}
+            onWaveSegmentMenu={(unitId, x, y) => openWaveRegionMenu.current(unitId, x, y)}
             onLeave={(go) => draft.leave(go)}
             onOpenBody={(layerId, unitId, saved) => {
               const key = textKey(layerId, unitId);
@@ -499,33 +560,18 @@ function DesktopTranscriptionWorkspace() {
       </div>
 
       {waveMenu === null ? null : (
-        <>
-          <button
-            type="button"
-            className="desktop-tx-menu-backdrop"
-            aria-label={t(locale, 'app.desktopTranscription.cancel')}
-            onClick={() => setWaveMenu(null)}
-          />
-          <div
-            className="desktop-tx-menu desktop-tx-menu-fixed"
-            style={{ left: waveMenu.x, top: waveMenu.y }}
-            role="menu"
-            data-testid="desktop-wave-menu"
-          >
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                const time = waveMenu.time;
-                setWaveMenu(null);
-                playback.seekTo(time);
-                if (!playback.isPlaying) playback.togglePlayback();
-              }}
-            >
-              {t(locale, 'transcription.ctxMenu.playFromHere')}
-            </button>
-          </div>
-        </>
+        <DesktopTranscriptionWaveMenu
+          locale={locale}
+          menu={waveMenu}
+          units={units}
+          onClose={() => setWaveMenu(null)}
+          onPlayFrom={(time) => {
+            playback.seekTo(time);
+            if (!playback.isPlaying) playback.togglePlayback();
+          }}
+          onToggleSkip={(unitId) => waveSkipRef.current?.(unitId)}
+          onDelete={(unitId) => waveDeleteRef.current?.(unitId)}
+        />
       )}
       {draft.prompt === null ? null : (
         <DesktopDraftLeaveDialog

@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-21T01:44:08.063Z",
-  "aggregate": "360bf857ca02fcb5ec3ce3992c7b02cce1d98beee17f546f2e2a4c47157bee92",
+  "generatedAt": "2026-11-21T03:07:15.118Z",
+  "aggregate": "770c99bca5b5e1065d72ed4b39fc4ecbcd0f9fedcc50c4abb3aea3873766db3b",
   "fileHashes": {
     "src/styles/ai-hub.css": "537be68d401399d5c7be152205f71c4c4f6949f861c9e34d22499005846034c7",
     "src/styles/ai-sidebar-entry.css": "32aa417a9e8594b2eebcd24f63c18f66dec3f88c0443c8bde7409e9a4f6596f7",
@@ -12,7 +12,7 @@
     "src/styles/foundation/context-menu.css": "c09a0dd95f259d50d9d7ea483976069e9f13f890f0aea98264b3b88637bada30",
     "src/styles/foundation/control-primitives.css": "9ac18ed9f61cbb69f2f3e301de0e75c0970969b520e7fb6cc7fc6f5a3eb90bf0",
     "src/styles/foundation/dialog-shell.css": "f2d9c57d5aaef826c573851700c45988bc5338080709c52ffd5c1103e05ffda7",
-    "src/styles/foundation/global-toast.css": "af53a8828f0faaaba0c0e2fefa1e29589305e65c6990e041b51080c22ef4d71d",
+    "src/styles/foundation/global-toast.css": "1219d21820990696067d2c71fe531e047830dfccc0d38ebca366b825e560a61c",
     "src/styles/foundation/jieyu-icon.css": "4f3b7c56b2cb37b81233607bca04755922da5e6c5c936932a1e4e258674c846b",
     "src/styles/foundation/language-asset-section-contract.css": "0a55099469b806e59c9ac92a4395aff1c69a48c20e935241f30e6ba18b0f0ee8",
     "src/styles/foundation/media-controls.css": "b02373b1d053080492a5c88cbdb2290d4111768b7c46d61b41553b308823f048",
@@ -27,7 +27,7 @@
     "src/styles/pages/app-shell-layout.css": "5519984e2a3b1040ca5d6fb4419b3e5214d6711146336c1191989a70bac3307d",
     "src/styles/pages/corpus-library-workspace.css": "c0e6c0eb4768333aa39fc2c97418c70769d1b00465f539e2b88085d9120313cf",
     "src/styles/pages/desktop-project-read.css": "3cccf8f60a1aac19eec9c014df395b3f73caea57031c4418d7714f2be86d7e79",
-    "src/styles/pages/desktop-transcription-workspace.css": "ac23294d21e69df129ad0133d47589ceeb05b6394eaaa5c436ace42e59984c85",
+    "src/styles/pages/desktop-transcription-workspace.css": "62562eaee0fd5682c9f294a646894da192218a8c1b186b1449da736e80377aac",
     "src/styles/pages/feature-availability.css": "0b1b70d72e9e53b4db43165630b58d3b7c5e44b8440a4d04b4f088327a69463a",
     "src/styles/pages/home-page.css": "c793e6c1c814df8d8ada7e7f3fe45c86c6430a26b1980b1d74fc0f57c6db0f5b",
     "src/styles/pages/language-metadata-workspace.css": "920a61a590082eeb16c266158d43ed4fb01039e831553bd3d40e6b55547b93ec",
@@ -37,7 +37,7 @@
     "src/styles/pages/project-custom-fields.css": "acc41907c585d272d30692818dc7d553ba0f1c0df280ea106cebe607d83f6f97",
     "src/styles/pages/timeline/time-ruler.css": "8ef913e411aa99d29e26d90a598d907d84bb7010bfe43619ec2273f91c49224b",
     "src/styles/pages/timeline/timeline-a11y.css": "3e0cd93cae83f98f4dc552159e7a4a0856d0b55587dd64e1e039bc29949f1b80",
-    "src/styles/pages/timeline/timeline-annotation.css": "93925fbc0addd7f252722181fe83a29823da1cf2c24a916535558794dd8bcae8",
+    "src/styles/pages/timeline/timeline-annotation.css": "967436475b881454feb10de5594860079047cde908f638d278a34da0f3e41be6",
     "src/styles/pages/timeline/timeline-axis-status.css": "ab9cbfa5d37fc6c431145b19426cf331bd95b76654b492d5132330cf76301114",
     "src/styles/pages/timeline/timeline-bundle-connector.css": "dda4a97f51ab313948e7efe5d55022e0c9beaba248b86074d36792c640403ad0",
     "src/styles/pages/timeline/timeline-lane-label.css": "1b5f646a035d00bef264bacf4a0719b71f2a36995c93823f12618ca8e229311a",
@@ -46,7 +46,7 @@
     "src/styles/pages/timeline/timeline-overview.css": "523f35bfcb958beb4a89a622ed99d85fdf0a932f812745c1bc5a4592bd46c831",
     "src/styles/pages/timeline/timeline-paired-reading.css": "67ed44e5a4cfc9514085cddedf3360cb598bf4fe073c217138f3965694891546",
     "src/styles/pages/timeline/timeline-segment-narrow.css": "16da99a7fe61c770d8a13b2c37c81a821af544300c851a2af204e2a567b79b27",
-    "src/styles/pages/timeline/timeline-text-item.css": "7cb3eec60365ae036b895cd2e2eba25506d7f105176ba3ae5ae6ca66457e5ade",
+    "src/styles/pages/timeline/timeline-text-item.css": "bcc1109d0fff605bebbc644034c708dd67caed0a3c8acddd12bb1ae606463049",
     "src/styles/pages/timeline/timeline-translation-audio.css": "077453a23737ff562b2cd8ad808feefe17ec83d863676418c5a7189db26cf105",
     "src/styles/pages/transcription-layout.css": "bd2b532d339b3e3ce6080c48d186a9e5ed3186260de989104e2222ddda834a80",
     "src/styles/pages/transcription-timeline.css": "a6e9ae7c512fb7bec801198bc7e9caf5d938bcc5f28e6737a8c9526f8087cb35",
@@ -74,7 +74,7 @@
     "src/styles/panels/shortcuts-panel.css": "2f0a934354c42aa37e8677c8d0d245022cda6161fdd200da2aa6e725eb5f857b",
     "src/styles/panels/undo-history.css": "6649f307ffd35d5bbbda45272e15b73a0b6168fbf2fab8ca59045574a32a5a8d",
     "src/styles/panels/voice-agent.css": "15e942852c49eb7c8b3672b5249c12216235577e7f727ec21a60e7bfddda119b",
-    "src/styles/tokens.css": "de49dd9bac925eeb2d9369c8b7fd27b65e11c680b5453baabe0d4416ce59bcba",
+    "src/styles/tokens.css": "a2a21a22693f9b374f0d740ccc29626de236c24dd92202bfcaf8cf4163e0a9a9",
     "src/styles/transcription-entry.css": "58cb5cf806e8359ee550ed1bb4e6da9a334391e19c43dcd81184924d75c5003b",
     "src/styles/transcription-timeline.css": "15b57584ca039026d664457c51b69a6e5449bd6e75a6b6c9a7fcdffa0c9eae9e"
   }

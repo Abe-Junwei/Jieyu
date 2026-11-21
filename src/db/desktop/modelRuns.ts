@@ -2,7 +2,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import { secToMs } from './timeMs';
 import { writeUnitFieldValues } from './customFields';
-import { sortOrderForInsert } from './units';
+import { storedSegmentConfidence } from '../../utils/segmentConfidence';
+import { getUnit, sortOrderForInsert } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -52,6 +53,7 @@ export interface PreviewCandidateInput {
   segmentIndex: number;
   mediaStart: number;
   mediaEnd: number;
+  confidence?: number;
 }
 
 export interface PreviewCandidate {
@@ -64,6 +66,7 @@ export interface PreviewCandidate {
   endMs: number;
   targetFingerprint: string;
   occupied: boolean;
+  confidence: number | null;
 }
 
 export interface TranscriptionAcceptance {
@@ -272,7 +275,10 @@ export function previewModelRun(
   return preview;
 }
 
-const previews = new Map<string, { mediaStart: number; mediaEnd: number }>();
+const previews = new Map<
+  string,
+  { mediaStart: number; mediaEnd: number; confidence: number | null }
+>();
 
 function previewKey(runId: string, candidateId: string): string {
   return `${runId}\0${candidateId}`;
@@ -282,13 +288,14 @@ function rememberPreview(runId: string, candidate: PreviewCandidate): void {
   previews.set(previewKey(runId, candidate.candidateId), {
     mediaStart: candidate.mediaStart,
     mediaEnd: candidate.mediaEnd,
+    confidence: candidate.confidence,
   });
 }
 
 function previewedRange(
   runId: string,
   candidateId: string,
-): { mediaStart: number; mediaEnd: number } | undefined {
+): { mediaStart: number; mediaEnd: number; confidence: number | null } | undefined {
   return previews.get(previewKey(runId, candidateId));
 }
 
@@ -348,15 +355,17 @@ export function acceptTranscriptionCandidate(
       throw new Error('transcription time is invalid');
     }
     const unitId = randomUUID();
+    const confidence = preview.confidence;
     db.prepare(
       `INSERT INTO units (
-        id, layer_id, start_ms, end_ms, sort_order, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        id, layer_id, start_ms, end_ms, confidence, sort_order, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       unitId,
       run.layerId,
       startMs,
       endMs,
+      confidence,
       sortOrderForInsert(db, run.layerId, startMs),
       now,
       now,
@@ -385,8 +394,10 @@ export function acceptTranscriptionCandidate(
     ).run(run.id);
     const acceptance = readTranscriptionAcceptance(db, input.operationId);
     const stored = getModelRun(db, run.id);
+    const unit = getUnit(db, unitId);
     if (
       !acceptance ||
+      unit?.confidence !== confidence ||
       acceptance.unitId !== unitId ||
       acceptance.text !== input.text ||
       acceptance.modelRunId !== run.id ||
@@ -619,6 +630,7 @@ function placeCandidate(
     endMs,
     targetFingerprint: targetFingerprint(overlaps),
     occupied: overlaps.length > 0,
+    confidence: storedSegmentConfidence(candidate.confidence),
   };
 }
 

@@ -13,6 +13,7 @@ import {
 } from '../db/desktop/modelRuns';
 import { requireDesktopSession, desktopSessionFolder } from '../db/desktop/projectSession';
 import { secToMs } from '../db/desktop/timeMs';
+import { storedSegmentConfidence } from '../utils/segmentConfidence';
 import { loadModelDeclaration, runModelTranscribe, cancelModelTranscribe } from './modelHost';
 import { pcmWav } from './transcriptionAudio';
 import type {
@@ -125,6 +126,7 @@ export async function transcribeProject(
     mediaStart: number;
     mediaEnd: number;
     text: string;
+    confidence?: number;
   }[] = [];
   const warnings = new Set<string>();
   let candidateBytes = 0;
@@ -181,12 +183,14 @@ export async function transcribeProject(
         candidateBytes += Buffer.byteLength(segment.text);
         if (segments.length >= 10_000 || candidateBytes > 8 * 1024 * 1024)
           throw new Error('too many candidates');
+        const confidence = storedSegmentConfidence(segment.confidence);
         segments.push({
           chunkIndex: chunkCount,
           segmentIndex: index,
           mediaStart: start + segment.start,
           mediaEnd: start + segment.end,
           text: segment.text,
+          ...(confidence === null ? {} : { confidence }),
         });
       }
       chunkCount += 1;

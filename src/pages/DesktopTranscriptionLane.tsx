@@ -49,6 +49,8 @@ import {
   type DesktopPlaybackUnit,
 } from './useDesktopTranscriptionMediaController';
 
+export type WaveSkip = (unitId: string) => void;
+
 export type WaveCreate = (
   event: ReactPointerEvent<HTMLElement>,
   msAt: (clientX: number) => number,
@@ -82,8 +84,12 @@ export function DesktopTranscriptionLane(props: {
   tierRef: RefObject<HTMLDivElement | null>;
   scrollLeftPx: number;
   waveCreateRef: MutableRefObject<WaveCreate | null>;
+  waveSkipRef: MutableRefObject<WaveSkip | null>;
+  waveDeleteRef: MutableRefObject<WaveSkip | null>;
   /** The waveform stage: a waveform drag draws its create preview here. */
   waveStage: HTMLElement | null;
+  /** Right-click on a waveform segment overlay (the highlighted body sits above the region). */
+  onWaveSegmentMenu: (unitId: string, x: number, y: number) => void;
   /** Runs `go` once the open body draft is saved or dropped (the leave guard). */
   onLeave: (go: () => void) => void;
   /** A body editor opened on `layerId`'s text of `unitId`: bring back its stored draft. */
@@ -146,6 +152,11 @@ export function DesktopTranscriptionLane(props: {
       props.onSelectUnits(props.units.filter((unit) => unitIds.includes(unit.id)));
     },
     onEmptyClick: () => props.onLeave(() => props.onClearSelection()),
+    skipped: (unitId) =>
+      props.units.some((unit) => unit.id === unitId && unit.skipProcessing === true) ||
+      (props.layers ?? []).some((layer) =>
+        layer.units.some((unit) => unit.id === unitId && unit.skipProcessing === true),
+      ),
   });
   const keyOf = (unitId: string) =>
     props.layerId === null ? unitId : textKey(props.layerId, unitId);
@@ -175,6 +186,22 @@ export function DesktopTranscriptionLane(props: {
       waveCreateRef.current = null;
     };
   }, [beginWaveCreate, waveCreateRef]);
+  const waveSkipRef = props.waveSkipRef;
+  const toggleSkipUnit = edges.toggleSkipUnit;
+  useEffect(() => {
+    waveSkipRef.current = toggleSkipUnit;
+    return () => {
+      waveSkipRef.current = null;
+    };
+  }, [toggleSkipUnit, waveSkipRef]);
+  const waveDeleteRef = props.waveDeleteRef;
+  const askDelete = edges.askDelete;
+  useEffect(() => {
+    waveDeleteRef.current = (unitId) => void askDelete(unitId);
+    return () => {
+      waveDeleteRef.current = null;
+    };
+  }, [askDelete, waveDeleteRef]);
   const previewFrame =
     edges.ui.preview?.unitId === null && edges.ui.preview
       ? desktopSegmentFrame(
@@ -256,6 +283,7 @@ export function DesktopTranscriptionLane(props: {
                 else pickUnit(unitId);
               })
             }
+            onContextMenu={props.onWaveSegmentMenu}
           />,
           props.waveStage,
         )
@@ -373,9 +401,13 @@ export function DesktopTranscriptionLane(props: {
                     width={frame.width ?? 0}
                     isSelected={shownSelected}
                     isActive={active}
-                    isCompact={false}
+                    isCompact={props.view.compact}
+                    skipProcessing={unit.skipProcessing === true}
                     title={unit.text}
                     draft={draft}
+                    {...(typeof unit.confidence === 'number'
+                      ? { confidence: unit.confidence }
+                      : {})}
                     onClick={() => {
                       if (selected && focus === null) {
                         openEdit(mainCard(unit.id), unit.text);
@@ -450,6 +482,7 @@ export function DesktopTranscriptionLane(props: {
           onToggleGroup={toggleGroup}
           onCollapse={collapseLayer}
           onExpand={props.view.toggleRow}
+          compact={props.view.compact}
           duration={props.duration}
           zoomPxPerSec={props.zoomPxPerSec}
           scrollLeftPx={props.scrollLeftPx}
@@ -527,6 +560,7 @@ export function DesktopTranscriptionLane(props: {
         onCloseMenu={edges.closeMenu}
         onLink={edges.linkShared}
         onClearText={edges.clearLayerText}
+        onToggleSkip={edges.toggleSkip}
         onAskDelete={() => {
           const unitId = edges.ui.menu?.unitId;
           if (unitId) void edges.askDelete(unitId);

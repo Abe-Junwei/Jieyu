@@ -13,7 +13,7 @@ import {
 import { deleteManuscript } from './manuscripts';
 import { purgeManuscript } from './manuscriptPurge';
 import { exportDesktopJyt, importDesktopJyt } from './projectExchange';
-import { listUnits } from './units';
+import { getUnit, listUnits } from './units';
 
 const roots: string[] = [];
 
@@ -86,6 +86,7 @@ describe('layer-scoped unit text', () => {
       textLayerId: s.tr,
       text: '',
       textId: null,
+      confidence: null,
     });
     expect(listUnits(requireDesktopSession(sessionId).db, s.loose)).toEqual([]);
     expect(textRows(sessionId, s.unitId).map((row) => row.layer_id)).toEqual([s.tx]);
@@ -141,9 +142,17 @@ describe('layer-scoped unit text', () => {
       }),
     ).not.toBe('committed');
 
+    requireDesktopSession(sessionId)
+      .db.prepare('UPDATE units SET confidence = ? WHERE id = ?')
+      .run(0.42, s.unitId);
     closeDesktopSession(sessionId);
     const reopened = openProject(dir);
-    expect(listUnits(reopened.db, s.tr)[0]).toMatchObject({ text: 'hello', textLayerId: s.tr });
+    expect(listUnits(reopened.db, s.tr)[0]).toMatchObject({
+      text: 'hello',
+      textLayerId: s.tr,
+      confidence: 0.42,
+    });
+    expect(getUnit(reopened.db, s.unitId)?.confidence).toBe(0.42);
     expect(listUnits(reopened.db, s.tx)[0]).toMatchObject({ text: 'ka', textLayerId: s.tx });
     reopened.close();
 
@@ -267,5 +276,27 @@ describe('layer-scoped unit text', () => {
     );
     const created = create({ startMs: 100, endMs: 400, parentUnitId: s.unitId });
     expect(created).toMatchObject({ speakerId: speaker.id, parentUnitId: s.unitId });
+  });
+
+  it('keeps skip processing across close and reopen', () => {
+    const dir = folder();
+    const { sessionId } = openDesktopSession(dir, [dir]);
+    const s = seed(sessionId);
+    expect(listUnits(requireDesktopSession(sessionId).db, s.tx)[0]).toMatchObject({
+      skipProcessing: false,
+    });
+    callDesktopSession(sessionId, 'units.setSkipProcessing', { unitId: s.unitId, skip: true });
+    closeDesktopSession(sessionId);
+    const reopened = openProject(dir);
+    expect(getUnit(reopened.db, s.unitId)?.skipProcessing).toBe(true);
+    reopened.close();
+    const again = openDesktopSession(dir, [dir]);
+    callDesktopSession(again.sessionId, 'units.setSkipProcessing', {
+      unitId: s.unitId,
+      skip: false,
+    });
+    expect(getUnit(requireDesktopSession(again.sessionId).db, s.unitId)?.skipProcessing).toBe(
+      false,
+    );
   });
 });

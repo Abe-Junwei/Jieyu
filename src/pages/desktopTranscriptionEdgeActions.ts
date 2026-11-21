@@ -90,6 +90,8 @@ export interface EdgeControllerInput {
   selectUnits?: (unitIds: string[]) => void;
   /** A click on empty time, without a drag. */
   onEmptyClick?: () => void;
+  /** Whether this unit is marked to skip processing. */
+  skipped: (unitId: string) => boolean;
 }
 
 export interface EdgeUi {
@@ -105,6 +107,7 @@ export interface EdgeUi {
     sub?: true;
     /** Hidden when the unit has no touching neighbor to share a boundary with. */
     canLink: boolean;
+    skipped: boolean;
   } | null;
   deletePrompt: { unitId: string; counts: UnitDeletePreview } | null;
   raw: { unitId: string } & StoredTimes;
@@ -133,6 +136,18 @@ export function createEdgeActions(ctx: {
   const { live, uiRef, setUi, edited } = ctx;
   const call = () => openEdgeCall(live.current.sessionId, live.current.desktopCall);
   const failed = () => live.current.notify(live.current.message('failed', ''));
+  /** Waveform and text track share this write. */
+  const toggleSkipUnit = (unitId: string) => {
+    const session = call();
+    if (!session) return;
+    const skip = !live.current.skipped(unitId);
+    setUi((current) => ({ ...current, menu: null }));
+    void session.api
+      .setUnitSkipProcessing(session.sessionId, { unitId, skip })
+      // No success toast: the card shows the state, and a toast would cover cards under it.
+      .then(() => live.current.reload())
+      .catch(() => failed());
+  };
   const setPreview = (preview: ShownPreview | null) =>
     setUi((current) => ({ ...current, preview }));
   /** The row a unit sits in: neighbors, snapping and shared edges all come from that row. */
@@ -448,11 +463,18 @@ export function createEdgeActions(ctx: {
           x: event.clientX,
           y: event.clientY,
           canLink: sharedEdge(rowOf(unitId), unitId) !== null,
+          skipped: live.current.skipped(unitId),
           ...(layerId === undefined ? {} : { layerId, layerName: layerName ?? '' }),
           ...(sub === true ? { sub: true as const } : {}),
         },
       }));
     },
+    toggleSkip() {
+      const menu = uiRef.current.menu;
+      if (!menu) return;
+      toggleSkipUnit(menu.unitId);
+    },
+    toggleSkipUnit,
     clearLayerText() {
       const menu = uiRef.current.menu;
       const session = call();

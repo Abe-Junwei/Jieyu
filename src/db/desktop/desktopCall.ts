@@ -144,6 +144,7 @@ import {
   listUnits,
   readStoredUnit,
   updateBoundary,
+  setUnitSkipProcessing,
   updateUnitText,
   type UnitTextUndo,
 } from './units';
@@ -962,6 +963,12 @@ const operationHandlers = {
       assertExportTarget(ctx.folder, file, mediaRelpaths(ctx.db));
       return saveDesktopPackage(file, exportDesktopManuscriptJyt(ctx.db, [input.manuscriptId]));
     },
+  },
+  'units.setSkipProcessing': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['units.setSkipProcessing']['check']>,
+    ) => setUnitSkipProcessing(ctx.db, input),
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
