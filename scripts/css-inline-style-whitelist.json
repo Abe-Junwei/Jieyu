@@ -114,9 +114,9 @@
     },
     {
       "file": "src/pages/DesktopTranscriptionLane.tsx",
-      "reason": "Lane track width, draft frame, wave-stage preview, and seam position follow live zoom and pointer time.",
-      "reviewer": "Cursor cloud agent",
-      "reviewedAt": "2026-11-20",
+      "reason": "Lane height, track width, draft frame, wave-stage preview, and seam position follow the saved height, live zoom, and pointer time.",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-21",
       "snippets": [
         {
           "anchor": "width: props.duration * props.zoomPxPerSec",
@@ -133,6 +133,10 @@
         {
           "anchor": "left: seamLeft(",
           "reviewedSha256": "c0fba6a18c29c85606885c1629a33ded60dd42774ae251eae86121688f4c3fa8"
+        },
+        {
+          "anchor": "style={laneHeightStyle(",
+          "reviewedSha256": "7e8b70cac934c0bc4704cea2ef2a1ef0f6579d124c07f545bf154ff3ace37fc9"
         }
       ]
     },
@@ -194,9 +198,9 @@
     },
     {
       "file": "src/pages/DesktopTranscriptionLayerRows.tsx",
-      "reason": "Linked-layer track width and the create preview frame follow live zoom and drag time.",
-      "reviewer": "Cursor cloud agent",
-      "reviewedAt": "2026-11-20",
+      "reason": "Linked-layer height, track width, and the create preview frame follow the saved height, live zoom, and drag time.",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-21",
       "snippets": [
         {
           "anchor": "width: props.duration * props.zoomPxPerSec",
@@ -205,12 +209,16 @@
         {
           "anchor": "style={props.createFrame}",
           "reviewedSha256": "83b5e8922ce9a653fc88eadc91c3c98c946d3dfe45a03cc0491afd0d6ef20474"
+        },
+        {
+          "anchor": "style={laneHeightStyle(layer.laneHeight)}",
+          "reviewedSha256": "232c64758838bdb39ae725b0a6ec59a082aeff87d17121204959af458cb246e8"
         }
       ]
     },
     {
       "file": "src/pages/DesktopTranscriptionWorkspacePage.tsx",
-      "reason": "Volume fill, zoom fill, and waveform band heights are runtime values.",
+      "reason": "Volume fill and waveform band heights are runtime values.",
       "reviewer": "Cursor + junwei",
       "reviewedAt": "2026-11-21",
       "snippets": [
@@ -221,7 +229,15 @@
         {
           "anchor": "'--desktop-wave-primary'",
           "reviewedSha256": "db366265c99aa93248b4ed55d29f573da1b8e53c49b16b91c24541b5b197673e"
-        },
+        }
+      ]
+    },
+    {
+      "file": "src/pages/DesktopTranscriptionWorkspaceControls.tsx",
+      "reason": "The zoom slider fill follows the live zoom position.",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-21",
+      "snippets": [
         {
           "anchor": "'--zoom-fill'",
           "reviewedSha256": "8d9e3589d2c4bcdcb02682dda7ff0fe57d9af9bd2fe28d896c7c167a91b2b94f"
