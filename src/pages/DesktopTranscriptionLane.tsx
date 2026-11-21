@@ -16,6 +16,7 @@ import {
 import { buildLayerTree, type LayerTreeRow } from './desktopTranscriptionLayerTree';
 import type { DesktopLayerView } from './useDesktopLayerView';
 import { DesktopTranscriptionCreatePreview } from './DesktopTranscriptionCreatePreview';
+import { DesktopTranscriptionLaneResize } from './DesktopTranscriptionLaneResize';
 import { DesktopWaveformEdges } from './DesktopWaveformEdges';
 import { TimelineAnnotationItem } from '../components/TimelineAnnotationItem';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
@@ -38,6 +39,7 @@ import type { RouteLayer, RouteLink } from './desktopTranscriptionCreateRoute';
 import { textKey } from './desktopTranscriptionTextKey';
 import {
   DesktopTranscriptionLayerRows,
+  laneHeightStyle,
   layerLabel,
   restoreBody,
   sameCard,
@@ -94,6 +96,7 @@ export function DesktopTranscriptionLane(props: {
   onLeave: (go: () => void) => void;
   /** A body editor opened on `layerId`'s text of `unitId`: bring back its stored draft. */
   onOpenBody: (layerId: string, unitId: string, savedText: string) => void;
+  onLaneHeight?: (layerId: string, height: number) => void;
 }) {
   const toast = useToast();
   const [editing, setEditing] = useState<LayerCardRef | null>(null);
@@ -356,6 +359,9 @@ export function DesktopTranscriptionLane(props: {
         <div
           className={`desktop-tx-lane${row.folded ? ' is-folded' : ''}`}
           data-testid="desktop-readonly-timeline"
+          style={laneHeightStyle(
+            props.layers?.find((layer) => layer.id === row.layerId)?.laneHeight,
+          )}
         >
           <DesktopTranscriptionLayerLabel
             locale={props.locale}
@@ -465,6 +471,12 @@ export function DesktopTranscriptionLane(props: {
               )}
             </div>
           </div>
+          {row.folded || props.onLaneHeight === undefined ? null : (
+            <DesktopTranscriptionLaneResize
+              label={t(props.locale, 'app.desktopTranscription.layerHeight')}
+              onCommit={(height) => props.onLaneHeight?.(row.layerId, height)}
+            />
+          )}
         </div>
       </>
     ) : null;
@@ -514,6 +526,7 @@ export function DesktopTranscriptionLane(props: {
           onComposeBody={props.onComposeBody}
           onCommitBody={props.onCommitBody}
           onStopEdit={() => setEditing(null)}
+          {...(props.onLaneHeight === undefined ? {} : { onLaneHeight: props.onLaneHeight })}
           onCreate={(event, layerId, units) => {
             setCreateLayerId(layerId);
             setWaveDrag(false);

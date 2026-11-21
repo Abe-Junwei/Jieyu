@@ -20,6 +20,9 @@ export function DesktopDeletedItemsPanel(props: {
   liveSession.current = sessionId;
   const [manuscripts, setManuscripts] = useState<Manuscript[]>([]);
   const [recordings, setRecordings] = useState<DeletedMedia[]>([]);
+  const [layers, setLayers] = useState<
+    { id: string; name: Record<string, string>; retainUntil: string }[]
+  >([]);
   const [listFailed, setListFailed] = useState(false);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [restoredTitle, setRestoredTitle] = useState<string | null>(null);
@@ -35,11 +38,16 @@ export function DesktopDeletedItemsPanel(props: {
     let current = true;
     setListFailed(false);
     const client = createDesktopClient({ desktopCall });
-    void Promise.all([client.listDeletedManuscripts(sessionId), client.listDeletedMedia(sessionId)])
-      .then(([nextManuscripts, nextRecordings]) => {
+    void Promise.all([
+      client.listDeletedManuscripts(sessionId),
+      client.listDeletedMedia(sessionId),
+      client.listDeletedLayers(sessionId),
+    ])
+      .then(([nextManuscripts, nextRecordings, nextLayers]) => {
         if (!current) return;
         setManuscripts(nextManuscripts);
         setRecordings(nextRecordings);
+        setLayers(nextLayers);
       })
       .catch(() => {
         if (current) setListFailed(true);
@@ -48,6 +56,30 @@ export function DesktopDeletedItemsPanel(props: {
       current = false;
     };
   }, [desktopCall, props.reloadToken, revision, sessionId]);
+
+  const restoreLayer = (id: string, title: string) => {
+    if (restoringRef.current) return;
+    const seen = sessionId;
+    restoringRef.current = true;
+    setRestoringId(id);
+    setRestoreFailed(false);
+    void createDesktopClient({ desktopCall })
+      .restoreLayer(sessionId, id)
+      .then(() => {
+        if (liveSession.current !== seen) return;
+        setRestoredTitle(title);
+        setRevision((current) => current + 1);
+        onRestored();
+      })
+      .catch(() => {
+        if (liveSession.current !== seen) return;
+        setRestoreFailed(true);
+      })
+      .finally(() => {
+        restoringRef.current = false;
+        if (liveSession.current === seen) setRestoringId(null);
+      });
+  };
 
   const restore = (id: string, title: string) => {
     if (restoringRef.current) return;
@@ -77,7 +109,7 @@ export function DesktopDeletedItemsPanel(props: {
     <section aria-labelledby="desktop-deleted-items-title">
       <h2 id="desktop-deleted-items-title">{t(locale, 'app.desktopRead.deletedTitle')}</h2>
       {listFailed ? <p role="alert">{t(locale, 'app.desktopRead.deletedListFailed')}</p> : null}
-      {!listFailed && manuscripts.length === 0 && recordings.length === 0 ? (
+      {!listFailed && manuscripts.length === 0 && recordings.length === 0 && layers.length === 0 ? (
         <p>{t(locale, 'app.desktopRead.deletedEmpty')}</p>
       ) : null}
       {restoredTitle === null ? null : (
@@ -101,6 +133,26 @@ export function DesktopDeletedItemsPanel(props: {
                 type="button"
                 disabled={restoringId !== null}
                 onClick={() => restore(manuscript.id, title)}
+              >
+                {t(locale, 'app.desktopRead.deletedRestore')}
+              </button>
+            </li>
+          );
+        })}
+        {layers.map((layer) => {
+          const title = deletedTitle(layer.name, layer.id);
+          return (
+            <li key={layer.id}>
+              <span>
+                {tf(locale, 'app.desktopRead.deletedLayer', {
+                  title,
+                  until: layer.retainUntil,
+                })}
+              </span>
+              <button
+                type="button"
+                disabled={restoringId !== null}
+                onClick={() => restoreLayer(layer.id, title)}
               >
                 {t(locale, 'app.desktopRead.deletedRestore')}
               </button>

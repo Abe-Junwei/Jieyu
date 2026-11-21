@@ -270,16 +270,23 @@ function readUnitRow(
          ON unit_texts.unit_id = units.id
         AND unit_texts.layer_id = text_layer.id
         AND unit_texts.role = text_layer.content_type
-       WHERE units.id = ? ${visible ? 'AND manuscripts.deleted_at IS NULL' : ''}`,
+       WHERE units.id = ? ${
+         visible
+           ? 'AND manuscripts.deleted_at IS NULL AND source_layer.deleted_at IS NULL AND text_layer.deleted_at IS NULL'
+           : ''
+       }`,
     )
     .get(textLayerId, id) as UnitRow | undefined;
 }
 
 export function listUnits(db: SqliteDatabase, layerId: string): Unit[] {
   const target = db
-    .prepare('SELECT tier_type AS tierType, content_type AS contentType FROM layers WHERE id = ?')
-    .get(layerId) as { tierType: string; contentType: string } | undefined;
-  if (!target || target.contentType === 'point') return [];
+    .prepare(
+      'SELECT tier_type AS tierType, content_type AS contentType, deleted_at AS deletedAt FROM layers WHERE id = ?',
+    )
+    .get(layerId) as
+    { tierType: string; contentType: string; deletedAt: string | null } | undefined;
+  if (!target || target.deletedAt !== null || target.contentType === 'point') return [];
   const sources =
     target.tierType === 'symbolic-association'
       ? (db
@@ -308,6 +315,8 @@ export function listUnits(db: SqliteDatabase, layerId: string): Unit[] {
         AND unit_texts.role = target.content_type
        WHERE units.layer_id IN (${sourceIds.map(() => '?').join(', ')})
          AND manuscripts.deleted_at IS NULL
+         AND source.deleted_at IS NULL
+         AND target.deleted_at IS NULL
        ORDER BY units.start_ms IS NULL, units.start_ms, units.layer_id, units.sort_order, units.id`,
     )
     .all(layerId, ...sourceIds) as UnitRow[];

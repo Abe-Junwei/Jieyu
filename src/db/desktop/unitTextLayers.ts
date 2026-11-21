@@ -17,6 +17,8 @@ interface UnitTextContextRow {
   unit_manuscript_id: string;
   text_manuscript_id: string;
   deleted_at: string | null;
+  source_deleted: string | null;
+  target_deleted: string | null;
   linked: number;
 }
 
@@ -27,8 +29,7 @@ export function resolveUnitTextContext(
   options: { allowDeleted?: boolean } = {},
 ): UnitTextContext {
   const unit = db.prepare('SELECT layer_id FROM units WHERE id = ?').get(unitId) as
-    | { layer_id: string }
-    | undefined;
+    { layer_id: string } | undefined;
   if (!unit) throw new Error('unit is missing');
   const targetId = textLayerId ?? unit.layer_id;
   const row = db
@@ -39,6 +40,8 @@ export function resolveUnitTextContext(
               source.manuscript_id AS unit_manuscript_id,
               target.manuscript_id AS text_manuscript_id,
               manuscript.deleted_at,
+              source.deleted_at AS source_deleted,
+              target.deleted_at AS target_deleted,
               EXISTS (
                 SELECT 1 FROM layer_links
                 WHERE layer_links.layer_id = target.id
@@ -54,6 +57,12 @@ export function resolveUnitTextContext(
   if (!row) throw new Error('text layer is missing');
   if (row.deleted_at !== null && options.allowDeleted !== true) {
     throw new Error('manuscript is deleted');
+  }
+  if (
+    options.allowDeleted !== true &&
+    (row.source_deleted !== null || row.target_deleted !== null)
+  ) {
+    throw new Error('layer is deleted');
   }
   if (
     row.text_manuscript_id !== row.unit_manuscript_id ||
@@ -81,7 +90,6 @@ export function readUnitTextBody(
        WHERE unit_id = ? AND layer_id = ? AND role = ?`,
     )
     .get(context.unitId, context.textLayerId, context.role) as
-    | { id: string; body: string }
-    | undefined;
+    { id: string; body: string } | undefined;
   return row === undefined ? { id: null, body: '' } : row;
 }

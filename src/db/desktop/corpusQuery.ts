@@ -165,6 +165,7 @@ function matchHits(
        JOIN layers ON layers.id = units.layer_id
        JOIN manuscripts ON manuscripts.id = layers.manuscript_id
        WHERE manuscripts.deleted_at IS NULL
+         AND layers.deleted_at IS NULL
          AND (? IS NULL OR manuscripts.id = ?)
          AND (? IS NULL OR tokens.pos = ?)
        UNION ALL
@@ -177,6 +178,7 @@ function matchHits(
        JOIN layers ON layers.id = units.layer_id
        JOIN manuscripts ON manuscripts.id = layers.manuscript_id
        WHERE manuscripts.deleted_at IS NULL
+         AND layers.deleted_at IS NULL
          AND (? IS NULL OR manuscripts.id = ?)
          AND (? IS NULL OR morphemes.pos = ?)`,
     )
@@ -269,7 +271,7 @@ function selectUnits(
     limit: number;
   },
 ): UnitRow[] {
-  const where = ['manuscripts.deleted_at IS NULL'];
+  const where = ['manuscripts.deleted_at IS NULL', 'layers.deleted_at IS NULL'];
   const params: unknown[] = [];
   if (input.manuscriptId !== null) {
     where.push('manuscripts.id = ?');

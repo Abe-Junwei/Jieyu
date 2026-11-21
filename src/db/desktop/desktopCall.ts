@@ -70,7 +70,16 @@ import { patchSpeaker, redeliverSpeaker } from './speakerFields';
 import { createSpeaker, listSpeakers } from './speakers';
 import { createSource, patchSource, redeliverSource } from './sourceFields';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
+import { previewLayerHosts, setLayerHosts } from './layerHosts';
 import { createLayer, listLayerLinks, listLayers } from './layers';
+import {
+  deleteLayer,
+  listDeletedLayers,
+  moveLayer,
+  renameLayer,
+  restoreLayer,
+  setLayerHeight,
+} from './layerStructure';
 import { linkSense, removeSense, saveLexemeEntry, getLexemeEntry } from './lexicon';
 import {
   clearTokenLexemeLink,
@@ -218,6 +227,37 @@ const operationHandlers = {
   'layers.listLinks': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.listLinks']['check']>) =>
       listLayerLinks(ctx.db, input.manuscriptId),
+  },
+  'layers.previewHosts': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.previewHosts']['check']>) =>
+      previewLayerHosts(ctx.db, input),
+  },
+  'layers.setHosts': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.setHosts']['check']>) =>
+      setLayerHosts(ctx.db, input),
+  },
+  'layers.rename': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.rename']['check']>) =>
+      renameLayer(ctx.db, input),
+  },
+  'layers.setHeight': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.setHeight']['check']>) =>
+      setLayerHeight(ctx.db, input),
+  },
+  'layers.move': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.move']['check']>) =>
+      moveLayer(ctx.db, input),
+  },
+  'layers.delete': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.delete']['check']>) =>
+      deleteLayer(ctx.db, input),
+  },
+  'layers.listDeleted': {
+    run: (ctx: ContractCtx) => listDeletedLayers(ctx.db),
+  },
+  'layers.restore': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.restore']['check']>) =>
+      restoreLayer(ctx.db, input.id),
   },
   'catalog.ensureProjectDefinition': {
     run: (

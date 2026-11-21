@@ -39,6 +39,14 @@ import type {
 } from './notes';
 import type { CorpusQuery, CorpusQueryCursor, CorpusQueryPage } from './corpusQuery';
 import type { EditInspection, EditReceiptKind } from './editReceipts';
+import type { LayerHostsPreview, LayerHostsSet } from './layerHosts';
+import type {
+  DeletedLayer,
+  LayerDelete,
+  LayerHeight,
+  LayerMove,
+  LayerRename,
+} from './layerStructure';
 import type { Layer, LayerCreate, LayerHostInput, LayerLink, LayerLinkType } from './layers';
 import type {
   AcceptableRun,
@@ -179,6 +187,65 @@ function checkLayerCreate(input: Record<string, unknown>): LayerCreate {
     ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
     ...('hosts' in input ? { hosts: layerHosts(input.hosts) } : {}),
     ...editOperationId(input),
+  };
+}
+
+function checkLayerRename(input: Record<string, unknown>): LayerRename {
+  knownKeys(input, ['id', 'name']);
+  return { id: requiredString(input.id, 'id'), name: stringMap(input.name, 'name') };
+}
+
+function checkLayerHeight(input: Record<string, unknown>): LayerHeight {
+  knownKeys(input, ['id', 'laneHeight']);
+  return {
+    id: requiredString(input.id, 'id'),
+    laneHeight: requiredNumber(input.laneHeight, 'laneHeight'),
+  };
+}
+
+function checkLayerMove(input: Record<string, unknown>): LayerMove {
+  knownKeys(input, ['id', 'direction']);
+  if (input.direction !== 'up' && input.direction !== 'down') {
+    throw new Error('desktop call direction is not supported');
+  }
+  return { id: requiredString(input.id, 'id'), direction: input.direction };
+}
+
+function checkLayerHostsSet(input: Record<string, unknown>): LayerHostsSet {
+  knownKeys(input, ['layerId', 'hostLayerIds', 'preferredHostLayerId', 'linkType']);
+  if (!Array.isArray(input.hostLayerIds) || input.hostLayerIds.length === 0) {
+    throw new Error('desktop call hosts must be an array');
+  }
+  const hostLayerIds = input.hostLayerIds.map((item) => requiredString(item, 'hostLayerId'));
+  if (new Set(hostLayerIds).size !== hostLayerIds.length) {
+    throw new Error('desktop call hosts must be unique');
+  }
+  if (!LAYER_LINK_TYPES.includes(input.linkType as LayerLinkType)) {
+    throw new Error('desktop call linkType is not supported');
+  }
+  const preferredHostLayerId = requiredString(input.preferredHostLayerId, 'preferredHostLayerId');
+  if (!hostLayerIds.includes(preferredHostLayerId)) {
+    throw new Error('desktop call preferred host is missing');
+  }
+  return {
+    layerId: requiredString(input.layerId, 'layerId'),
+    hostLayerIds,
+    preferredHostLayerId,
+    linkType: input.linkType as LayerLinkType,
+  };
+}
+
+function checkLayerDelete(input: Record<string, unknown>): LayerDelete {
+  knownKeys(input, ['id', 'mode', 'targetLayerId']);
+  if (input.mode !== 'soft' && input.mode !== 'migrate' && input.mode !== 'purge') {
+    throw new Error('desktop call mode is not supported');
+  }
+  return {
+    id: requiredString(input.id, 'id'),
+    mode: input.mode,
+    ...(input.targetLayerId === undefined
+      ? {}
+      : { targetLayerId: requiredString(input.targetLayerId, 'targetLayerId') }),
   };
 }
 
@@ -1501,6 +1568,20 @@ export const desktopOperations = {
   'layers.listLinks': spec<'keep', { manuscriptId: string }, LayerLink[]>('keep', (input) => {
     knownKeys(input, ['manuscriptId']);
     return { manuscriptId: requiredString(input.manuscriptId, 'manuscriptId') };
+  }),
+  'layers.previewHosts': spec<'keep', LayerHostsSet, LayerHostsPreview>('keep', checkLayerHostsSet),
+  'layers.setHosts': spec<'clear', LayerHostsSet, LayerLink[]>('clear', checkLayerHostsSet),
+  'layers.rename': spec<'clear', LayerRename, Layer>('clear', checkLayerRename),
+  'layers.setHeight': spec<'clear', LayerHeight, Layer>('clear', checkLayerHeight),
+  'layers.move': spec<'clear', LayerMove, Layer>('clear', checkLayerMove),
+  'layers.delete': spec<'clear', LayerDelete, { id: string }>('clear', checkLayerDelete),
+  'layers.listDeleted': spec<'keep', Record<string, never>, DeletedLayer[]>('keep', (input) => {
+    knownKeys(input, []);
+    return {} as Record<string, never>;
+  }),
+  'layers.restore': spec<'clear', { id: string }, Layer>('clear', (input) => {
+    knownKeys(input, ['id']);
+    return { id: requiredString(input.id, 'id') };
   }),
   'units.setSkipProcessing': spec<'keep', { unitId: string; skip: boolean }, Unit>(
     'keep',

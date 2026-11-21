@@ -90,6 +90,14 @@ describe('desktop operation contract', () => {
       'units.readTimeDraft',
       'units.discardTimeDraft',
       'units.setSkipProcessing',
+      'layers.rename',
+      'layers.setHeight',
+      'layers.move',
+      'layers.delete',
+      'layers.listDeleted',
+      'layers.restore',
+      'layers.previewHosts',
+      'layers.setHosts',
     ];
     for (const key of addedAfterSnapshot) {
       expect(DESKTOP_METHODS_AT_5fbc66f8).not.toContain(key);

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import { writeRequiredFieldValues } from './customFields';
+import { insertHostLinks } from './layerHosts';
 import { readStringMap } from './stringMap';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -16,6 +17,7 @@ export interface Layer {
   orthographyId: string | null;
   parentId: string | null;
   sortOrder: number;
+  laneHeight: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -62,6 +64,7 @@ interface LayerRow {
   orthography_id: string | null;
   parent_id: string | null;
   sort_order: number;
+  lane_height: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -103,10 +106,11 @@ export function listLayers(db: SqliteDatabase, manuscriptId: string): Layer[] {
     .prepare(
       `SELECT layers.id, layers.manuscript_id, layers.key, layers.name_json, layers.tier_type,
               layers.content_type, layers.language_id, layers.orthography_id, layers.parent_id,
-              layers.sort_order, layers.created_at, layers.updated_at
+              layers.sort_order, layers.lane_height, layers.created_at, layers.updated_at
        FROM layers
        JOIN manuscripts ON manuscripts.id = layers.manuscript_id
        WHERE layers.manuscript_id = ? AND manuscripts.deleted_at IS NULL
+         AND layers.deleted_at IS NULL
        ORDER BY layers.sort_order, layers.id`,
     )
     .all(manuscriptId) as LayerRow[];
@@ -118,7 +122,7 @@ export function getLayer(db: SqliteDatabase, id: string): Layer | null {
     .prepare(
       `SELECT layers.id, layers.manuscript_id, layers.key, layers.name_json, layers.tier_type,
               layers.content_type, layers.language_id, layers.orthography_id, layers.parent_id,
-              layers.sort_order, layers.created_at, layers.updated_at
+              layers.sort_order, layers.lane_height, layers.created_at, layers.updated_at
        FROM layers
        JOIN manuscripts ON manuscripts.id = layers.manuscript_id
        WHERE layers.id = ? AND manuscripts.deleted_at IS NULL`,
@@ -128,37 +132,6 @@ export function getLayer(db: SqliteDatabase, id: string): Layer | null {
   return mapLayer(row);
 }
 
-function insertHostLinks(
-  db: SqliteDatabase,
-  layerId: string,
-  manuscriptId: string,
-  hosts: LayerHostInput[],
-  now: string,
-): void {
-  if (hosts.length === 0) return;
-  const preferredCount = hosts.filter((host) => host.preferred === true).length;
-  if (preferredCount > 1) throw new Error('layer has more than one preferred host');
-  const preferredIndex =
-    preferredCount === 0 ? 0 : hosts.findIndex((host) => host.preferred === true);
-  const insert = db.prepare(
-    `INSERT INTO layer_links (
-      id, manuscript_id, layer_id, host_layer_id, link_type, is_preferred, sort_order, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  );
-  hosts.forEach((host, index) => {
-    insert.run(
-      randomUUID(),
-      manuscriptId,
-      layerId,
-      host.hostLayerId,
-      host.linkType ?? 'free',
-      index === preferredIndex ? 1 : 0,
-      index,
-      now,
-    );
-  });
-}
-
 export function listLayerLinks(db: SqliteDatabase, manuscriptId: string): LayerLink[] {
   const rows = db
     .prepare(
@@ -166,6 +139,8 @@ export function listLayerLinks(db: SqliteDatabase, manuscriptId: string): LayerL
               layer_links.is_preferred, layer_links.sort_order
        FROM layer_links
        JOIN manuscripts ON manuscripts.id = layer_links.manuscript_id
+       JOIN layers AS child ON child.id = layer_links.layer_id AND child.deleted_at IS NULL
+       JOIN layers AS host ON host.id = layer_links.host_layer_id AND host.deleted_at IS NULL
        WHERE layer_links.manuscript_id = ? AND manuscripts.deleted_at IS NULL
        ORDER BY layer_links.layer_id, layer_links.sort_order, layer_links.host_layer_id`,
     )
@@ -197,6 +172,7 @@ function mapLayer(row: LayerRow): Layer {
     orthographyId: row.orthography_id,
     parentId: row.parent_id,
     sortOrder: row.sort_order,
+    laneHeight: row.lane_height,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
