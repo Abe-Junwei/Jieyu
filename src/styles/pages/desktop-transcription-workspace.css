@@ -1436,12 +1436,14 @@
 }
 
 .desktop-tx-lane .timeline-translation-audio-btn-record,
-.desktop-tx-lane .timeline-translation-audio-btn-record:hover:not(:disabled) {
+.desktop-tx-lane .timeline-translation-audio-btn-record:hover:not(:disabled),
+.desktop-tx-lane .timeline-translation-audio-btn-record:focus-visible:not(:disabled) {
   color: var(--text-primary);
 }
 
 .desktop-tx-lane .timeline-translation-audio-btn-recording,
-.desktop-tx-lane .timeline-translation-audio-btn-recording:hover:not(:disabled) {
+.desktop-tx-lane .timeline-translation-audio-btn-recording:hover:not(:disabled),
+.desktop-tx-lane .timeline-translation-audio-btn-recording:focus-visible:not(:disabled) {
   color: var(--state-success-solid);
 }
 
