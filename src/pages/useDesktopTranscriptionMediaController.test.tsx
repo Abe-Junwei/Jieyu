@@ -18,8 +18,19 @@ const player = vi.hoisted(() => ({
   instanceRef: { current: null },
 }));
 
+const waveOptions = vi.hoisted(() => ({
+  current: null as {
+    onRegionContextMenu?: (regionId: string, x: number, y: number) => void;
+  } | null,
+}));
+
 vi.mock('../hooks/media/useWaveSurfer', () => ({
-  useWaveSurfer: () => player,
+  useWaveSurfer: (options: {
+    onRegionContextMenu?: (regionId: string, x: number, y: number) => void;
+  }) => {
+    waveOptions.current = options;
+    return player;
+  },
 }));
 
 import { useDesktopTranscriptionMediaController } from './useDesktopTranscriptionMediaController';
@@ -65,6 +76,22 @@ describe('useDesktopTranscriptionMediaController', () => {
     player.playRegion.mockClear();
     result.current.playSegment();
     expect(player.playRegion).toHaveBeenCalledWith(0.4, 0.8, true);
+  });
+
+  it('forwards a waveform segment context menu', () => {
+    const onRegionContextMenu = vi.fn();
+    renderHook(() =>
+      useDesktopTranscriptionMediaController({
+        mediaUrl: 'blob:test-audio',
+        units,
+        selectedUnitId: 'u-a',
+        tierContainerRef: { current: null },
+        onSelectUnit: vi.fn(),
+        onRegionContextMenu,
+      }),
+    );
+    waveOptions.current?.onRegionContextMenu?.('u-a', 12, 8);
+    expect(onRegionContextMenu).toHaveBeenCalledWith('u-a', 12, 8);
   });
 
   it('ignores playback keys while typing', () => {

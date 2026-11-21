@@ -328,8 +328,6 @@
   --z-timeline-seg-note: 6;
   --z-timeline-seg-save-error: 7;
   --z-timeline-seg-resize-handle: 8;
-  /* 文本轨与媒体轨「AI 置信度」下划线共用左右内缩 | Shared confidence underline inset */
-  --timeline-confidence-underline-inset: 8px;
   /* 语段右上角堆叠（角标/工具/内边距算式唯一源）| Single source for side-stack + segment chrome */
   --timeline-annotation-side-stack-top: 4px;
   /* 命名含 right，语义为距行尾（inline-end）内边距，与 inset-inline-end 一致 | Legacy key: inset from inline-end */

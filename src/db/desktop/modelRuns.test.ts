@@ -92,9 +92,19 @@ describe('transcription run storage', () => {
     }) as { id: string };
     callDesktopSession(session.sessionId, 'units.updateText', { unitId: beside.id, text: 'kept' });
     const run = finishOk(session.sessionId, start(session.sessionId, seeded).id);
+    expect(() =>
+      callDesktopSession(session.sessionId, 'modelRuns.preview', {
+        runId: run.id,
+        candidates: [
+          { chunkIndex: 0, segmentIndex: 0, mediaStart: 0, mediaEnd: 1, confidence: 1.4 },
+        ],
+      }),
+    ).toThrow('candidates.0.confidence must be a number');
     const preview = callDesktopSession(session.sessionId, 'modelRuns.preview', {
       runId: run.id,
-      candidates: [{ chunkIndex: 0, segmentIndex: 0, mediaStart: 0, mediaEnd: 1 }],
+      candidates: [
+        { chunkIndex: 0, segmentIndex: 0, mediaStart: 0, mediaEnd: 1, confidence: 0.42 },
+      ],
     }) as {
       pendingCount: number;
       candidates: { candidateId: string; targetFingerprint: string; occupied: boolean }[];
@@ -241,6 +251,9 @@ describe('transcription run storage', () => {
     expect(
       callDesktopSession(reopened.sessionId, 'modelRuns.readAcceptance', { operationId: 'op-1' }),
     ).toMatchObject({ runId: run.id, candidateId: '0:0', text: 'ka', modelRunId: run.id });
+    expect(
+      callDesktopSession(reopened.sessionId, 'units.list', { layerId: seeded.layerId }),
+    ).toEqual(expect.arrayContaining([expect.objectContaining({ text: 'ka', confidence: 0.42 })]));
     expect(
       callDesktopSession(reopened.sessionId, 'modelRuns.get', { runId: run.id }),
     ).toMatchObject({

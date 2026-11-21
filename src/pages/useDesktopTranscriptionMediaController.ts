@@ -11,6 +11,8 @@ export interface DesktopPlaybackUnit {
   startTime: number;
   endTime: number;
   text: string;
+  confidence?: number | null;
+  skipProcessing?: boolean;
 }
 
 export function formatPlaybackTime(seconds: number): string {
@@ -32,6 +34,7 @@ export function useDesktopTranscriptionMediaController(input: {
   tierContainerRef: RefObject<HTMLDivElement | null>;
   waveformWheelCaptureRootRef?: RefObject<HTMLElement | null>;
   onSelectUnit: (unitId: string) => void;
+  onRegionContextMenu?: (regionId: string, x: number, y: number) => void;
 }) {
   const [playbackRate, setPlaybackRate] = useState(1);
   const [volume, setVolume] = useState(1);
@@ -49,7 +52,13 @@ export function useDesktopTranscriptionMediaController(input: {
   selectedRef.current = input.selectedUnitId;
 
   const regions = useMemo(
-    () => input.units.map((unit) => ({ id: unit.id, start: unit.startTime, end: unit.endTime })),
+    () =>
+      input.units.map((unit) => ({
+        id: unit.id,
+        start: unit.startTime,
+        end: unit.endTime,
+        ...(unit.skipProcessing === true ? { skipProcessing: true } : {}),
+      })),
     [input.units],
   );
   const activeRegionIds = useMemo(
@@ -79,6 +88,7 @@ export function useDesktopTranscriptionMediaController(input: {
       input.onSelectUnit(regionId);
       if (unit) seekToRef.current(unit.startTime);
     },
+    ...(input.onRegionContextMenu ? { onRegionContextMenu: input.onRegionContextMenu } : {}),
   };
   if (input.selectedUnitId) waveformOptions.primaryRegionId = input.selectedUnitId;
   const player = useWaveSurfer(waveformOptions);

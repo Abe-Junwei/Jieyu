@@ -17,6 +17,7 @@ export function DesktopWaveformEdges(props: {
   onEdge: (unitId: string, edge: TimeEdge, event: ReactPointerEvent<HTMLElement>) => void;
   /** `seekSec` is the media time under the press, for a press that never travels. */
   onMove: (unitId: string, event: ReactPointerEvent<HTMLElement>, seekSec: number) => void;
+  onContextMenu: (unitId: string, x: number, y: number) => void;
 }) {
   const secAt = (event: ReactPointerEvent<HTMLElement>) => {
     const stage = event.currentTarget.closest('.desktop-tx-wave-edges')?.getBoundingClientRect();
@@ -44,6 +45,11 @@ export function DesktopWaveformEdges(props: {
             className={`desktop-tx-wave-seg${props.selectedUnitIds.includes(unit.id) ? ' is-selected' : ''}${unit.id !== props.selectedUnitId && props.selectedUnitIds.includes(unit.id) ? ' is-also' : ''}`}
             style={frame(px(unit.startMs), width)}
             data-wave-unit={unit.id}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              props.onContextMenu(unit.id, event.clientX, event.clientY);
+            }}
           >
             {unit.id === props.selectedUnitId ? (
               <div

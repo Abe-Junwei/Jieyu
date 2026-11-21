@@ -36,6 +36,8 @@ interface UnitRow {
   parent_unit_id: string | null;
   start_ms: number | null;
   end_ms: number | null;
+  confidence: number | null;
+  skip_processing: number;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -756,8 +758,9 @@ function mergeStillAfter(db: SqliteDatabase, undo: UnitMergeUndo): boolean {
 export function readRemovedUnit(db: SqliteDatabase, unitId: string): RemovedUnit {
   const unit = db
     .prepare(
-      `SELECT id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, sort_order, created_at, updated_at,
-              analysis_graph_json, analysis_generation, graph_fingerprint
+      `SELECT id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, confidence, skip_processing,
+              sort_order, created_at, updated_at, analysis_graph_json, analysis_generation,
+              graph_fingerprint
        FROM units WHERE id = ?`,
     )
     .get(unitId) as UnitRow | undefined;
@@ -837,9 +840,9 @@ export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): voi
   const unit = removed.unit;
   db.prepare(
     `INSERT INTO units (
-      id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, sort_order, created_at, updated_at,
-      analysis_graph_json, analysis_generation, graph_fingerprint
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, confidence, skip_processing,
+      sort_order, created_at, updated_at, analysis_graph_json, analysis_generation, graph_fingerprint
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     unit.id,
     unit.layer_id,
@@ -847,6 +850,8 @@ export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): voi
     unit.parent_unit_id,
     unit.start_ms,
     unit.end_ms,
+    unit.confidence ?? null,
+    unit.skip_processing ?? 0,
     unit.sort_order,
     unit.created_at,
     unit.updated_at,

@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { ModalPanel } from '../components/ui/ModalPanel';
 import { t, tf, type DictKey, type Locale } from '../i18n';
 import type { UnitDeletePreview } from '../app/desktopProjectReadPageAccess';
@@ -35,7 +36,14 @@ export function DesktopTranscriptionEdgeChrome(props: {
   edgeFocus: ReturnType<typeof edgeFocusKind> | null;
   conflicts: Record<TimeEdge, TimeConflict | null>;
   stale: { action: 'undo' | 'redo' } | null;
-  menu: { x: number; y: number; layerName?: string; sub?: true; canLink: boolean } | null;
+  menu: {
+    x: number;
+    y: number;
+    layerName?: string;
+    sub?: true;
+    canLink: boolean;
+    skipped: boolean;
+  } | null;
   deletePrompt: UnitDeletePreview | null;
   onRebase: (edge: TimeEdge) => void;
   onDiscardDraft: (edge: TimeEdge) => void;
@@ -45,6 +53,7 @@ export function DesktopTranscriptionEdgeChrome(props: {
   onCloseMenu: () => void;
   onLink: () => void;
   onClearText: () => void;
+  onToggleSkip: () => void;
   onAskDelete: () => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
@@ -133,44 +142,55 @@ export function DesktopTranscriptionEdgeChrome(props: {
           {props.tip.text}
         </div>
       )}
-      {props.menu === null ? null : (
-        <>
-          <button
-            type="button"
-            className="desktop-tx-menu-backdrop"
-            aria-label={t(locale, 'app.desktopTranscription.cancel')}
-            onClick={props.onCloseMenu}
-          />
-          <div
-            className="desktop-tx-menu desktop-tx-menu-fixed"
-            style={{ left: props.menu.x, top: props.menu.y }}
-            role="menu"
-          >
-            {props.menu.canLink ? (
-              <button type="button" role="menuitem" onClick={props.onLink}>
-                {t(locale, 'app.desktopTranscription.linkBoundary')}
-              </button>
-            ) : null}
-            {props.menu.layerName === undefined ? null : (
-              <button type="button" role="menuitem" onClick={props.onClearText}>
-                {tf(locale, 'app.desktopTranscription.clearLayerText', {
-                  layer: props.menu.layerName,
-                })}
-              </button>
-            )}
-            {props.menu.layerName !== undefined && props.menu.sub !== true ? null : (
-              <button type="button" role="menuitem" onClick={props.onAskDelete}>
-                {t(
-                  locale,
-                  props.menu.sub === true
-                    ? 'app.desktopTranscription.deleteSubSegment'
-                    : 'app.desktopTranscription.deleteSegment',
+      {props.menu === null
+        ? null
+        : createPortal(
+            <>
+              <button
+                type="button"
+                className="desktop-tx-menu-backdrop"
+                aria-label={t(locale, 'app.desktopTranscription.cancel')}
+                onClick={props.onCloseMenu}
+              />
+              <div
+                className="desktop-tx-menu desktop-tx-menu-fixed"
+                style={{ left: props.menu.x, top: props.menu.y }}
+                role="menu"
+              >
+                {props.menu.canLink ? (
+                  <button type="button" role="menuitem" onClick={props.onLink}>
+                    {t(locale, 'app.desktopTranscription.linkBoundary')}
+                  </button>
+                ) : null}
+                <button type="button" role="menuitem" onClick={props.onToggleSkip}>
+                  {t(
+                    locale,
+                    props.menu.skipped
+                      ? 'transcription.wave.unskipProcessing'
+                      : 'transcription.wave.skipProcessing',
+                  )}
+                </button>
+                {props.menu.layerName === undefined ? null : (
+                  <button type="button" role="menuitem" onClick={props.onClearText}>
+                    {tf(locale, 'app.desktopTranscription.clearLayerText', {
+                      layer: props.menu.layerName,
+                    })}
+                  </button>
                 )}
-              </button>
-            )}
-          </div>
-        </>
-      )}
+                {props.menu.layerName !== undefined && props.menu.sub !== true ? null : (
+                  <button type="button" role="menuitem" onClick={props.onAskDelete}>
+                    {t(
+                      locale,
+                      props.menu.sub === true
+                        ? 'app.desktopTranscription.deleteSubSegment'
+                        : 'app.desktopTranscription.deleteSegment',
+                    )}
+                  </button>
+                )}
+              </div>
+            </>,
+            document.body,
+          )}
       {props.deletePrompt === null ? null : (
         <ModalPanel
           isOpen

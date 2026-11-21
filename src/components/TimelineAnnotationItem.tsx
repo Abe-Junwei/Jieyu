@@ -15,6 +15,7 @@ import type { TimelineDraftSaveStatus } from './transcription/TimelineDraftEdito
 import { TimelineLaneDraftEditorCell } from './transcription/TimelineLaneDraftEditorCell';
 import { t, tf, useLocale } from '../i18n';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
+import { segmentConfidenceClass } from '../utils/segmentConfidence';
 import { TimelineBadges } from './TimelineBadges';
 
 // ── Types ────────────────────────────────────────────────────
@@ -35,7 +36,7 @@ export interface TimelineAnnotationItemProps {
   speakerColor?: string;
   noteCount?: number;
   overlapCycleIndicator?: { index: number; total: number };
-  /** AI confidence 0.0–1.0；低于阈值时渲染警示色 | AI confidence; triggers warning style below threshold */
+  /** Machine-transcription confidence 0–1. A number colors the text; absent stays ink. */
   confidence?: number;
   /** 标注者自我确信度角标 | Annotator self-certainty badge */
   selfCertainty?: UnitSelfCertainty;
@@ -131,12 +132,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         !draft.trim() && !isActive ? 'timeline-annotation-empty' : '',
         speakerLabel ? 'timeline-annotation-has-speaker' : '',
         hasTrailingTools ? 'timeline-annotation-has-tools' : '',
-        typeof confidence === 'number' && confidence < 0.5
-          ? 'timeline-annotation-confidence-low'
-          : '',
-        typeof confidence === 'number' && confidence >= 0.5 && confidence < 0.75
-          ? 'timeline-annotation-confidence-mid'
-          : '',
+        segmentConfidenceClass(confidence),
         selfCertainty || selfCertaintyAmbiguous ? 'timeline-annotation-has-self-certainty' : '',
         skipProcessing ? 'timeline-annotation-skipped' : '',
       ]
@@ -188,12 +184,12 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
           {overlapCycleIndicator.index}/{overlapCycleIndicator.total}
         </span>
       )}
-      {content ? (
-        content
-      ) : skipProcessing ? (
+      {skipProcessing ? (
         <span className="timeline-annotation-skipped-label">
           {t(locale, 'transcription.action.skipProcessingMarked')}
         </span>
+      ) : content ? (
+        content
       ) : isActive ? (
         <TimelineLaneDraftEditorCell
           inputClassName="timeline-annotation-input"
@@ -213,7 +209,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
           onKeyDown={onKeyDown}
         />
       ) : (
-        <span>{draft || '\u00A0'}</span>
+        <span className="timeline-annotation-text">{draft || '\u00A0'}</span>
       )}
       {tools && !rendersInlineEditor && !content ? (
         <div className="timeline-annotation-tools">{tools}</div>

@@ -10,6 +10,7 @@ export interface RouteUnit {
   speakerId: string | null;
   startMs: number | null;
   endMs: number | null;
+  skipProcessing?: boolean;
 }
 
 export interface RouteLayer {

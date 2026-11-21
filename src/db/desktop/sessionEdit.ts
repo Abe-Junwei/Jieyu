@@ -471,5 +471,7 @@ function unitFromTree(tree: RemovedUnit): Unit {
     textId: tree.texts.find((row) => row.role === 'transcription')?.id ?? null,
     createdAt: tree.unit.created_at,
     updatedAt: tree.unit.updated_at,
+    confidence: tree.unit.confidence ?? null,
+    skipProcessing: (tree.unit.skip_processing ?? 0) === 1,
   };
 }

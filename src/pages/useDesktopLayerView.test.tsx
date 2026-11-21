@@ -21,4 +21,14 @@ describe('useDesktopLayerView', () => {
     expect(other.result.current.headerFolded).toBe(false);
     expect(other.result.current.fold.rows).toEqual([]);
   });
+
+  it('keeps compact density on this machine, not per manuscript', () => {
+    const first = renderHook(() => useDesktopLayerView('ms-1'));
+    expect(first.result.current.compact).toBe(false);
+    act(() => first.result.current.toggleCompact());
+    expect(first.result.current.compact).toBe(true);
+    first.unmount();
+    const again = renderHook(() => useDesktopLayerView('ms-2'));
+    expect(again.result.current.compact).toBe(true);
+  });
 });

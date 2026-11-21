@@ -33,18 +33,21 @@
 }
 
 .timeline-annotation.timeline-annotation-skipped {
+  justify-content: center;
   background: repeating-linear-gradient(
     135deg,
-    color-mix(in srgb, var(--state-warning-solid) 10%, transparent) 0 8px,
+    color-mix(in srgb, var(--state-warning-solid) 16%, transparent) 0 8px,
     color-mix(in srgb, var(--surface-panel) 96%, transparent) 8px 16px
   ) !important;
   border: 1px dashed color-mix(in srgb, var(--state-warning-solid) 36%, transparent) !important;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-warning-solid) 10%, transparent) !important;
+  box-shadow: none !important;
 }
 
 .timeline-annotation-skipped-label {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: center;
+  width: 100%;
   padding-inline: 6px;
   color: var(--text-secondary);
   font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
@@ -315,32 +318,20 @@
   z-index: var(--z-raised);
 }
 
-/* 低置信度语段着色 | Low-confidence segment highlight */
-.timeline-annotation-confidence-mid,
-.timeline-annotation-confidence-low {
-  background: transparent;
-  border-color: transparent;
+/* Machine-transcription confidence colors the body text. Badges stay ink. */
+.timeline-annotation-confidence-high .timeline-annotation-text,
+.timeline-annotation-confidence-high .timeline-annotation-input {
+  color: var(--state-success-text);
 }
 
-.timeline-annotation-confidence-mid::after,
-.timeline-annotation-confidence-low::after {
-  content: '';
-  position: absolute;
-  left: var(--timeline-confidence-underline-inset);
-  right: var(--timeline-confidence-underline-inset);
-  inset-inline-start: var(--timeline-confidence-underline-inset);
-  inset-inline-end: var(--timeline-confidence-underline-inset);
-  bottom: 2px;
-  height: 0;
-  pointer-events: none;
+.timeline-annotation-confidence-mid .timeline-annotation-text,
+.timeline-annotation-confidence-mid .timeline-annotation-input {
+  color: var(--state-warning-text);
 }
 
-.timeline-annotation-confidence-mid::after {
-  border-bottom: 1.5px dashed var(--confidence-mid-mark);
-}
-
-.timeline-annotation-confidence-low::after {
-  border-bottom: 2px solid var(--confidence-low-mark);
+.timeline-annotation-confidence-low .timeline-annotation-text,
+.timeline-annotation-confidence-low .timeline-annotation-input {
+  color: var(--state-danger-text);
 }
 
 .timeline-annotation-input {

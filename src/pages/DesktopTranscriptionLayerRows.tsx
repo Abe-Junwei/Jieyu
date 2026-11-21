@@ -30,6 +30,8 @@ export interface LayerRowLayer {
     endMs: number | null;
     text: string;
     parentUnitId?: string | null;
+    confidence?: number | null;
+    skipProcessing?: boolean;
   }[];
 }
 
@@ -53,6 +55,7 @@ export function DesktopTranscriptionLayerRows(props: {
   onToggleGroup: (layerId: string) => void;
   onCollapse: (layerId: string) => void;
   onExpand: (layerId: string) => void;
+  compact: boolean;
   duration: number;
   zoomPxPerSec: number;
   scrollLeftPx: number;
@@ -115,6 +118,8 @@ export function DesktopTranscriptionLayerRows(props: {
               endTime: unit.endMs / 1000,
               text: unit.text,
               parentUnitId: unit.parentUnitId ?? null,
+              ...(typeof unit.confidence === 'number' ? { confidence: unit.confidence } : {}),
+              ...(unit.skipProcessing === true ? { skipProcessing: true } : {}),
             },
           ],
     );
@@ -182,9 +187,11 @@ export function DesktopTranscriptionLayerRows(props: {
                   width={frame.width ?? 0}
                   isSelected={selected}
                   isActive={selected && sameCard(props.editing, card)}
-                  isCompact={false}
+                  isCompact={props.compact}
+                  skipProcessing={unit.skipProcessing === true}
                   title={unit.text}
                   draft={props.bodyDraft?.unitId === key ? props.bodyDraft.text : unit.text}
+                  {...(typeof unit.confidence === 'number' ? { confidence: unit.confidence } : {})}
                   onClick={() => props.onPick(card, unit)}
                   onContextMenu={(event) => props.onRowMenu(card, name, event)}
                   onDoubleClick={ignore}

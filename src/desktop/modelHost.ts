@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { readFileSync, statSync } from 'node:fs';
 import { z } from 'zod';
+import { storedSegmentConfidence } from '../utils/segmentConfidence';
 
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 const MAX_SEGMENTS = 10_000;
@@ -25,7 +26,7 @@ export interface ModelCallResult {
   status: 'ok' | 'error';
   code?: ModelErrorCode;
   warnings: string[];
-  segments?: { start: number; end: number; text: string }[];
+  segments?: { start: number; end: number; text: string; confidence?: number }[];
 }
 
 interface ModelDeclaration {
@@ -223,7 +224,7 @@ function finishResponse(
   ) {
     return { status: 'error', code: 'bad_response', warnings };
   }
-  const segments: { start: number; end: number; text: string }[] = [];
+  const segments: { start: number; end: number; text: string; confidence?: number }[] = [];
   for (const segment of body.data.result.segments) {
     if (!timeFits(segment.start, segment.end, expected.range)) {
       return { status: 'error', code: 'bad_response', warnings };
@@ -233,7 +234,12 @@ function finishResponse(
         return { status: 'error', code: 'bad_response', warnings };
       }
     }
-    segments.push({ start: segment.start, end: segment.end, text: segment.text });
+    const confidence = storedSegmentConfidence(segment.confidence);
+    segments.push(
+      confidence === null
+        ? { start: segment.start, end: segment.end, text: segment.text }
+        : { start: segment.start, end: segment.end, text: segment.text, confidence },
+    );
   }
   const extra = body.data.warnings ?? [];
   return { status: 'ok', warnings: [...warnings, ...extra], segments };

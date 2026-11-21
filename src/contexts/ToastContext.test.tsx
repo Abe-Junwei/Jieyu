@@ -327,7 +327,7 @@ describe('ToastContext', () => {
       });
       const container = document.querySelector('.transcription-toast-container')!;
       act(() => {
-        vi.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(3000);
         fireEvent.mouseEnter(container);
         vi.advanceTimersByTime(30000);
       });

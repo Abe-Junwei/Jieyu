@@ -43,16 +43,18 @@
 .timeline-text-item.timeline-text-item-skipped {
   background: repeating-linear-gradient(
     135deg,
-    color-mix(in srgb, var(--state-warning-solid) 10%, transparent) 0 8px,
+    color-mix(in srgb, var(--state-warning-solid) 16%, transparent) 0 8px,
     color-mix(in srgb, var(--surface-panel) 96%, transparent) 8px 16px
   ) !important;
   border: 1px dashed color-mix(in srgb, var(--state-warning-solid) 36%, transparent) !important;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-warning-solid) 10%, transparent) !important;
+  box-shadow: none !important;
 }
 
 .timeline-text-item-skipped-label {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: center;
+  width: 100%;
   padding-inline: 8px;
   color: var(--text-secondary);
   font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
@@ -386,47 +388,13 @@
   opacity: 0.8;
 }
 
-/* ═══════════════════════════════════════
-   置信度指示（新增 — 对应设计稿要求）
-   ═══════════════════════════════════════ */
-
-/* Mid 置信度：虚线下划线 */
+/* Machine-transcription confidence colors the body text. */
 .timeline-text-item-confidence-mid {
-  position: relative;
+  color: var(--state-warning-text);
 }
 
-.timeline-text-item-confidence-mid::after {
-  content: '';
-  position: absolute;
-  bottom: 2px;
-  left: var(--timeline-confidence-underline-inset);
-  right: var(--timeline-confidence-underline-inset);
-  inset-inline-start: var(--timeline-confidence-underline-inset);
-  inset-inline-end: var(--timeline-confidence-underline-inset);
-  height: 1px;
-  border-top: 1px dashed var(--confidence-mid-mark);
-  background: transparent;
-  pointer-events: none;
-  opacity: 0.6;
-}
-
-/* Low 置信度：琥珀实线下划线 */
 .timeline-text-item-confidence-low {
-  position: relative;
-}
-
-.timeline-text-item-confidence-low::after {
-  content: '';
-  position: absolute;
-  bottom: 2px;
-  left: var(--timeline-confidence-underline-inset);
-  right: var(--timeline-confidence-underline-inset);
-  inset-inline-start: var(--timeline-confidence-underline-inset);
-  inset-inline-end: var(--timeline-confidence-underline-inset);
-  height: 2px;
-  background: var(--confidence-low-mark);
-  opacity: 0.5;
-  pointer-events: none;
+  color: var(--state-danger-text);
 }
 
 /* ── 文本输入框 | Text input ── */

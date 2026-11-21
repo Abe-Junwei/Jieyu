@@ -72,8 +72,8 @@ export function useToast(): ToastContextValue {
 
 // ── Auto-dismiss delays ──────────────────────────────────────────────────────
 
-/** 结果 6 秒；错误与常驻状态不自动关闭（ADR-0116）。 */
-const DISMISS_DELAY_MS = 6000;
+/** 结果 4 秒；错误与常驻状态不自动关闭（ADR-0116）。 */
+const DISMISS_DELAY_MS = 4000;
 const TOAST_DEDUP_WINDOW_MS = 2500;
 const SAVE_DONE_TOAST_COOLDOWN_MS = 6000;
 const SAVE_TOAST_KEY = 'save';

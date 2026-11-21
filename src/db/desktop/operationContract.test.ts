@@ -89,6 +89,7 @@ describe('desktop operation contract', () => {
       'units.putTimeDraft',
       'units.readTimeDraft',
       'units.discardTimeDraft',
+      'units.setSkipProcessing',
     ];
     for (const key of addedAfterSnapshot) {
       expect(DESKTOP_METHODS_AT_5fbc66f8).not.toContain(key);

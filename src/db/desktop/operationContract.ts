@@ -545,13 +545,25 @@ function modelRunFinish(input: Record<string, unknown>): ModelRunFinish {
 
 function previewCandidate(value: unknown, index: number): PreviewCandidateInput {
   const candidate = objectArg(value);
-  knownKeys(candidate, ['chunkIndex', 'segmentIndex', 'mediaStart', 'mediaEnd']);
-  return {
+  knownKeys(candidate, ['chunkIndex', 'segmentIndex', 'mediaStart', 'mediaEnd', 'confidence']);
+  const parsed = {
     chunkIndex: requiredIndex(candidate.chunkIndex, `candidates.${index}.chunkIndex`),
     segmentIndex: requiredIndex(candidate.segmentIndex, `candidates.${index}.segmentIndex`),
     mediaStart: requiredNumber(candidate.mediaStart, `candidates.${index}.mediaStart`),
     mediaEnd: requiredNumber(candidate.mediaEnd, `candidates.${index}.mediaEnd`),
   };
+  if (candidate.confidence === undefined) return parsed;
+  // Same range as `storedSegmentConfidence`; the contract stays free of runtime imports.
+  const confidence = candidate.confidence;
+  if (
+    typeof confidence !== 'number' ||
+    !Number.isFinite(confidence) ||
+    confidence < 0 ||
+    confidence > 1
+  ) {
+    throw new Error(`desktop call candidates.${index}.confidence must be a number`);
+  }
+  return { ...parsed, confidence };
 }
 
 function modelRunPreview(input: Record<string, unknown>): {
@@ -1490,6 +1502,14 @@ export const desktopOperations = {
     knownKeys(input, ['manuscriptId']);
     return { manuscriptId: requiredString(input.manuscriptId, 'manuscriptId') };
   }),
+  'units.setSkipProcessing': spec<'keep', { unitId: string; skip: boolean }, Unit>(
+    'keep',
+    (input) => {
+      knownKeys(input, ['unitId', 'skip']);
+      if (typeof input.skip !== 'boolean') throw new Error('desktop call skip must be a boolean');
+      return { unitId: requiredString(input.unitId, 'unitId'), skip: input.skip };
+    },
+  ),
   'units.updateText': spec<
     'replace-on-success',
     { unitId: string; textLayerId?: string; text: string; operationId?: string },

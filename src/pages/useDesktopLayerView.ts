@@ -3,6 +3,7 @@ import { emptyFold, parseFold, toggleIn, type LayerFold } from './desktopTranscr
 
 const FOLD_KEY = 'jieyu.desktop.layerFold.';
 const HEADER_KEY = 'jieyu.desktop.layerHeaderFolded.';
+const COMPACT_KEY = 'jieyu.desktop.segmentCompact';
 
 function read(key: string): string | null {
   try {
@@ -24,9 +25,11 @@ function write(key: string, value: string) {
 export function useDesktopLayerView(manuscriptId: string | null) {
   const [fold, setFold] = useState<LayerFold>(emptyFold);
   const [headerFolded, setHeaderFolded] = useState(false);
+  const [compact, setCompact] = useState(false);
   useEffect(() => {
     setFold(manuscriptId === null ? emptyFold() : parseFold(read(FOLD_KEY + manuscriptId)));
     setHeaderFolded(manuscriptId === null ? false : read(HEADER_KEY + manuscriptId) === '1');
+    setCompact(read(COMPACT_KEY) === '1');
   }, [manuscriptId]);
   const update = useCallback(
     (next: LayerFold) => {
@@ -48,7 +51,14 @@ export function useDesktopLayerView(manuscriptId: string | null) {
     setHeaderFolded(next);
     if (manuscriptId !== null) write(HEADER_KEY + manuscriptId, next ? '1' : '0');
   }, [headerFolded, manuscriptId]);
-  return { fold, headerFolded, toggleGroup, toggleRow, toggleHeader };
+  const toggleCompact = useCallback(() => {
+    setCompact((current) => {
+      const next = !current;
+      write(COMPACT_KEY, next ? '1' : '0');
+      return next;
+    });
+  }, []);
+  return { fold, headerFolded, compact, toggleGroup, toggleRow, toggleHeader, toggleCompact };
 }
 
 export type DesktopLayerView = ReturnType<typeof useDesktopLayerView>;
