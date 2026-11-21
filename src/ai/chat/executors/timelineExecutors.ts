@@ -147,7 +147,7 @@ export function loadNormalizedUnitRows(context: AiPromptContext): NormalizedUnit
 type SegmentMetaScopeResolution =
   | { kind: 'layer_media'; layerId: string; mediaId: string }
   | { kind: 'media'; mediaId: string }
-  | { kind: 'all' };
+  | { kind: 'all'; textId: string };
 
 export function resolveSegmentMetaScopeParams(
   context: AiPromptContext,
@@ -166,8 +166,11 @@ export function resolveSegmentMetaScopeParams(
     if (mediaId.length === 0) return null;
     return { kind: 'media', mediaId };
   }
-  // project scope — 全量查询 | full table
-  return { kind: 'all' };
+  // project scope 必须落到当前项目；没有项目标识就不可查询，不能退成全库
+  // project scope must resolve to the current project; without an id it is not queryable
+  const textId = resolveContextTextId(context);
+  if (!textId) return null;
+  return { kind: 'all', textId };
 }
 
 export function mapSegmentMetaRows(rows: readonly SegmentMetaDocType[]): NormalizedUnitRow[] {
@@ -186,6 +189,8 @@ export function mapSegmentMetaRows(rows: readonly SegmentMetaDocType[]): Normali
 }
 
 export function resolveContextTextId(context: AiPromptContext): string | undefined {
+  const workspaceTextId = normalizeTextValue(context.shortTerm?.workspaceTextId);
+  if (workspaceTextId.length > 0) return workspaceTextId;
   const directRows = loadNormalizedUnitRows(context);
   const directTextId = directRows.find((row) => normalizeTextValue(row.textId).length > 0)?.textId;
   return normalizeTextValue(directTextId) || undefined;
@@ -321,7 +326,7 @@ async function loadScopedSegmentMetaRowsAllDocuments(
       return await SegmentMetaService.listByMediaId(resolution.mediaId);
     }
     // kind === 'all' — project scope
-    return await SegmentMetaService.listAll();
+    return (await SegmentMetaService.listAll()).filter((row) => row.textId === resolution.textId);
   } catch {
     return null;
   }

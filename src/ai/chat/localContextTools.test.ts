@@ -1392,7 +1392,7 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       },
     ]);
     const context = {
-      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
+      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1', workspaceTextId: 'text-1' },
       longTerm: {},
     };
 
@@ -1434,7 +1434,7 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       },
     ]);
     const context = {
-      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
+      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1', workspaceTextId: 'text-1' },
       longTerm: {},
     };
 
@@ -1476,7 +1476,7 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       },
     ]);
     const context = {
-      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
+      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1', workspaceTextId: 'text-1' },
       longTerm: {},
     };
 
@@ -1532,7 +1532,7 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       (rows as Array<{ layerId: string }>).filter((item) => item.layerId !== 'layer-other-doc'),
     );
     const context = {
-      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
+      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1', workspaceTextId: 'text-1' },
       longTerm: {},
     };
 
@@ -1586,7 +1586,7 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       (rows as Array<{ layerId: string }>).filter((item) => item.layerId !== 'layer-other-doc'),
     );
     const context = {
-      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
+      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1', workspaceTextId: 'text-1' },
       longTerm: {},
     };
 
@@ -1600,6 +1600,66 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     const payload = result.result as { count: number; matches: Array<{ id: string }> };
     expect(payload.matches.map((match) => match.id)).toEqual(['seg-1', 'seg-2']);
     expect(payload.count).toBe(2);
+  });
+
+  it('project scope reads only the current project when localUnitIndex is empty (#589)', async () => {
+    const ref = { current: 0 };
+    const row = (segmentId: string, textId: string) => ({
+      id: `layer-1::${segmentId}`,
+      segmentId,
+      unitKind: 'segment',
+      textId,
+      mediaId: 'm1',
+      layerId: 'layer-1',
+      startTime: 0,
+      endTime: 1,
+      text: 'hello',
+      normalizedText: 'hello',
+      hasText: true,
+      createdAt: '',
+      updatedAt: '',
+    });
+    mockSegmentMetaListAll.mockResolvedValue([
+      row('seg-mine', 'text-1'),
+      row('seg-other', 'text-2'),
+    ]);
+    mockSegmentMetaSearchSegmentMeta.mockImplementation(async (options: { textId?: string }) =>
+      [row('seg-mine', 'text-1'), row('seg-other', 'text-2')].filter(
+        (item) => !options.textId || item.textId === options.textId,
+      ),
+    );
+    mockKeepCurrentDocumentRows.mockImplementation(async (rows: unknown[]) => rows);
+    const withProject = {
+      shortTerm: { workspaceTextId: 'text-1' },
+      longTerm: {},
+    };
+
+    const detail = await executeLocalContextToolCall(
+      { name: 'get_unit_detail', arguments: { scope: 'project', unitId: 'seg-other' } },
+      withProject,
+      ref,
+    );
+    expect(detail.ok).toBe(false);
+
+    const search = await executeLocalContextToolCall(
+      { name: 'search_units', arguments: { scope: 'project', query: 'hello' } },
+      withProject,
+      ref,
+    );
+    const found = search.result as { matches: Array<{ id: string }> };
+    expect(found.matches.map((match) => match.id)).toEqual(['seg-mine']);
+    expect(mockSegmentMetaSearchSegmentMeta).toHaveBeenCalledWith(
+      expect.objectContaining({ textId: 'text-1' }),
+    );
+
+    mockSegmentMetaSearchSegmentMeta.mockClear();
+    const noProject = await executeLocalContextToolCall(
+      { name: 'search_units', arguments: { scope: 'project', query: 'hello' } },
+      { shortTerm: {}, longTerm: {} },
+      ref,
+    );
+    expect(mockSegmentMetaSearchSegmentMeta).not.toHaveBeenCalled();
+    expect((noProject.result as { count?: number } | null)?.count ?? 0).toBe(0);
   });
 
   it('get_unit_detail with project scope resolves from segment_meta listAll', async () => {
@@ -1624,7 +1684,7 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       },
     ]);
     const context = {
-      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1' },
+      shortTerm: { currentMediaId: 'm1', selectedLayerId: 'layer-1', workspaceTextId: 'text-1' },
       longTerm: {},
     };
 

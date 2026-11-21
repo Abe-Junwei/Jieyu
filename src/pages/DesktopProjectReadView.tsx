@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
-import { msToSec, secToMs } from '../utils/timeMs';
+import { formatMsSpan, msToSec, secToMs } from '../utils/timeMs';
 import { DesktopScopeNote } from './DesktopScopeNote';
 
 export interface DesktopProjectReadManuscript {
@@ -297,7 +297,7 @@ function spanMidSec(unit: DesktopProjectReadUnit): number {
 
 function unitSpanLabel(unit: DesktopProjectReadUnit): string {
   if (unit.startMs === null || unit.endMs === null) return unit.text;
-  return `${msToSec(unit.startMs).toFixed(1)}–${msToSec(unit.endMs).toFixed(1)} ${unit.text}`;
+  return `${formatMsSpan(unit.startMs, unit.endMs)} ${unit.text}`;
 }
 
 function manuscriptLabel(title: Record<string, string>, id: string): string {
