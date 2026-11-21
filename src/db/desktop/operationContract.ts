@@ -67,6 +67,13 @@ import type {
 } from './manuscripts';
 import type { DeletedMedia, Media, MediaCreate } from './media';
 import type { RecordingRegistration, RegisteredRecording } from './registerRecording';
+import type {
+  RecordingAttach,
+  RecordingClipRef,
+  RecordingKind,
+  RecordingPair,
+  RecordingPairInput,
+} from './recordingClips';
 import type { MediaCleanup } from './mediaCleanup';
 import type { MediaReregistration } from './mediaReregister';
 import type { ProjectIdentity } from './projectIdentity';
@@ -903,6 +910,11 @@ function unitTimeDraft(input: Record<string, unknown>): {
   };
 }
 
+function recordingKind(value: unknown): RecordingKind {
+  if (value === 'voice' || value === 'oral') return value;
+  throw new Error('desktop call kind is invalid');
+}
+
 function attachmentKind(value: unknown): AttachmentKind {
   if (value === 'image' || value === 'audio' || value === 'document') return value;
   throw new Error('attachment kind is invalid');
@@ -1722,6 +1734,61 @@ export const desktopOperations = {
       };
     },
   ),
+  'recordings.createPair': spec<'clear', RecordingPairInput, RecordingPair>('clear', (input) => {
+    knownKeys(input, ['hostLayerId', 'kind', 'audioName', 'textName']);
+    return {
+      hostLayerId: requiredString(input.hostLayerId, 'hostLayerId'),
+      kind: recordingKind(input.kind),
+      audioName: stringMap(input.audioName, 'audioName'),
+      textName: stringMap(input.textName, 'textName'),
+    };
+  }),
+  'recordings.attach': spec<'clear', RecordingAttach, { fileId: string }>('clear', (input) => {
+    knownKeys(input, ['unitId', 'layerId', 'mimeType', 'bytes', 'operationId']);
+    return {
+      unitId: requiredString(input.unitId, 'unitId'),
+      layerId: requiredString(input.layerId, 'layerId'),
+      mimeType: requiredString(input.mimeType, 'mimeType'),
+      bytes: attachmentBytes(input.bytes),
+      operationId: requiredString(input.operationId, 'operationId'),
+    };
+  }),
+  'recordings.detach': spec<'clear', { unitId: string; layerId: string }, { fileId: string }>(
+    'clear',
+    (input) => {
+      knownKeys(input, ['unitId', 'layerId']);
+      return {
+        unitId: requiredString(input.unitId, 'unitId'),
+        layerId: requiredString(input.layerId, 'layerId'),
+      };
+    },
+  ),
+  'recordings.read': spec<
+    'keep',
+    { unitId: string; layerId: string },
+    { mimeType: string; bytes: Uint8Array }
+  >('keep', (input) => {
+    knownKeys(input, ['unitId', 'layerId']);
+    return {
+      unitId: requiredString(input.unitId, 'unitId'),
+      layerId: requiredString(input.layerId, 'layerId'),
+    };
+  }),
+  'recordings.list': spec<'keep', { layerId: string }, RecordingClipRef[]>('keep', (input) => {
+    knownKeys(input, ['layerId']);
+    return { layerId: requiredString(input.layerId, 'layerId') };
+  }),
+  'recordings.transcribe': spec<
+    'keep',
+    { unitId: string; layerId: string },
+    { textLayerId: string }
+  >('keep', (input) => {
+    knownKeys(input, ['unitId', 'layerId']);
+    return {
+      unitId: requiredString(input.unitId, 'unitId'),
+      layerId: requiredString(input.layerId, 'layerId'),
+    };
+  }),
   'media.delete': spec<'clear', { id: string }, RecordingDeletion>('clear', (input) => {
     knownKeys(input, ['id']);
     return { id: requiredString(input.id, 'id') };

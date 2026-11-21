@@ -56,6 +56,18 @@ export const enUSDictionary = {
   'app.desktopTranscription.contextEmptySegments': 'No segments yet',
   'app.desktopTranscription.contextLayerTranscription': 'Transcription',
   'app.desktopTranscription.contextLayerTranslation': 'Translation',
+  'app.desktopTranscription.contextLayerVoice': 'Careful speech',
+  'app.desktopTranscription.contextLayerVoiceText': 'Careful speech text',
+  'app.desktopTranscription.contextLayerOral': 'Interpretation',
+  'app.desktopTranscription.contextLayerOralText': 'Interpretation text',
+  'app.desktopTranscription.oralDraftReady':
+    'The transcript is in the text layer. It is saved only when you open and keep it.',
+  'app.desktopTranscription.oralDraftExists':
+    'This line already has unsaved text. Save or discard it before transcribing.',
+  'app.desktopTranscription.oralWhisperMissing':
+    'No local speech model is selected, so nothing was sent to a cloud service.',
+  'app.desktopTranscription.oralTranscribeEmpty': 'The transcript was empty.',
+  'app.desktopTranscription.oralTranscribeFailed': 'Speech to text failed.',
   'app.desktopTranscription.layerMenu': 'More',
   'app.desktopTranscription.layerRename': 'Rename',
   'app.desktopTranscription.layerMoveUp': 'Move up',
@@ -1780,6 +1792,8 @@ export const enUSDictionary = {
   'transcription.laneHeader.view.connectorsOff': 'Connectors off',
   'transcription.laneHeader.layer.createTranscription': 'New transcription layer',
   'transcription.laneHeader.layer.createTranslation': 'New translation layer',
+  'transcription.laneHeader.layer.createVoice': 'New careful speech',
+  'transcription.laneHeader.layer.createOral': 'New interpretation',
   'transcription.laneHeader.layer.deleteCurrent': 'Delete current layer',
   'transcription.laneHeader.displayStyle.category': 'Display style',
   'transcription.laneHeader.speaker.clearWithCount': 'Clear speaker on {count} selected segments',

@@ -26,6 +26,7 @@ export interface LayerRowLayer {
   name: Record<string, string>;
   sortOrder?: number;
   laneHeight?: number | null;
+  modality?: string;
   units: readonly {
     id: string;
     startMs: number | null;
@@ -85,6 +86,8 @@ export function DesktopTranscriptionLayerRows(props: {
     units: readonly TimedEdgeUnit[],
   ) => void;
   onLaneHeight?: (layerId: string, height: number) => void;
+  /** Record, play, and delete for a modality=audio card. Text layers ignore it. */
+  audioTools?: (layerId: string, unitId: string) => ReactNode;
 }) {
   const mainInTree = props.tree.some((row) => row.layerId === props.mainLayerId);
   const mainRow: LayerTreeRow = {
@@ -200,6 +203,9 @@ export function DesktopTranscriptionLayerRows(props: {
                   title={unit.text}
                   draft={props.bodyDraft?.unitId === key ? props.bodyDraft.text : unit.text}
                   {...(typeof unit.confidence === 'number' ? { confidence: unit.confidence } : {})}
+                  {...(props.audioTools !== undefined && layer.modality === 'audio'
+                    ? { content: props.audioTools(layer.id, unit.id) }
+                    : {})}
                   onClick={() => props.onPick(card, unit)}
                   onContextMenu={(event) => props.onRowMenu(card, name, event)}
                   onDoubleClick={ignore}

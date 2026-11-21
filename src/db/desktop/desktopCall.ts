@@ -91,6 +91,18 @@ import {
 } from './lexemeLink';
 import { createMedia, listActiveMedia, listDeletedMedia } from './media';
 import { registerRecording } from './registerRecording';
+import {
+  attachRecording,
+  createRecordingPair,
+  detachRecording,
+  dropOralEngine,
+  listRecordings,
+  oralProvenanceJson,
+  peekOralEngine,
+  proposeOralDraft,
+  readRecording,
+} from './recordingClips';
+import { transcribeWavClip } from '../../desktop/projectTranscription';
 import { finishMediaCleanup, type MediaTrash } from './mediaCleanup';
 import { reregisterMedia, restoreRegisteredMedia } from './mediaReregister';
 import {
@@ -1012,10 +1024,30 @@ const operationHandlers = {
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
+      const draft =
+        input.textLayerId === undefined
+          ? null
+          : readUnitTextDraft(ctx.db, input.unitId, input.textLayerId);
+      const matching = draft !== null && draft.rawInput === input.text;
+      const engine =
+        !matching && input.textLayerId !== undefined
+          ? peekOralEngine(input.unitId, input.textLayerId)
+          : undefined;
+      const provenanceJson = matching
+        ? draft.provenanceJson
+        : engine === undefined
+          ? undefined
+          : oralProvenanceJson(engine);
       const box: { undo: UnitTextUndo | null } = { undo: null };
-      const unit = updateUnitText(ctx.db, input, undefined, (undo) => {
-        box.undo = undo;
-      });
+      const unit = updateUnitText(
+        ctx.db,
+        provenanceJson === undefined ? input : { ...input, provenanceJson },
+        undefined,
+        (undo) => {
+          box.undo = undo;
+        },
+      );
+      if (input.textLayerId !== undefined) dropOralEngine(input.unitId, input.textLayerId);
       return { value: unit, undo: box.undo };
     },
     remember: (sessionId, undo) => {
@@ -1049,6 +1081,7 @@ const operationHandlers = {
       input: ReturnType<DesktopOperations['units.discardTextDraft']['check']>,
     ) => {
       discardUnitTextDraft(ctx.db, input.unitId, input.textLayerId);
+      if (input.textLayerId !== undefined) dropOralEngine(input.unitId, input.textLayerId);
       return null;
     },
   },
@@ -1068,6 +1101,47 @@ const operationHandlers = {
   'recordings.register': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['recordings.register']['check']>) =>
       registerRecording(ctx.db, ctx.folder, input),
+  },
+  'recordings.createPair': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['recordings.createPair']['check']>,
+    ) => createRecordingPair(ctx.db, input),
+  },
+  'recordings.attach': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['recordings.attach']['check']>) =>
+      attachRecording(ctx.db, ctx.folder, input),
+  },
+  'recordings.detach': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['recordings.detach']['check']>) =>
+      detachRecording(ctx.db, input),
+  },
+  'recordings.read': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['recordings.read']['check']>) =>
+      readRecording(ctx.db, ctx.folder, input),
+  },
+  'recordings.list': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['recordings.list']['check']>) =>
+      listRecordings(ctx.db, input.layerId),
+  },
+  'recordings.transcribe': {
+    run: async (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['recordings.transcribe']['check']>,
+    ) => {
+      const clip = readRecording(ctx.db, ctx.folder, {
+        unitId: input.unitId,
+        layerId: input.layerId,
+      });
+      const heard = await transcribeWavClip(ctx.sessionId, clip.bytes);
+      return proposeOralDraft(ctx.db, {
+        unitId: input.unitId,
+        audioLayerId: input.layerId,
+        text: heard.text,
+        model: heard.model,
+        modelVersion: heard.modelVersion,
+      });
+    },
   },
   'media.delete': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['media.delete']['check']>) =>

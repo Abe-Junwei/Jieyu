@@ -8,6 +8,8 @@ import { readAudioBlobFromDetails } from '../utils/translationRecordingMediaBlob
 
 export interface TimelineTranslationAudioControlsProps {
   mediaItem?: MediaItemDocType;
+  /** Bytes already published for this card. The control does not revoke this URL. */
+  audioSrc?: string | null;
   isRecording?: boolean;
   disabled?: boolean;
   compact?: boolean;
@@ -26,6 +28,7 @@ function resolveMediaAudioBlob(mediaItem?: MediaItemDocType): Blob | null {
 
 export const TimelineTranslationAudioControls = memo(function TimelineTranslationAudioControls({
   mediaItem,
+  audioSrc: givenSrc = null,
   isRecording = false,
   disabled = false,
   compact = false,
@@ -38,7 +41,8 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
-  const audioSrc = useMemo(() => {
+  const ownedSrc = useMemo(() => {
+    if (givenSrc) return null;
     if (!mediaItem?.id) {
       return null;
     }
@@ -48,15 +52,16 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
     }
     const blob = resolveMediaAudioBlob(mediaItem);
     return blob ? URL.createObjectURL(blob) : null;
-  }, [mediaItem]);
+  }, [mediaItem, givenSrc]);
+  const audioSrc = givenSrc ?? ownedSrc;
 
   useEffect(
     () => () => {
-      if (audioSrc?.startsWith('blob:')) {
-        URL.revokeObjectURL(audioSrc);
+      if (ownedSrc?.startsWith('blob:')) {
+        URL.revokeObjectURL(ownedSrc);
       }
     },
-    [audioSrc],
+    [ownedSrc],
   );
 
   useEffect(() => {

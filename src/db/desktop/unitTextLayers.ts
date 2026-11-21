@@ -83,13 +83,15 @@ export function resolveUnitTextContext(
 export function readUnitTextBody(
   db: SqliteDatabase,
   context: UnitTextContext,
-): { id: string | null; body: string } {
+): { id: string | null; body: string; provenanceJson: string | null } {
   const row = db
     .prepare(
-      `SELECT id, body FROM unit_texts
+      `SELECT id, body, provenance_json FROM unit_texts
        WHERE unit_id = ? AND layer_id = ? AND role = ?`,
     )
     .get(context.unitId, context.textLayerId, context.role) as
-    { id: string; body: string } | undefined;
-  return row === undefined ? { id: null, body: '' } : row;
+    { id: string; body: string; provenance_json: string | null } | undefined;
+  return row === undefined
+    ? { id: null, body: '', provenanceJson: null }
+    : { id: row.id, body: row.body, provenanceJson: row.provenance_json };
 }

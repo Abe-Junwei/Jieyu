@@ -22,6 +22,22 @@ describe('buildLayerTree', () => {
     expect(rows[0]?.childCount).toBe(2);
   });
 
+  it('nests a text child under its recording layer when both share a host', () => {
+    const voiced = [
+      { id: 'a', sortOrder: 0 },
+      { id: 'b', sortOrder: 1 },
+      { id: 'c', sortOrder: 2, parentId: 'b' },
+      { id: 'd', sortOrder: 3 },
+    ];
+    const rows = buildLayerTree(voiced, [link('b', 'a', true), link('c', 'a', true)], emptyFold());
+    expect(rows.map((row) => [row.layerId, row.depth, row.hostId])).toEqual([
+      ['a', 0, null],
+      ['b', 1, 'a'],
+      ['c', 2, 'b'],
+      ['d', 0, null],
+    ]);
+  });
+
   it('hides children of a collapsed group and keeps the count', () => {
     const rows = buildLayerTree(layers, [link('b', 'a', true), link('c', 'a', true)], {
       groups: ['a'],

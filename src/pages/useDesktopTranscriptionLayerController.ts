@@ -87,9 +87,28 @@ export function useDesktopTranscriptionLayerController(input: {
         });
       })();
     };
+    const createPair = (kind: 'voice' | 'oral', audioName: string, textName: string) => {
+      const current = latest.current;
+      const host = transcriptionHost(
+        current.layers ?? [],
+        current.links ?? [],
+        current.currentLayerId,
+      );
+      if (host === undefined) {
+        setError(t(locale, 'app.desktopTranscription.layerActionFailed'));
+        return;
+      }
+      void run('recordings.createPair', {
+        hostLayerId: host.id,
+        kind,
+        audioName: { zh: audioName },
+        textName: { zh: textName },
+      });
+    };
     return {
       error,
       create,
+      createPair,
       rename: (id: string, name: Record<string, string>) => {
         void run('layers.rename', { id, name });
       },

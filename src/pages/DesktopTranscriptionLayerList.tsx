@@ -51,6 +51,7 @@ export function DesktopTranscriptionLayerList(props: {
   error: string;
   onSelect: (layerId: string) => void;
   onCreate: (kind: 'transcription' | 'translation', label: string) => void;
+  onCreatePair?: (kind: 'voice' | 'oral', audioName: string, textName: string) => void;
   onRename: (layerId: string, name: Record<string, string>) => void;
   onMove: (layerId: string, direction: 'up' | 'down') => void;
   onDelete: (layerId: string, mode: 'soft' | 'migrate' | 'purge', targetLayerId?: string) => void;
@@ -227,6 +228,58 @@ export function DesktopTranscriptionLayerList(props: {
             {t(props.locale, 'transcription.laneHeader.layer.createTranslation')}
           </button>
         </li>
+        {props.onCreatePair === undefined ? null : (
+          <>
+            <li className="desktop-tx-layer-list__add">
+              <button
+                type="button"
+                className="desktop-tx-context__row"
+                onClick={() =>
+                  props.onCreatePair?.(
+                    'voice',
+                    nextLayerName(
+                      t(props.locale, 'app.desktopTranscription.contextLayerVoice'),
+                      props.layers,
+                      props.locale,
+                    ),
+                    nextLayerName(
+                      t(props.locale, 'app.desktopTranscription.contextLayerVoiceText'),
+                      props.layers,
+                      props.locale,
+                    ),
+                  )
+                }
+              >
+                <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
+                {t(props.locale, 'transcription.laneHeader.layer.createVoice')}
+              </button>
+            </li>
+            <li className="desktop-tx-layer-list__add">
+              <button
+                type="button"
+                className="desktop-tx-context__row"
+                onClick={() =>
+                  props.onCreatePair?.(
+                    'oral',
+                    nextLayerName(
+                      t(props.locale, 'app.desktopTranscription.contextLayerOral'),
+                      props.layers,
+                      props.locale,
+                    ),
+                    nextLayerName(
+                      t(props.locale, 'app.desktopTranscription.contextLayerOralText'),
+                      props.layers,
+                      props.locale,
+                    ),
+                  )
+                }
+              >
+                <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
+                {t(props.locale, 'transcription.laneHeader.layer.createOral')}
+              </button>
+            </li>
+          </>
+        )}
       </ul>
       {menu === null ? null : (
         <>

@@ -23,6 +23,7 @@ export function DesktopTranscriptionContextColumn(props: {
   links: readonly ContextLink[];
   layerError: string;
   onCreateLayer: (kind: 'transcription' | 'translation', label: string) => void;
+  onCreatePair?: (kind: 'voice' | 'oral', audioName: string, textName: string) => void;
   onRenameLayer: (layerId: string, name: Record<string, string>) => void;
   onMoveLayer: (layerId: string, direction: 'up' | 'down') => void;
   onDeleteLayer: (
@@ -175,6 +176,9 @@ export function DesktopTranscriptionContextColumn(props: {
                   error={props.layerError}
                   onSelect={props.onSelectLayer}
                   onCreate={props.onCreateLayer}
+                  {...(props.onCreatePair === undefined
+                    ? {}
+                    : { onCreatePair: props.onCreatePair })}
                   onRename={props.onRenameLayer}
                   onMove={props.onMoveLayer}
                   onDelete={props.onDeleteLayer}

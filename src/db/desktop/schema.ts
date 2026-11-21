@@ -2,8 +2,8 @@
 
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
-/** SQLite header offset 60. ADR-0132 moved this to 32. A later table change needs a new decision and a new freeze record. */
-export const DESKTOP_PROJECT_USER_VERSION = 32;
+/** SQLite header offset 60. ADR-0137 moved this to 33. A later table change needs a new decision and a new freeze record. */
+export const DESKTOP_PROJECT_USER_VERSION = 33;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -1421,6 +1421,11 @@ CREATE TABLE unit_text_drafts (
   layer_id TEXT NOT NULL REFERENCES layers(id),
   raw_input TEXT NOT NULL,
   base_body TEXT NOT NULL,
+  provenance_json TEXT CHECK (
+    provenance_json IS NULL OR (
+      json_valid(provenance_json) AND json_type(provenance_json) = 'object'
+    )
+  ),
   updated_at TEXT NOT NULL,
   CHECK (raw_input <> base_body),
   PRIMARY KEY (unit_id, layer_id)
