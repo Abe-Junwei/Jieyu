@@ -1780,14 +1780,13 @@ export const desktopOperations = {
   }),
   'recordings.transcribe': spec<
     'keep',
-    { unitId: string; layerId: string; bytes: Uint8Array },
+    { unitId: string; layerId: string },
     { textLayerId: string }
   >('keep', (input) => {
-    knownKeys(input, ['unitId', 'layerId', 'bytes']);
+    knownKeys(input, ['unitId', 'layerId']);
     return {
       unitId: requiredString(input.unitId, 'unitId'),
       layerId: requiredString(input.layerId, 'layerId'),
-      bytes: attachmentBytes(input.bytes),
     };
   }),
   'media.delete': spec<'clear', { id: string }, RecordingDeletion>('clear', (input) => {

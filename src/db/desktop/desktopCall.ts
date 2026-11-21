@@ -1028,14 +1028,16 @@ const operationHandlers = {
         input.textLayerId === undefined
           ? null
           : readUnitTextDraft(ctx.db, input.unitId, input.textLayerId);
-      const fromDraft =
-        draft !== null && draft.rawInput === input.text ? draft.provenanceJson : null;
+      const matching = draft !== null && draft.rawInput === input.text;
       const engine =
-        fromDraft === null && input.textLayerId !== undefined
+        !matching && input.textLayerId !== undefined
           ? peekOralEngine(input.unitId, input.textLayerId)
           : undefined;
-      const provenanceJson =
-        fromDraft ?? (engine === undefined ? undefined : oralProvenanceJson(engine));
+      const provenanceJson = matching
+        ? draft.provenanceJson
+        : engine === undefined
+          ? undefined
+          : oralProvenanceJson(engine);
       const box: { undo: UnitTextUndo | null } = { undo: null };
       const unit = updateUnitText(
         ctx.db,
@@ -1127,7 +1129,11 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['recordings.transcribe']['check']>,
     ) => {
-      const heard = await transcribeWavClip(ctx.sessionId, input.bytes);
+      const clip = readRecording(ctx.db, ctx.folder, {
+        unitId: input.unitId,
+        layerId: input.layerId,
+      });
+      const heard = await transcribeWavClip(ctx.sessionId, clip.bytes);
       return proposeOralDraft(ctx.db, {
         unitId: input.unitId,
         audioLayerId: input.layerId,

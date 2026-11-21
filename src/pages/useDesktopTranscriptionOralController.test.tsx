@@ -7,6 +7,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../contexts/ToastContext';
 import { useDesktopTranscriptionOralController } from './useDesktopTranscriptionOralController';
 
+vi.mock('./oralClipWav', () => ({
+  clipBytesToWav: async (bytes: Uint8Array) => bytes,
+}));
+
 class FakeRecorder {
   static isTypeSupported(type: string): boolean {
     return type === 'audio/webm;codecs=opus';
@@ -70,7 +74,7 @@ describe('oral recording controller', () => {
         expect.objectContaining({
           unitId: 'unit-1',
           layerId: 'layer-1',
-          mimeType: 'audio/webm;codecs=opus',
+          mimeType: 'audio/wav',
         }),
       );
     });

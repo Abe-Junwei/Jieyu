@@ -173,7 +173,19 @@ describe('recording clips', () => {
       callDesktopSession(session.sessionId, 'recordings.transcribe', {
         unitId: unit.id,
         layerId: pair.audioLayerId,
-        bytes: Buffer.from('not-wav'),
+      }),
+    ).rejects.toThrow('recording is missing');
+    callDesktopSession(session.sessionId, 'recordings.attach', {
+      unitId: unit.id,
+      layerId: pair.audioLayerId,
+      mimeType: 'audio/wav',
+      bytes: Buffer.from('stored-clip'),
+      operationId: 'op-clip',
+    });
+    await expect(
+      callDesktopSession(session.sessionId, 'recordings.transcribe', {
+        unitId: unit.id,
+        layerId: pair.audioLayerId,
       }),
     ).rejects.toThrow('local whisper is not granted');
     expect(
@@ -347,5 +359,108 @@ describe('recording clips', () => {
       .db.prepare('SELECT body, provenance_json FROM unit_texts WHERE unit_id = ? AND layer_id = ?')
       .get(unit.id, pair.textLayerId) as { body: string; provenance_json: string | null };
     expect(edited).toEqual({ body: '改过', provenance_json: null });
+  });
+
+  it('restores the recording when a deleted unit is undone', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '稿' },
+    }) as { id: string };
+    const host = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: host.id,
+      text: '原句',
+    }) as { id: string };
+    const pair = callDesktopSession(session.sessionId, 'recordings.createPair', {
+      hostLayerId: host.id,
+      kind: 'oral',
+      audioName: { zh: '口译' },
+      textName: { zh: '口译文' },
+    }) as { audioLayerId: string };
+    const bytes = Buffer.from('kept-clip');
+    callDesktopSession(session.sessionId, 'recordings.attach', {
+      unitId: unit.id,
+      layerId: pair.audioLayerId,
+      mimeType: 'audio/webm;codecs=opus',
+      bytes,
+      operationId: 'op-keep',
+    });
+    callDesktopSession(session.sessionId, 'units.delete', { unitId: unit.id });
+    expect(
+      requireDesktopSession(session.sessionId)
+        .db.prepare('SELECT state FROM attachment_files')
+        .get(),
+    ).toEqual({ state: 'cleanup_pending' });
+    callDesktopSession(session.sessionId, 'units.undo', {});
+    callDesktopSession(session.sessionId, 'reopen', {});
+    const read = callDesktopSession(session.sessionId, 'recordings.read', {
+      unitId: unit.id,
+      layerId: pair.audioLayerId,
+    }) as { bytes: Uint8Array };
+    expect(Buffer.from(read.bytes)).toEqual(bytes);
+    expect(
+      requireDesktopSession(session.sessionId)
+        .db.prepare('SELECT state FROM attachment_files')
+        .get(),
+    ).toEqual({ state: 'ready' });
+  });
+
+  it('clears draft provenance when the draft text changes', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '稿' },
+    }) as { id: string };
+    const host = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: host.id,
+      text: '原句',
+    }) as { id: string };
+    const pair = callDesktopSession(session.sessionId, 'recordings.createPair', {
+      hostLayerId: host.id,
+      kind: 'voice',
+      audioName: { zh: '语音转写' },
+      textName: { zh: '语音转写文本' },
+    }) as { audioLayerId: string; textLayerId: string };
+    proposeOralDraft(requireDesktopSession(session.sessionId).db, {
+      unitId: unit.id,
+      audioLayerId: pair.audioLayerId,
+      text: '慢说',
+      model: 'app.jieyu.whisper.tiny',
+      modelVersion: '1',
+    });
+    callDesktopSession(session.sessionId, 'units.putTextDraft', {
+      unitId: unit.id,
+      textLayerId: pair.textLayerId,
+      rawInput: '改过',
+      baseBody: '',
+    });
+    const draft = requireDesktopSession(session.sessionId)
+      .db.prepare('SELECT provenance_json FROM unit_text_drafts WHERE unit_id = ? AND layer_id = ?')
+      .get(unit.id, pair.textLayerId) as { provenance_json: string | null };
+    expect(draft.provenance_json).toBeNull();
+    callDesktopSession(session.sessionId, 'units.updateText', {
+      unitId: unit.id,
+      textLayerId: pair.textLayerId,
+      text: '改过',
+      operationId: 'op-retype',
+    });
+    const saved = requireDesktopSession(session.sessionId)
+      .db.prepare('SELECT body, provenance_json FROM unit_texts WHERE unit_id = ? AND layer_id = ?')
+      .get(unit.id, pair.textLayerId) as { body: string; provenance_json: string | null };
+    expect(saved).toEqual({ body: '改过', provenance_json: null });
   });
 });

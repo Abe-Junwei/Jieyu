@@ -288,6 +288,14 @@ export function queueUnreferencedAttachment(db: SqliteDatabase, fileId: string):
   ).run(fileId);
 }
 
+/** Undo put the citation back. A pending file that is referenced again can be read. */
+export function retainReferencedAttachment(db: SqliteDatabase, fileId: string): void {
+  if (!attachmentReferenced(db, fileId)) return;
+  db.prepare(
+    `UPDATE attachment_files SET state = 'ready' WHERE id = ? AND state = 'cleanup_pending'`,
+  ).run(fileId);
+}
+
 export function removeAttachmentLink(db: SqliteDatabase, linkId: string): AttachmentLinkRemoval {
   const removed = db.transaction(() => {
     const link = db.prepare('SELECT file_id FROM attachment_links WHERE id = ?').get(linkId) as

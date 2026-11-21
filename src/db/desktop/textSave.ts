@@ -95,7 +95,12 @@ export function putUnitTextDraft(
          raw_input = excluded.raw_input,
          base_body = excluded.base_body,
          updated_at = excluded.updated_at,
-         provenance_json = COALESCE(excluded.provenance_json, unit_text_drafts.provenance_json)`,
+         provenance_json = CASE
+           WHEN excluded.provenance_json IS NOT NULL THEN excluded.provenance_json
+           WHEN excluded.raw_input = unit_text_drafts.raw_input
+             THEN unit_text_drafts.provenance_json
+           ELSE NULL
+         END`,
     ).run(
       input.unitId,
       context.textLayerId,

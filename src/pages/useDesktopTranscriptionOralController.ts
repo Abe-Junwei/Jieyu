@@ -155,11 +155,12 @@ export function useDesktopTranscriptionOralController(input: {
             const call = bag.current.latest;
             if (call.sessionId === null || call.desktopCall === undefined) return;
             try {
+              const wav = await clipBytesToWav(new Uint8Array(buffer));
               await call.desktopCall(call.sessionId, 'recordings.attach', {
                 unitId,
                 layerId,
-                mimeType: blob.type || mime,
-                bytes: new Uint8Array(buffer),
+                mimeType: 'audio/wav',
+                bytes: wav,
                 operationId: crypto.randomUUID(),
               });
               await call.refresh();
@@ -187,14 +188,9 @@ export function useDesktopTranscriptionOralController(input: {
       if (bag.current.recorder || bag.current.arming) return;
       const seen = current.sessionId;
       try {
-        const read = (await current.desktopCall(seen, 'recordings.read', { unitId, layerId })) as {
-          bytes?: unknown;
-        };
-        if (!(read.bytes instanceof Uint8Array)) throw new Error('recording is missing');
-        const wav = await clipBytesToWav(read.bytes);
         const call = bag.current.latest;
         if (!bag.current.live || call.sessionId !== seen || call.desktopCall === undefined) return;
-        await call.desktopCall(seen, 'recordings.transcribe', { unitId, layerId, bytes: wav });
+        await call.desktopCall(seen, 'recordings.transcribe', { unitId, layerId });
         if (bag.current.latest.sessionId !== seen) return;
         await bag.current.latest.refresh();
         toast.showToast(t(locale, 'app.desktopTranscription.oralDraftReady'), 'info');

@@ -4,6 +4,7 @@ import {
   analysisGraphFingerprint,
   type AnalysisGraphPayload,
 } from '../../annotation/analysisGraphDomain';
+import { queueUnreferencedAttachment, retainReferencedAttachment } from './attachments';
 import { assertStoredCustomFields, missingFields } from './customFields';
 import { assertUnitTextRoleFree, readStoredUnit, type Unit } from './units';
 import { resolveUnitTextContext } from './unitTextLayers';
@@ -51,6 +52,7 @@ interface TextRow {
   layer_id: string;
   role: string;
   body: string;
+  audio_file_id: string | null;
   provenance_json: string | null;
   updated_at: string;
 }
@@ -247,10 +249,25 @@ export function splitUnit(
     if (existing.text !== '') {
       const { role } = resolveUnitTextContext(db, existing.id, existing.textLayerId);
       assertUnitTextRoleFree(db, createdId, role, existing.textLayerId);
+      const source = db
+        .prepare(
+          `SELECT audio_file_id FROM unit_texts
+           WHERE unit_id = ? AND layer_id = ? AND role = ?`,
+        )
+        .get(existing.id, existing.textLayerId, role) as
+        { audio_file_id: string | null } | undefined;
       db.prepare(
-        `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-      ).run(randomUUID(), createdId, existing.textLayerId, role, existing.text, now);
+        `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, audio_file_id, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        randomUUID(),
+        createdId,
+        existing.textLayerId,
+        role,
+        existing.text,
+        source?.audio_file_id ?? null,
+        now,
+      );
     }
     const copied = copyAssociations(db, existing.id, createdId);
     bumpGeneration(db, place.manuscriptId, now);
@@ -775,7 +792,8 @@ export function readRemovedUnit(db: SqliteDatabase, unitId: string): RemovedUnit
     unit,
     texts: db
       .prepare(
-        `SELECT id, layer_id, role, body, provenance_json, updated_at FROM unit_texts WHERE unit_id = ?`,
+        `SELECT id, layer_id, role, body, audio_file_id, provenance_json, updated_at
+         FROM unit_texts WHERE unit_id = ?`,
       )
       .all(unitId) as TextRow[],
     tokens: db
@@ -860,8 +878,9 @@ export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): voi
     unit.graph_fingerprint,
   );
   const insertText = db.prepare(
-    `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, provenance_json, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO unit_texts (
+       id, unit_id, layer_id, role, body, audio_file_id, provenance_json, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   for (const row of removed.texts) {
     assertUnitTextRoleFree(db, unit.id, row.role, row.layer_id);
@@ -871,9 +890,11 @@ export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): voi
       row.layer_id,
       row.role,
       row.body,
+      row.audio_file_id,
       row.provenance_json,
       row.updated_at,
     );
+    if (row.audio_file_id !== null) retainReferencedAttachment(db, row.audio_file_id);
   }
   const insertToken = db.prepare(
     `INSERT INTO tokens (
@@ -1049,7 +1070,14 @@ export function deleteUnitTree(db: SqliteDatabase, unitId: string): void {
   }
   db.prepare('DELETE FROM reception_batches WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM transcription_acceptances WHERE unit_id = ?').run(unitId);
+  const clips = db
+    .prepare(
+      `SELECT audio_file_id FROM unit_texts
+       WHERE unit_id = ? AND audio_file_id IS NOT NULL`,
+    )
+    .all(unitId) as { audio_file_id: string }[];
   db.prepare('DELETE FROM unit_texts WHERE unit_id = ?').run(unitId);
+  for (const clip of clips) queueUnreferencedAttachment(db, clip.audio_file_id);
   db.prepare('DELETE FROM unit_text_drafts WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM unit_time_drafts WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM text_save_receipts WHERE unit_id = ?').run(unitId);

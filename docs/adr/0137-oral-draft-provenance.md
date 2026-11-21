@@ -19,7 +19,7 @@ depends_on:
 
 ## 决定
 
-1. **开发格式改为 `user_version` 33。** `unit_text_drafts` 增加可空的 `provenance_json`，约束与 `unit_texts.provenance_json` 相同。识别写入草稿时一并写入来源。编辑草稿原文时，没有带来源就不改这一列。
+1. **开发格式改为 `user_version` 33。** `unit_text_drafts` 增加可空的 `provenance_json`，约束与 `unit_texts.provenance_json` 相同。识别写入草稿时一并写入来源。编辑草稿时如果原文变了、这次又没有带来源，就把这一列清成 NULL。原文没变则保留。
 2. **不写迁移器。** `user_version` 不是 33 的 `project.sqlite` 仍以「不是解语项目库」拒绝，文件字节保持原样。受控合成项目删掉该测试文件夹再打开。
 3. **保存与草稿原文一致时，用来源写入正文。** 进程内存里的模型只作同一次运行的备用。关掉进程后以草稿行为准。
 4. **手改已保存的正文且这次没有带来源时，把 `provenance_json` 写成 NULL。** 来源描述的是这一版正文怎么来的。撤销仍把上一版正文和它的来源一起换回。
@@ -33,4 +33,5 @@ depends_on:
 ## 影响
 
 - 写入在 `src/db/desktop/textSave.ts` 与 `recordingClips.ts`。保存时 `desktopCall.ts` 读取草稿上的来源。
+- 转写不接收调用方的音频字节。主进程读该层已保存的录音再交给本机模型。录音在写入前转成 wav，库里的那一份就是模型听到的那一份。
 - 冻结记录换成 33 的 DDL 签名。
