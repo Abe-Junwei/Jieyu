@@ -99,8 +99,9 @@ import {
   listRecordings,
   oralProvenanceJson,
   peekOralEngine,
-  proposeOralDraft,
+  commitOralTranscript,
   readRecording,
+  recordingFileId,
 } from './recordingClips';
 import { transcribeWavClip } from '../../desktop/projectTranscription';
 import { finishMediaCleanup, type MediaTrash } from './mediaCleanup';
@@ -1121,12 +1122,28 @@ const operationHandlers = {
     ) => createRecordingPair(ctx.db, input),
   },
   'recordings.attach': {
-    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['recordings.attach']['check']>) =>
-      attachRecording(ctx.db, ctx.folder, input),
+    run: async (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['recordings.attach']['check']>,
+    ) => {
+      const stored = attachRecording(ctx.db, ctx.folder, input);
+      if (ctx.trash !== undefined && stored.replacedFileId !== null) {
+        await finishAttachmentCleanup(ctx.db, ctx.folder, stored.replacedFileId, ctx.trash);
+      }
+      return { fileId: stored.fileId };
+    },
   },
   'recordings.detach': {
-    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['recordings.detach']['check']>) =>
-      detachRecording(ctx.db, input),
+    run: async (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['recordings.detach']['check']>,
+    ) => {
+      const removed = detachRecording(ctx.db, input);
+      if (ctx.trash !== undefined) {
+        await finishAttachmentCleanup(ctx.db, ctx.folder, removed.fileId, ctx.trash);
+      }
+      return removed;
+    },
   },
   'recordings.read': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['recordings.read']['check']>) =>
@@ -1141,14 +1158,17 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['recordings.transcribe']['check']>,
     ) => {
+      const fileId = recordingFileId(ctx.db, input.unitId, input.layerId);
+      if (fileId === null) throw new Error('recording is missing');
       const clip = readRecording(ctx.db, ctx.folder, {
         unitId: input.unitId,
         layerId: input.layerId,
       });
       const heard = await transcribeWavClip(ctx.sessionId, clip.bytes);
-      return proposeOralDraft(ctx.db, {
+      return commitOralTranscript(ctx.db, {
         unitId: input.unitId,
         audioLayerId: input.layerId,
+        fileId,
         text: heard.text,
         model: heard.model,
         modelVersion: heard.modelVersion,

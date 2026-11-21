@@ -1,5 +1,10 @@
 import { startLocalWhisper, stopLocalWhisper } from '../src/desktop/localWhisper';
 import {
+  awaitWindowDecision,
+  quitAfterWindows,
+  resolveWindowDecision,
+} from '../src/desktop/quitAfterWindows';
+import {
   grantTranscriptionModel,
   transcribeProject,
   cancelProjectTranscription,
@@ -598,6 +603,7 @@ async function openWindow(): Promise<BrowserWindow> {
     },
   });
   let loadedOnce = false;
+  const windowId = win.webContents.id;
   win.webContents.on('did-finish-load', () => {
     if (!loadedOnce) {
       loadedOnce = true;
@@ -634,6 +640,7 @@ async function openWindow(): Promise<BrowserWindow> {
       }, 100);
     }).finally(() => {
       closeFlight = null;
+      if (!win.isDestroyed()) resolveWindowDecision(windowId, false);
     });
   });
 
@@ -647,6 +654,7 @@ async function openWindow(): Promise<BrowserWindow> {
       forceClose();
       return;
     }
+    if (result === 'stay') return;
     const choice = dialog.showMessageBoxSync(target, {
       type: 'question',
       buttons:
@@ -932,16 +940,40 @@ app
   });
 
 let quitting = false;
+let quitFlight: Promise<void> | null = null;
+
+function closeForQuit(win: BrowserWindow): Promise<boolean> {
+  if (win.isDestroyed()) return Promise.resolve(true);
+  const id = win.webContents.id;
+  const decision = awaitWindowDecision(id);
+  win.once('closed', () => resolveWindowDecision(id, true));
+  win.close();
+  if (win.isDestroyed()) resolveWindowDecision(id, true);
+  return decision;
+}
+
 app.on('before-quit', (event) => {
   if (quitting) return;
   event.preventDefault();
-  resetProjectTranscriptions();
-  void stopLocalWhisper().finally(() => {
-    resetDesktopSessions();
-    resetDesktopMediaGrants();
-    quitting = true;
-    app.quit();
-  });
+  if (quitFlight !== null) return;
+  const windows = BrowserWindow.getAllWindows().filter((win) => !win.isDestroyed());
+  quitFlight = quitAfterWindows(
+    windows.map((win) => ({ close: () => closeForQuit(win) })),
+    async () => {
+      resetProjectTranscriptions();
+      await stopLocalWhisper();
+      resetDesktopSessions();
+      resetDesktopMediaGrants();
+    },
+  )
+    .then((closed) => {
+      if (!closed) return;
+      quitting = true;
+      app.quit();
+    })
+    .finally(() => {
+      quitFlight = null;
+    });
 });
 
 app.on('window-all-closed', () => {

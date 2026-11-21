@@ -114,7 +114,7 @@ export function attachRecording(
   db: SqliteDatabase,
   folder: string,
   input: RecordingAttach,
-): { fileId: string } {
+): { fileId: string; replacedFileId: string | null } {
   const stored = storeAttachmentFile(db, folder, {
     kind: 'audio',
     mimeType: input.mimeType,
@@ -153,7 +153,10 @@ export function attachRecording(
       }
       if (previous !== null && previous !== stored.fileId)
         queueUnreferencedAttachment(db, previous);
-      return { fileId: stored.fileId };
+      return {
+        fileId: stored.fileId,
+        replacedFileId: previous !== null && previous !== stored.fileId ? previous : null,
+      };
     })();
   } catch (error) {
     queueUnreferencedAttachment(db, stored.fileId);
@@ -186,6 +189,38 @@ export function detachRecording(
     queueUnreferencedAttachment(db, existing.audio_file_id);
     return { fileId: existing.audio_file_id };
   })();
+}
+
+export function recordingFileId(
+  db: SqliteDatabase,
+  unitId: string,
+  layerId: string,
+): string | null {
+  const row = db
+    .prepare(
+      `SELECT audio_file_id FROM unit_texts
+       WHERE unit_id = ? AND layer_id = ? AND audio_file_id IS NOT NULL`,
+    )
+    .get(unitId, layerId) as { audio_file_id: string } | undefined;
+  return row?.audio_file_id ?? null;
+}
+
+/** Write the transcript only when the clip it heard is still the clip on the card. */
+export function commitOralTranscript(
+  db: SqliteDatabase,
+  input: {
+    unitId: string;
+    audioLayerId: string;
+    fileId: string;
+    text: string;
+    model: string;
+    modelVersion: string;
+  },
+): OralTranscript {
+  if (recordingFileId(db, input.unitId, input.audioLayerId) !== input.fileId) {
+    throw new Error('oral source changed');
+  }
+  return proposeOralDraft(db, input);
 }
 
 export function readRecording(

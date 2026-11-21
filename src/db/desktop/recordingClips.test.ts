@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { finishAttachmentCleanup } from './attachments';
 import { callDesktopSession } from './desktopCall';
-import { clearOralEngines, proposeOralDraft } from './recordingClips';
+import { clearOralEngines, commitOralTranscript, proposeOralDraft } from './recordingClips';
 import { openDesktopSession, requireDesktopSession, resetDesktopSessions } from './projectSession';
 
 const roots: string[] = [];
@@ -77,13 +77,13 @@ describe('recording clips', () => {
     });
 
     const first = Buffer.from('first-clip');
-    const attached = callDesktopSession(session.sessionId, 'recordings.attach', {
+    const attached = (await callDesktopSession(session.sessionId, 'recordings.attach', {
       unitId: unit.id,
       layerId: pair.audioLayerId,
       mimeType: 'audio/webm;codecs=opus',
       bytes: first,
       operationId: 'op-1',
-    }) as { fileId: string };
+    })) as { fileId: string };
     callDesktopSession(session.sessionId, 'reopen', {});
     const read = callDesktopSession(session.sessionId, 'recordings.read', {
       unitId: unit.id,
@@ -118,10 +118,10 @@ describe('recording clips', () => {
       textLayerId: pair.textLayerId,
       text: '慢说',
     });
-    const detached = callDesktopSession(session.sessionId, 'recordings.detach', {
+    const detached = (await callDesktopSession(session.sessionId, 'recordings.detach', {
       unitId: unit.id,
       layerId: pair.audioLayerId,
-    }) as { fileId: string };
+    })) as { fileId: string };
     const listed = callDesktopSession(session.sessionId, 'units.list', {
       layerId: pair.textLayerId,
     }) as { id: string; text: string }[];
@@ -138,6 +138,109 @@ describe('recording clips', () => {
     });
     expect(cleaned.state).toBe('removed');
     expect(existsSync(object)).toBe(false);
+  });
+
+  it('removes an unreferenced clip from the product entry and keeps a shared file', async () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '稿' },
+    }) as { id: string };
+    const host = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: host.id,
+      text: '原句',
+    }) as { id: string };
+    const pair = callDesktopSession(session.sessionId, 'recordings.createPair', {
+      hostLayerId: host.id,
+      kind: 'oral',
+      audioName: { zh: '口译' },
+      textName: { zh: '口译文' },
+    }) as { audioLayerId: string };
+    const trash = async (absolute: string) => {
+      rmSync(absolute);
+      return 'moved' as const;
+    };
+    const kept = (await callDesktopSession(
+      session.sessionId,
+      'recordings.attach',
+      {
+        unitId: unit.id,
+        layerId: pair.audioLayerId,
+        mimeType: 'audio/webm;codecs=opus',
+        bytes: Buffer.from('kept'),
+        operationId: 'op-kept',
+      },
+      trash,
+    )) as { fileId: string };
+    const other = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: host.id,
+      text: '另一句',
+    }) as { id: string };
+    const shared = (await callDesktopSession(
+      session.sessionId,
+      'recordings.attach',
+      {
+        unitId: other.id,
+        layerId: pair.audioLayerId,
+        mimeType: 'audio/webm;codecs=opus',
+        bytes: Buffer.from('shared'),
+        operationId: 'op-shared',
+      },
+      trash,
+    )) as { fileId: string };
+    const db = requireDesktopSession(session.sessionId).db;
+    db.prepare(`UPDATE unit_texts SET audio_file_id = ? WHERE unit_id = ? AND layer_id = ?`).run(
+      kept.fileId,
+      other.id,
+      pair.audioLayerId,
+    );
+    await callDesktopSession(
+      session.sessionId,
+      'recordings.detach',
+      { unitId: other.id, layerId: pair.audioLayerId },
+      trash,
+    );
+    expect(
+      db.prepare('SELECT state FROM attachment_files WHERE id = ?').get(kept.fileId),
+    ).toMatchObject({ state: 'ready' });
+    expect(
+      commitOralTranscript(db, {
+        unitId: unit.id,
+        audioLayerId: pair.audioLayerId,
+        fileId: kept.fileId,
+        text: '听到',
+        model: 'local',
+        modelVersion: '1',
+      }).textLayerId,
+    ).toBeTypeOf('string');
+    expect(() =>
+      commitOralTranscript(db, {
+        unitId: unit.id,
+        audioLayerId: pair.audioLayerId,
+        fileId: shared.fileId,
+        text: '旧结果',
+        model: 'local',
+        modelVersion: '1',
+      }),
+    ).toThrow('oral source changed');
+    await callDesktopSession(
+      session.sessionId,
+      'recordings.detach',
+      { unitId: unit.id, layerId: pair.audioLayerId },
+      trash,
+    );
+    const row = db.prepare('SELECT state FROM attachment_files WHERE id = ?').get(kept.fileId);
+    const refs = db
+      .prepare('SELECT COUNT(*) AS n FROM unit_texts WHERE audio_file_id = ?')
+      .get(kept.fileId);
+    expect({ row, refs }).toEqual({ row: undefined, refs: { n: 0 } });
   });
 
   it('keeps a transcript as a draft and stamps the model only when that draft is saved', async () => {
