@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { finishAttachmentCleanup } from './attachments';
 import { callDesktopSession } from './desktopCall';
-import { proposeOralDraft } from './recordingClips';
+import { clearOralEngines, proposeOralDraft } from './recordingClips';
 import { openDesktopSession, requireDesktopSession, resetDesktopSessions } from './projectSession';
 
 const roots: string[] = [];
@@ -282,5 +282,70 @@ describe('recording clips', () => {
       method: 'auto-transcription',
       model: 'app.jieyu.whisper.tiny',
     });
+  });
+
+  it('keeps the model on a draft across restart and clears it after a later hand edit', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '稿' },
+    }) as { id: string };
+    const host = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: host.id,
+      text: '原句',
+    }) as { id: string };
+    const pair = callDesktopSession(session.sessionId, 'recordings.createPair', {
+      hostLayerId: host.id,
+      kind: 'voice',
+      audioName: { zh: '语音转写' },
+      textName: { zh: '语音转写文本' },
+    }) as { audioLayerId: string; textLayerId: string };
+    proposeOralDraft(requireDesktopSession(session.sessionId).db, {
+      unitId: unit.id,
+      audioLayerId: pair.audioLayerId,
+      text: '慢说',
+      model: 'app.jieyu.whisper.tiny',
+      modelVersion: '1',
+    });
+    clearOralEngines();
+    callDesktopSession(session.sessionId, 'reopen', {});
+    const draft = requireDesktopSession(session.sessionId)
+      .db.prepare('SELECT provenance_json FROM unit_text_drafts WHERE unit_id = ? AND layer_id = ?')
+      .get(unit.id, pair.textLayerId) as { provenance_json: string };
+    expect(JSON.parse(draft.provenance_json)).toMatchObject({
+      method: 'auto-transcription',
+      model: 'app.jieyu.whisper.tiny',
+    });
+    callDesktopSession(session.sessionId, 'units.updateText', {
+      unitId: unit.id,
+      textLayerId: pair.textLayerId,
+      text: '慢说',
+      operationId: 'op-after-restart',
+    });
+    callDesktopSession(session.sessionId, 'reopen', {});
+    const saved = requireDesktopSession(session.sessionId)
+      .db.prepare('SELECT body, provenance_json FROM unit_texts WHERE unit_id = ? AND layer_id = ?')
+      .get(unit.id, pair.textLayerId) as { body: string; provenance_json: string };
+    expect(saved.body).toBe('慢说');
+    expect(JSON.parse(saved.provenance_json)).toMatchObject({ model: 'app.jieyu.whisper.tiny' });
+
+    callDesktopSession(session.sessionId, 'units.updateText', {
+      unitId: unit.id,
+      textLayerId: pair.textLayerId,
+      text: '改过',
+      operationId: 'op-hand-edit',
+    });
+    callDesktopSession(session.sessionId, 'reopen', {});
+    const edited = requireDesktopSession(session.sessionId)
+      .db.prepare('SELECT body, provenance_json FROM unit_texts WHERE unit_id = ? AND layer_id = ?')
+      .get(unit.id, pair.textLayerId) as { body: string; provenance_json: string | null };
+    expect(edited).toEqual({ body: '改过', provenance_json: null });
   });
 });

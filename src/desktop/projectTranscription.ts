@@ -11,6 +11,7 @@ import {
   modelRunTarget,
   interruptUnfinishedRuns,
 } from '../db/desktop/modelRuns';
+import { clearOralEngines } from '../db/desktop/recordingClips';
 import { requireDesktopSession, desktopSessionFolder } from '../db/desktop/projectSession';
 import { secToMs } from '../db/desktop/timeMs';
 import { storedSegmentConfidence } from '../utils/segmentConfidence';
@@ -57,6 +58,7 @@ export function cancelOralTranscription(): void {
 
 export function resetProjectTranscriptions(): void {
   cancelOralTranscription();
+  clearOralEngines();
   grants.clear();
   for (const job of jobs.values()) {
     job.cancelled = true;

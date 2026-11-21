@@ -6,6 +6,7 @@ import {
   storeAttachmentFile,
 } from './attachments';
 import { createLayer } from './layers';
+import { provenanceSchema } from '../provenanceSchema';
 import { putUnitTextDraft, readUnitTextDraft } from './textSave';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -244,16 +245,15 @@ export function proposeOralDraft(
     .get(input.unitId, child.id, layer.content_type) as { body: string } | undefined;
   const base = stored?.body ?? '';
   if (input.text !== base) {
+    const engine = { model: input.model, modelVersion: input.modelVersion };
     putUnitTextDraft(db, {
       unitId: input.unitId,
       textLayerId: child.id,
       rawInput: input.text,
       baseBody: base,
+      provenanceJson: oralProvenanceJson(engine),
     });
-    oralEngines.set(oralEngineKey(input.unitId, child.id), {
-      model: input.model,
-      modelVersion: input.modelVersion,
-    });
+    oralEngines.set(oralEngineKey(input.unitId, child.id), engine);
   }
   return { textLayerId: child.id };
 }
@@ -264,6 +264,22 @@ export function peekOralEngine(unitId: string, textLayerId: string): OralEngine 
 
 export function dropOralEngine(unitId: string, textLayerId: string): void {
   oralEngines.delete(oralEngineKey(unitId, textLayerId));
+}
+
+export function clearOralEngines(): void {
+  oralEngines.clear();
+}
+
+export function oralProvenanceJson(engine: OralEngine): string {
+  return JSON.stringify(
+    provenanceSchema.parse({
+      actorType: 'ai',
+      method: 'auto-transcription',
+      model: engine.model,
+      modelVersion: engine.modelVersion,
+      createdAt: new Date().toISOString(),
+    }),
+  );
 }
 
 export function listRecordings(db: SqliteDatabase, layerId: string): RecordingClipRef[] {

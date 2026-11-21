@@ -460,11 +460,9 @@ export function updateUnitText(
         'UPDATE unit_texts SET body = ?, provenance_json = ?, updated_at = ? WHERE id = ?',
       ).run(input.text, input.provenanceJson, now, currentText.id);
     } else {
-      db.prepare('UPDATE unit_texts SET body = ?, updated_at = ? WHERE id = ?').run(
-        input.text,
-        now,
-        currentText.id,
-      );
+      db.prepare(
+        'UPDATE unit_texts SET body = ?, provenance_json = NULL, updated_at = ? WHERE id = ?',
+      ).run(input.text, now, currentText.id);
     }
     if (analysisAffected && material.graph !== null) {
       db.prepare(
@@ -527,12 +525,7 @@ export function updateUnitText(
       after: {
         text: input.text,
         textExists: input.text.length > 0,
-        provenanceJson:
-          input.text.length === 0
-            ? null
-            : input.provenanceJson !== undefined
-              ? input.provenanceJson
-              : currentText.provenanceJson,
+        provenanceJson: input.text.length === 0 ? null : (input.provenanceJson ?? null),
         graphFingerprint:
           analysisAffected && material.graph !== null ? '' : material.graphFingerprint,
         analysisGeneration:

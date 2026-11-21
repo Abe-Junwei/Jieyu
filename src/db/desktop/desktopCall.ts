@@ -97,11 +97,11 @@ import {
   detachRecording,
   dropOralEngine,
   listRecordings,
+  oralProvenanceJson,
   peekOralEngine,
   proposeOralDraft,
   readRecording,
 } from './recordingClips';
-import { provenanceSchema } from '../provenanceSchema';
 import { transcribeWavClip } from '../../desktop/projectTranscription';
 import { finishMediaCleanup, type MediaTrash } from './mediaCleanup';
 import { reregisterMedia, restoreRegisteredMedia } from './mediaReregister';
@@ -1024,14 +1024,22 @@ const operationHandlers = {
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
-      const engine =
+      const draft =
         input.textLayerId === undefined
-          ? undefined
-          : peekOralEngine(input.unitId, input.textLayerId);
+          ? null
+          : readUnitTextDraft(ctx.db, input.unitId, input.textLayerId);
+      const fromDraft =
+        draft !== null && draft.rawInput === input.text ? draft.provenanceJson : null;
+      const engine =
+        fromDraft === null && input.textLayerId !== undefined
+          ? peekOralEngine(input.unitId, input.textLayerId)
+          : undefined;
+      const provenanceJson =
+        fromDraft ?? (engine === undefined ? undefined : oralProvenanceJson(engine));
       const box: { undo: UnitTextUndo | null } = { undo: null };
       const unit = updateUnitText(
         ctx.db,
-        engine === undefined ? input : { ...input, provenanceJson: oralProvenanceJson(engine) },
+        provenanceJson === undefined ? input : { ...input, provenanceJson },
         undefined,
         (undo) => {
           box.undo = undo;
@@ -1249,19 +1257,6 @@ export function callDesktopSession(
     return { reopened: true };
   }
   throw new Error('unknown desktop call');
-}
-
-function oralProvenanceJson(engine: { model: string; modelVersion: string }): string {
-  const now = new Date().toISOString();
-  return JSON.stringify(
-    provenanceSchema.parse({
-      actorType: 'ai',
-      method: 'auto-transcription',
-      model: engine.model,
-      modelVersion: engine.modelVersion,
-      createdAt: now,
-    }),
-  );
 }
 
 function mediaRelpaths(db: { prepare(sql: string): { all(): unknown[] } }): string[] {
