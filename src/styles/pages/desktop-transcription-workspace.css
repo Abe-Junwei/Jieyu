@@ -1213,7 +1213,7 @@
 
 .desktop-tx-lane-resize:hover::after,
 .desktop-tx-lane-resize:active::after {
-  background: color-mix(in srgb, var(--state-info-solid) 65%, transparent);
+  background: color-mix(in srgb, var(--brand-solid) 65%, transparent);
 }
 
 .desktop-tx-layer-list__add .desktop-tx-context__row {
