@@ -249,6 +249,12 @@
   background: var(--text-primary);
 }
 
+.desktop-tx-layer-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .desktop-tx-layer-list__line {
   display: flex;
   align-items: center;

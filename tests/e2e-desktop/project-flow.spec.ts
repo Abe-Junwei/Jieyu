@@ -129,7 +129,7 @@ test('layer structure creates a translation layer and reads it back', async () =
     await layers.click();
     await page.getByRole('button', { name: /^(新建翻译层|New translation layer)$/ }).click();
     const created = page.locator('.desktop-tx-layer-name', {
-      hasText: /^(新建翻译层|New translation layer)$/,
+      hasText: /^(译文|Translation)$/,
     });
     await expect(created).toBeVisible();
     const sessionId = await chosenSessionId(app);
@@ -159,7 +159,7 @@ test('layer structure creates a translation layer and reads it back', async () =
     await reopened.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
     await expect(
       reopened.locator('.desktop-tx-layer-name', {
-        hasText: /^(新建翻译层|New translation layer)$/,
+        hasText: /^(译文|Translation)$/,
       }),
     ).toBeVisible();
   } finally {
@@ -260,9 +260,9 @@ test('layer hosts moves a translation layer to another host', async () => {
       await expect(againLayers).toBeVisible();
     }).toPass();
     await againLayers.click();
-    await expect(reopened.locator('.desktop-tx-layer-list__line .desktop-tx-context__name').nth(2)).toHaveText(
-      /^(英语|English)$/,
-    );
+    await expect(
+      reopened.locator('.desktop-tx-layer-list__line .desktop-tx-context__name').nth(2),
+    ).toHaveText(/^(英语|English)$/);
     expect(translation.id).not.toBe(second.id);
   } finally {
     await app?.close();
@@ -324,9 +324,36 @@ test('drags create on the waveform and on a linked layer row, and texts stay per
     await expect(row).toBeVisible();
     await expect(row.locator('.timeline-annotation')).toHaveCount(3);
     const track = row.locator('.desktop-tx-lane__track');
-    const trackBox = await track.boundingBox();
-    if (trackBox === null) throw new Error('layer row track missing');
-    await drag({ ...trackBox, width: waveBox.width, x: trackBox.x }, 1.5, 1.8);
+    await track.evaluate(
+      (element, span: { duration: number; start: number; end: number }) => {
+        const rect = element.getBoundingClientRect();
+        const y = rect.top + 4;
+        const at = (second: number) => rect.left + (rect.width * second) / span.duration;
+        const emit = (type: string, x: number, target: EventTarget) => {
+          target.dispatchEvent(
+            new PointerEvent(type, {
+              bubbles: true,
+              cancelable: true,
+              composed: true,
+              clientX: x,
+              clientY: y,
+              button: 0,
+              buttons: type === 'pointerup' ? 0 : 1,
+              pointerId: 1,
+              pointerType: 'mouse',
+              view: window,
+            }),
+          );
+        };
+        const start = at(span.start);
+        const end = at(span.end);
+        emit('pointerdown', start, element);
+        emit('pointermove', (start + end) / 2, window);
+        emit('pointermove', end, window);
+        emit('pointerup', end, window);
+      },
+      { duration: 2, start: 1.5, end: 1.8 },
+    );
     await expect.poll(async () => (await listed()).length).toBe(4);
     const spans = (await listed())
       .map((unit) => [unit.startMs ?? 0, unit.endMs ?? 0] as const)
