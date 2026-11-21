@@ -114,204 +114,204 @@ export function DesktopTranscriptionLayerList(props: {
   return (
     <div className="desktop-tx-layer-list">
       {props.error.length > 0 ? <p role="alert">{props.error}</p> : null}
-      {props.layers.length === 0 ? (
-        <p className="desktop-tx-context__empty">
-          {t(props.locale, 'app.desktopTranscription.contextEmptyLayers')}
-        </p>
-      ) : null}
-      <ul className="desktop-tx-context__rows">
-        {props.drag ? (
-          <li
-            className={
-              props.drag.dropKind === 'root'
-                ? 'desktop-tx-drop-root is-active'
-                : 'desktop-tx-drop-root'
-            }
-            data-drop="root"
-            data-drop-index="0"
-            data-drag-surface="sidebar"
-          />
-        ) : null}
-        {ordered.map(({ layer, depth }) => {
-          const moving = props.drag?.mark(layer.id);
-          const dropHost = props.drag?.dropLayerId === layer.id && props.drag.dropKind === 'host';
-          const dropLine = props.drag?.dropLayerId === layer.id && props.drag.dropKind === 'line';
-          const name = layerLabel(layer.name, props.locale, layer.id);
-          const kind =
-            layer.contentType === 'translation'
-              ? 'app.desktopTranscription.contextLayerTranslation'
-              : 'app.desktopTranscription.contextLayerTranscription';
-          return (
+      {props.layers.length === 0 ? null : (
+        <ul className="desktop-tx-context__rows">
+          {props.drag ? (
             <li
-              key={layer.id}
-              className="desktop-tx-layer-list__line"
-              data-layer-id={layer.id}
+              className={
+                props.drag.dropKind === 'root'
+                  ? 'desktop-tx-drop-root is-active'
+                  : 'desktop-tx-drop-root'
+              }
+              data-drop="root"
+              data-drop-index="0"
               data-drag-surface="sidebar"
-              data-current={layer.id === props.currentId ? 'true' : 'false'}
-              data-depth={Math.min(depth, 3)}
-              {...(moving && props.drag
-                ? { style: { transform: `translateY(${props.drag.offset}px)` } }
-                : {})}
-            >
-              {editingId === layer.id ? (
-                <form
-                  className="desktop-tx-layer-list__rename"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    commitRename(layer);
-                  }}
-                >
-                  <input
-                    aria-label={t(props.locale, 'app.desktopTranscription.layerRename')}
-                    value={draft}
-                    autoFocus
-                    onChange={(event) => setDraft(event.target.value)}
-                    onBlur={() => commitRename(layer)}
-                    onKeyDown={(event) => {
-                      if (event.key !== 'Escape') return;
+            />
+          ) : null}
+          {ordered.map(({ layer, depth }) => {
+            const moving = props.drag?.mark(layer.id);
+            const dropHost = props.drag?.dropLayerId === layer.id && props.drag.dropKind === 'host';
+            const dropLine = props.drag?.dropLayerId === layer.id && props.drag.dropKind === 'line';
+            const name = layerLabel(layer.name, props.locale, layer.id);
+            const kind =
+              layer.contentType === 'translation'
+                ? 'app.desktopTranscription.contextLayerTranslation'
+                : 'app.desktopTranscription.contextLayerTranscription';
+            const shift = moving || props.drag === undefined ? 0 : props.drag.shift(layer.id);
+            return (
+              <li
+                key={layer.id}
+                className={`desktop-tx-layer-list__line${shift === 0 ? '' : ' is-drag-shift'}`}
+                data-layer-id={layer.id}
+                data-drag-surface="sidebar"
+                data-current={layer.id === props.currentId ? 'true' : 'false'}
+                data-depth={Math.min(depth, 3)}
+                {...(moving && props.drag
+                  ? { style: { transform: `translateY(${props.drag.offset}px)` } }
+                  : shift === 0
+                    ? {}
+                    : { style: { transform: `translateY(${shift}px)` } })}
+              >
+                {editingId === layer.id ? (
+                  <form
+                    className="desktop-tx-layer-list__rename"
+                    onSubmit={(event) => {
                       event.preventDefault();
-                      renameOpen.current = false;
-                      setEditingId(null);
+                      commitRename(layer);
                     }}
-                  />
-                </form>
-              ) : (
+                  >
+                    <input
+                      aria-label={t(props.locale, 'app.desktopTranscription.layerRename')}
+                      value={draft}
+                      autoFocus
+                      onChange={(event) => setDraft(event.target.value)}
+                      onBlur={() => commitRename(layer)}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Escape') return;
+                        event.preventDefault();
+                        renameOpen.current = false;
+                        setEditingId(null);
+                      }}
+                    />
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    className={`desktop-tx-context__row${moving ? ` is-drag-${moving}` : ''}${
+                      dropHost ? ' is-drop-host' : ''
+                    }${dropLine ? ' is-drop-line' : ''}`}
+                    aria-current={layer.id === props.currentId ? 'true' : undefined}
+                    onClick={() => props.onSelect(layer.id)}
+                    {...(props.drag
+                      ? {
+                          onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) =>
+                            props.drag?.onPointerDown(layer.id, 'sidebar', event),
+                          onPointerUp: () => props.drag?.onPointerUp(),
+                        }
+                      : {})}
+                  >
+                    <span className="desktop-tx-context__kind">{t(props.locale, kind)}</span>
+                    <span className="desktop-tx-context__name">{name}</span>
+                  </button>
+                )}
                 <button
                   type="button"
-                  className={`desktop-tx-context__row${moving ? ` is-drag-${moving}` : ''}${
-                    dropHost ? ' is-drop-host' : ''
-                  }${dropLine ? ' is-drop-line' : ''}`}
-                  aria-current={layer.id === props.currentId ? 'true' : undefined}
-                  onClick={() => props.onSelect(layer.id)}
-                  {...(props.drag
-                    ? {
-                        onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) =>
-                          props.drag?.onPointerDown(layer.id, 'sidebar', event),
-                        onPointerUp: () => props.drag?.onPointerUp(),
-                      }
-                    : {})}
+                  className="desktop-tx-context__more"
+                  aria-label={t(props.locale, 'app.desktopTranscription.layerMenu')}
+                  aria-haspopup="menu"
+                  aria-expanded={menu?.layerId === layer.id}
+                  onClick={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setMenu((current) =>
+                      current?.layerId === layer.id
+                        ? null
+                        : {
+                            layerId: layer.id,
+                            x: Math.max(8, rect.right - 168),
+                            y: rect.bottom + 4,
+                          },
+                    );
+                  }}
                 >
-                  <span className="desktop-tx-context__kind">{t(props.locale, kind)}</span>
-                  <span className="desktop-tx-context__name">{name}</span>
+                  <span />
+                  <span />
+                  <span />
                 </button>
-              )}
-              <button
-                type="button"
-                className="desktop-tx-context__more"
-                aria-label={t(props.locale, 'app.desktopTranscription.layerMenu')}
-                aria-haspopup="menu"
-                aria-expanded={menu?.layerId === layer.id}
-                onClick={(event) => {
-                  const rect = event.currentTarget.getBoundingClientRect();
-                  setMenu((current) =>
-                    current?.layerId === layer.id
-                      ? null
-                      : {
-                          layerId: layer.id,
-                          x: Math.max(8, rect.right - 168),
-                          y: rect.bottom + 4,
-                        },
-                  );
-                }}
-              >
-                <span />
-                <span />
-                <span />
-              </button>
-            </li>
-          );
-        })}
-        <li className="desktop-tx-layer-list__add">
-          <button
-            type="button"
-            className="desktop-tx-context__row"
-            onClick={() =>
-              props.onCreate(
-                'transcription',
-                nextLayerName(
-                  t(props.locale, 'app.desktopTranscription.contextLayerTranscription'),
-                  props.layers,
-                  props.locale,
-                ),
-              )
-            }
-          >
-            <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
-            {t(props.locale, 'transcription.laneHeader.layer.createTranscription')}
-          </button>
-        </li>
-        <li className="desktop-tx-layer-list__add">
-          <button
-            type="button"
-            className="desktop-tx-context__row"
-            onClick={() =>
-              props.onCreate(
-                'translation',
-                nextLayerName(
-                  t(props.locale, 'app.desktopTranscription.contextLayerTranslation'),
-                  props.layers,
-                  props.locale,
-                ),
-              )
-            }
-          >
-            <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
-            {t(props.locale, 'transcription.laneHeader.layer.createTranslation')}
-          </button>
-        </li>
-        {props.onCreatePair === undefined ? null : (
-          <>
-            <li className="desktop-tx-layer-list__add">
-              <button
-                type="button"
-                className="desktop-tx-context__row"
-                onClick={() =>
-                  props.onCreatePair?.(
-                    'voice',
-                    nextLayerName(
-                      t(props.locale, 'app.desktopTranscription.contextLayerVoice'),
-                      props.layers,
-                      props.locale,
-                    ),
-                    nextLayerName(
-                      t(props.locale, 'app.desktopTranscription.contextLayerVoiceText'),
-                      props.layers,
-                      props.locale,
-                    ),
-                  )
-                }
-              >
-                <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
-                {t(props.locale, 'transcription.laneHeader.layer.createVoice')}
-              </button>
-            </li>
-            <li className="desktop-tx-layer-list__add">
-              <button
-                type="button"
-                className="desktop-tx-context__row"
-                onClick={() =>
-                  props.onCreatePair?.(
-                    'oral',
-                    nextLayerName(
-                      t(props.locale, 'app.desktopTranscription.contextLayerOral'),
-                      props.layers,
-                      props.locale,
-                    ),
-                    nextLayerName(
-                      t(props.locale, 'app.desktopTranscription.contextLayerOralText'),
-                      props.layers,
-                      props.locale,
-                    ),
-                  )
-                }
-              >
-                <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
-                {t(props.locale, 'transcription.laneHeader.layer.createOral')}
-              </button>
-            </li>
-          </>
-        )}
-      </ul>
+              </li>
+            );
+          })}
+          <li className="desktop-tx-layer-list__add">
+            <button
+              type="button"
+              className="desktop-tx-context__row"
+              onClick={() =>
+                props.onCreate(
+                  'transcription',
+                  nextLayerName(
+                    t(props.locale, 'app.desktopTranscription.contextLayerTranscription'),
+                    props.layers,
+                    props.locale,
+                  ),
+                )
+              }
+            >
+              <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
+              {t(props.locale, 'transcription.laneHeader.layer.createTranscription')}
+            </button>
+          </li>
+          <li className="desktop-tx-layer-list__add">
+            <button
+              type="button"
+              className="desktop-tx-context__row"
+              onClick={() =>
+                props.onCreate(
+                  'translation',
+                  nextLayerName(
+                    t(props.locale, 'app.desktopTranscription.contextLayerTranslation'),
+                    props.layers,
+                    props.locale,
+                  ),
+                )
+              }
+            >
+              <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
+              {t(props.locale, 'transcription.laneHeader.layer.createTranslation')}
+            </button>
+          </li>
+          {props.onCreatePair === undefined ? null : (
+            <>
+              <li className="desktop-tx-layer-list__add">
+                <button
+                  type="button"
+                  className="desktop-tx-context__row"
+                  onClick={() =>
+                    props.onCreatePair?.(
+                      'voice',
+                      nextLayerName(
+                        t(props.locale, 'app.desktopTranscription.contextLayerVoice'),
+                        props.layers,
+                        props.locale,
+                      ),
+                      nextLayerName(
+                        t(props.locale, 'app.desktopTranscription.contextLayerVoiceText'),
+                        props.layers,
+                        props.locale,
+                      ),
+                    )
+                  }
+                >
+                  <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
+                  {t(props.locale, 'transcription.laneHeader.layer.createVoice')}
+                </button>
+              </li>
+              <li className="desktop-tx-layer-list__add">
+                <button
+                  type="button"
+                  className="desktop-tx-context__row"
+                  onClick={() =>
+                    props.onCreatePair?.(
+                      'oral',
+                      nextLayerName(
+                        t(props.locale, 'app.desktopTranscription.contextLayerOral'),
+                        props.layers,
+                        props.locale,
+                      ),
+                      nextLayerName(
+                        t(props.locale, 'app.desktopTranscription.contextLayerOralText'),
+                        props.layers,
+                        props.locale,
+                      ),
+                    )
+                  }
+                >
+                  <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
+                  {t(props.locale, 'transcription.laneHeader.layer.createOral')}
+                </button>
+              </li>
+            </>
+          )}
+        </ul>
+      )}
       {menu === null ? null : (
         <>
           <button

@@ -95,6 +95,8 @@ export function DesktopTranscriptionLayerRows(props: {
   audioTools?: (layerId: string, unitId: string) => ReactNode;
 }) {
   const mainInTree = props.tree.some((row) => row.layerId === props.mainLayerId);
+  const mainExists =
+    props.mainLayerId !== null && props.layers.some((layer) => layer.id === props.mainLayerId);
   const mainRow: LayerTreeRow = {
     layerId: props.mainLayerId ?? '',
     depth: 0,
@@ -152,6 +154,8 @@ export function DesktopTranscriptionLayerRows(props: {
           hostNames={hostNames(row)}
           segmentCount={layer.units.length}
           onExpand={() => props.onExpand(layer.id)}
+          className={dragBits.laneClass}
+          style={dragBits.laneStyle}
         />
       );
     }
@@ -261,7 +265,7 @@ export function DesktopTranscriptionLayerRows(props: {
           data-drag-surface="timeline"
         />
       ) : null}
-      {mainInTree ? null : props.renderMain(mainRow)}
+      {mainInTree || !mainExists ? null : props.renderMain(mainRow)}
       {body}
     </>
   );

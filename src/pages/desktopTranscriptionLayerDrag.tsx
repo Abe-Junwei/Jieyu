@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, type Locale } from '../i18n';
 import {
+  layerDragShifts,
   layerDropReasonKey,
   resolveDesktopLayerDrop,
   type DropLayer,
@@ -35,9 +36,15 @@ export function timelineDragProps(
   const moving = drag?.mark(layerId) ?? null;
   const host = drag?.dropLayerId === layerId && drag.dropKind === 'host';
   const line = drag?.dropLayerId === layerId && drag.dropKind === 'line';
+  const shift = moving || drag === undefined ? 0 : drag.shift(layerId);
   return {
-    laneClass: `${moving ? ` is-drag-${moving}` : ''}${line ? ' is-drop-line' : ''}`,
-    laneStyle: moving && drag ? { transform: `translateY(${drag.offset}px)` } : {},
+    laneClass: `${moving ? ` is-drag-${moving}` : ''}${shift === 0 ? '' : ' is-drag-shift'}${line ? ' is-drop-line' : ''}`,
+    laneStyle:
+      moving && drag
+        ? { transform: `translateY(${drag.offset}px)` }
+        : shift === 0
+          ? {}
+          : { transform: `translateY(${shift}px)` },
     label:
       folded || drag === undefined
         ? {}
@@ -94,6 +101,86 @@ export function dropReason(
 }
 
 export function readHit(x: number, y: number, surface: LayerDragSurface): LayerDropTarget | null {
+  const laidOut = layoutHit(x, y, surface);
+  if (laidOut !== undefined) return laidOut;
+  return elementHit(x, y, surface);
+}
+
+/** Rows currently painted on one surface, top to bottom. Hidden folded children are absent. */
+export function visibleDragIds(surface: LayerDragSurface): string[] {
+  return [...document.querySelectorAll<HTMLElement>(surfaceRows(surface))]
+    .map((row) => row.getAttribute('data-layer-id'))
+    .filter((id): id is string => id !== null);
+}
+
+/** Sum of the dragged rows' layout heights on this surface. Translate does not change it. */
+export function dragBlockHeight(surface: LayerDragSurface, draggedIds: readonly string[]): number {
+  return draggedIds.reduce((total, id) => {
+    const row = document.querySelector<HTMLElement>(
+      `[data-layer-id="${id}"][data-drag-surface="${surface}"]`,
+    );
+    return total + (row?.offsetHeight ?? 0);
+  }, 0);
+}
+
+export function dragShiftPixels(
+  surface: LayerDragSurface,
+  draggedIds: readonly string[],
+  decision: LayerDrop | null,
+  layers: readonly DropLayer[],
+  links: readonly DropLink[],
+): ReadonlyMap<string, number> {
+  return layerDragShifts({
+    order: visibleDragIds(surface),
+    draggedIds,
+    decision,
+    blockHeight: dragBlockHeight(surface, draggedIds),
+    layers,
+    links,
+  });
+}
+
+function surfaceRows(surface: LayerDragSurface): string {
+  return `[data-layer-id][data-drag-surface="${surface}"]`;
+}
+
+/** Hit the row's layout slot, subtracting its live translate so a slide cannot move the target. */
+function layoutHit(
+  x: number,
+  y: number,
+  surface: LayerDragSurface,
+): LayerDropTarget | null | undefined {
+  const rows = [...document.querySelectorAll<HTMLElement>(surfaceRows(surface))];
+  const root = document.querySelector<HTMLElement>(
+    `[data-drop="root"][data-drag-surface="${surface}"]`,
+  );
+  if (rows.length === 0 && root === null) return undefined;
+  if (root !== null && covers(root, x, y, 0)) {
+    return { kind: 'root', index: Number(root.getAttribute('data-drop-index') ?? '0') };
+  }
+  for (const row of rows) {
+    const layerId = row.getAttribute('data-layer-id');
+    if (layerId !== null && covers(row, x, y, appliedTranslateY(row))) {
+      return { kind: 'header', layerId };
+    }
+  }
+  return null;
+}
+
+function covers(el: HTMLElement, x: number, y: number, translateY: number): boolean {
+  const rect = el.getBoundingClientRect();
+  const top = rect.top - translateY;
+  return x >= rect.left && x <= rect.right && y >= top && y < top + rect.height;
+}
+
+function appliedTranslateY(el: HTMLElement): number {
+  const raw = getComputedStyle(el).transform;
+  const match = /matrix\(([^)]+)\)/.exec(raw);
+  const translateY = Number(match?.[1]?.split(',')[5]);
+  return Number.isFinite(translateY) ? translateY : 0;
+}
+
+function elementHit(x: number, y: number, surface: LayerDragSurface): LayerDropTarget | null {
   const node = document.elementFromPoint(x, y);
   if (!node) return null;
   const root = node.closest('[data-drop="root"]');

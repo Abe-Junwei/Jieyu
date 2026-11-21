@@ -260,13 +260,16 @@ export function DesktopTranscriptionFoldedStrip(props: {
   hostNames: readonly string[];
   segmentCount: number;
   onExpand: () => void;
+  className?: string;
+  style?: CSSProperties;
 }) {
   const [tip, setTip] = useState(false);
   return (
     <div
-      className="desktop-tx-layer-strip"
+      className={`desktop-tx-layer-strip${props.className ?? ''}`}
       data-layer-id={props.layerId}
       data-drag-surface="timeline"
+      {...(props.style === undefined ? {} : { style: props.style })}
     >
       <div
         className="desktop-tx-band-label desktop-tx-layer-label desktop-tx-layer-strip__label"

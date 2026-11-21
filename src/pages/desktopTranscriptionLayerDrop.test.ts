@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  layerDragShifts,
   resolveDesktopLayerDrop,
   type DropLayer,
   type DropLink,
@@ -148,5 +149,124 @@ describe('resolveDesktopLayerDrop', () => {
         links: [],
       }),
     ).toEqual({ ok: false, reason: 'subdivision' });
+  });
+});
+
+describe('layerDragShifts', () => {
+  const height = 28;
+  const layers = [host, child, other, translation, sibling];
+
+  it('slides the rows between a translation and a later sibling up', () => {
+    const order = [host.id, translation.id, child.id, sibling.id];
+    const links = [link(translation.id, host.id), link(sibling.id, host.id)];
+    const decision = resolveDesktopLayerDrop({
+      dragId: translation.id,
+      target: { kind: 'header', layerId: sibling.id },
+      layers,
+      links,
+    });
+    expect(
+      layerDragShifts({
+        order,
+        draggedIds: [translation.id],
+        decision,
+        blockHeight: height,
+        layers,
+        links,
+      }),
+    ).toEqual(new Map([[child.id, -height]]));
+  });
+
+  it('slides the rows between a translation and an earlier sibling down', () => {
+    const order = [host.id, sibling.id, translation.id];
+    const links = [link(translation.id, host.id), link(sibling.id, host.id)];
+    const decision = resolveDesktopLayerDrop({
+      dragId: translation.id,
+      target: { kind: 'header', layerId: sibling.id },
+      layers,
+      links,
+    });
+    expect(
+      layerDragShifts({
+        order,
+        draggedIds: [translation.id],
+        decision,
+        blockHeight: height,
+        layers,
+        links,
+      }),
+    ).toEqual(new Map([[sibling.id, height]]));
+  });
+
+  it('opens the gap after the host’s last remaining child', () => {
+    const order = [host.id, child.id, sibling.id];
+    const links = [link(child.id, host.id), link(sibling.id, host.id, 'literal')];
+    const decision = resolveDesktopLayerDrop({
+      dragId: child.id,
+      target: { kind: 'header', layerId: host.id },
+      layers,
+      links,
+    });
+    expect(
+      layerDragShifts({
+        order,
+        draggedIds: [child.id],
+        decision,
+        blockHeight: height,
+        layers,
+        links,
+      }),
+    ).toEqual(new Map([[sibling.id, -height]]));
+  });
+
+  it('slides earlier roots down when a transcription returns to the top', () => {
+    const decision = resolveDesktopLayerDrop({
+      dragId: other.id,
+      target: { kind: 'root', index: 0 },
+      layers,
+      links: [link(other.id, host.id)],
+    });
+    expect(
+      layerDragShifts({
+        order: [host.id, other.id],
+        draggedIds: [other.id],
+        decision,
+        blockHeight: height,
+        layers,
+        links: [link(other.id, host.id)],
+      }),
+    ).toEqual(new Map([[host.id, height]]));
+  });
+
+  it('slides nothing for a refused drop or a zero-height block', () => {
+    const links = [link(translation.id, host.id), link(translation.id, other.id)];
+    const decision = resolveDesktopLayerDrop({
+      dragId: translation.id,
+      target: { kind: 'header', layerId: child.id },
+      layers,
+      links,
+    });
+    expect(decision.ok).toBe(false);
+    const order = [host.id, translation.id, child.id];
+    expect(
+      layerDragShifts({
+        order,
+        draggedIds: [translation.id],
+        decision,
+        blockHeight: height,
+        layers,
+        links,
+      }).size,
+    ).toBe(0);
+    expect(
+      layerDragShifts({
+        order,
+        draggedIds: [translation.id],
+        decision: { ok: true, action: 'clear', layerId: other.id, sortOrder: 0 },
+        blockHeight: 0,
+        layers,
+        links,
+      }).size,
+    ).toBe(0);
   });
 });

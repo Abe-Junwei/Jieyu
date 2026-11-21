@@ -1775,6 +1775,14 @@
 .desktop-tx-lane.is-drag-mid,
 .desktop-tx-lane.is-drag-bottom {
   pointer-events: none;
+  transition: none;
+}
+
+.desktop-tx-layer-list__line.is-drag-shift,
+.desktop-tx-lane.is-drag-shift,
+.desktop-tx-layer-strip.is-drag-shift {
+  pointer-events: none;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .desktop-tx-context__row.is-drag-only,
@@ -1836,5 +1844,11 @@
   .desktop-tx-lane.is-drag-mid,
   .desktop-tx-lane.is-drag-bottom {
     animation: none;
+  }
+
+  .desktop-tx-layer-list__line.is-drag-shift,
+  .desktop-tx-lane.is-drag-shift,
+  .desktop-tx-layer-strip.is-drag-shift {
+    transition: none;
   }
 }

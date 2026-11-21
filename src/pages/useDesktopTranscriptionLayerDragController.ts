@@ -6,6 +6,7 @@ import {
   dragMark,
   dropKind,
   dropReason,
+  dragShiftPixels,
   readHit,
   returnReason,
   writeDrop,
@@ -34,6 +35,7 @@ export interface DesktopLayerDrag {
   reasonKey: LayerDropReasonKey | null;
   x: number;
   y: number;
+  shift: (layerId: string) => number;
   onPointerDown: (
     layerId: string,
     surface: LayerDragSurface,
@@ -175,8 +177,12 @@ export function useDesktopTranscriptionLayerDragController(input: {
   const reduce =
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
   const current = point.current;
+  const shifts =
+    active && current
+      ? dragShiftPixels(current.surface, draggedIds, decision, input.layers, input.links)
+      : new Map<string, number>();
+
   return {
     draggedIds,
     mark: (layerId: string) => dragMark(draggedIds, layerId),
@@ -186,6 +192,7 @@ export function useDesktopTranscriptionLayerDragController(input: {
     reasonKey: decision && !decision.ok ? layerDropReasonKey(decision.reason) : null,
     x: current?.x ?? 0,
     y: current?.y ?? 0,
+    shift: (layerId) => shifts.get(layerId) ?? 0,
     onPointerDown: (layerId, surface, event) => {
       if (event.button !== 0) return;
       const el = event.currentTarget;

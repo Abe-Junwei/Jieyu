@@ -73,7 +73,7 @@ describe('DesktopTranscriptionLayerList', () => {
     const { rerender } = render(
       <DesktopTranscriptionLayerList
         locale="zh-CN"
-        layers={[]}
+        layers={[layer]}
         links={[]}
         currentId={null}
         error=""
@@ -178,6 +178,7 @@ describe('DesktopTranscriptionLayerList', () => {
           reasonKey: null,
           x: 0,
           y: 0,
+          shift: () => 0,
           onPointerDown: vi.fn(),
           onPointerUp: vi.fn(),
           attachReason: () => null,
