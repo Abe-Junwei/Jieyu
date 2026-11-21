@@ -279,6 +279,60 @@ test('a subdivision card becomes the edge target and its menu deletes only that 
   }
 });
 
+test('a linked layer sits under its host with a tree line and folds away, an unlinked one stays a root', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-layer-tree-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  const app = await launch('tx-layer-tree');
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const { words } = await seedWords(page, sessionId);
+    const manuscripts = await desktopCall<{ id: string; title: Record<string, string> }[]>(
+      page,
+      sessionId,
+      'manuscripts.list',
+      {},
+    );
+    const loose = await desktopCall<{ id: string }>(page, sessionId, 'layers.create', {
+      manuscriptId: manuscripts.find((item) => item.title.und === 'Clip')?.id,
+      key: 'loose',
+      name: { und: 'Loose' },
+      tierType: 'symbolic-association',
+      contentType: 'translation',
+      sortOrder: 2,
+    });
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    const row = (id: string) => page.locator(`.desktop-tx-lane[data-layer-id="${id}"]`);
+    await expect(row(words.id).locator('.timeline-annotation')).toHaveCount(2);
+    await expect(row(words.id).locator('.tree-elbow')).toHaveCount(1);
+    await expect(row(loose.id)).toBeVisible();
+    await expect(row(loose.id).locator('.tree-elbow')).toHaveCount(0);
+    const host = page.getByTestId('desktop-readonly-timeline');
+    await expect(host.locator('.tree-elbow')).toHaveCount(0);
+
+    await host
+      .getByRole('button', { name: /^(收起 .+ 的从属层|Collapse layers under .+)$/ })
+      .click();
+    await expect(row(words.id)).toHaveCount(0);
+    await expect(host.getByText(/^(\+1 层|\+1 layers)$/)).toBeVisible();
+    await expect(row(loose.id)).toBeVisible();
+
+    await host.getByRole('button', { name: /^(展开 .+ 的从属层|Expand layers under .+)$/ }).click();
+    await expect(row(words.id).locator('.timeline-annotation')).toHaveCount(2);
+    await expect(row(words.id).locator('.tree-elbow')).toHaveCount(1);
+  } finally {
+    await app.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
+
 test('a subdivision card takes arrow keys and the time box, and a parent drag shows the follow tip', async () => {
   if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
   const copy = mkdtempSync(join(tmpdir(), 'jieyu-subdiv-edge-'));

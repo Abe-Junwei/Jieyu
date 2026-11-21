@@ -19,6 +19,12 @@ const readState = vi.hoisted(() => {
       units: { id: string; startMs: number; endMs: number; text: string }[];
     }[],
     layerId: null as string | null,
+    links: [] as {
+      layerId: string;
+      hostLayerId: string;
+      isPreferred: boolean;
+      sortOrder: number;
+    }[],
     units: [
       { id: 'u-a', startMs: 0, endMs: 1000, text: 'alpha', speakerId: null as string | null },
       { id: 'u-b', startMs: 1000, endMs: 2000, text: 'beta', speakerId: null as string | null },
@@ -398,6 +404,45 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     expect(annotation('alpha')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /展开/ }));
     expect(screen.getByText('gloss-a')).toBeTruthy();
+  });
+
+  it('draws a tree line only for a linked layer and folds the host’s group', async () => {
+    window.localStorage.clear();
+    readState.model = {
+      ...readState.base(),
+      layerId: 'layer-1',
+      layers: [
+        { id: 'layer-1', name: { zh: '转写' }, units: [] },
+        {
+          id: 'layer-tl',
+          name: { zh: '翻译' },
+          sortOrder: 1,
+          units: [{ id: 'u-a', startMs: 0, endMs: 1000, text: 'gloss-a' }],
+        },
+        { id: 'layer-loose', name: { zh: '备注' }, sortOrder: 2, units: [] },
+      ],
+      links: [{ layerId: 'layer-tl', hostLayerId: 'layer-1', isPreferred: true, sortOrder: 0 }],
+    };
+    renderWorkspace();
+    const elbow = (id: string) => document.querySelector(`[data-layer-id="${id}"] .tree-elbow`);
+    expect(elbow('layer-tl')).toBeTruthy();
+    expect(elbow('layer-loose')).toBeNull();
+    expect(
+      document.querySelector('[data-testid="desktop-readonly-timeline"] .tree-elbow'),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '收起 转写 的从属层' }));
+    await waitFor(() => {
+      expect(document.querySelector('[data-layer-id="layer-tl"]')).toBeNull();
+    });
+    expect(screen.queryByText('gloss-a')).toBeNull();
+    expect(screen.getByText('+1 层')).toBeTruthy();
+    expect(document.querySelector('[data-layer-id="layer-loose"]')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '展开 转写 的从属层' }));
+    expect(screen.getByText('gloss-a')).toBeTruthy();
+    expect(elbow('layer-tl')).toBeTruthy();
+    expect(screen.queryByText('+1 层')).toBeNull();
   });
 
   it('keeps the side pane content identical while typing a body', () => {
