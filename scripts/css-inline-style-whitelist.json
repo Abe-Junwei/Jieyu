@@ -213,6 +213,10 @@
         {
           "anchor": "...dragBits.laneStyle",
           "reviewedSha256": "d9f0bc2571d1d2619152e4eb1e79ab0669b60431ad6e91bfe676b3d33ad6b929"
+        },
+        {
+          "anchor": "style={dragBits.laneStyle}",
+          "reviewedSha256": "532421a57f19a2d49a139d6de89c2a1116a7b00656c0df43bdcab60f379c8724"
         }
       ]
     },
