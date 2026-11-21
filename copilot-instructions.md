@@ -62,7 +62,7 @@ applies_to: ["cursor", "github-copilot", "kimi-cli"]
 2. 复杂逻辑必须从页面或组件中下沉。
 3. 下沉目标按职责选择：纯函数 / service / controller hook / shared hook。
 
-`npm run dev` / `npm run build` 是桌面入口。`dev:legacy` / `build:legacy` / `preview:legacy` 只给尚未迁走的 Chromium 用例。桌面页面、壳层和 `src/db/desktop` 跑 `npm run test:e2e:desktop-project`（Ubuntu CI 加本机 macOS）。`npm run test:e2e:chromium` 只覆盖仍走旧网页构建的组。
+`npm run dev` / `npm run build` 是桌面入口。`dev:legacy` / `build:legacy` / `preview:legacy` 只给尚未迁走的 Chromium 用例。桌面页面、壳层和 `src/db/desktop` 跑 `npm run test:e2e:desktop-project`（以 CI `desktop-flow` 为准；本机只用 `-- --grep` 跑相关用例，窗口默认隐藏）。`npm run test:e2e:chromium` 只覆盖仍走旧网页构建的组。
 
 ## 一、核心原则
 

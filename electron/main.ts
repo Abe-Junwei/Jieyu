@@ -82,6 +82,9 @@ if (typeof userDataDir === 'string' && userDataDir.length > 0) {
 }
 
 const SMOKE = process.argv.includes('--smoke');
+// Test runs keep the window hidden and out of the Dock so they never take focus.
+const HIDE_WINDOW = process.env.JIEYU_DESKTOP_HIDE_WINDOW === '1';
+if (HIDE_WINDOW && process.platform === 'darwin') app.setActivationPolicy('accessory');
 // Linux CI has no secret service; only the smoke run may fall back to the hardcoded-password store.
 if (SMOKE) {
   app.commandLine.appendSwitch('password-store', 'basic');
@@ -585,8 +588,9 @@ function registerIpc(): void {
 async function openWindow(): Promise<BrowserWindow> {
   const preload = path.join(path.dirname(fileURLToPath(import.meta.url)), 'preload.cjs');
   const win = new BrowserWindow({
-    show: !process.argv.includes('--smoke'),
+    show: !process.argv.includes('--smoke') && !HIDE_WINDOW,
     webPreferences: {
+      backgroundThrottling: !HIDE_WINDOW,
       preload,
       contextIsolation: true,
       nodeIntegration: false,

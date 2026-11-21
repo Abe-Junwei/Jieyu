@@ -93,6 +93,7 @@ try {
       'test',
       '--config',
       'playwright.desktop-project.config.ts',
+      ...process.argv.slice(2),
     ];
     const needsXvfb = process.platform === 'linux' && !process.env.DISPLAY;
     const flowEnv = {
@@ -100,6 +101,8 @@ try {
       VITE_DESKTOP_MODEL_CANDIDATES_ENABLED: 'true',
       JIEYU_DESKTOP_FLOW_FOLDER: folder,
       JIEYU_VITE_DEV_SERVER: devServer,
+      JIEYU_DESKTOP_HIDE_WINDOW:
+        process.env.JIEYU_DESKTOP_HIDE_WINDOW ?? (process.env.CI === 'true' ? '0' : '1'),
     };
     delete flowEnv.JIEYU_SQLITE_STORAGE_PORT;
     status = needsXvfb
