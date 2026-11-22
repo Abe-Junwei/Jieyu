@@ -1407,11 +1407,6 @@
   background: color-mix(in srgb, var(--brand-solid) 65%, transparent);
 }
 
-.desktop-tx-layer-list__add .desktop-tx-context__row {
-  color: var(--text-secondary);
-  font-weight: 400;
-}
-
 .desktop-tx-context__menu {
   min-width: 168px;
 }

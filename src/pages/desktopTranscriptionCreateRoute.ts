@@ -64,6 +64,7 @@ export function resolveCreateSourceLayer(
 ): RouteLayer | null {
   const target = layers.find((layer) => layer.id === targetLayerId);
   if (!target) {
+    if (targetLayerId !== null) return null;
     return (
       layers.find(
         (layer) => layer.tierType === 'time-aligned' && layer.contentType === 'transcription',

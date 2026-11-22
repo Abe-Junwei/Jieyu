@@ -180,7 +180,8 @@ import {
   textSaveDigest,
 } from './textSave';
 import { resolveUnitTextContext } from './unitTextLayers';
-import { mergeUnits, readRemovedUnit, splitUnit } from './unitSpan';
+import { mergeUnits, readRemovedUnit } from './unitSpan';
+import { splitUnit } from './unitSplit';
 import {
   manuscriptIdOf,
   moveSharedBoundary,
@@ -228,6 +229,7 @@ const EDIT_METHODS = {
   deleteMany: 'units.deleteMany',
   undo: 'units.undo',
   redo: 'units.redo',
+  split: 'units.split',
 } as const satisfies Record<EditReceiptKind, keyof DesktopOperations>;
 
 const operationHandlers = {
@@ -555,9 +557,30 @@ const operationHandlers = {
   },
   'units.split': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.split']['check']>) => {
-      const split = splitUnit(ctx.db, input);
-      rememberSessionEdit(ctx.sessionId, { kind: 'split', undo: split.undo });
-      return { left: split.left, right: split.right };
+      const { operationId, ...splitInput } = input;
+      let manuscriptId: string | undefined;
+      try {
+        manuscriptId = manuscriptIdOf(ctx.db, splitInput.unitId);
+      } catch (error) {
+        if (!(error instanceof Error) || error.message !== 'unit is missing') throw error;
+      }
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'split',
+          payload: splitInput,
+          manuscriptId: () => {
+            if (manuscriptId === undefined) throw new Error('unit is missing');
+            return manuscriptId;
+          },
+        },
+        () => {
+          const split = splitUnit(ctx.db, input);
+          rememberSessionEdit(ctx.sessionId, { kind: 'split', undo: split.undo });
+          return { left: split.left, right: split.right };
+        },
+      );
     },
   },
   'units.merge': {

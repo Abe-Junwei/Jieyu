@@ -16,15 +16,13 @@ import {
   type SharedBoundaryMove,
   type UnitSpanMove,
 } from './unitEdges';
+import { splitUnit, undoSplit, type UnitSplitUndo } from './unitSplit';
 import {
   deleteUnitTree,
   mergeUnits,
-  splitUnit,
   undoMerge,
-  undoSplit,
   type RemovedUnit,
   type UnitMergeUndo,
-  type UnitSplitUndo,
 } from './unitSpan';
 import { retimeManuscript, undoRetime, type RetimeUndo } from './manuscripts';
 import { readStoredUnit, updateUnitText, type Unit, type UnitTextUndo } from './units';
@@ -447,7 +445,15 @@ function redoText(db: SqliteDatabase, undo: UnitTextUndo): { value: Unit; edit: 
 
 function redoSplit(db: SqliteDatabase, undo: UnitSplitUndo): { value: Unit; edit: SessionEdit } {
   try {
-    const split = splitUnit(db, { unitId: undo.unitId, time: undo.splitTime });
+    const split = splitUnit(db, {
+      unitId: undo.rootId,
+      time: undo.time,
+      operationId: undo.operationId,
+      textLayerId: undo.textLayerId,
+      cutIndex: undo.cutIndex,
+      rawInput: undo.rawInput,
+      presets: undo.presets,
+    });
     return { value: split.left, edit: { kind: 'split', undo: split.undo } };
   } catch (error) {
     if (error instanceof Error && error.message.endsWith('redo is stale')) throw error;

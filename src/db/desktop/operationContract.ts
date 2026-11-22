@@ -839,10 +839,28 @@ function unitCreate(input: Record<string, unknown>): UnitCreate & { operationId?
   };
 }
 
-function unitSplit(input: Record<string, unknown>): { unitId: string; time: number } {
+function unitSplit(input: Record<string, unknown>): {
+  unitId: string;
+  time: number;
+  operationId?: string;
+  textLayerId?: string;
+  cutIndex?: number;
+  rawInput?: string;
+} {
+  knownKeys(input, ['operationId', 'unitId', 'time', 'textLayerId', 'cutIndex', 'rawInput']);
   return {
     unitId: requiredString(input.unitId, 'unitId'),
     time: requiredNumber(input.time, 'time'),
+    ...editOperationId(input),
+    ...(input.textLayerId === undefined
+      ? {}
+      : { textLayerId: requiredString(input.textLayerId, 'textLayerId') }),
+    ...(input.cutIndex === undefined
+      ? {}
+      : { cutIndex: requiredNumber(input.cutIndex, 'cutIndex') }),
+    ...(input.rawInput === undefined
+      ? {}
+      : { rawInput: requiredString(input.rawInput, 'rawInput') }),
   };
 }
 
@@ -2226,10 +2244,18 @@ export const desktopOperations = {
     { operationId: string; kind: EditReceiptKind; payload: Record<string, unknown> },
     EditInspection
   >('keep', editInspect),
-  'units.split': spec<'keep', { unitId: string; time: number }, { left: Unit; right: Unit }>(
+  'units.split': spec<
     'keep',
-    unitSplit,
-  ),
+    {
+      unitId: string;
+      time: number;
+      operationId?: string;
+      textLayerId?: string;
+      cutIndex?: number;
+      rawInput?: string;
+    },
+    { left: Unit; right: Unit }
+  >('keep', unitSplit),
   'units.merge': spec<'clear', { keepId: string; removeId: string }, Unit>('clear', unitMerge),
   'units.updateBoundary': spec<
     'keep',

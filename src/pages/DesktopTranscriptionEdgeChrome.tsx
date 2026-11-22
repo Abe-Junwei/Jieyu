@@ -55,6 +55,7 @@ export function DesktopTranscriptionEdgeChrome(props: {
   onClearText: () => void;
   onToggleSkip: () => void;
   onAskDelete: () => void;
+  onAskSplit?: () => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
   speakers?: {
@@ -220,14 +221,21 @@ export function DesktopTranscriptionEdgeChrome(props: {
                   </>
                 )}
                 {props.menu.layerName !== undefined && props.menu.sub !== true ? null : (
-                  <button type="button" role="menuitem" onClick={props.onAskDelete}>
-                    {t(
-                      locale,
-                      props.menu.sub === true
-                        ? 'app.desktopTranscription.deleteSubSegment'
-                        : 'app.desktopTranscription.deleteSegment',
+                  <>
+                    <button type="button" role="menuitem" onClick={props.onAskDelete}>
+                      {t(
+                        locale,
+                        props.menu.sub === true
+                          ? 'app.desktopTranscription.deleteSubSegment'
+                          : 'app.desktopTranscription.deleteSegment',
+                      )}
+                    </button>
+                    {props.onAskSplit === undefined ? null : (
+                      <button type="button" role="menuitem" onClick={props.onAskSplit}>
+                        {t(locale, 'app.desktopTranscription.splitSegment')}
+                      </button>
                     )}
-                  </button>
+                  </>
                 )}
               </div>
             </>,

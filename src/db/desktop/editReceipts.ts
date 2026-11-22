@@ -11,7 +11,8 @@ export type EditReceiptKind =
   | 'delete'
   | 'deleteMany'
   | 'undo'
-  | 'redo';
+  | 'redo'
+  | 'split';
 
 export type EditInspection =
   { status: 'committed'; result: unknown } | { status: 'not-submitted' } | { status: 'conflict' };

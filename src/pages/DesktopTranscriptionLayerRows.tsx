@@ -11,6 +11,7 @@ import { desktopAnnotationStyle } from '../utils/layerDisplayStyle';
 import {
   layerStyleFields,
   styleMenuProps,
+  type LayerCreateActions,
   type LayerStyleChange,
 } from './DesktopTranscriptionLayerStyleMenu';
 import { t, type Locale } from '../i18n';
@@ -120,6 +121,7 @@ export function DesktopTranscriptionLayerRows(props: {
   drag?: DesktopLayerDrag;
   layerCommands?: (layerId: string) => readonly LayerCommandItem[];
   onLayerCommand?: (layerId: string, command: LayerCommandId) => void;
+  layerCreate?: LayerCreateActions;
   /** Record, play, and delete for a modality=audio card. Text layers ignore it. */
   audioTools?: (layerId: string, unitId: string) => ReactNode;
   lanes?: SpeakerLaneChrome;
@@ -229,6 +231,7 @@ export function DesktopTranscriptionLayerRows(props: {
                 commands: props.layerCommands?.(layer.id) ?? [],
                 onCommand: (command: LayerCommandId) => props.onLayerCommand?.(layer.id, command),
               })}
+          {...(props.layerCreate === undefined ? {} : { create: props.layerCreate })}
           {...laneLabelProps(props.lanes, layer.id)}
         />
         <div

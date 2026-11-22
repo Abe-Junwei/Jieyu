@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import type { ReactElement } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '../i18n';
@@ -803,7 +803,11 @@ describe('DesktopTranscriptionWorkspacePage layers (#597)', () => {
     render(pane as ReactElement);
     fireEvent.click(screen.getByRole('button', { name: /^层\d+$/ }));
     expect(screen.getByRole('button', { name: /^译文翻译$/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '新建翻译层' }));
+    fireEvent.contextMenu(
+      within(screen.getByTestId('desktop-readonly-timeline')).getByText('转写'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^新建层$/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '新建翻译层' }));
     await waitFor(() => {
       expect(calls).toContainEqual({
         method: 'layers.create',
@@ -856,8 +860,11 @@ describe('DesktopTranscriptionWorkspacePage layers (#597)', () => {
     const pane = sidePaneContents.at(-1);
     if (pane === undefined) throw new Error('missing context column');
     render(pane as ReactElement);
-    fireEvent.click(screen.getByRole('button', { name: /^层\d+$/ }));
-    fireEvent.click(screen.getByRole('button', { name: '新建翻译层' }));
+    fireEvent.contextMenu(
+      within(screen.getByTestId('desktop-readonly-timeline')).getByText('翻译'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^新建层$/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '新建翻译层' }));
     await waitFor(() => {
       expect(calls).toContainEqual({
         method: 'layers.create',
@@ -894,8 +901,11 @@ describe('DesktopTranscriptionWorkspacePage layers (#597)', () => {
     const pane = sidePaneContents.at(-1);
     if (pane === undefined) throw new Error('missing context column');
     render(pane as ReactElement);
-    fireEvent.click(screen.getByRole('button', { name: /^层\d+$/ }));
-    fireEvent.click(screen.getByRole('button', { name: '新建翻译层' }));
+    fireEvent.contextMenu(
+      within(screen.getByTestId('desktop-readonly-timeline')).getByText('转写'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^新建层$/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '新建翻译层' }));
     await waitFor(() => {
       expect(calls).toContainEqual({
         method: 'layers.create',

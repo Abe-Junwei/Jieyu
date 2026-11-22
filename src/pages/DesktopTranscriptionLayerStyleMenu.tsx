@@ -10,7 +10,11 @@ import {
   localFontMatchNames,
   systemDefaultFontKey,
 } from '../utils/layerDisplayStyle';
-import type { LayerCommandId, LayerCommandItem } from './desktopTranscriptionLayerCommands';
+import {
+  nextLayerName,
+  type LayerCommandId,
+  type LayerCommandItem,
+} from './desktopTranscriptionLayerCommands';
 
 export interface LayerStyleFields {
   languageId: string | null;
@@ -316,6 +320,80 @@ function LayerCommandMenu(props: {
   );
 }
 
+export interface LayerCreateActions {
+  layers: readonly { id: string; name: Record<string, string> }[];
+  onCreate: (kind: 'transcription' | 'translation', label: string) => void;
+  onCreatePair: (kind: 'voice' | 'oral', audioName: string, textName: string) => void;
+}
+
+function LayerCreateMenu(props: {
+  locale: Locale;
+  open: boolean;
+  onToggle: () => void;
+  create: LayerCreateActions;
+}) {
+  const name = (key: Parameters<typeof t>[1]) =>
+    nextLayerName(t(props.locale, key), props.create.layers, props.locale);
+  return (
+    <MenuFlyout
+      label={t(props.locale, 'app.desktopTranscription.layerCreateMenu')}
+      open={props.open}
+      onToggle={props.onToggle}
+    >
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() =>
+          props.create.onCreate(
+            'transcription',
+            name('app.desktopTranscription.contextLayerTranscription'),
+          )
+        }
+      >
+        {t(props.locale, 'transcription.laneHeader.layer.createTranscription')}
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() =>
+          props.create.onCreate(
+            'translation',
+            name('app.desktopTranscription.contextLayerTranslation'),
+          )
+        }
+      >
+        {t(props.locale, 'transcription.laneHeader.layer.createTranslation')}
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() =>
+          props.create.onCreatePair(
+            'voice',
+            name('app.desktopTranscription.contextLayerVoice'),
+            name('app.desktopTranscription.contextLayerVoiceText'),
+          )
+        }
+      >
+        {t(props.locale, 'transcription.laneHeader.layer.createVoice')}
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() =>
+          props.create.onCreatePair(
+            'oral',
+            name('app.desktopTranscription.contextLayerOral'),
+            name('app.desktopTranscription.contextLayerOralText'),
+          )
+        }
+      >
+        {t(props.locale, 'transcription.laneHeader.layer.createOral')}
+      </button>
+    </MenuFlyout>
+  );
+}
+
 /** Right-click menu on a timeline layer header. Style fields sit under the collapse action. */
 export function DesktopLayerHeaderMenu(props: {
   locale: Locale;
@@ -331,6 +409,7 @@ export function DesktopLayerHeaderMenu(props: {
   };
   commands?: readonly LayerCommandItem[];
   onCommand?: (command: LayerCommandId) => void;
+  create?: LayerCreateActions;
   fields?: LayerStyleFields;
   loadOrthographies?: (
     languageId: string,
@@ -339,8 +418,10 @@ export function DesktopLayerHeaderMenu(props: {
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState({ x: props.x, y: props.y });
-  const [flyout, setFlyout] = useState<'layer' | 'lane' | 'style' | 'orthography' | null>(null);
-  const toggleFlyout = (id: 'layer' | 'lane' | 'style' | 'orthography') =>
+  const [flyout, setFlyout] = useState<
+    'layer' | 'create' | 'lane' | 'style' | 'orthography' | null
+  >(null);
+  const toggleFlyout = (id: 'layer' | 'create' | 'lane' | 'style' | 'orthography') =>
     setFlyout((current) => (current === id ? null : id));
   useLayoutEffect(() => {
     const panel = panelRef.current;
@@ -404,6 +485,14 @@ export function DesktopLayerHeaderMenu(props: {
           open={flyout === 'layer'}
           onToggle={() => toggleFlyout('layer')}
           onRun={props.onCommand}
+        />
+      )}
+      {props.create === undefined ? null : (
+        <LayerCreateMenu
+          locale={props.locale}
+          open={flyout === 'create'}
+          onToggle={() => toggleFlyout('create')}
+          create={props.create}
         />
       )}
       {props.lane === undefined ? null : (

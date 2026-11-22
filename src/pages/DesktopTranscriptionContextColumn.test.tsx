@@ -14,7 +14,6 @@ const props = {
   layers: [],
   links: [],
   layerError: '',
-  onCreateLayer: vi.fn(),
   onRenameLayer: vi.fn(),
   onMoveLayer: vi.fn(),
   onDeleteLayer: vi.fn(),

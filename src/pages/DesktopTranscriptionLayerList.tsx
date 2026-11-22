@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { JieyuIcon } from '../components/ui/JieyuIcon';
 import { ModalPanel } from '../components/ui/ModalPanel';
 import { t, tf, type Locale } from '../i18n';
-import { JIEYU_ICON_INLINE_TIGHT } from '../utils/jieyuIcon';
 import { DesktopTranscriptionLayerHostsDialog } from './DesktopTranscriptionLayerHostsDialog';
 import { layerLabel } from './DesktopTranscriptionLayerRows';
 import { buildLayerTree, emptyFold } from './desktopTranscriptionLayerTree';
@@ -34,22 +32,13 @@ export interface LayerHostsInput {
   linkType: 'direct' | 'free' | 'literal' | 'pedagogical';
 }
 
-/** The next unused display name: the base word, then "base 2", "base 3", and so on. */
-function nextLayerName(base: string, layers: readonly ContextLayer[], locale: Locale): string {
-  const taken = new Set(layers.map((layer) => layerLabel(layer.name, locale, layer.id)));
-  if (!taken.has(base)) return base;
-  let count = 2;
-  while (taken.has(`${base} ${count}`)) count += 1;
-  return `${base} ${count}`;
-}
-
 export interface LayerListRequest {
   nonce: number;
   layerId: string;
   action: 'rename' | 'delete' | 'migrate' | 'hosts';
 }
 
-/** The context-column layer list: create, rename, reorder, and delete. Height is dragged on the lane. */
+/** The context-column layer list: rename, reorder, and delete. New layers start from the header menu. */
 export function DesktopTranscriptionLayerList(props: {
   locale: Locale;
   layers: readonly ContextLayer[];
@@ -57,8 +46,6 @@ export function DesktopTranscriptionLayerList(props: {
   currentId: string | null;
   error: string;
   onSelect: (layerId: string) => void;
-  onCreate: (kind: 'transcription' | 'translation', label: string) => void;
-  onCreatePair?: (kind: 'voice' | 'oral', audioName: string, textName: string) => void;
   onRename: (layerId: string, name: Record<string, string>) => void;
   onMove: (layerId: string, direction: 'up' | 'down') => void;
   onDelete: (layerId: string, mode: 'soft' | 'migrate' | 'purge', targetLayerId?: string) => void;
@@ -266,96 +253,6 @@ export function DesktopTranscriptionLayerList(props: {
               data-drag-surface="sidebar"
             />
           ) : null}
-          <li className="desktop-tx-layer-list__add">
-            <button
-              type="button"
-              className="desktop-tx-context__row"
-              onClick={() =>
-                props.onCreate(
-                  'transcription',
-                  nextLayerName(
-                    t(props.locale, 'app.desktopTranscription.contextLayerTranscription'),
-                    props.layers,
-                    props.locale,
-                  ),
-                )
-              }
-            >
-              <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
-              {t(props.locale, 'transcription.laneHeader.layer.createTranscription')}
-            </button>
-          </li>
-          <li className="desktop-tx-layer-list__add">
-            <button
-              type="button"
-              className="desktop-tx-context__row"
-              onClick={() =>
-                props.onCreate(
-                  'translation',
-                  nextLayerName(
-                    t(props.locale, 'app.desktopTranscription.contextLayerTranslation'),
-                    props.layers,
-                    props.locale,
-                  ),
-                )
-              }
-            >
-              <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
-              {t(props.locale, 'transcription.laneHeader.layer.createTranslation')}
-            </button>
-          </li>
-          {props.onCreatePair === undefined ? null : (
-            <>
-              <li className="desktop-tx-layer-list__add">
-                <button
-                  type="button"
-                  className="desktop-tx-context__row"
-                  onClick={() =>
-                    props.onCreatePair?.(
-                      'voice',
-                      nextLayerName(
-                        t(props.locale, 'app.desktopTranscription.contextLayerVoice'),
-                        props.layers,
-                        props.locale,
-                      ),
-                      nextLayerName(
-                        t(props.locale, 'app.desktopTranscription.contextLayerVoiceText'),
-                        props.layers,
-                        props.locale,
-                      ),
-                    )
-                  }
-                >
-                  <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
-                  {t(props.locale, 'transcription.laneHeader.layer.createVoice')}
-                </button>
-              </li>
-              <li className="desktop-tx-layer-list__add">
-                <button
-                  type="button"
-                  className="desktop-tx-context__row"
-                  onClick={() =>
-                    props.onCreatePair?.(
-                      'oral',
-                      nextLayerName(
-                        t(props.locale, 'app.desktopTranscription.contextLayerOral'),
-                        props.layers,
-                        props.locale,
-                      ),
-                      nextLayerName(
-                        t(props.locale, 'app.desktopTranscription.contextLayerOralText'),
-                        props.layers,
-                        props.locale,
-                      ),
-                    )
-                  }
-                >
-                  <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
-                  {t(props.locale, 'transcription.laneHeader.layer.createOral')}
-                </button>
-              </li>
-            </>
-          )}
         </ul>
       )}
       {hostsLayer === null ||

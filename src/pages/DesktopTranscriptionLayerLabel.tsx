@@ -11,6 +11,7 @@ import type { LayerTreeRow } from './desktopTranscriptionLayerTree';
 import type { LayerCommandId, LayerCommandItem } from './desktopTranscriptionLayerCommands';
 import {
   DesktopLayerHeaderMenu,
+  type LayerCreateActions,
   type LayerStyleChange,
   type LayerStyleFields,
 } from './DesktopTranscriptionLayerStyleMenu';
@@ -133,6 +134,7 @@ export function DesktopTranscriptionLayerLabel(props: {
   onApplyStyle?: (change: LayerStyleChange) => void;
   commands?: readonly LayerCommandItem[];
   onCommand?: (command: LayerCommandId) => void;
+  create?: LayerCreateActions;
   overlapCount?: number;
   lane?: {
     mode: SpeakerLaneMode;
@@ -274,6 +276,21 @@ export function DesktopTranscriptionLayerLabel(props: {
                 onCommand: (command: LayerCommandId) => {
                   setMenu(null);
                   props.onCommand?.(command);
+                },
+              })}
+          {...(props.create === undefined
+            ? {}
+            : {
+                create: {
+                  ...props.create,
+                  onCreate: (kind: 'transcription' | 'translation', label: string) => {
+                    setMenu(null);
+                    props.create?.onCreate(kind, label);
+                  },
+                  onCreatePair: (kind: 'voice' | 'oral', audioName: string, textName: string) => {
+                    setMenu(null);
+                    props.create?.onCreatePair(kind, audioName, textName);
+                  },
                 },
               })}
           {...(props.styleFields === undefined ||

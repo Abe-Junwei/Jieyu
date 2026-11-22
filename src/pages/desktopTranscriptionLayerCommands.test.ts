@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { layerCommandItems } from './desktopTranscriptionLayerCommands';
+import { layerCommandItems, nextLayerName } from './desktopTranscriptionLayerCommands';
 
 const layers = [
   {
@@ -59,5 +59,11 @@ describe('layerCommandItems', () => {
         hosts: true,
       }).find((item) => item.id === 'return')?.disabledReason,
     ).toBe('已经在顶层');
+  });
+
+  it('numbers a copy when the base name is taken', () => {
+    const layers = [{ id: 'tx', name: { zh: '转写' } }];
+    expect(nextLayerName('转写', layers, 'zh-CN')).toBe('转写 2');
+    expect(nextLayerName('译文', layers, 'zh-CN')).toBe('译文');
   });
 });

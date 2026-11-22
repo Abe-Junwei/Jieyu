@@ -52,6 +52,19 @@ function canMigrate(
   );
 }
 
+/** The next unused display name: the base word, then "base 2", "base 3", and so on. */
+export function nextLayerName(
+  base: string,
+  layers: readonly { id: string; name: Record<string, string> }[],
+  locale: Locale,
+): string {
+  const taken = new Set(layers.map((layer) => layerLabel(layer.name, locale, layer.id)));
+  if (!taken.has(base)) return base;
+  let count = 2;
+  while (taken.has(`${base} ${count}`)) count += 1;
+  return `${base} ${count}`;
+}
+
 /** Items that used to live on the context-column row menu, in that order. */
 export function layerCommandItems(input: {
   locale: Locale;

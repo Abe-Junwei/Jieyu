@@ -26,6 +26,10 @@ import {
   waveMenuUnitAt,
   type WaveMenuState,
 } from './DesktopTranscriptionWaveMenu';
+import {
+  DesktopTranscriptionSplitDialog,
+  useDesktopTranscriptionSplitController,
+} from './useDesktopTranscriptionSplitController';
 import { readDesktopCorpusLocate } from './desktopCorpusLocate';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';
 import { useDesktopTranscriptionSelectionController } from './useDesktopTranscriptionSelectionController';
@@ -209,6 +213,16 @@ function DesktopTranscriptionWorkspace() {
     read: read.readTextDraft,
   };
   const textLayerId = read.model?.layerId ?? null;
+  const split = useDesktopTranscriptionSplitController({
+    locale,
+    sessionId: read.sessionId,
+    textLayerId,
+    units,
+    draft: draft.draft,
+    desktopCall: host?.desktopCall,
+    playheadSec: getTranscriptionPlaybackClockSnapshot,
+    reload: () => read.refresh(),
+  });
   useEffect(() => {
     const id = selection.selectedUnitId;
     if (id === null || selectedUnit === null || textLayerId === null) return;
@@ -645,8 +659,10 @@ function DesktopTranscriptionWorkspace() {
                 tierRef={tierRef}
                 scrollLeftPx={playback.scrollLeftPx}
                 waveCreateRef={waveCreateRef}
+                waveCreateEnabled={!read.selectionPending}
                 waveSkipRef={waveSkipRef}
                 waveDeleteRef={waveDeleteRef}
+                onSplit={(unitId) => split.ask(unitId, 'playhead')}
                 waveStage={waveStage}
                 onWaveSegmentMenu={(unitId, x, y) => openWaveRegionMenu.current(unitId, x, y)}
                 onLaneHeight={(layerId, height) => layerActions.setHeight(layerId, height)}
@@ -666,6 +682,8 @@ function DesktopTranscriptionWorkspace() {
                 layerDrag={layerActions.drag}
                 layerHosts
                 onLayerCommand={runLayerCommand}
+                onCreateLayer={layerActions.create}
+                onCreatePair={layerActions.createPair}
                 onCreateTranscription={() =>
                   layerActions.create(
                     'transcription',
@@ -730,8 +748,16 @@ function DesktopTranscriptionWorkspace() {
           }}
           onToggleSkip={(unitId) => waveSkipRef.current?.(unitId)}
           onDelete={(unitId) => waveDeleteRef.current?.(unitId)}
+          onSplit={(unitId, time) => split.ask(unitId, time)}
         />
       )}
+      <DesktopTranscriptionSplitDialog
+        locale={locale}
+        prompt={split.prompt}
+        onCutIndex={split.setCutIndex}
+        onConfirm={split.confirm}
+        onCancel={split.cancel}
+      />
       {oral.ask ? (
         <DesktopOralLeaveDialog
           saving={oral.saving}

@@ -89,6 +89,11 @@ export function useDesktopProjectReadQueries(
 
   return {
     model: read.data ?? null,
+    selectionPending:
+      read.isPlaceholderData &&
+      ((selection.manuscriptId !== undefined &&
+        selection.manuscriptId !== read.data?.manuscriptId) ||
+        (selection.layerId !== undefined && selection.layerId !== read.data?.layerId)),
     notes: notes.data ?? [],
     projectTitle: project.data ?? '',
     loadFailed: read.isError || notes.isError || project.isError,

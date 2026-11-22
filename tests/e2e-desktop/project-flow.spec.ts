@@ -771,6 +771,64 @@ test('drags create on the waveform and on a linked layer row, and texts stay per
   }
 });
 
+test('waveform create writes to the selected transcription after a linked card had focus', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-wave-layer-target-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  const app = await launch('wave-layer-target');
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const clip = await clipLayer(page, sessionId);
+    const manuscripts = await desktopCall<{ id: string; title: Record<string, string> }[]>(
+      page, sessionId, 'manuscripts.list', {},
+    );
+    const manuscriptId = manuscripts.find((item) => item.title.und === 'Clip')?.id;
+    const linked = await desktopCall<{ id: string }>(page, sessionId, 'layers.create', {
+      manuscriptId, key: 'wave-linked', name: { und: 'Linked text' },
+      tierType: 'symbolic-association', contentType: 'translation',
+      hosts: [{ hostLayerId: clip.layerId }],
+    });
+    const selected = await desktopCall<{ id: string }>(page, sessionId, 'layers.create', {
+      manuscriptId, key: 'wave-selected', name: { und: 'Selected transcription' },
+      tierType: 'time-aligned', contentType: 'transcription',
+    });
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await waitForAudio(page);
+    await page.locator(`[data-layer-id="${linked.id}"] .timeline-annotation`).first().click();
+    await page.locator(`[data-layer-id="${selected.id}"] .desktop-tx-layer-name`).click();
+    await expect(page.locator(`[data-layer-id="${selected.id}"] .desktop-tx-layer-label`))
+      .toHaveClass(/is-focused/);
+    const oldCount = (await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', {
+      layerId: clip.layerId,
+    })).length;
+    const wave = page.getByTestId('desktop-waveform');
+    const box = await wave.boundingBox();
+    if (box === null) throw new Error('waveform missing');
+    const y = box.y + 10;
+    await page.mouse.move(box.x + box.width * 0.75, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.9, y, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(async () => ({
+      selected: (await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', {
+        layerId: selected.id,
+      })).length,
+      old: (await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', {
+        layerId: clip.layerId,
+      })).length,
+    }), { timeout: 5000 }).toEqual({ selected: 1, old: oldCount });
+  } finally {
+    await app.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
+
 test('a subdivision card becomes the edge target and its menu deletes only that child', async () => {
   if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
   const copy = mkdtempSync(join(tmpdir(), 'jieyu-subdiv-'));
@@ -2220,6 +2278,90 @@ async function injectTextFault(
     { mode, choice },
   );
 }
+
+test('split unit survives close and reopen', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-split-unit-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  let app: ElectronApplication | undefined = await launch('split-unit');
+  let again: ElectronApplication | undefined;
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const clip = await clipLayer(page, sessionId);
+    const units = await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', {
+      layerId: clip.layerId,
+    });
+    const one = units.find((unit) => unit.text === 'one');
+    const two = units.find((unit) => unit.text === 'two');
+    if (one === undefined || two === undefined) throw new Error('clip units missing');
+    await desktopCall(page, sessionId, 'units.moveSharedBoundary', {
+      leftId: one.id,
+      rightId: two.id,
+      time: 500,
+      operationId: 'e2e-split-boundary',
+    });
+    await desktopCall(page, sessionId, 'units.moveEdge', {
+      unitId: two.id,
+      edge: 'end',
+      time: 900,
+      operationId: 'e2e-split-edge',
+    });
+    const made = await desktopCall<{ id: string }>(page, sessionId, 'units.create', {
+      layerId: clip.layerId,
+      startMs: 1000,
+      endMs: 1400,
+      text: 'split-me',
+      operationId: 'e2e-split-create',
+    });
+    const split = await desktopCall<{ left: { id: string }; right: { id: string } }>(
+      page,
+      sessionId,
+      'units.split',
+      {
+        unitId: made.id,
+        time: 1200,
+        cutIndex: 5,
+        rawInput: 'split-me',
+        operationId: 'e2e-split',
+      },
+    );
+    expect(await desktopCall(page, sessionId, 'units.get', { id: made.id })).toBeNull();
+
+    await app.close();
+    app = undefined;
+    again = await launch('split-unit-again');
+    await stubFolderDialog(again, copy);
+    const reopened = await again.firstWindow();
+    await rememberChosenSession(again);
+    await reopened.getByRole('button', { name: openFolder }).click();
+    await expect(reopened.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const nextSession = await chosenSessionId(again);
+    const left = await desktopCall<{ text: string; startMs: number; endMs: number }>(
+      reopened,
+      nextSession,
+      'units.get',
+      { id: split.left.id },
+    );
+    const right = await desktopCall<{ text: string; startMs: number; endMs: number }>(
+      reopened,
+      nextSession,
+      'units.get',
+      { id: split.right.id },
+    );
+    expect(left).toMatchObject({ text: 'split', startMs: 1000, endMs: 1200 });
+    expect(right).toMatchObject({ text: '-me', startMs: 1200, endMs: 1400 });
+    expect(await desktopCall(reopened, nextSession, 'units.get', { id: made.id })).toBeNull();
+  } finally {
+    await app?.close();
+    await again?.close();
+  }
+});
 
 function faultState(app: ElectronApplication) {
   return app.evaluate(() => {

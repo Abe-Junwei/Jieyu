@@ -80,6 +80,7 @@ export const enUSDictionary = {
   'app.desktopTranscription.oralLeaveDiscard': 'Discard and continue',
   'app.desktopTranscription.oralLeaveStay': 'Stay here',
   'app.desktopTranscription.layerMenu': 'Layer',
+  'app.desktopTranscription.layerCreateMenu': 'New layer',
   'app.desktopTranscription.layerRename': 'Rename',
   'app.desktopTranscription.layerMoveUp': 'Move up',
   'app.desktopTranscription.layerMoveDown': 'Move down',
@@ -205,6 +206,8 @@ export const enUSDictionary = {
   'app.desktopTranscription.createShort': 'A new segment needs at least 50 milliseconds',
   'app.desktopTranscription.createNoParent': 'Must sit entirely inside a parent segment',
   'app.desktopTranscription.createNoLayer': 'This layer has no host layer to hold segments',
+  'app.desktopTranscription.layerSwitchPending':
+    'Switching layers. Try creating the segment again in a moment.',
   'app.desktopTranscription.edgeNotTouching': 'The two edges do not touch',
   'app.desktopTranscription.edgeOrder': 'Cannot pass the next segment’s start',
   'app.desktopTranscription.edgeFailed': 'The time was not changed',
@@ -214,6 +217,13 @@ export const enUSDictionary = {
   'app.desktopTranscription.linkBoundary': 'Link the shared boundary',
   'app.desktopTranscription.clearLayerText': 'Clear “{layer}” text',
   'app.desktopTranscription.deleteSegment': 'Delete segment',
+  'app.desktopTranscription.splitSegment': 'Split segment',
+  'app.desktopTranscription.splitConfirm': 'Split',
+  'app.desktopTranscription.splitOtherLayers':
+    'Only this layer is cut at the cursor. Other layers stay on the left.',
+  'app.desktopTranscription.splitTooClose': 'The cut is under 10 milliseconds from an edge',
+  'app.desktopTranscription.splitOutside': 'The playhead is outside this segment',
+  'app.desktopTranscription.splitFailed': 'Could not split',
   'app.desktopTranscription.deleteFailed': 'Could not delete the segment',
   'app.desktopTranscription.deleteRefreshFailed':
     'The segment was deleted, but the view could not refresh. Reopen the manuscript to confirm.',

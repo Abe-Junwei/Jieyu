@@ -25,6 +25,7 @@ import { desktopAnnotationStyle } from '../utils/layerDisplayStyle';
 import {
   layerStyleFields,
   styleMenuProps,
+  type LayerCreateActions,
   type LayerStyleChange,
 } from './DesktopTranscriptionLayerStyleMenu';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
@@ -106,12 +107,14 @@ export function DesktopTranscriptionLane(props: {
   tierRef: RefObject<HTMLDivElement | null>;
   scrollLeftPx: number;
   waveCreateRef: MutableRefObject<WaveCreate | null>;
+  waveCreateEnabled: boolean;
   waveSkipRef: MutableRefObject<WaveSkip | null>;
   waveDeleteRef: MutableRefObject<WaveSkip | null>;
   /** The waveform stage: a waveform drag draws its create preview here. */
   waveStage: HTMLElement | null;
   /** Right-click on a waveform segment overlay (the highlighted body sits above the region). */
   onWaveSegmentMenu: (unitId: string, x: number, y: number) => void;
+  onSplit?: (unitId: string) => void;
   /** Runs `go` once the open body draft is saved or dropped (the leave guard). */
   onLeave: (go: () => void) => void;
   /** Layer id of an open recording. Folding it away must ask first. */
@@ -127,6 +130,8 @@ export function DesktopTranscriptionLane(props: {
   /** Symbolic layers offer the hosts command when this is set. */
   layerHosts?: boolean;
   onLayerCommand?: (layerId: string, command: LayerCommandId) => void;
+  onCreateLayer?: LayerCreateActions['onCreate'];
+  onCreatePair?: LayerCreateActions['onCreatePair'];
   onSelectLayer?: (layerId: string) => void;
   audioTools?: (layerId: string, unitId: string) => ReactNode;
   onCreateTranscription: () => void;
@@ -212,11 +217,18 @@ export function DesktopTranscriptionLane(props: {
     else props.onLeave(go);
   };
   const waveTarget = useRef<string | null>(null);
-  waveTarget.current = focus?.layerId ?? null;
+  waveTarget.current = props.layerId;
+  const waveCreateEnabled = useRef(props.waveCreateEnabled);
+  waveCreateEnabled.current = props.waveCreateEnabled;
   const waveCreateRef = props.waveCreateRef;
   const beginWaveCreate = edges.beginWaveCreate;
   useEffect(() => {
     waveCreateRef.current = (event, msAt) => {
+      if (!waveCreateEnabled.current) {
+        toast.showToast(t(props.locale, 'app.desktopTranscription.layerSwitchPending'), 'info');
+        return;
+      }
+      if (waveTarget.current === null) return;
       setCreateLayerId(waveTarget.current);
       setWaveDrag(true);
       beginWaveCreate(event, msAt, waveTarget.current);
@@ -224,7 +236,7 @@ export function DesktopTranscriptionLane(props: {
     return () => {
       waveCreateRef.current = null;
     };
-  }, [beginWaveCreate, waveCreateRef]);
+  }, [beginWaveCreate, waveCreateRef, toast, props.locale]);
   const waveSkipRef = props.waveSkipRef;
   const toggleSkipUnit = edges.toggleSkipUnit;
   useEffect(() => {
@@ -391,6 +403,14 @@ export function DesktopTranscriptionLane(props: {
           ...(props.layerDrag === undefined ? {} : { drag: props.layerDrag }),
           hosts: props.layerHosts === true,
         });
+  const layerCreate: LayerCreateActions | undefined =
+    props.onCreateLayer === undefined || props.onCreatePair === undefined
+      ? undefined
+      : {
+          layers: (props.layers ?? []).map((layer) => ({ id: layer.id, name: layer.name })),
+          onCreate: props.onCreateLayer,
+          onCreatePair: props.onCreatePair,
+        };
   const renderMain = (row: LayerTreeRow, groupContinues = false) => {
     const dragBits = timelineDragProps(props.layerDrag, row.layerId, row.folded);
     return props.hasAudio || props.units.length > 0 ? (
@@ -452,11 +472,13 @@ export function DesktopTranscriptionLane(props: {
                   onCommand: (command: LayerCommandId) =>
                     props.onLayerCommand?.(row.layerId, command),
                 })}
+            {...(layerCreate === undefined ? {} : { create: layerCreate })}
             {...laneLabelProps(props.lanes, row.layerId)}
           />
           <div ref={props.tierRef} className="desktop-tx-lane__body">
             <div
               className="desktop-tx-lane__track"
+              {...(props.layerId === null ? {} : { 'data-layer-id': props.layerId })}
               style={
                 props.zoomPxPerSec > 0 ? { width: props.duration * props.zoomPxPerSec } : undefined
               }
@@ -597,6 +619,7 @@ export function DesktopTranscriptionLane(props: {
           {...(props.onLayerCommand === undefined
             ? {}
             : { layerCommands, onLayerCommand: props.onLayerCommand })}
+          {...(layerCreate === undefined ? {} : { layerCreate })}
           {...(props.onLayerStyle === undefined ? {} : { onLayerStyle: props.onLayerStyle })}
           {...(props.loadOrthographies === undefined
             ? {}
@@ -688,6 +711,15 @@ export function DesktopTranscriptionLane(props: {
           const unitId = edges.ui.menu?.unitId;
           if (unitId) void edges.askDelete(unitId);
         }}
+        {...(props.onSplit === undefined
+          ? {}
+          : {
+              onAskSplit: () => {
+                const unitId = edges.ui.menu?.unitId;
+                edges.closeMenu();
+                if (unitId) props.onSplit?.(unitId);
+              },
+            })}
         onCancelDelete={edges.cancelDelete}
         onConfirmDelete={edges.confirmDelete}
       />
