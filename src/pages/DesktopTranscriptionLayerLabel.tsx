@@ -5,6 +5,7 @@ import {
   type CSSProperties,
   type KeyboardEvent,
   type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { t, tf, type Locale } from '../i18n';
@@ -129,6 +130,10 @@ export function DesktopTranscriptionLayerLabel(props: {
   focused: boolean;
   onToggleGroup: () => void;
   onCollapse: () => void;
+  dragClassName?: string;
+  dragOffset?: number;
+  onLayerPointerDown?: (event: ReactPointerEvent<HTMLElement>) => void;
+  onLayerPointerUp?: () => void;
 }) {
   const { row, locale } = props;
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
@@ -167,8 +172,13 @@ export function DesktopTranscriptionLayerLabel(props: {
     <div
       className={`desktop-tx-band-label desktop-tx-layer-label${row.lanes.some((lane) => lane.role === 'host') ? ' is-side-host' : ''}${
         props.focused ? ' is-focused' : ''
-      }`}
-      style={cssVars({ '--dot-x': px(levelX(row.depth)) })}
+      }${props.dragClassName ?? ''}`}
+      style={{
+        ...cssVars({ '--dot-x': px(levelX(row.depth)) }),
+        ...(props.dragOffset === undefined
+          ? {}
+          : { transform: `translateY(${props.dragOffset}px)` }),
+      }}
       tabIndex={0}
       onFocus={(event) => setTip(event.target === event.currentTarget)}
       onBlur={() => setTip(false)}
@@ -183,7 +193,15 @@ export function DesktopTranscriptionLayerLabel(props: {
         shown={tip}
         onShow={setTip}
       />
-      <span className="desktop-tx-layer-name">{props.name}</span>
+      <span
+        className="desktop-tx-layer-name"
+        {...(props.onLayerPointerDown === undefined
+          ? {}
+          : { onPointerDown: props.onLayerPointerDown })}
+        {...(props.onLayerPointerUp === undefined ? {} : { onPointerUp: props.onLayerPointerUp })}
+      >
+        {props.name}
+      </span>
       {row.groupCollapsed ? (
         <span className="desktop-tx-layer-more">
           {tf(locale, 'app.desktopTranscription.layerGroupMore', { count: row.childCount })}
@@ -242,10 +260,17 @@ export function DesktopTranscriptionFoldedStrip(props: {
   hostNames: readonly string[];
   segmentCount: number;
   onExpand: () => void;
+  className?: string;
+  style?: CSSProperties;
 }) {
   const [tip, setTip] = useState(false);
   return (
-    <div className="desktop-tx-layer-strip" data-layer-id={props.layerId}>
+    <div
+      className={`desktop-tx-layer-strip${props.className ?? ''}`}
+      data-layer-id={props.layerId}
+      data-drag-surface="timeline"
+      {...(props.style === undefined ? {} : { style: props.style })}
+    >
       <div
         className="desktop-tx-band-label desktop-tx-layer-label desktop-tx-layer-strip__label"
         style={cssVars({ '--dot-x': px(levelX(props.row.depth)) })}

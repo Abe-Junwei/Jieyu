@@ -98,6 +98,14 @@ describe('desktop operation contract', () => {
       'layers.restore',
       'layers.previewHosts',
       'layers.setHosts',
+      'layers.clearHosts',
+      'layers.place',
+      'recordings.createPair',
+      'recordings.attach',
+      'recordings.detach',
+      'recordings.read',
+      'recordings.list',
+      'recordings.transcribe',
     ];
     for (const key of addedAfterSnapshot) {
       expect(DESKTOP_METHODS_AT_5fbc66f8).not.toContain(key);

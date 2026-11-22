@@ -132,8 +132,15 @@ export function createDesktopClient(bridge: DesktopBridge) {
         hostLayerIds: string[];
         preferredHostLayerId: string;
         linkType: 'direct' | 'free' | 'literal' | 'pedagogical';
+        append?: boolean;
       },
     ) => once(sessionId, 'layers.setHosts', input),
+    clearLayerHosts: (sessionId: string, input: { layerId: string; sortOrder: number }) =>
+      once(sessionId, 'layers.clearHosts', input),
+    placeLayer: (
+      sessionId: string,
+      input: { layerId: string; hostLayerId?: string; beforeId?: string },
+    ) => once(sessionId, 'layers.place', input),
     renameLayer: (sessionId: string, input: { id: string; name: Record<string, string> }) =>
       once(sessionId, 'layers.rename', input),
     setLayerHeight: (sessionId: string, input: { id: string; laneHeight: number }) =>

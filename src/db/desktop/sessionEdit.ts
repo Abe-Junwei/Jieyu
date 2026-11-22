@@ -410,7 +410,12 @@ function redoText(db: SqliteDatabase, undo: UnitTextUndo): { value: Unit; edit: 
   let fresh: UnitTextUndo | null = null;
   const unit = updateUnitText(
     db,
-    { unitId: undo.unitId, text: undo.after.text },
+    {
+      unitId: undo.unitId,
+      textLayerId: undo.textLayerId,
+      text: undo.after.text,
+      provenanceJson: undo.after.provenanceJson,
+    },
     undefined,
     (next) => {
       fresh = next;

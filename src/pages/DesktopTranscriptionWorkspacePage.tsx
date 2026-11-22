@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { TimeRuler } from '../components/TimeRuler';
+import { TimelineTranslationAudioControls } from '../components/TimelineTranslationAudioControls';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
 import { JieyuIcon } from '../components/ui/JieyuIcon';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
@@ -34,6 +35,11 @@ import {
 } from '../hooks/transcription/transcriptionPlaybackClock';
 import { useDesktopLayerView } from './useDesktopLayerView';
 import { useDesktopTranscriptionLayerController } from './useDesktopTranscriptionLayerController';
+import { DesktopLayerDragReason } from './useDesktopTranscriptionLayerDragController';
+import { useDesktopTranscriptionOralController } from './useDesktopTranscriptionOralController';
+import { pauseOralAudios } from './oralPlayback';
+import { DesktopOralLeaveDialog } from './DesktopOralLeaveDialog';
+import { useOralNavigationGuard } from './oralNavigationGuard';
 import {
   DesktopTranscriptionLane,
   type WaveCreate,
@@ -102,9 +108,20 @@ function DesktopTranscriptionWorkspace() {
   const layerView = useDesktopLayerView(read.model?.manuscriptId ?? null);
   const textStore = layerTextStore(read);
   const draft = useDesktopDraftGuard(textStore.save, textStore.store);
+  const oralGate = useRef({
+    holding: false,
+    leave: (_go: () => void, _cancel?: () => void) => undefined as void,
+  });
   useEffect(() => {
     const stopFlush = host?.onTextClose?.(() => {
-      void draft.flushForClose().then((result) => host.reportTextClose?.(result));
+      const reportDraft = () => {
+        void draft.flushForClose().then((result) => host.reportTextClose?.(result));
+      };
+      if (oralGate.current.holding) {
+        oralGate.current.leave(reportDraft, () => host.reportTextClose?.('stay'));
+        return;
+      }
+      reportDraft();
     });
     const stopDiscard = host?.onDiscardClose?.(() => {
       void draft.discard().then((ok) => host.reportTextClose?.(ok ? 'discarded' : 'unknown'));
@@ -202,8 +219,6 @@ function DesktopTranscriptionWorkspace() {
   const speakerCount = new Set(
     (sourceUnits ?? []).map((unit) => unit.speakerId).filter((id) => id !== null),
   ).size;
-  const sideActions = useRef({ draft, read, selection });
-  sideActions.current = { draft, read, selection };
   const layerActions = useDesktopTranscriptionLayerController({
     sessionId: read.sessionId,
     desktopCall: host?.desktopCall,
@@ -213,6 +228,18 @@ function DesktopTranscriptionWorkspace() {
     currentLayerId: read.model?.layerId ?? null,
     refresh: () => read.refresh(),
   });
+  const oral = useDesktopTranscriptionOralController({
+    sessionId: read.sessionId,
+    desktopCall: host?.desktopCall,
+    audioLayerIds: (read.model?.layers ?? []).flatMap((layer) =>
+      layer.modality === 'audio' ? [layer.id] : [],
+    ),
+    refresh: () => read.refresh(),
+  });
+  oralGate.current = { holding: oral.holding, leave: oral.leave };
+  useOralNavigationGuard(oral.holding, oral.leave);
+  const sideActions = useRef({ draft, read, selection, oral });
+  sideActions.current = { draft, read, selection, oral };
   const playbackDuration = playback.duration;
   const readModel = read.model;
   const selectedUnitId = selection.selectedUnitId;
@@ -229,11 +256,13 @@ function DesktopTranscriptionWorkspace() {
         selectedUnitId={selectedUnitId}
         actions={layerActions}
         onOpen={(manuscriptId, layerId) =>
-          sideActions.current.draft.leave(() => {
-            if (layerId === undefined) sideActions.current.selection.clearSelection();
-            if (layerId === undefined) sideActions.current.read.selectManuscript(manuscriptId);
-            else sideActions.current.read.selectManuscript(manuscriptId, layerId);
-          })
+          sideActions.current.oral.leave(() =>
+            sideActions.current.draft.leave(() => {
+              if (layerId === undefined) sideActions.current.selection.clearSelection();
+              if (layerId === undefined) sideActions.current.read.selectManuscript(manuscriptId);
+              else sideActions.current.read.selectManuscript(manuscriptId, layerId);
+            }),
+          )
         }
         onSelectUnit={(unitId) => {
           const unit = units.find((item) => item.id === unitId);
@@ -536,6 +565,7 @@ function DesktopTranscriptionWorkspace() {
               </button>
             </div>
           ) : null}
+          <DesktopLayerDragReason locale={locale} drag={layerActions.drag} />
           <DesktopTranscriptionLane
             locale={locale}
             sessionId={read.sessionId}
@@ -569,7 +599,39 @@ function DesktopTranscriptionWorkspace() {
             waveStage={waveStage}
             onWaveSegmentMenu={(unitId, x, y) => openWaveRegionMenu.current(unitId, x, y)}
             onLaneHeight={(layerId, height) => layerActions.setHeight(layerId, height)}
-            onLeave={(go) => draft.leave(go)}
+            layerDrag={layerActions.drag}
+            audioTools={(layerId, unitId) => (
+              <TimelineTranslationAudioControls
+                compact
+                audioSrc={oral.src(layerId, unitId)}
+                isRecording={oral.isRecording(layerId, unitId)}
+                isArming={oral.isArming(layerId, unitId)}
+                isSaving={oral.isSaving(layerId, unitId)}
+                isFailed={oral.isFailed(layerId, unitId)}
+                elapsed={oral.elapsed}
+                takePaused={oral.paused}
+                level={oral.level}
+                disabled={
+                  (oral.micBusy || oral.saveLocked) &&
+                  !oral.isRecording(layerId, unitId) &&
+                  !oral.isArming(layerId, unitId) &&
+                  !oral.isSaving(layerId, unitId) &&
+                  !oral.isFailed(layerId, unitId)
+                }
+                onStartRecording={() => {
+                  if (playback.isPlaying) playback.togglePlayback();
+                  pauseOralAudios();
+                  void oral.start(layerId, unitId);
+                }}
+                onRetrySave={() => oral.retry()}
+                onDiscardSave={() => oral.discardSave()}
+                onStopRecording={oral.stop}
+                onDeleteRecording={() => void oral.remove(layerId, unitId)}
+                onTranscribeRecording={() => oral.transcribe(layerId, unitId)}
+              />
+            )}
+            openAudioLayerId={oral.openLayerId}
+            onLeave={(go) => oral.leave(() => draft.leave(go))}
             onOpenBody={(layerId, unitId, saved) => {
               const key = textKey(layerId, unitId);
               textSync.current.syncSaved(key, saved);
@@ -595,6 +657,14 @@ function DesktopTranscriptionWorkspace() {
           onDelete={(unitId) => waveDeleteRef.current?.(unitId)}
         />
       )}
+      {oral.ask ? (
+        <DesktopOralLeaveDialog
+          saving={oral.saving}
+          onSave={() => oral.saveAndLeave()}
+          onDiscard={() => oral.discardAndLeave()}
+          onStay={() => oral.stay()}
+        />
+      ) : null}
       {draft.prompt === null ? null : (
         <DesktopDraftLeaveDialog
           failed={draft.prompt.failed}

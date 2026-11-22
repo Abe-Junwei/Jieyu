@@ -14,6 +14,7 @@ interface UnitTextContextRow {
   unit_layer_id: string;
   text_layer_id: string;
   content_type: string;
+  tier_type: string;
   unit_manuscript_id: string;
   text_manuscript_id: string;
   deleted_at: string | null;
@@ -37,6 +38,7 @@ export function resolveUnitTextContext(
       `SELECT units.layer_id AS unit_layer_id,
               target.id AS text_layer_id,
               target.content_type,
+              target.tier_type,
               source.manuscript_id AS unit_manuscript_id,
               target.manuscript_id AS text_manuscript_id,
               manuscript.deleted_at,
@@ -70,6 +72,9 @@ export function resolveUnitTextContext(
   ) {
     throw new Error('unit text layer is not linked to its unit');
   }
+  if (row.tier_type === 'time-aligned' && row.text_layer_id !== row.unit_layer_id) {
+    throw new Error('unit text stays on its layer');
+  }
   if (row.content_type === 'point') throw new Error('point layer does not accept unit text');
   return {
     unitId,
@@ -83,13 +88,15 @@ export function resolveUnitTextContext(
 export function readUnitTextBody(
   db: SqliteDatabase,
   context: UnitTextContext,
-): { id: string | null; body: string } {
+): { id: string | null; body: string; provenanceJson: string | null } {
   const row = db
     .prepare(
-      `SELECT id, body FROM unit_texts
+      `SELECT id, body, provenance_json FROM unit_texts
        WHERE unit_id = ? AND layer_id = ? AND role = ?`,
     )
     .get(context.unitId, context.textLayerId, context.role) as
-    { id: string; body: string } | undefined;
-  return row === undefined ? { id: null, body: '' } : row;
+    { id: string; body: string; provenance_json: string | null } | undefined;
+  return row === undefined
+    ? { id: null, body: '', provenanceJson: null }
+    : { id: row.id, body: row.body, provenanceJson: row.provenance_json };
 }

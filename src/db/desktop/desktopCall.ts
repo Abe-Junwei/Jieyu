@@ -70,7 +70,7 @@ import { patchSpeaker, redeliverSpeaker } from './speakerFields';
 import { createSpeaker, listSpeakers } from './speakers';
 import { createSource, patchSource, redeliverSource } from './sourceFields';
 import { previewPurge, purgeDefinition } from './customFieldPurge';
-import { previewLayerHosts, setLayerHosts } from './layerHosts';
+import { clearLayerHosts, placeLayer, previewLayerHosts, setLayerHosts } from './layerHosts';
 import { createLayer, listLayerLinks, listLayers } from './layers';
 import {
   deleteLayer,
@@ -91,6 +91,19 @@ import {
 } from './lexemeLink';
 import { createMedia, listActiveMedia, listDeletedMedia } from './media';
 import { registerRecording } from './registerRecording';
+import {
+  attachRecording,
+  createRecordingPair,
+  detachRecording,
+  dropOralEngine,
+  listRecordings,
+  oralProvenanceJson,
+  peekOralEngine,
+  commitOralTranscript,
+  readRecording,
+  recordingFileId,
+} from './recordingClips';
+import { transcribeWavClip } from '../../desktop/projectTranscription';
 import { finishMediaCleanup, type MediaTrash } from './mediaCleanup';
 import { reregisterMedia, restoreRegisteredMedia } from './mediaReregister';
 import {
@@ -235,6 +248,18 @@ const operationHandlers = {
   'layers.setHosts': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.setHosts']['check']>) =>
       setLayerHosts(ctx.db, input),
+  },
+  'layers.clearHosts': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.clearHosts']['check']>) => {
+      clearLayerHosts(ctx.db, input);
+      return { layerId: input.layerId };
+    },
+  },
+  'layers.place': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.place']['check']>) => {
+      placeLayer(ctx.db, input);
+      return { layerId: input.layerId };
+    },
   },
   'layers.rename': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.rename']['check']>) =>
@@ -1012,10 +1037,30 @@ const operationHandlers = {
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
+      const draft =
+        input.textLayerId === undefined
+          ? null
+          : readUnitTextDraft(ctx.db, input.unitId, input.textLayerId);
+      const matching = draft !== null && draft.rawInput === input.text;
+      const engine =
+        !matching && input.textLayerId !== undefined
+          ? peekOralEngine(input.unitId, input.textLayerId)
+          : undefined;
+      const provenanceJson = matching
+        ? draft.provenanceJson
+        : engine === undefined
+          ? undefined
+          : oralProvenanceJson(engine);
       const box: { undo: UnitTextUndo | null } = { undo: null };
-      const unit = updateUnitText(ctx.db, input, undefined, (undo) => {
-        box.undo = undo;
-      });
+      const unit = updateUnitText(
+        ctx.db,
+        provenanceJson === undefined ? input : { ...input, provenanceJson },
+        undefined,
+        (undo) => {
+          box.undo = undo;
+        },
+      );
+      if (input.textLayerId !== undefined) dropOralEngine(input.unitId, input.textLayerId);
       return { value: unit, undo: box.undo };
     },
     remember: (sessionId, undo) => {
@@ -1049,6 +1094,7 @@ const operationHandlers = {
       input: ReturnType<DesktopOperations['units.discardTextDraft']['check']>,
     ) => {
       discardUnitTextDraft(ctx.db, input.unitId, input.textLayerId);
+      if (input.textLayerId !== undefined) dropOralEngine(input.unitId, input.textLayerId);
       return null;
     },
   },
@@ -1068,6 +1114,66 @@ const operationHandlers = {
   'recordings.register': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['recordings.register']['check']>) =>
       registerRecording(ctx.db, ctx.folder, input),
+  },
+  'recordings.createPair': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['recordings.createPair']['check']>,
+    ) => createRecordingPair(ctx.db, input),
+  },
+  'recordings.attach': {
+    run: async (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['recordings.attach']['check']>,
+    ) => {
+      const stored = attachRecording(ctx.db, ctx.folder, input);
+      if (ctx.trash !== undefined && stored.replacedFileId !== null) {
+        await finishAttachmentCleanup(ctx.db, ctx.folder, stored.replacedFileId, ctx.trash);
+      }
+      return { fileId: stored.fileId };
+    },
+  },
+  'recordings.detach': {
+    run: async (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['recordings.detach']['check']>,
+    ) => {
+      const removed = detachRecording(ctx.db, input);
+      if (ctx.trash !== undefined) {
+        await finishAttachmentCleanup(ctx.db, ctx.folder, removed.fileId, ctx.trash);
+      }
+      return removed;
+    },
+  },
+  'recordings.read': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['recordings.read']['check']>) =>
+      readRecording(ctx.db, ctx.folder, input),
+  },
+  'recordings.list': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['recordings.list']['check']>) =>
+      listRecordings(ctx.db, input.layerId),
+  },
+  'recordings.transcribe': {
+    run: async (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['recordings.transcribe']['check']>,
+    ) => {
+      const fileId = recordingFileId(ctx.db, input.unitId, input.layerId);
+      if (fileId === null) throw new Error('recording is missing');
+      const clip = readRecording(ctx.db, ctx.folder, {
+        unitId: input.unitId,
+        layerId: input.layerId,
+      });
+      const heard = await transcribeWavClip(ctx.sessionId, clip.bytes);
+      return commitOralTranscript(ctx.db, {
+        unitId: input.unitId,
+        audioLayerId: input.layerId,
+        fileId,
+        text: heard.text,
+        model: heard.model,
+        modelVersion: heard.modelVersion,
+      });
+    },
   },
   'media.delete': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['media.delete']['check']>) =>

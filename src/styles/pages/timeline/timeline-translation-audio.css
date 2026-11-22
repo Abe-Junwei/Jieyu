@@ -48,7 +48,8 @@
   color: var(--text-primary);
   cursor: pointer;
   padding: 0;
-  transition: color var(--duration-normal, 160ms) var(--ease-default, ease),
+  transition:
+    color var(--duration-normal, 160ms) var(--ease-default, ease),
     transform var(--duration-normal, 160ms) var(--ease-default, ease),
     opacity var(--duration-normal, 160ms) var(--ease-default, ease);
 }
@@ -69,7 +70,7 @@
 }
 
 .timeline-translation-audio-btn-record {
-  color: var(--state-success-text);
+  color: var(--text-primary);
 }
 
 .timeline-translation-audio-btn-recording {
@@ -108,6 +109,28 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+.timeline-translation-audio-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.timeline-translation-audio-level {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 16px;
+  height: 16px;
+}
+
+.timeline-translation-audio-level i {
+  flex: 1 1 0;
+  border-radius: 1px;
+  background: var(--state-success-solid);
 }
 
 .timeline-translation-audio-stop-glyph {

@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
+import { useDesktopTranscriptionLayerDragController } from './useDesktopTranscriptionLayerDragController';
 
 interface StructureLayer {
   id: string;
@@ -8,12 +9,15 @@ interface StructureLayer {
   contentType?: string;
   tierType?: string;
   sortOrder?: number;
+  parentId?: string | null;
 }
 
 interface StructureLink {
   layerId: string;
   hostLayerId: string;
   isPreferred?: boolean;
+  sortOrder?: number;
+  linkType?: 'direct' | 'free' | 'literal' | 'pedagogical';
 }
 
 /** Layer create, rename, order, height, and delete. The page only passes these through. */
@@ -30,6 +34,33 @@ export function useDesktopTranscriptionLayerController(input: {
   const [error, setError] = useState('');
   const latest = useRef(input);
   latest.current = input;
+  const drag = useDesktopTranscriptionLayerDragController({
+    sessionId: input.sessionId,
+    desktopCall: input.desktopCall,
+    layers: (input.layers ?? []).flatMap((layer) =>
+      layer.contentType === undefined || layer.tierType === undefined
+        ? []
+        : [
+            {
+              id: layer.id,
+              contentType: layer.contentType,
+              tierType: layer.tierType,
+              ...(layer.sortOrder === undefined ? {} : { sortOrder: layer.sortOrder }),
+              ...(layer.parentId === undefined ? {} : { parentId: layer.parentId }),
+            },
+          ],
+    ),
+    links: (input.links ?? []).map((link) => ({
+      layerId: link.layerId,
+      hostLayerId: link.hostLayerId,
+      isPreferred: link.isPreferred === true,
+      ...(link.sortOrder === undefined ? {} : { sortOrder: link.sortOrder }),
+      ...(link.linkType === undefined ? {} : { linkType: link.linkType }),
+    })),
+    currentLayerId: input.currentLayerId,
+    refresh: input.refresh,
+    report: (message) => setError(layerErrorText(locale, message)),
+  });
   return useMemo(() => {
     const run = async (method: string, args: unknown) => {
       const current = latest.current;
@@ -87,9 +118,28 @@ export function useDesktopTranscriptionLayerController(input: {
         });
       })();
     };
+    const createPair = (kind: 'voice' | 'oral', audioName: string, textName: string) => {
+      const current = latest.current;
+      const host = transcriptionHost(
+        current.layers ?? [],
+        current.links ?? [],
+        current.currentLayerId,
+      );
+      if (host === undefined) {
+        setError(t(locale, 'app.desktopTranscription.layerActionFailed'));
+        return;
+      }
+      void run('recordings.createPair', {
+        hostLayerId: host.id,
+        kind,
+        audioName: { zh: audioName },
+        textName: { zh: textName },
+      });
+    };
     return {
       error,
       create,
+      createPair,
       rename: (id: string, name: Record<string, string>) => {
         void run('layers.rename', { id, name });
       },
@@ -110,6 +160,7 @@ export function useDesktopTranscriptionLayerController(input: {
         void run('layers.setHosts', input);
       },
       clearError: () => setError(''),
+      drag,
       previewHosts: async (input: HostsInput): Promise<HostsPreview | null> => {
         const current = latest.current;
         if (current.sessionId === null || current.desktopCall === undefined) return null;
@@ -124,7 +175,7 @@ export function useDesktopTranscriptionLayerController(input: {
         }
       },
     };
-  }, [error, locale]);
+  }, [drag, error, locale]);
 }
 
 interface HostsInput {
@@ -149,6 +200,12 @@ function layerErrorText(locale: Parameters<typeof t>[0], message: string): strin
   }
   if (message.includes('layer host still has texts')) {
     return t(locale, 'app.desktopTranscription.layerHostsBlocked');
+  }
+  if (message.includes('unit text stays on its layer')) {
+    return t(locale, 'app.desktopTranscription.layerTextStays');
+  }
+  if (message.includes('layer cannot leave its host')) {
+    return t(locale, 'app.desktopTranscription.layerHostsRefused');
   }
   if (message.includes('layer host would form a cycle')) {
     return t(locale, 'app.desktopTranscription.layerHostsCycle');

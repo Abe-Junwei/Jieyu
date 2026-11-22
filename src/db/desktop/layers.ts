@@ -16,6 +16,7 @@ export interface Layer {
   languageId: string | null;
   orthographyId: string | null;
   parentId: string | null;
+  modality: string;
   sortOrder: number;
   laneHeight: number | null;
   createdAt: string;
@@ -63,6 +64,7 @@ interface LayerRow {
   language_id: string | null;
   orthography_id: string | null;
   parent_id: string | null;
+  modality: string;
   sort_order: number;
   lane_height: number | null;
   created_at: string;
@@ -106,7 +108,7 @@ export function listLayers(db: SqliteDatabase, manuscriptId: string): Layer[] {
     .prepare(
       `SELECT layers.id, layers.manuscript_id, layers.key, layers.name_json, layers.tier_type,
               layers.content_type, layers.language_id, layers.orthography_id, layers.parent_id,
-              layers.sort_order, layers.lane_height, layers.created_at, layers.updated_at
+              layers.modality, layers.sort_order, layers.lane_height, layers.created_at, layers.updated_at
        FROM layers
        JOIN manuscripts ON manuscripts.id = layers.manuscript_id
        WHERE layers.manuscript_id = ? AND manuscripts.deleted_at IS NULL
@@ -122,7 +124,7 @@ export function getLayer(db: SqliteDatabase, id: string): Layer | null {
     .prepare(
       `SELECT layers.id, layers.manuscript_id, layers.key, layers.name_json, layers.tier_type,
               layers.content_type, layers.language_id, layers.orthography_id, layers.parent_id,
-              layers.sort_order, layers.lane_height, layers.created_at, layers.updated_at
+              layers.modality, layers.sort_order, layers.lane_height, layers.created_at, layers.updated_at
        FROM layers
        JOIN manuscripts ON manuscripts.id = layers.manuscript_id
        WHERE layers.id = ? AND manuscripts.deleted_at IS NULL`,
@@ -171,6 +173,7 @@ function mapLayer(row: LayerRow): Layer {
     languageId: row.language_id,
     orthographyId: row.orthography_id,
     parentId: row.parent_id,
+    modality: row.modality,
     sortOrder: row.sort_order,
     laneHeight: row.lane_height,
     createdAt: row.created_at,

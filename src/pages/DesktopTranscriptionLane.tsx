@@ -6,6 +6,7 @@ import {
   type ChangeEvent,
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
   type RefObject,
 } from 'react';
 import { createPortal } from 'react-dom';
@@ -50,6 +51,10 @@ import {
   formatPlaybackTime,
   type DesktopPlaybackUnit,
 } from './useDesktopTranscriptionMediaController';
+import {
+  timelineDragProps,
+  type DesktopLayerDrag,
+} from './useDesktopTranscriptionLayerDragController';
 
 export type WaveSkip = (unitId: string) => void;
 
@@ -94,9 +99,13 @@ export function DesktopTranscriptionLane(props: {
   onWaveSegmentMenu: (unitId: string, x: number, y: number) => void;
   /** Runs `go` once the open body draft is saved or dropped (the leave guard). */
   onLeave: (go: () => void) => void;
+  /** Layer id of an open recording. Folding it away must ask first. */
+  openAudioLayerId?: string | null;
   /** A body editor opened on `layerId`'s text of `unitId`: bring back its stored draft. */
   onOpenBody: (layerId: string, unitId: string, savedText: string) => void;
   onLaneHeight?: (layerId: string, height: number) => void;
+  layerDrag?: DesktopLayerDrag;
+  audioTools?: (layerId: string, unitId: string) => ReactNode;
 }) {
   const toast = useToast();
   const [editing, setEditing] = useState<LayerCardRef | null>(null);
@@ -301,7 +310,8 @@ export function DesktopTranscriptionLane(props: {
   const handOff = (hiddenIds: readonly string[], hostId: string | null, apply: () => void) => {
     const affects =
       (focus !== null && hiddenIds.includes(focus.layerId)) ||
-      (editing !== null && hiddenIds.includes(editing.layerId));
+      (editing !== null && hiddenIds.includes(editing.layerId)) ||
+      (props.openAudioLayerId != null && hiddenIds.includes(props.openAudioLayerId));
     if (!affects) {
       apply();
       return;
@@ -341,8 +351,9 @@ export function DesktopTranscriptionLane(props: {
     [...(row.hostId ? [row.hostId] : []), ...row.otherHostIds].map((id) =>
       layerLabel(props.layers?.find((layer) => layer.id === id)?.name, props.locale, ''),
     );
-  const renderMain = (row: LayerTreeRow) =>
-    props.hasAudio || props.units.length > 0 ? (
+  const renderMain = (row: LayerTreeRow) => {
+    const dragBits = timelineDragProps(props.layerDrag, row.layerId, row.folded);
+    return props.hasAudio || props.units.length > 0 ? (
       <>
         {row.folded ? (
           <DesktopTranscriptionFoldedStrip
@@ -357,11 +368,16 @@ export function DesktopTranscriptionLane(props: {
         ) : null}
 
         <div
-          className={`desktop-tx-lane${row.folded ? ' is-folded' : ''}`}
+          className={`desktop-tx-lane${row.folded ? ' is-folded' : ''}${dragBits.laneClass}`}
+          data-layer-id={row.layerId}
+          data-drag-surface="timeline"
           data-testid="desktop-readonly-timeline"
-          style={laneHeightStyle(
-            props.layers?.find((layer) => layer.id === row.layerId)?.laneHeight,
-          )}
+          style={{
+            ...(laneHeightStyle(
+              props.layers?.find((layer) => layer.id === row.layerId)?.laneHeight,
+            ) ?? {}),
+            ...dragBits.laneStyle,
+          }}
         >
           <DesktopTranscriptionLayerLabel
             locale={props.locale}
@@ -371,6 +387,7 @@ export function DesktopTranscriptionLane(props: {
             focused={focus === null}
             onToggleGroup={() => toggleGroup(row.layerId)}
             onCollapse={() => collapseLayer(row.layerId)}
+            {...dragBits.label}
           />
           <div ref={props.tierRef} className="desktop-tx-lane__body">
             <div
@@ -480,6 +497,7 @@ export function DesktopTranscriptionLane(props: {
         </div>
       </>
     ) : null;
+  };
   return (
     <>
       {wavePreview}
@@ -494,6 +512,7 @@ export function DesktopTranscriptionLane(props: {
           onToggleGroup={toggleGroup}
           onCollapse={collapseLayer}
           onExpand={props.view.toggleRow}
+          {...(props.layerDrag === undefined ? {} : { drag: props.layerDrag })}
           compact={props.view.compact}
           duration={props.duration}
           zoomPxPerSec={props.zoomPxPerSec}
@@ -527,6 +546,7 @@ export function DesktopTranscriptionLane(props: {
           onCommitBody={props.onCommitBody}
           onStopEdit={() => setEditing(null)}
           {...(props.onLaneHeight === undefined ? {} : { onLaneHeight: props.onLaneHeight })}
+          {...(props.audioTools === undefined ? {} : { audioTools: props.audioTools })}
           onCreate={(event, layerId, units) => {
             setCreateLayerId(layerId);
             setWaveDrag(false);

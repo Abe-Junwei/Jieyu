@@ -11,7 +11,9 @@ asarUnpack:
   - node_modules/better-sqlite3/**
 mac:
   category: public.app-category.productivity
-  minimumSystemVersion: "13.0"
+  minimumSystemVersion: '13.0'
+  extendInfo:
+    NSMicrophoneUsageDescription: 解语需要使用麦克风，为口译和语音转写录下短音频。
   target:
     - target: dmg
       arch:

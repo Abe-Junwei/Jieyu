@@ -9,6 +9,7 @@ export interface UnitTextDraft {
   textLayerId: string;
   rawInput: string;
   baseBody: string;
+  provenanceJson: string | null;
   updatedAt: string;
 }
 
@@ -47,18 +48,10 @@ export function finishTextSave(
   db.prepare(
     `INSERT INTO text_save_receipts (operation_id, digest, unit_id, layer_id, committed_at)
      VALUES (?, ?, ?, ?, ?)`,
-  ).run(
-    input.operationId,
-    input.digest,
-    input.unitId,
-    input.textLayerId,
-    new Date().toISOString(),
-  );
-  db.prepare('DELETE FROM unit_text_drafts WHERE unit_id = ? AND layer_id = ? AND raw_input = ?').run(
-    input.unitId,
-    input.textLayerId,
-    input.text,
-  );
+  ).run(input.operationId, input.digest, input.unitId, input.textLayerId, new Date().toISOString());
+  db.prepare(
+    'DELETE FROM unit_text_drafts WHERE unit_id = ? AND layer_id = ? AND raw_input = ?',
+  ).run(input.unitId, input.textLayerId, input.text);
 }
 
 export function inspectUnitTextSave(
@@ -80,6 +73,7 @@ export function putUnitTextDraft(
     textLayerId?: string;
     rawInput: string;
     baseBody: string;
+    provenanceJson?: string | null;
   },
 ): UnitTextDraft | null {
   const context = resolveUnitTextContext(db, input.unitId, input.textLayerId);
@@ -93,13 +87,28 @@ export function putUnitTextDraft(
     }
     const updatedAt = new Date().toISOString();
     db.prepare(
-      `INSERT INTO unit_text_drafts (unit_id, layer_id, raw_input, base_body, updated_at)
-       VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO unit_text_drafts (
+         unit_id, layer_id, raw_input, base_body, provenance_json, updated_at
+       )
+       VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(unit_id, layer_id) DO UPDATE SET
          raw_input = excluded.raw_input,
          base_body = excluded.base_body,
-         updated_at = excluded.updated_at`,
-    ).run(input.unitId, context.textLayerId, input.rawInput, input.baseBody, updatedAt);
+         updated_at = excluded.updated_at,
+         provenance_json = CASE
+           WHEN excluded.provenance_json IS NOT NULL THEN excluded.provenance_json
+           WHEN excluded.raw_input = unit_text_drafts.raw_input
+             THEN unit_text_drafts.provenance_json
+           ELSE NULL
+         END`,
+    ).run(
+      input.unitId,
+      context.textLayerId,
+      input.rawInput,
+      input.baseBody,
+      input.provenanceJson ?? null,
+      updatedAt,
+    );
     return readUnitTextDraft(db, input.unitId, context.textLayerId);
   });
   return write();
@@ -113,7 +122,7 @@ export function readUnitTextDraft(
   const context = resolveUnitTextContext(db, unitId, textLayerId);
   const row = db
     .prepare(
-      `SELECT unit_id, layer_id, raw_input, base_body, updated_at
+      `SELECT unit_id, layer_id, raw_input, base_body, provenance_json, updated_at
        FROM unit_text_drafts WHERE unit_id = ? AND layer_id = ?`,
     )
     .get(unitId, context.textLayerId) as
@@ -122,6 +131,7 @@ export function readUnitTextDraft(
         layer_id: string;
         raw_input: string;
         base_body: string;
+        provenance_json: string | null;
         updated_at: string;
       }
     | undefined;
@@ -131,6 +141,7 @@ export function readUnitTextDraft(
     textLayerId: row.layer_id,
     rawInput: row.raw_input,
     baseBody: row.base_body,
+    provenanceJson: row.provenance_json,
     updatedAt: row.updated_at,
   };
 }

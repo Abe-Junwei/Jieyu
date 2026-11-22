@@ -24,7 +24,15 @@ vi.mock('./useDesktopProjectReadController', () => ({
     model: {
       manuscriptId: 'ms-1',
       manuscripts: [{ id: 'ms-1', title: { und: 'Story' }, timeMapping: null }],
-      layers: [],
+      layers: [
+        {
+          id: 'layer-1',
+          name: { zh: '转写' },
+          contentType: 'transcription',
+          tierType: 'time-aligned',
+          units: [],
+        },
+      ],
       layerId: 'layer-1',
       units: [
         { id: 'u-a', startMs: 0, endMs: 1000, text: 'alpha', speakerId: null },

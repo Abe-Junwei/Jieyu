@@ -2,17 +2,30 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { JieyuIcon } from './ui/JieyuIcon';
 import { JIEYU_ICON_WAVE, JIEYU_ICON_WAVE_MD } from '../utils/jieyuIcon';
 import type { MediaItemDocType } from '../db/types';
-import { t, useLocale } from '../i18n';
+import { t, tf, useLocale } from '../i18n';
+import { formatElapsed } from '../pages/oralTake';
+import { watchOralAudio } from '../pages/oralPlayback';
 import { createLogger } from '../observability/logger';
 import { readAudioBlobFromDetails } from '../utils/translationRecordingMediaBlob';
 
 export interface TimelineTranslationAudioControlsProps {
   mediaItem?: MediaItemDocType;
+  /** Bytes already published for this card. The control does not revoke this URL. */
+  audioSrc?: string | null;
   isRecording?: boolean;
+  isArming?: boolean;
+  isSaving?: boolean;
+  isFailed?: boolean;
+  elapsed?: number;
+  onRetrySave?: () => void;
+  onDiscardSave?: () => void;
   disabled?: boolean;
   compact?: boolean;
   onStartRecording?: () => void;
   onStopRecording?: () => void;
+  /** 0..1 live input level while recording. */
+  level?: number;
+  takePaused?: boolean;
   onDeleteRecording?: () => void;
   /** 混合翻译层：将当前录音转写为文本（由父级按 `layer.modality === 'mixed'` 决定是否传入） */
   onTranscribeRecording?: () => void | Promise<void>;
@@ -26,11 +39,20 @@ function resolveMediaAudioBlob(mediaItem?: MediaItemDocType): Blob | null {
 
 export const TimelineTranslationAudioControls = memo(function TimelineTranslationAudioControls({
   mediaItem,
+  audioSrc: givenSrc = null,
   isRecording = false,
+  isArming = false,
+  isSaving = false,
+  isFailed = false,
+  elapsed = 0,
+  onRetrySave,
+  onDiscardSave,
   disabled = false,
   compact = false,
   onStartRecording,
   onStopRecording,
+  level = 0,
+  takePaused = false,
   onDeleteRecording,
   onTranscribeRecording,
 }: TimelineTranslationAudioControlsProps) {
@@ -38,7 +60,10 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
-  const audioSrc = useMemo(() => {
+  const [announcement, setAnnouncement] = useState('');
+  const [clipSeconds, setClipSeconds] = useState<number | null>(null);
+  const ownedSrc = useMemo(() => {
+    if (givenSrc) return null;
     if (!mediaItem?.id) {
       return null;
     }
@@ -48,15 +73,16 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
     }
     const blob = resolveMediaAudioBlob(mediaItem);
     return blob ? URL.createObjectURL(blob) : null;
-  }, [mediaItem]);
+  }, [mediaItem, givenSrc]);
+  const audioSrc = givenSrc ?? ownedSrc;
 
   useEffect(
     () => () => {
-      if (audioSrc?.startsWith('blob:')) {
-        URL.revokeObjectURL(audioSrc);
+      if (ownedSrc?.startsWith('blob:')) {
+        URL.revokeObjectURL(ownedSrc);
       }
     },
-    [audioSrc],
+    [ownedSrc],
   );
 
   useEffect(() => {
@@ -84,12 +110,71 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
     [],
   );
 
+  useEffect(() => watchOralAudio(audioRef.current), [audioSrc]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !audioSrc) {
+      setClipSeconds(null);
+      return;
+    }
+    const read = () => {
+      setClipSeconds(Number.isFinite(audio.duration) ? audio.duration : null);
+    };
+    read();
+    audio.addEventListener('loadedmetadata', read);
+    audio.addEventListener('durationchange', read);
+    return () => {
+      audio.removeEventListener('loadedmetadata', read);
+      audio.removeEventListener('durationchange', read);
+    };
+  }, [audioSrc]);
+
+  useEffect(() => {
+    if (isRecording || isArming) audioRef.current?.pause();
+  }, [isRecording, isArming]);
+
+  const elapsedRef = useRef(elapsed);
+  elapsedRef.current = elapsed;
+  const phase = isFailed
+    ? 'failed'
+    : isSaving
+      ? 'saving'
+      : isArming
+        ? 'arming'
+        : isRecording
+          ? takePaused
+            ? 'paused'
+            : 'recording'
+          : 'idle';
+  useEffect(() => {
+    if (phase === 'idle') return;
+    const label =
+      phase === 'failed'
+        ? t(locale, 'transcription.timeline.audio.status.saveFailed')
+        : phase === 'saving'
+          ? t(locale, 'transcription.timeline.audio.status.saving')
+          : phase === 'arming'
+            ? t(locale, 'transcription.timeline.audio.starting')
+            : phase === 'paused'
+              ? t(locale, 'transcription.timeline.audio.status.paused')
+              : t(locale, 'transcription.timeline.audio.status.recording');
+    const time =
+      phase === 'recording' || phase === 'paused'
+        ? tf(locale, 'transcription.timeline.audio.elapsed', {
+            time: formatElapsed(elapsedRef.current),
+          })
+        : '';
+    setAnnouncement(time === '' ? label : `${label} ${time}`);
+  }, [phase, locale]);
+
   const hasAudio = Boolean(audioSrc);
+  const showSaved = hasAudio && !isRecording && !isArming && !isSaving && !isFailed;
 
   const handleRecordClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-    if (disabled) return;
-    if (isRecording) {
+    if (disabled || isSaving || isFailed) return;
+    if (isArming || isRecording) {
       onStopRecording?.();
       return;
     }
@@ -98,7 +183,7 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
 
   const handlePlaybackClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-    if (disabled || !hasAudio) return;
+    if (disabled || isRecording || isArming || isSaving || isFailed || !hasAudio) return;
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -149,9 +234,14 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
         .filter(Boolean)
         .join(' ')}
       onPointerDown={(event) => event.stopPropagation()}
-      onClick={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.stopPropagation();
+        if (disabled || (event.target instanceof Element && event.target.closest('button'))) return;
+        if (isRecording || isArming) onStopRecording?.();
+        else if (!hasAudio) onStartRecording?.();
+      }}
     >
-      <audio ref={audioRef} src={audioSrc ?? undefined} preload="none" />
+      <audio ref={audioRef} src={audioSrc ?? undefined} preload="metadata" />
       <button
         type="button"
         className={[
@@ -162,14 +252,18 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
           .filter(Boolean)
           .join(' ')}
         aria-label={
-          isRecording
-            ? t(locale, 'transcription.timeline.audio.stopRecording')
-            : t(locale, 'transcription.timeline.audio.startRecording')
+          isArming
+            ? t(locale, 'transcription.timeline.audio.starting')
+            : isRecording
+              ? t(locale, 'transcription.timeline.audio.stopRecording')
+              : t(locale, 'transcription.timeline.audio.startRecording')
         }
         title={
-          isRecording
-            ? t(locale, 'transcription.timeline.audio.stopRecording')
-            : t(locale, 'transcription.timeline.audio.startRecording')
+          isArming
+            ? t(locale, 'transcription.timeline.audio.starting')
+            : isRecording
+              ? t(locale, 'transcription.timeline.audio.stopRecording')
+              : t(locale, 'transcription.timeline.audio.startRecording')
         }
         disabled={disabled}
         onClick={handleRecordClick}
@@ -180,7 +274,70 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
           <JieyuIcon name="Mic" className={JIEYU_ICON_WAVE} />
         )}
       </button>
-      {hasAudio ? (
+      {isArming ? (
+        <span className="timeline-translation-audio-status">
+          {t(locale, 'transcription.timeline.audio.starting')}
+        </span>
+      ) : null}
+      {isRecording || isSaving || isFailed ? (
+        <span className="timeline-translation-audio-status">
+          {isFailed
+            ? t(locale, 'transcription.timeline.audio.status.saveFailed')
+            : isSaving
+              ? t(locale, 'transcription.timeline.audio.status.saving')
+              : takePaused
+                ? t(locale, 'transcription.timeline.audio.status.paused')
+                : t(locale, 'transcription.timeline.audio.status.recording')}
+          {isRecording ? ` ${formatElapsed(elapsed)}` : ''}
+        </span>
+      ) : null}
+      <span className="timeline-translation-audio-live" role="status" aria-live="polite">
+        {announcement}
+      </span>
+      {isFailed ? (
+        <>
+          <button
+            type="button"
+            className="timeline-translation-audio-btn"
+            aria-label={t(locale, 'transcription.timeline.audio.retrySave')}
+            onClick={(event) => {
+              event.stopPropagation();
+              onRetrySave?.();
+            }}
+          >
+            {t(locale, 'transcription.timeline.audio.retrySave')}
+          </button>
+          <button
+            type="button"
+            className="timeline-translation-audio-btn timeline-translation-audio-btn-delete"
+            aria-label={t(locale, 'transcription.timeline.audio.discardTake')}
+            onClick={(event) => {
+              event.stopPropagation();
+              onDiscardSave?.();
+            }}
+          >
+            {t(locale, 'transcription.timeline.audio.discardTake')}
+          </button>
+        </>
+      ) : null}
+      {isRecording ? (
+        <span
+          className="timeline-translation-audio-level"
+          role="img"
+          aria-label={t(locale, 'transcription.timeline.audio.level')}
+        >
+          {[0.12, 0.28, 0.5, 0.75].map((step) => (
+            <i
+              key={step}
+              style={{ height: level >= step ? `${Math.round(4 + step * 12)}px` : '2px' }}
+            />
+          ))}
+        </span>
+      ) : null}
+      {showSaved && clipSeconds !== null ? (
+        <span className="timeline-translation-audio-status">{formatElapsed(clipSeconds)}</span>
+      ) : null}
+      {showSaved ? (
         <button
           type="button"
           className="timeline-translation-audio-btn"
@@ -194,7 +351,7 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
               ? t(locale, 'transcription.timeline.audio.pauseRecording')
               : t(locale, 'transcription.timeline.audio.playRecording')
           }
-          disabled={disabled}
+          disabled={disabled || isRecording || isArming || isSaving || isFailed}
           onClick={(event) => {
             void handlePlaybackClick(event);
           }}
@@ -206,7 +363,7 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
           )}
         </button>
       ) : null}
-      {hasAudio && onTranscribeRecording ? (
+      {showSaved && onTranscribeRecording ? (
         <button
           type="button"
           className={[
@@ -242,7 +399,7 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
           />
         </button>
       ) : null}
-      {hasAudio && onDeleteRecording ? (
+      {showSaved && onDeleteRecording ? (
         <button
           type="button"
           className="timeline-translation-audio-btn timeline-translation-audio-btn-delete"

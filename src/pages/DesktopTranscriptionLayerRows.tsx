@@ -20,12 +20,17 @@ import { desktopSegmentFrame, playbackWithPreview } from './desktopTranscription
 import type { ShownPreview } from './desktopTranscriptionEdgePointer';
 import { textKey } from './desktopTranscriptionTextKey';
 import type { DesktopPlaybackUnit } from './useDesktopTranscriptionMediaController';
+import {
+  timelineDragProps,
+  type DesktopLayerDrag,
+} from './useDesktopTranscriptionLayerDragController';
 
 export interface LayerRowLayer {
   id: string;
   name: Record<string, string>;
   sortOrder?: number;
   laneHeight?: number | null;
+  modality?: string;
   units: readonly {
     id: string;
     startMs: number | null;
@@ -85,8 +90,13 @@ export function DesktopTranscriptionLayerRows(props: {
     units: readonly TimedEdgeUnit[],
   ) => void;
   onLaneHeight?: (layerId: string, height: number) => void;
+  drag?: DesktopLayerDrag;
+  /** Record, play, and delete for a modality=audio card. Text layers ignore it. */
+  audioTools?: (layerId: string, unitId: string) => ReactNode;
 }) {
   const mainInTree = props.tree.some((row) => row.layerId === props.mainLayerId);
+  const mainExists =
+    props.mainLayerId !== null && props.layers.some((layer) => layer.id === props.mainLayerId);
   const mainRow: LayerTreeRow = {
     layerId: props.mainLayerId ?? '',
     depth: 0,
@@ -132,6 +142,7 @@ export function DesktopTranscriptionLayerRows(props: {
       endMs: Math.round(unit.endTime * 1000),
     }));
     const name = layerLabel(layer.name, props.locale, '');
+    const dragBits = timelineDragProps(props.drag, layer.id, row.folded);
     if (row.folded) {
       return (
         <DesktopTranscriptionFoldedStrip
@@ -143,15 +154,18 @@ export function DesktopTranscriptionLayerRows(props: {
           hostNames={hostNames(row)}
           segmentCount={layer.units.length}
           onExpand={() => props.onExpand(layer.id)}
+          className={dragBits.laneClass}
+          style={dragBits.laneStyle}
         />
       );
     }
     return (
       <div
         key={layer.id}
-        className="desktop-tx-lane"
+        className={`desktop-tx-lane${dragBits.laneClass}`}
         data-layer-id={layer.id}
-        style={laneHeightStyle(layer.laneHeight)}
+        data-drag-surface="timeline"
+        style={{ ...(laneHeightStyle(layer.laneHeight) ?? {}), ...dragBits.laneStyle }}
       >
         <DesktopTranscriptionLayerLabel
           locale={props.locale}
@@ -161,6 +175,7 @@ export function DesktopTranscriptionLayerRows(props: {
           focused={props.focus?.layerId === layer.id}
           onToggleGroup={() => props.onToggleGroup(layer.id)}
           onCollapse={() => props.onCollapse(layer.id)}
+          {...dragBits.label}
         />
         <div
           className="desktop-tx-lane__body"
@@ -200,6 +215,9 @@ export function DesktopTranscriptionLayerRows(props: {
                   title={unit.text}
                   draft={props.bodyDraft?.unitId === key ? props.bodyDraft.text : unit.text}
                   {...(typeof unit.confidence === 'number' ? { confidence: unit.confidence } : {})}
+                  {...(props.audioTools !== undefined && layer.modality === 'audio'
+                    ? { content: props.audioTools(layer.id, unit.id) }
+                    : {})}
                   onClick={() => props.onPick(card, unit)}
                   onContextMenu={(event) => props.onRowMenu(card, name, event)}
                   onDoubleClick={ignore}
@@ -235,7 +253,19 @@ export function DesktopTranscriptionLayerRows(props: {
   });
   return (
     <>
-      {mainInTree ? null : props.renderMain(mainRow)}
+      {props.drag ? (
+        <div
+          className={
+            props.drag.dropKind === 'root'
+              ? 'desktop-tx-drop-root is-active'
+              : 'desktop-tx-drop-root'
+          }
+          data-drop="root"
+          data-drop-index="0"
+          data-drag-surface="timeline"
+        />
+      ) : null}
+      {mainInTree || !mainExists ? null : props.renderMain(mainRow)}
       {body}
     </>
   );

@@ -8,6 +8,7 @@ import {
   type LayerHostsInput,
 } from './DesktopTranscriptionLayerList';
 import type { DesktopPlaybackUnit } from './useDesktopTranscriptionMediaController';
+import type { DesktopLayerDrag } from './useDesktopTranscriptionLayerDragController';
 
 interface ManuscriptItem {
   id: string;
@@ -23,6 +24,7 @@ export function DesktopTranscriptionContextColumn(props: {
   links: readonly ContextLink[];
   layerError: string;
   onCreateLayer: (kind: 'transcription' | 'translation', label: string) => void;
+  onCreatePair?: (kind: 'voice' | 'oral', audioName: string, textName: string) => void;
   onRenameLayer: (layerId: string, name: Record<string, string>) => void;
   onMoveLayer: (layerId: string, direction: 'up' | 'down') => void;
   onDeleteLayer: (
@@ -36,6 +38,7 @@ export function DesktopTranscriptionContextColumn(props: {
   } | null>;
   onSetHosts?: (input: LayerHostsInput) => void;
   onClearLayerError?: () => void;
+  drag?: DesktopLayerDrag;
   onSelectLayer: (layerId: string) => void;
   units: readonly DesktopPlaybackUnit[];
   durationLabel: string | null;
@@ -175,6 +178,9 @@ export function DesktopTranscriptionContextColumn(props: {
                   error={props.layerError}
                   onSelect={props.onSelectLayer}
                   onCreate={props.onCreateLayer}
+                  {...(props.onCreatePair === undefined
+                    ? {}
+                    : { onCreatePair: props.onCreatePair })}
                   onRename={props.onRenameLayer}
                   onMove={props.onMoveLayer}
                   onDelete={props.onDeleteLayer}
@@ -182,6 +188,7 @@ export function DesktopTranscriptionContextColumn(props: {
                     ? {}
                     : { onPreviewHosts: props.onPreviewHosts })}
                   {...(props.onSetHosts === undefined ? {} : { onSetHosts: props.onSetHosts })}
+                  {...(props.drag === undefined ? {} : { drag: props.drag })}
                   {...(props.onClearLayerError === undefined
                     ? {}
                     : { onClearError: props.onClearLayerError })}

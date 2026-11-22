@@ -270,6 +270,106 @@ test('layer hosts moves a translation layer to another host', async () => {
   }
 });
 
+test('layer drag reparents a transcription layer only on release', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-layer-drag-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  let app: ElectronApplication | undefined = await launch('layer-drag');
+  let again: ElectronApplication | undefined;
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const manuscriptId = (
+      await desktopCall<{ id: string; title: Record<string, string> }[]>(
+        page,
+        sessionId,
+        'manuscripts.list',
+        {},
+      )
+    ).find((item) => item.title.und === 'Clip')?.id;
+    const listed = await desktopCall<{ id: string; contentType: string }[]>(
+      page,
+      sessionId,
+      'layers.list',
+      { manuscriptId },
+    );
+    const host = listed.find((item) => item.contentType === 'transcription');
+    if (manuscriptId === undefined || host === undefined) throw new Error('clip layer missing');
+    const second = await desktopCall<{ id: string }>(page, sessionId, 'layers.create', {
+      manuscriptId,
+      key: 'tx-hanzi',
+      name: { zh: '汉字转写', en: 'Hanzi', und: 'Hanzi' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+      sortOrder: 1,
+    });
+    const translation = await desktopCall<{ id: string }>(page, sessionId, 'layers.create', {
+      manuscriptId,
+      key: 'tl-en',
+      name: { zh: '英语', en: 'English', und: 'English' },
+      tierType: 'symbolic-association',
+      contentType: 'translation',
+      hosts: [{ hostLayerId: host.id, preferred: true }],
+    });
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    await openLayers(page);
+    const line = (owner: Page, id: string) =>
+      owner.locator(`.desktop-tx-layer-list__line[data-layer-id="${id}"]`);
+    await line(page, translation.id)
+      .getByRole('button', { name: /^(更多|More)$/ })
+      .click();
+    await expect(
+      page.getByRole('menuitem', { name: /^(回到顶层|Return to the top level)$/ }),
+    ).toHaveCount(0);
+    await page.locator('.desktop-tx-menu-backdrop').click();
+    const linksOf = (owner: Page, id: string) =>
+      desktopCall<{ layerId: string; hostLayerId: string; isPreferred: boolean }[]>(
+        owner,
+        sessionId,
+        'layers.listLinks',
+        { manuscriptId },
+      ).then((links) => links.filter((link) => link.layerId === id));
+    await dragLayer(page, second.id, host.id, true);
+    expect(await linksOf(page, second.id)).toEqual([]);
+    await dragLayer(page, second.id, host.id, false, async () => {
+      expect(await linksOf(page, second.id)).toEqual([]);
+    });
+    await expect.poll(() => linksOf(page, second.id)).toEqual([
+      expect.objectContaining({ hostLayerId: host.id, isPreferred: true }),
+    ]);
+    await app.close();
+    app = undefined;
+    again = await launch('layer-drag-again');
+    await stubFolderDialog(again, copy);
+    const reopened = await again.firstWindow();
+    await rememberChosenSession(again);
+    await reopened.getByRole('button', { name: openFolder }).click();
+    await reopened.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    const againSession = await chosenSessionId(again);
+    expect(await linksOfSession(reopened, againSession, manuscriptId, second.id)).toEqual([
+      expect.objectContaining({ hostLayerId: host.id, isPreferred: true }),
+    ]);
+    await openLayers(reopened);
+    await line(reopened, second.id).getByRole('button', { name: /^(更多|More)$/ }).click();
+    await reopened.getByRole('menuitem', { name: /^(回到顶层|Return to the top level)$/ }).click();
+    await expect
+      .poll(() => linksOfSession(reopened, againSession, manuscriptId, second.id))
+      .toEqual([]);
+    expect(await linksOfSession(reopened, againSession, manuscriptId, translation.id)).toEqual([
+      expect.objectContaining({ hostLayerId: host.id, isPreferred: true }),
+    ]);
+  } finally {
+    await app?.close();
+    await again?.close();
+  }
+});
+
 test('drags create on the waveform and on a linked layer row, and texts stay per layer', async () => {
   if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
   const copy = mkdtempSync(join(tmpdir(), 'jieyu-create-'));
@@ -1338,6 +1438,57 @@ function desktopCall<T>(page: Page, sessionId: string, method: string, args: unk
     },
     { sessionId, method, args },
   ) as Promise<T>;
+}
+
+async function openLayers(page: Page): Promise<void> {
+  const layers = page.getByRole('button', { name: /^(层|Layers)\s*\d*$/ });
+  const expand = page.getByRole('button', { name: /^(展开功能面板|Expand feature panel)$/ });
+  await expect(async () => {
+    if (await layers.isVisible()) return;
+    await expand.first().click();
+    await expect(layers).toBeVisible();
+  }).toPass();
+  await layers.click();
+}
+
+async function dragLayer(
+  page: Page,
+  fromId: string,
+  toId: string,
+  cancel: boolean,
+  beforeUp?: () => Promise<void>,
+): Promise<void> {
+  const from = page.locator(
+    `.desktop-tx-layer-list__line[data-layer-id="${fromId}"] .desktop-tx-context__row`,
+  );
+  const to = page.locator(
+    `.desktop-tx-layer-list__line[data-layer-id="${toId}"] .desktop-tx-context__row`,
+  );
+  await from.scrollIntoViewIfNeeded();
+  await to.scrollIntoViewIfNeeded();
+  const fromBox = await from.boundingBox();
+  const toBox = await to.boundingBox();
+  if (fromBox === null || toBox === null) throw new Error('layer row is not visible');
+  await page.mouse.move(fromBox.x + fromBox.width / 2, fromBox.y + fromBox.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(300);
+  if (cancel) {
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
+    return;
+  }
+  await page.mouse.move(toBox.x + toBox.width / 2, toBox.y + toBox.height / 2, { steps: 8 });
+  if (beforeUp) await beforeUp();
+  await page.mouse.up();
+}
+
+function linksOfSession(page: Page, sessionId: string, manuscriptId: string, layerId: string) {
+  return desktopCall<{ layerId: string; hostLayerId: string; isPreferred: boolean }[]>(
+    page,
+    sessionId,
+    'layers.listLinks',
+    { manuscriptId },
+  ).then((links) => links.filter((link) => link.layerId === layerId));
 }
 
 async function rememberChosenSession(app: ElectronApplication): Promise<void> {

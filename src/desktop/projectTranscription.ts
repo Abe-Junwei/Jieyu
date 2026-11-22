@@ -11,6 +11,7 @@ import {
   modelRunTarget,
   interruptUnfinishedRuns,
 } from '../db/desktop/modelRuns';
+import { clearOralEngines } from '../db/desktop/recordingClips';
 import { requireDesktopSession, desktopSessionFolder } from '../db/desktop/projectSession';
 import { secToMs } from '../db/desktop/timeMs';
 import { storedSegmentConfidence } from '../utils/segmentConfidence';
@@ -46,11 +47,70 @@ export function cancelProjectTranscription(sessionId: string, requestId: string)
   cancelModelTranscribe(job.hostRequest);
 }
 
+let oralTicket = 0;
+let oralRequest = '';
+
+export function cancelOralTranscription(): void {
+  oralTicket += 1;
+  if (oralRequest.length > 0) cancelModelTranscribe(oralRequest);
+  oralRequest = '';
+}
+
 export function resetProjectTranscriptions(): void {
+  cancelOralTranscription();
+  clearOralEngines();
   grants.clear();
   for (const job of jobs.values()) {
     job.cancelled = true;
     cancelModelTranscribe(job.hostRequest);
+  }
+}
+
+/** One short wav clip through the granted local model. No project write. */
+export async function transcribeWavClip(
+  sessionId: string,
+  wav: Uint8Array,
+): Promise<{ text: string; model: string; modelVersion: string }> {
+  requireDesktopSession(sessionId);
+  const grant = [...grants.values()].find((item) => item.sessionId === sessionId);
+  if (grant === undefined) throw new Error('local whisper is not granted');
+  const manifest = loadModelDeclaration(grant.file);
+  const duration = wavSeconds(wav);
+  if (
+    duration > manifest.maxAudioSec ||
+    !manifest.accept.some(
+      (item) => item.format === 'wav-pcm16' && item.sampleRate === 16000 && item.channels === 1,
+    )
+  ) {
+    throw new Error('unsupported transcription audio');
+  }
+  if ([...jobs.values()].some((job) => job.sessionId === sessionId) || oralRequest.length > 0) {
+    throw new Error('transcription is already running');
+  }
+  const ticket = oralTicket;
+  const requestId = `oral-${randomUUID()}`;
+  oralRequest = requestId;
+  try {
+    const result = await runModelTranscribe({
+      declarationPath: grant.file,
+      audio: wav,
+      format: 'wav-pcm16',
+      sampleRate: 16000,
+      channels: 1,
+      range: { start: 0, end: duration },
+      requestId,
+    });
+    if (ticket !== oralTicket) throw new Error('oral transcription cancelled');
+    requireDesktopSession(sessionId);
+    if (result.status !== 'ok') throw new Error('oral transcription failed');
+    const text = (result.segments ?? [])
+      .map((segment) => segment.text.trim())
+      .filter((segment) => segment.length > 0)
+      .join(' ');
+    if (text.length === 0) throw new Error('oral transcription is empty');
+    return { text, model: manifest.id, modelVersion: manifest.version };
+  } finally {
+    if (oralRequest === requestId) oralRequest = '';
   }
 }
 
@@ -94,7 +154,11 @@ export async function transcribeProject(
   if (manifest.manifestSha256 !== grant.manifest.manifestSha256)
     throw new Error('model declaration changed');
   const key = `${sessionId}:${input.requestId}`;
-  if (jobs.has(key) || [...jobs.values()].some((job) => job.sessionId === sessionId))
+  if (
+    jobs.has(key) ||
+    [...jobs.values()].some((job) => job.sessionId === sessionId) ||
+    oralRequest.length > 0
+  )
     throw new Error('transcription is already running');
   const source = db
     .prepare(
@@ -236,4 +300,26 @@ export async function transcribeProject(
       })),
     };
   })();
+}
+
+function wavSeconds(wav: Uint8Array): number {
+  if (wav.byteLength < 44) throw new Error('unsupported transcription audio');
+  const view = new DataView(wav.buffer, wav.byteOffset, wav.byteLength);
+  const mark = (start: number, end: number) =>
+    Buffer.from(wav.subarray(start, end)).toString('ascii');
+  if (
+    mark(0, 4) !== 'RIFF' ||
+    mark(8, 12) !== 'WAVE' ||
+    view.getUint16(20, true) !== 1 ||
+    view.getUint16(22, true) !== 1 ||
+    view.getUint32(24, true) !== 16000 ||
+    view.getUint16(34, true) !== 16
+  ) {
+    throw new Error('unsupported transcription audio');
+  }
+  const dataBytes = view.getUint32(40, true);
+  if (dataBytes < 2 || 44 + dataBytes > wav.byteLength) {
+    throw new Error('unsupported transcription audio');
+  }
+  return dataBytes / 2 / 16000;
 }

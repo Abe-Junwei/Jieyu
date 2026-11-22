@@ -67,6 +67,9 @@ export function DesktopTranscriptionSidePane(props: {
       }))}
       layerError={props.actions.error}
       onCreateLayer={(kind, label) => props.actions.create(kind, label)}
+      onCreatePair={(kind, audioName, textName) =>
+        props.actions.createPair(kind, audioName, textName)
+      }
       onRenameLayer={(layerId, name) => props.actions.rename(layerId, name)}
       onMoveLayer={(layerId, direction) => props.actions.move(layerId, direction)}
       onDeleteLayer={(layerId, mode, targetLayerId) =>
@@ -74,6 +77,7 @@ export function DesktopTranscriptionSidePane(props: {
       }
       onPreviewHosts={(input) => props.actions.previewHosts(input)}
       onSetHosts={(input) => props.actions.setHosts(input)}
+      drag={props.actions.drag}
       onClearLayerError={props.actions.clearError}
       onSelectLayer={(layerId) => {
         if (model?.manuscriptId) props.onOpen(model.manuscriptId, layerId);
