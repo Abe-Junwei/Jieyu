@@ -140,6 +140,7 @@ export const zhCNDictionary = {
   'app.desktopTranscription.waveformPlaceholder': '波形与时间轴复用接线见切片 1 后续任务',
   'app.desktopTranscription.noAudioTitle': '还没有录音',
   'app.desktopTranscription.noAudioMessage': '导入一段录音后，这里会显示波形和句段。',
+  'app.desktopTranscription.noLayerMessage': '新建一个转写层后，可以在波形上拖出句段。',
   'app.desktopTranscription.importAudio': '导入录音…',
   'app.desktopTranscription.playSegment': '只播本段',
   'app.desktopTranscription.compact': '紧凑',

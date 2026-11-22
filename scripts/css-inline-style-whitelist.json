@@ -154,7 +154,7 @@
     },
     {
       "file": "src/pages/DesktopTranscriptionLayerLabel.tsx",
-      "reason": "Tree guide, elbow and side-lane offsets derive from each row's runtime depth and lane index; the context menu follows the live pointer and the node tooltip follows the node's on-screen box. A dragged label adds translateY.",
+      "reason": "Tree guide, elbow and side-lane offsets derive from each row's runtime depth and lane index; the context menu follows the live pointer. A dragged label adds translateY.",
       "reviewer": "Cursor + junwei",
       "reviewedAt": "2026-11-22",
       "snippets": [
@@ -189,10 +189,6 @@
         {
           "anchor": "'--dot-x': px(levelX(props.row.depth))",
           "reviewedSha256": "5f78cf263e0f851eefcb29f24b7e4446e8d54b1a2a4edcb082d977ff2ba849f1"
-        },
-        {
-          "anchor": "left: box.left",
-          "reviewedSha256": "2dbde1a15ddddddc99dad61df537dc5863b50e6fbc57353f135229139ff5973b"
         }
       ]
     },
@@ -399,8 +395,8 @@
       "reviewedAt": "2026-11-22",
       "snippets": [
         {
-          "anchor": "left: props.drag.x + 12",
-          "reviewedSha256": "4ecf13dd590a0ac2479c4d522d707c601f6788aedb103a4953a9c600c39a9310"
+          "anchor": "chipPosition(props.drag.x, props.drag.y)",
+          "reviewedSha256": "5955615a32def0933054ed2ca1a95aa142552529665de43e845a7720b4164460"
         }
       ]
     },

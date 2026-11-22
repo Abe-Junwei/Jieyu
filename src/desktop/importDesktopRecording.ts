@@ -1,5 +1,4 @@
 import { createDesktopClient } from '../db/desktop/client';
-import { zhCNDictionary } from '../i18n/dictionaries/zh-CN';
 import type { DesktopReadHost } from './projectReadHost';
 
 export interface ImportedRecordingFile {
@@ -9,7 +8,7 @@ export interface ImportedRecordingFile {
   url: string;
 }
 
-/** Register a copied recording on a manuscript and a time-aligned transcription layer. */
+/** Register a copied recording on a manuscript. The layer list stays empty. */
 export async function registerImportedRecording(input: {
   host: DesktopReadHost;
   sessionId: string | null;
@@ -30,10 +29,6 @@ export async function registerImportedRecording(input: {
     sha256: picked.sha256,
     duration: existing?.duration ?? (await recordingDuration(picked.url, input.durationOf)),
     title: { und: titleOf(picked.filename) },
-    layerKey: 'tx',
-    layerName: { zh: zhCNDictionary['app.desktopTranscription.contextLayerTranscription'] },
-    tierType: 'time-aligned',
-    contentType: 'transcription',
   });
   input.adopt(sessionId);
   input.select(registered.manuscriptId, undefined, sessionId);
