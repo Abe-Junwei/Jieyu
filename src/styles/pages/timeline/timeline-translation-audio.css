@@ -54,14 +54,9 @@
     opacity var(--duration-normal, 160ms) var(--ease-default, ease);
 }
 
-.timeline-translation-audio-btn:hover:not(:disabled) {
-  color: var(--text-primary);
-  transform: translateY(-0.5px);
-}
-
+.timeline-translation-audio-btn:hover:not(:disabled),
 .timeline-translation-audio-btn:focus-visible:not(:disabled) {
   color: var(--text-primary);
-  transform: translateY(-0.5px);
 }
 
 .timeline-translation-audio-btn:disabled {
