@@ -227,6 +227,11 @@ function DesktopTranscriptionWorkspace() {
     links: read.model?.links,
     currentLayerId: read.model?.layerId ?? null,
     refresh: () => read.refresh(),
+    onLayerMoved: (layerId, hostIds) => {
+      layerView.reveal(hostIds);
+      const manuscriptId = read.model?.manuscriptId;
+      if (manuscriptId) read.selectManuscript(manuscriptId, layerId);
+    },
   });
   const oral = useDesktopTranscriptionOralController({
     sessionId: read.sessionId,
@@ -600,6 +605,12 @@ function DesktopTranscriptionWorkspace() {
             onWaveSegmentMenu={(unitId, x, y) => openWaveRegionMenu.current(unitId, x, y)}
             onLaneHeight={(layerId, height) => layerActions.setHeight(layerId, height)}
             layerDrag={layerActions.drag}
+            onCreateTranscription={() =>
+              layerActions.create(
+                'transcription',
+                t(locale, 'app.desktopTranscription.contextLayerTranscription'),
+              )
+            }
             audioTools={(layerId, unitId) => (
               <TimelineTranslationAudioControls
                 compact

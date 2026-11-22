@@ -179,10 +179,15 @@ describe('DesktopTranscriptionLayerList', () => {
           x: 0,
           y: 0,
           shift: () => 0,
+          surface: null,
+          rootZone: false,
+          hint: null,
+          dropEdge: null,
+          notice: null,
           onPointerDown: vi.fn(),
           onPointerUp: vi.fn(),
           attachReason: () => null,
-          returnReason: () => null,
+          returnReason: () => 'app.desktopTranscription.layerAlreadyRoot',
           showReturn: (id) => id === 'tx',
           attachToCurrent: vi.fn(),
           returnToRoot: vi.fn(),
@@ -192,8 +197,19 @@ describe('DesktopTranscriptionLayerList', () => {
     const menus = screen.getAllByRole('button', { name: '更多' });
     fireEvent.click(menus[1]!);
     expect(screen.queryByRole('menuitem', { name: '回到顶层' })).toBeNull();
-    expect(screen.getByRole('menuitem', { name: '挂到当前转写层' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: '挂到「木雅语」' })).toBeTruthy();
     fireEvent.click(menus[0]!);
     expect(screen.getByRole('menuitem', { name: '回到顶层' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: '回到顶层' })).toHaveAccessibleDescription(
+      '已经在顶层',
+    );
+    expect(screen.getByRole('menuitem', { name: '回到顶层' })).toHaveAttribute(
+      'title',
+      '已经在顶层',
+    );
+    expect(document.activeElement).toHaveAttribute('role', 'menuitem');
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'End' });
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
   });
 });

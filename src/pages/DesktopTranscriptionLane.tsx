@@ -106,6 +106,7 @@ export function DesktopTranscriptionLane(props: {
   onLaneHeight?: (layerId: string, height: number) => void;
   layerDrag?: DesktopLayerDrag;
   audioTools?: (layerId: string, unitId: string) => ReactNode;
+  onCreateTranscription: () => void;
 }) {
   const toast = useToast();
   const [editing, setEditing] = useState<LayerCardRef | null>(null);
@@ -347,10 +348,6 @@ export function DesktopTranscriptionLane(props: {
     props.locale,
     t(props.locale, 'app.desktopTranscription.contextLayerTranscription'),
   );
-  const hostNames = (row: LayerTreeRow) =>
-    [...(row.hostId ? [row.hostId] : []), ...row.otherHostIds].map((id) =>
-      layerLabel(props.layers?.find((layer) => layer.id === id)?.name, props.locale, ''),
-    );
   const renderMain = (row: LayerTreeRow) => {
     const dragBits = timelineDragProps(props.layerDrag, row.layerId, row.folded);
     return props.hasAudio || props.units.length > 0 ? (
@@ -361,7 +358,6 @@ export function DesktopTranscriptionLane(props: {
             locale={props.locale}
             name={mainName}
             row={row}
-            hostNames={hostNames(row)}
             segmentCount={props.units.length}
             onExpand={() => props.view.toggleRow(row.layerId)}
           />
@@ -383,7 +379,6 @@ export function DesktopTranscriptionLane(props: {
             locale={props.locale}
             name={mainName}
             row={row}
-            hostNames={hostNames(row)}
             focused={focus === null}
             onToggleGroup={() => toggleGroup(row.layerId)}
             onCollapse={() => collapseLayer(row.layerId)}
@@ -502,7 +497,17 @@ export function DesktopTranscriptionLane(props: {
     <>
       {wavePreview}
       {waveEdges}
-      {props.hasAudio || props.units.length > 0 ? (
+      {props.hasAudio && (props.layers ?? []).length === 0 ? (
+        <div className="desktop-tx-no-layers" data-testid="desktop-no-layers">
+          <div className="desktop-tx-no-layers__body">
+            <h2>{t(props.locale, 'app.desktopTranscription.contextEmptyLayers')}</h2>
+            <p>{t(props.locale, 'app.desktopTranscription.noLayerMessage')}</p>
+            <button type="button" className="btn btn-primary" onClick={props.onCreateTranscription}>
+              {t(props.locale, 'transcription.laneHeader.layer.createTranscription')}
+            </button>
+          </div>
+        </div>
+      ) : props.hasAudio || props.units.length > 0 ? (
         <DesktopTranscriptionLayerRows
           locale={props.locale}
           layers={props.layers ?? []}

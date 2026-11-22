@@ -784,7 +784,7 @@
   transform: translateX(-1px) rotate(-135deg);
 }
 
-/* 层树：缩进表从属，线表关系，点表节点；其他宿主走最左侧虚线走线槽，宿主端加环；悬停节点显示层名与依附关系。 */
+/* 层树：缩进表从属，线表关系，点表节点；其他宿主走最左侧虚线走线槽，宿主端加环。 */
 .desktop-tx-layer-label {
   --tree-line: var(--border-strong);
   --dot-x: 30px;
@@ -945,34 +945,6 @@
 
 .desktop-tx-layer-strip__label {
   border-bottom: 0;
-}
-
-/* 节点悬停提示：外观同设计系统「提示 / Tooltip」（墨底白字、4px 圆角、12/18）。 */
-.desktop-tx-layer-dot::before {
-  content: '';
-  position: absolute;
-  inset: -5px;
-}
-
-.desktop-tx-layer-tip {
-  position: fixed;
-  z-index: var(--z-toast);
-  display: flex;
-  flex-direction: column;
-  max-width: 240px;
-  padding: 5px 8px;
-  border-radius: var(--radius-xs);
-  background: var(--text-primary);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--text-primary) 8%, transparent);
-  color: var(--surface-panel);
-  font-size: 12px;
-  line-height: 18px;
-  pointer-events: none;
-  translate: -50% 0;
-}
-
-.desktop-tx-layer-tip__name {
-  font-weight: 600;
 }
 
 .desktop-tx-layer-strip__body {
@@ -1431,6 +1403,33 @@
   padding: 0;
 }
 
+.desktop-tx-lane .timeline-translation-audio-controls-recording .timeline-translation-audio-btn {
+  z-index: calc(var(--z-timeline-seg-resize-handle) + 2);
+}
+
+.desktop-tx-lane .timeline-translation-audio-btn {
+  position: relative;
+  z-index: calc(var(--z-timeline-seg-resize-handle) + 1);
+  flex-shrink: 0;
+}
+
+/* A blank card stays under a card that already has a recording, so its record
+   button cannot cover the neighbor's transcribe or delete button. A saved clip
+   has no text, so it is an empty card too; the delete button is what marks it. */
+.desktop-tx-lane .timeline-annotation-empty {
+  z-index: 1;
+}
+
+.desktop-tx-lane .timeline-annotation:not(.timeline-annotation-empty),
+.desktop-tx-lane .timeline-annotation:has(.timeline-translation-audio-btn-delete) {
+  z-index: 2;
+}
+
+.desktop-tx-lane .timeline-annotation.timeline-annotation-selected,
+.desktop-tx-lane .timeline-annotation:focus-within {
+  z-index: 3;
+}
+
 .desktop-tx-lane .timeline-translation-audio-controls > audio {
   display: none;
 }
@@ -1662,6 +1661,38 @@
   color: var(--text-secondary);
 }
 
+.desktop-tx-no-layers {
+  position: relative;
+  flex: 1;
+  min-height: 240px;
+}
+
+.desktop-tx-no-layers__body {
+  position: absolute;
+  top: 33.333%;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 32px;
+  text-align: center;
+  transform: translateY(-50%);
+}
+
+.desktop-tx-no-layers h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+.desktop-tx-no-layers p {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+}
+
 /* Waveform segment handles: edges resize, the top grip moves the whole segment. */
 .desktop-tx-wave-edges {
   position: absolute;
@@ -1738,21 +1769,46 @@
 }
 
 .desktop-tx-drop-root {
-  height: 8px;
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  margin: 0 8px 4px;
+  padding: 0 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
   list-style: none;
+  background: var(--surface-panel);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.desktop-tx-drop-root[data-drag-surface='timeline'] {
+  min-height: var(--lane-height, 54px);
 }
 
 .desktop-tx-drop-root.is-active {
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 2px var(--text-primary);
+}
+
+.desktop-tx-drop-tail {
+  min-height: 28px;
+  list-style: none;
+}
+
+.desktop-tx-drop-tail.is-active {
   box-shadow: inset 0 -2px 0 var(--text-primary);
 }
 
 .desktop-tx-drop-reason {
   position: fixed;
   z-index: var(--z-popover);
+  max-width: 240px;
   padding: 0 6px;
   color: var(--text-primary);
   font-size: 12px;
   line-height: 18px;
+  white-space: normal;
   background: var(--surface-panel);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -1767,6 +1823,45 @@
 .desktop-tx-context__row.is-drop-line,
 .desktop-tx-lane.is-drop-line {
   box-shadow: inset 0 2px 0 var(--text-primary);
+}
+
+.desktop-tx-context__row.is-drop-line.is-drop-after,
+.desktop-tx-lane.is-drop-line.is-drop-after {
+  box-shadow: inset 0 -2px 0 var(--text-primary);
+}
+
+.desktop-tx-layer-list__line .desktop-tx-context__row,
+.desktop-tx-layer-name {
+  cursor: grab;
+}
+
+.desktop-tx-layer-list__line.is-drag-peer .desktop-tx-context__row,
+.desktop-tx-lane.is-drag-peer,
+.desktop-tx-layer-strip.is-drag-peer {
+  box-shadow: inset 0 0 0 1.5px var(--brand-solid);
+}
+
+.desktop-tx-menu [aria-disabled='true'] {
+  opacity: 0.45;
+}
+
+.desktop-tx-drag-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Raise the transformed list item, not only its nested button. */
+.desktop-tx-layer-list__line:has(.is-drag-only, .is-drag-top, .is-drag-mid, .is-drag-bottom) {
+  position: relative;
+  z-index: var(--z-raised);
+  background-color: var(--surface-panel);
 }
 
 .desktop-tx-layer-list__line:has(.is-drag-only, .is-drag-top, .is-drag-mid, .is-drag-bottom),
@@ -1795,6 +1890,7 @@
 .desktop-tx-lane.is-drag-bottom {
   position: relative;
   z-index: var(--z-raised);
+  background-color: var(--surface-panel);
   background-image:
     repeating-linear-gradient(90deg, var(--brand-solid) 0 4px, transparent 4px 8px),
     repeating-linear-gradient(180deg, var(--brand-solid) 0 4px, transparent 4px 8px),

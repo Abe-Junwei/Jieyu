@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { JieyuIcon } from '../components/ui/JieyuIcon';
 import { ModalPanel } from '../components/ui/ModalPanel';
 import { t, tf, type Locale } from '../i18n';
@@ -73,6 +73,12 @@ export function DesktopTranscriptionLayerList(props: {
   const [hostsLayer, setHostsLayer] = useState<ContextLayer | null>(null);
   const [targetOpen, setTargetOpen] = useState(false);
   const renameOpen = useRef(false);
+  const menuRoot = useRef<HTMLDivElement | null>(null);
+  const menuReturn = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (menu === null) return;
+    menuRoot.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+  }, [menu]);
   const commitRename = (layer: ContextLayer) => {
     if (!renameOpen.current) return;
     renameOpen.current = false;
@@ -83,6 +89,12 @@ export function DesktopTranscriptionLayerList(props: {
     const localeKey = props.locale.startsWith('zh') ? 'zh' : 'en';
     props.onRename(layer.id, { ...layer.name, [localeKey]: trimmed });
   };
+  const currentNamed = props.layers.find((item) => item.id === props.currentId);
+  const attachLabel = currentNamed
+    ? tf(props.locale, 'app.desktopTranscription.layerAttachNamed', {
+        name: layerLabel(currentNamed.name, props.locale, currentNamed.id),
+      })
+    : t(props.locale, 'app.desktopTranscription.layerAttachCurrent');
   const childCount = (id: string) => {
     const ids = new Set<string>();
     for (const link of props.links) if (link.hostLayerId === id) ids.add(link.layerId);
@@ -116,7 +128,7 @@ export function DesktopTranscriptionLayerList(props: {
       {props.error.length > 0 ? <p role="alert">{props.error}</p> : null}
       {props.layers.length === 0 ? null : (
         <ul className="desktop-tx-context__rows">
-          {props.drag ? (
+          {props.drag?.rootZone && props.drag.surface === 'sidebar' ? (
             <li
               className={
                 props.drag.dropKind === 'root'
@@ -126,22 +138,31 @@ export function DesktopTranscriptionLayerList(props: {
               data-drop="root"
               data-drop-index="0"
               data-drag-surface="sidebar"
-            />
+            >
+              {t(props.locale, 'app.desktopTranscription.layerHintRoot')}
+            </li>
           ) : null}
           {ordered.map(({ layer, depth }) => {
-            const moving = props.drag?.mark(layer.id);
-            const dropHost = props.drag?.dropLayerId === layer.id && props.drag.dropKind === 'host';
-            const dropLine = props.drag?.dropLayerId === layer.id && props.drag.dropKind === 'line';
+            const here = props.drag?.surface === 'sidebar';
+            const moving = here ? props.drag?.mark(layer.id) : null;
+            const peer = !here && props.drag?.mark(layer.id) != null;
+            const dropHost =
+              here && props.drag?.dropLayerId === layer.id && props.drag.dropKind === 'host';
+            const dropLine =
+              here && props.drag?.dropLayerId === layer.id && props.drag.dropKind === 'line';
+            const dropAfter = dropLine && props.drag?.dropEdge === 'after';
             const name = layerLabel(layer.name, props.locale, layer.id);
             const kind =
               layer.contentType === 'translation'
                 ? 'app.desktopTranscription.contextLayerTranslation'
                 : 'app.desktopTranscription.contextLayerTranscription';
-            const shift = moving || props.drag === undefined ? 0 : props.drag.shift(layer.id);
+            const shift =
+              !here || moving || props.drag === undefined ? 0 : props.drag.shift(layer.id);
+            const holdHint = t(props.locale, 'app.desktopTranscription.layerDragHold');
             return (
               <li
                 key={layer.id}
-                className={`desktop-tx-layer-list__line${shift === 0 ? '' : ' is-drag-shift'}`}
+                className={`desktop-tx-layer-list__line${peer ? ' is-drag-peer' : ''}${shift === 0 ? '' : ' is-drag-shift'}`}
                 data-layer-id={layer.id}
                 data-drag-surface="sidebar"
                 data-current={layer.id === props.currentId ? 'true' : 'false'}
@@ -179,8 +200,10 @@ export function DesktopTranscriptionLayerList(props: {
                     type="button"
                     className={`desktop-tx-context__row${moving ? ` is-drag-${moving}` : ''}${
                       dropHost ? ' is-drop-host' : ''
-                    }${dropLine ? ' is-drop-line' : ''}`}
+                    }${dropLine ? ' is-drop-line' : ''}${dropAfter ? ' is-drop-after' : ''}`}
                     aria-current={layer.id === props.currentId ? 'true' : undefined}
+                    title={holdHint}
+                    aria-description={holdHint}
                     onClick={() => props.onSelect(layer.id)}
                     {...(props.drag
                       ? {
@@ -201,6 +224,7 @@ export function DesktopTranscriptionLayerList(props: {
                   aria-haspopup="menu"
                   aria-expanded={menu?.layerId === layer.id}
                   onClick={(event) => {
+                    menuReturn.current = event.currentTarget;
                     const rect = event.currentTarget.getBoundingClientRect();
                     setMenu((current) =>
                       current?.layerId === layer.id
@@ -220,6 +244,17 @@ export function DesktopTranscriptionLayerList(props: {
               </li>
             );
           })}
+          {props.drag?.surface === 'sidebar' ? (
+            <li
+              className={
+                props.drag.dropKind === 'line' && props.drag.dropLayerId === null
+                  ? 'desktop-tx-drop-tail is-active'
+                  : 'desktop-tx-drop-tail'
+              }
+              data-drop="tail"
+              data-drag-surface="sidebar"
+            />
+          ) : null}
           <li className="desktop-tx-layer-list__add">
             <button
               type="button"
@@ -321,9 +356,35 @@ export function DesktopTranscriptionLayerList(props: {
             onClick={() => setMenu(null)}
           />
           <div
+            ref={menuRoot}
             className="desktop-tx-menu desktop-tx-menu-fixed desktop-tx-context__menu"
             style={{ left: menu.x, top: menu.y }}
             role="menu"
+            onKeyDown={(event) => {
+              const items = [
+                ...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+              ];
+              const index = items.indexOf(document.activeElement as HTMLButtonElement);
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                setMenu(null);
+                menuReturn.current?.focus();
+                return;
+              }
+              if (event.key === 'Home') {
+                event.preventDefault();
+                items[0]?.focus();
+              } else if (event.key === 'End') {
+                event.preventDefault();
+                items.at(-1)?.focus();
+              } else if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                items[(index + 1) % items.length]?.focus();
+              } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                items[(index - 1 + items.length) % items.length]?.focus();
+              }
+            }}
           >
             {(
               [
@@ -356,10 +417,15 @@ export function DesktopTranscriptionLayerList(props: {
               <button
                 type="button"
                 role="menuitem"
-                disabled={props.drag.attachReason(menu.layerId) !== null}
+                aria-disabled={props.drag.attachReason(menu.layerId) !== null}
                 {...(props.drag.attachReason(menu.layerId) === null
                   ? {}
                   : {
+                      'aria-description': t(
+                        props.locale,
+                        props.drag.attachReason(menu.layerId) ??
+                          'app.desktopTranscription.layerDropNotHost',
+                      ),
                       title: t(
                         props.locale,
                         props.drag.attachReason(menu.layerId) ??
@@ -367,21 +433,27 @@ export function DesktopTranscriptionLayerList(props: {
                       ),
                     })}
                 onClick={() => {
+                  if (props.drag?.attachReason(menu.layerId) !== null) return;
                   props.drag?.attachToCurrent(menu.layerId);
                   setMenu(null);
                 }}
               >
-                {t(props.locale, 'app.desktopTranscription.layerAttachCurrent')}
+                {attachLabel}
               </button>
             ) : null}
             {props.drag?.showReturn(menu.layerId) ? (
               <button
                 type="button"
                 role="menuitem"
-                disabled={props.drag.returnReason(menu.layerId) !== null}
+                aria-disabled={props.drag.returnReason(menu.layerId) !== null}
                 {...(props.drag.returnReason(menu.layerId) === null
                   ? {}
                   : {
+                      'aria-description': t(
+                        props.locale,
+                        props.drag.returnReason(menu.layerId) ??
+                          'app.desktopTranscription.layerAlreadyRoot',
+                      ),
                       title: t(
                         props.locale,
                         props.drag.returnReason(menu.layerId) ??
@@ -389,6 +461,7 @@ export function DesktopTranscriptionLayerList(props: {
                       ),
                     })}
                 onClick={() => {
+                  if (props.drag?.returnReason(menu.layerId) !== null) return;
                   props.drag?.returnToRoot(menu.layerId);
                   setMenu(null);
                 }}

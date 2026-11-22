@@ -1752,15 +1752,24 @@ export const desktopOperations = {
         'tierType',
         'contentType',
       ]);
+      const layer =
+        input.layerKey === undefined &&
+        input.layerName === undefined &&
+        input.tierType === undefined &&
+        input.contentType === undefined
+          ? {}
+          : {
+              layerKey: requiredString(input.layerKey, 'layerKey'),
+              layerName: stringMap(input.layerName, 'layerName'),
+              tierType: requiredString(input.tierType, 'tierType'),
+              contentType: requiredString(input.contentType, 'contentType'),
+            };
       return {
         relpath: requiredString(input.relpath, 'relpath'),
         sha256: requiredString(input.sha256, 'sha256'),
         duration: requiredNumber(input.duration, 'duration'),
         title: stringMap(input.title, 'title'),
-        layerKey: requiredString(input.layerKey, 'layerKey'),
-        layerName: stringMap(input.layerName, 'layerName'),
-        tierType: requiredString(input.tierType, 'tierType'),
-        contentType: requiredString(input.contentType, 'contentType'),
+        ...layer,
       };
     },
   ),

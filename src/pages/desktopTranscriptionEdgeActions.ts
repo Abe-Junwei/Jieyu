@@ -250,6 +250,21 @@ export function createEdgeActions(ctx: {
     live.current.notify(message);
   }
 
+  function writeUnit(
+    layerId: string,
+    startMs: number,
+    endMs: number,
+    speakerId: string | null,
+    parentUnitId: string | null,
+  ) {
+    const session = call();
+    if (!session) return;
+    void session.api
+      .createUnit(session.sessionId, { layerId, startMs, endMs, text: '', speakerId, parentUnitId })
+      .then(() => live.current.reload())
+      .catch((error: unknown) => reject(error, endMs));
+  }
+
   /** `speakerId` is the text-track lane under the press; the waveform passes nothing. */
   function create(
     event: ReactPointerEvent<HTMLElement>,
@@ -286,19 +301,7 @@ export function createEdgeActions(ctx: {
           refuse(CREATE_REJECT[route.reason], endMs);
           return;
         }
-        const session = call();
-        if (!session) return;
-        void session.api
-          .createUnit(session.sessionId, {
-            layerId: route.layerId,
-            startMs,
-            endMs,
-            text: '',
-            speakerId: route.speakerId,
-            parentUnitId: route.parentUnitId,
-          })
-          .then(() => live.current.reload())
-          .catch((error: unknown) => reject(error, endMs));
+        void writeUnit(route.layerId, startMs, endMs, route.speakerId, route.parentUnitId);
       },
     });
   }

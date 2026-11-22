@@ -72,6 +72,8 @@ describe('resolveDesktopLayerDrop', () => {
       layerId: translation.id,
       hostLayerId: host.id,
       beforeId: sibling.id,
+      anchorId: sibling.id,
+      edge: 'before',
     });
     expect(
       resolveDesktopLayerDrop({
@@ -268,5 +270,76 @@ describe('layerDragShifts', () => {
         links,
       }).size,
     ).toBe(0);
+  });
+
+  it('rejects a descendant reached only through a non-preferred host link', () => {
+    const via: DropLayer = {
+      id: 'via',
+      contentType: 'transcription',
+      tierType: 'time-aligned',
+    };
+    expect(
+      resolveDesktopLayerDrop({
+        dragId: child.id,
+        target: { kind: 'header', layerId: via.id },
+        layers: [...layers, via],
+        links: [
+          link(via.id, other.id),
+          { layerId: via.id, hostLayerId: child.id, isPreferred: false, linkType: 'free' },
+        ],
+      }),
+    ).toEqual({ ok: false, reason: 'descendant' });
+  });
+
+  it('places a same-host translation after the lower half and appends from the tail', () => {
+    const later: DropLayer = {
+      id: 'later',
+      contentType: 'translation',
+      tierType: 'symbolic-association',
+    };
+    const links = [
+      { ...link(translation.id, host.id), sortOrder: 0 },
+      { ...link(sibling.id, host.id), sortOrder: 1 },
+      { ...link(later.id, host.id), sortOrder: 2 },
+    ];
+    const rows = [...layers, later];
+    expect(
+      resolveDesktopLayerDrop({
+        dragId: translation.id,
+        target: { kind: 'header', layerId: sibling.id, edge: 'after' },
+        layers: rows,
+        links,
+      }),
+    ).toMatchObject({
+      ok: true,
+      action: 'place',
+      beforeId: later.id,
+      edge: 'after',
+      anchorId: sibling.id,
+    });
+    const tail = resolveDesktopLayerDrop({
+      dragId: translation.id,
+      target: { kind: 'tail' },
+      layers: rows,
+      links,
+    });
+    expect(tail).toMatchObject({ ok: true, action: 'place', edge: 'after', hostLayerId: host.id });
+    expect(tail.ok && tail.action === 'place' ? tail.beforeId : 'present').toBeUndefined();
+    expect(
+      resolveDesktopLayerDrop({
+        dragId: child.id,
+        target: { kind: 'tail' },
+        layers: rows,
+        links,
+      }),
+    ).toEqual({ ok: false, reason: 'not-host' });
+    expect(
+      resolveDesktopLayerDrop({
+        dragId: child.id,
+        target: { kind: 'header', layerId: host.id, edge: 'after' },
+        layers: rows,
+        links: [link(child.id, other.id)],
+      }),
+    ).toMatchObject({ ok: true, action: 'set-host', hostLayerId: host.id });
   });
 });
