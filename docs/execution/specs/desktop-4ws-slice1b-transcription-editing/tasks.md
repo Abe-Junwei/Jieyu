@@ -54,6 +54,7 @@ depends_on:
   - 精稿：Pixso 已有 `OralAudio`（`67:2782`）、`OralAudioPlaying`（`69:11999`）、`OralRecord`（`69:12016`），只覆盖录音控件。确认候选不新做界面，转写结果进已有正文草稿。
   - 开工前：步骤 1 结果出来后，在本条补落位与测试并经用户确认。
   - 证据（2026-11-22）：`npm run test:e2e:desktop-project -- --grep "oral clip records"` 1 passed。假麦克风录音、播放、本机模型转写成子层草稿；关掉重开后草稿还在；删除后 `unit_texts.audio_file_id` 与 `attachment_files` 都是 0。
+  - #603点击收尾（2026-11-22）：窄卡片按钮保持24px，按钮高于拖柄、控件空白不遮邻卡；`oral clip records` 已改用正常鼠标点击覆盖开始/停止/播放/转写/删除并通过，重开读回草稿、删除清理通过。使用假麦克风与本机协议模拟模型，不作为真实Whisper准确率或安装包验收；配置记忆/长录音归5a，下载/随包/服务与云归第二程#285。
   - 导入录音只建稿件。没有层时，时间轴说明原因并只提供「新建转写层」（DESIGN.md「反馈与阻断」）。
 - [x] 层依附关系（[#634](https://github.com/Abe-Junwei/Jieyu/issues/634)）给已有的关联层改宿主：宿主组、首选宿主、链接类型。补 #597 盘点漏掉的旧版「编辑元信息」宿主部分。不改层类型、不改 `layers.parent_id`、不挂旧 popover。证据（2026-11-21）：`npx vitest run src/db/desktop/layerHosts.test.ts src/db/desktop/layerStructure.test.ts src/db/desktop/operationContract.test.ts` 通过（含一种链接类型写到全部宿主链接）；页面 `DesktopTranscriptionLayerHostsDialog.test.tsx`、`DesktopTranscriptionContextColumn.test.tsx` 通过；`npm run typecheck`、`check:architecture-guard`、`check:docs-governance` 通过；`npm run test:e2e:desktop-project -- --grep "layer hosts"` 1 passed。精稿 `88:471` 已对照，帧名已去掉「（待审）」。类型名沿用已有枚举（直译／意译／逐字／教学），不用方案草稿里的「直接／直译」。
   - 旧代码审查（2026-11-21）：入口是 `LayerActionPopoverEditMetadataTranslationStructureSection.tsx`，校验在 `useLayerActionPopoverHandleSaveMetadata.ts`，写入在 `useTranscriptionLayerMetadataController.ts`，环检测在 `LayerConstraintService.detectParentCycle`。写入时宿主整组替换：去重，只收转写层；首选宿主不在组里时回落到第一个；整层用一种链接类型，缺省沿用原首选链接的类型。层、链接与 tier 在一个事务里写入。旧版改宿主不检查已有正文，拆掉宿主后正文会失联。

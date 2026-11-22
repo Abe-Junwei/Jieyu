@@ -1399,8 +1399,19 @@
   align-items: center;
   justify-content: center;
   width: auto;
+  min-width: max-content;
   height: auto;
   padding: 0;
+}
+
+.desktop-tx-lane .timeline-translation-audio-controls-recording .timeline-translation-audio-btn {
+  z-index: calc(var(--z-timeline-seg-resize-handle) + 2);
+}
+
+.desktop-tx-lane .timeline-translation-audio-btn {
+  position: relative;
+  z-index: calc(var(--z-timeline-seg-resize-handle) + 1);
+  flex-shrink: 0;
 }
 
 .desktop-tx-lane .timeline-translation-audio-controls > audio {
