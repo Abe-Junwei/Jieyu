@@ -346,12 +346,46 @@
   line-height: 18px;
 }
 
+.desktop-tx-tiers {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
 .desktop-tx-workspace__main {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.desktop-tx-stage {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.desktop-tx-stage::before {
+  content: '';
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--lane-label-width) - 1px);
+  width: 1px;
+  background: var(--border-strong);
+  pointer-events: none;
+}
+
+.desktop-tx-workspace.is-header-folded .desktop-tx-stage::before,
+.desktop-tx-stage:has(.desktop-tx-no-audio)::before {
+  content: none;
 }
 
 .desktop-tx-bar {
@@ -546,6 +580,13 @@
   height: 224px;
 }
 
+/* Ruler playhead is z-index sticky+6 and overflows up across this column. */
+.desktop-tx-waveband .desktop-tx-band-label {
+  position: relative;
+  z-index: calc(var(--z-timeline-sticky) + 7);
+  background: var(--surface-panel);
+}
+
 .desktop-tx-band-label {
   flex: 0 0 var(--lane-label-width);
   width: var(--lane-label-width);
@@ -684,6 +725,7 @@
 
 .desktop-tx-menu button {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   height: 32px;
   padding: 0 8px;
@@ -798,6 +840,35 @@
   color: var(--brand-solid);
 }
 
+/* 行缝只在层名格。悬停和按下不改字号、字重。 */
+.desktop-tx-lane > .desktop-tx-layer-label::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  background: var(--border-subtle);
+  pointer-events: none;
+}
+
+.desktop-tx-lane.is-group-mid > .desktop-tx-layer-label::after {
+  content: none;
+}
+
+.desktop-tx-lane > .desktop-tx-layer-label:hover {
+  background: color-mix(in srgb, var(--text-primary) 6%, var(--surface-panel));
+}
+
+.desktop-tx-lane > .desktop-tx-layer-label:active {
+  background: color-mix(in srgb, var(--text-primary) 8%, var(--surface-panel));
+}
+
+.desktop-tx-lane > .desktop-tx-layer-label:focus-visible {
+  outline: 1.5px solid var(--focus-color);
+  outline-offset: -1.5px;
+}
+
 .desktop-tx-tree-lines {
   position: absolute;
   inset: 0;
@@ -886,10 +957,176 @@
   background: var(--brand-solid);
 }
 
+.desktop-tx-layer-dot.is-empty,
+.desktop-tx-layer-label.is-focused .desktop-tx-layer-dot.is-empty,
+.desktop-tx-layer-label.is-side-host .desktop-tx-layer-dot.is-empty {
+  background: transparent;
+  box-shadow: none;
+}
+
+.desktop-tx-nameplate {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+.desktop-tx-nameplate__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.desktop-tx-layer-label.is-focused .desktop-tx-nameplate .desktop-tx-layer-name {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.desktop-tx-layer-script {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+}
+
+.tree-jog {
+  left: var(--x);
+  top: 50%;
+  width: var(--w);
+  height: 1px;
+  background: var(--tree-line);
+}
+
+.desktop-tx-layer-menu {
+  position: fixed;
+  width: 220px;
+}
+
+.desktop-tx-layer-menu__row,
+.desktop-tx-layer-menu__choice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  align-items: center;
+  column-gap: 8px;
+  min-height: 32px;
+  margin: 0;
+  padding: 0 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.desktop-tx-layer-menu__sub {
+  position: relative;
+}
+
+.desktop-tx-layer-menu__sub-trigger {
+  width: 100%;
+  gap: 8px;
+}
+
+.desktop-tx-layer-menu__sub-value {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+.desktop-tx-layer-menu__search {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: calc(100% - 8px);
+  height: 32px;
+  margin: 4px;
+  padding: 0 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-md);
+  appearance: none;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.desktop-tx-layer-menu__empty {
+  padding: 4px 8px 8px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.desktop-tx-menu.desktop-tx-layer-menu__flyout {
+  top: 0;
+  left: calc(100% + 4px);
+  width: max-content;
+  max-width: 240px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.desktop-tx-menu.desktop-tx-layer-menu__flyout.is-left {
+  left: auto;
+  right: calc(100% + 4px);
+}
+
+.desktop-tx-layer-menu__choice {
+  cursor: pointer;
+}
+
+.desktop-tx-layer-menu__choice input {
+  justify-self: end;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+}
+
+.desktop-tx-layer-menu__choice input:checked::before {
+  width: 6px;
+  height: 6px;
+}
+
+.desktop-tx-layer-menu button:disabled {
+  color: var(--text-tertiary);
+  cursor: default;
+}
+
+.desktop-tx-layer-menu__row input[type='number'] {
+  justify-self: end;
+  width: 40px;
+  min-width: 0;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 22px;
+  text-align: right;
+}
+
+.desktop-tx-layer-menu__row input[type='number']::-webkit-inner-spin-button,
+.desktop-tx-layer-menu__row input[type='number']::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
 .desktop-tx-layer-name {
   position: relative;
   min-width: 0;
   overflow: hidden;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
   text-overflow: ellipsis;
 }
 
@@ -1002,7 +1239,7 @@
   max-width: 70%;
   height: 80px;
   padding: 0 8px 8px 0;
-  z-index: var(--z-header-float);
+  z-index: calc(var(--z-header-float) + 1);
   opacity: 0;
   transition: opacity 0.14s;
 }
@@ -1384,8 +1621,8 @@
 }
 
 .desktop-tx-lane .timeline-annotation {
-  top: 8px;
-  bottom: 8px;
+  top: 4px;
+  bottom: 4px;
   box-sizing: border-box;
   margin-inline: 0;
   border-radius: 0;
@@ -1462,10 +1699,10 @@
 
 .desktop-tx-seam {
   position: absolute;
-  top: 8px;
+  top: 4px;
   z-index: 4;
   width: 1px;
-  height: 38px;
+  height: calc(100% - 8px);
   background: var(--text-primary);
   cursor: ew-resize;
 }
@@ -1474,7 +1711,8 @@
 .desktop-tx-seam::after {
   content: '';
   position: absolute;
-  top: 15px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 0;
   height: 0;
   border-style: solid;
@@ -1500,8 +1738,8 @@
 
 .desktop-tx-create {
   position: absolute;
-  top: 8px;
-  bottom: 8px;
+  top: 4px;
+  bottom: 4px;
   background: var(--brand-tint);
   pointer-events: none;
 }

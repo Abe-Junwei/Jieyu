@@ -92,6 +92,7 @@ function DesktopTranscriptionWorkspace() {
   const locale = useLocale();
   const host = readDesktopProjectHost();
   const tierRef = useRef<HTMLDivElement | null>(null);
+  const textWheelRef = useRef<HTMLDivElement | null>(null);
   const waveHostRef = useRef<HTMLDivElement | null>(null);
   const waveCreateRef = useRef<WaveCreate | null>(null);
   const waveSkipRef = useRef<WaveSkip | null>(null);
@@ -177,6 +178,7 @@ function DesktopTranscriptionWorkspace() {
     selectedUnitIds: selection.selectedUnitIds,
     tierContainerRef: tierRef,
     waveformWheelCaptureRootRef: waveHostRef,
+    tierWheelCaptureRootRef: textWheelRef,
     onSelectUnit: (unitId) => {
       const unit = units.find((item) => item.id === unitId);
       if (unit) selectPlaybackUnit(unit);
@@ -410,247 +412,267 @@ function DesktopTranscriptionWorkspace() {
               </button>
             </div>
           ) : null}
-          {hasAudio ? (
-            <>
-              <div className="desktop-tx-waveband">
-                <div className="desktop-tx-band-label">
-                  {t(locale, 'transcription.wave.toolbar.displayMode.waveform')}
-                </div>
-                <div
-                  ref={waveHostRef}
-                  className={`desktop-tx-wave-host desktop-tx-wave-host-${playback.waveformDisplayMode}`}
-                  style={
-                    {
-                      '--desktop-wave-primary': `${waveHeights.waveformPrimaryHeight}px`,
-                      '--desktop-wave-spec': `${waveHeights.spectrogramHeight}px`,
-                    } as CSSProperties
-                  }
-                >
+          <div className="desktop-tx-stage">
+            {hasAudio ? (
+              <>
+                <div className="desktop-tx-waveband">
+                  <div className="desktop-tx-band-label">
+                    {t(locale, 'transcription.wave.toolbar.displayMode.waveform')}
+                  </div>
                   <div
-                    ref={setWaveStage}
-                    className="desktop-tx-wave-stage"
-                    onPointerDown={(event) => {
-                      const wave = playback.waveformRef.current;
-                      const zoom = playback.zoomPxPerSec;
-                      if (!wave || !(event.target instanceof Node) || !wave.contains(event.target))
-                        return;
-                      const left = wave.getBoundingClientRect().left;
-                      waveCreateRef.current?.(
-                        event,
-                        (clientX) => ((clientX - left + playback.scrollLeftPx) / zoom) * 1000,
-                      );
-                    }}
-                    onContextMenu={(event) => {
-                      const wave = playback.waveformRef.current;
-                      const zoom = playback.zoomPxPerSec;
-                      if (
-                        !wave ||
-                        !(event.target instanceof Node) ||
-                        !event.currentTarget.contains(event.target)
-                      )
-                        return;
-                      if (
-                        event.target instanceof Element &&
-                        event.target.closest('.desktop-tx-zoom-dock')
-                      )
-                        return;
-                      event.preventDefault();
-                      if (!(zoom > 0)) return;
-                      if (playback.isPlaying) playback.togglePlayback();
-                      const left = wave.getBoundingClientRect().left;
-                      const time = (event.clientX - left + playback.scrollLeftPx) / zoom;
-                      setWaveMenu({
-                        x: event.clientX,
-                        y: event.clientY,
-                        time,
-                        unitId: waveMenuUnitAt(units, time, event.target, selection.selectedUnitId),
-                      });
-                    }}
+                    ref={waveHostRef}
+                    className={`desktop-tx-wave-host desktop-tx-wave-host-${playback.waveformDisplayMode}`}
+                    style={
+                      {
+                        '--desktop-wave-primary': `${waveHeights.waveformPrimaryHeight}px`,
+                        '--desktop-wave-spec': `${waveHeights.spectrogramHeight}px`,
+                      } as CSSProperties
+                    }
                   >
                     <div
-                      ref={playback.waveformRef}
-                      className="desktop-tx-wave"
-                      data-testid="desktop-waveform"
-                    />
-                    {playback.waveformDisplayMode !== 'spectrogram' &&
-                    selectedUnit &&
-                    playback.isReady &&
-                    playback.duration > 0 &&
-                    playback.zoomPxPerSec > 0 ? (
-                      <RegionActionOverlay
-                        unitStartTime={selectedUnit.startTime}
-                        unitEndTime={selectedUnit.endTime}
-                        viewportFrame={{
-                          pxPerDocSec: playback.zoomPxPerSec,
-                          scrollLeftPx: playback.scrollLeftPx,
-                        }}
-                        waveAreaWidth={playback.waveWidth}
-                        isPlaying={playback.isPlaying}
-                        segmentPlaybackRate={playback.playbackRate}
-                        segmentLoopPlayback={playback.loop}
-                        skipProcessing={selectedUnit.skipProcessing === true}
-                        onPlaybackRateChange={playback.setPlaybackRate}
-                        onToggleLoop={() => playback.setLoop(!playback.loop)}
-                        onTogglePlay={() =>
-                          playback.isPlaying ? playback.togglePlayback() : playback.playSegment()
-                        }
+                      ref={setWaveStage}
+                      className="desktop-tx-wave-stage"
+                      onPointerDown={(event) => {
+                        const wave = playback.waveformRef.current;
+                        const zoom = playback.zoomPxPerSec;
+                        if (
+                          !wave ||
+                          !(event.target instanceof Node) ||
+                          !wave.contains(event.target)
+                        )
+                          return;
+                        const left = wave.getBoundingClientRect().left;
+                        waveCreateRef.current?.(
+                          event,
+                          (clientX) => ((clientX - left + playback.scrollLeftPx) / zoom) * 1000,
+                        );
+                      }}
+                      onContextMenu={(event) => {
+                        const wave = playback.waveformRef.current;
+                        const zoom = playback.zoomPxPerSec;
+                        if (
+                          !wave ||
+                          !(event.target instanceof Node) ||
+                          !event.currentTarget.contains(event.target)
+                        )
+                          return;
+                        if (
+                          event.target instanceof Element &&
+                          event.target.closest('.desktop-tx-zoom-dock')
+                        )
+                          return;
+                        event.preventDefault();
+                        if (!(zoom > 0)) return;
+                        if (playback.isPlaying) playback.togglePlayback();
+                        const left = wave.getBoundingClientRect().left;
+                        const time = (event.clientX - left + playback.scrollLeftPx) / zoom;
+                        setWaveMenu({
+                          x: event.clientX,
+                          y: event.clientY,
+                          time,
+                          unitId: waveMenuUnitAt(
+                            units,
+                            time,
+                            event.target,
+                            selection.selectedUnitId,
+                          ),
+                        });
+                      }}
+                    >
+                      <div
+                        ref={playback.waveformRef}
+                        className="desktop-tx-wave"
+                        data-testid="desktop-waveform"
                       />
-                    ) : null}
-                    {playback.waveformDisplayMode !== 'spectrogram' && playback.fitPxPerSec > 0 ? (
-                      <div className="desktop-tx-zoom-dock">
-                        <DesktopZoomControls
-                          locale={locale}
-                          zoomPercent={playback.zoomPercent}
-                          fitPxPerSec={playback.fitPxPerSec}
-                          maxZoomPercent={playback.maxZoomPercent}
-                          canFitSelection={selectedUnit !== null}
-                          onFitAll={() => playback.zoomToPercent(100, 0.5, 'fit-all')}
-                          onFitSelection={() => {
-                            if (selectedUnit) {
-                              playback.zoomToUnit(selectedUnit.startTime, selectedUnit.endTime);
-                            }
+                      {playback.waveformDisplayMode !== 'spectrogram' &&
+                      selectedUnit &&
+                      playback.isReady &&
+                      playback.duration > 0 &&
+                      playback.zoomPxPerSec > 0 ? (
+                        <RegionActionOverlay
+                          unitStartTime={selectedUnit.startTime}
+                          unitEndTime={selectedUnit.endTime}
+                          viewportFrame={{
+                            pxPerDocSec: playback.zoomPxPerSec,
+                            scrollLeftPx: playback.scrollLeftPx,
                           }}
-                          onZoomPercent={(percent) =>
-                            playback.zoomToPercent(percent, 0.5, 'custom')
+                          waveAreaWidth={playback.waveWidth}
+                          isPlaying={playback.isPlaying}
+                          segmentPlaybackRate={playback.playbackRate}
+                          segmentLoopPlayback={playback.loop}
+                          skipProcessing={selectedUnit.skipProcessing === true}
+                          onPlaybackRateChange={playback.setPlaybackRate}
+                          onToggleLoop={() => playback.setLoop(!playback.loop)}
+                          onTogglePlay={() =>
+                            playback.isPlaying ? playback.togglePlayback() : playback.playSegment()
                           }
                         />
-                      </div>
-                    ) : null}
+                      ) : null}
+                      {playback.waveformDisplayMode !== 'spectrogram' &&
+                      playback.fitPxPerSec > 0 ? (
+                        <div className="desktop-tx-zoom-dock">
+                          <DesktopZoomControls
+                            locale={locale}
+                            zoomPercent={playback.zoomPercent}
+                            fitPxPerSec={playback.fitPxPerSec}
+                            maxZoomPercent={playback.maxZoomPercent}
+                            canFitSelection={selectedUnit !== null}
+                            onFitAll={() => playback.zoomToPercent(100, 0.5, 'fit-all')}
+                            onFitSelection={() => {
+                              if (selectedUnit) {
+                                playback.zoomToUnit(selectedUnit.startTime, selectedUnit.endTime);
+                              }
+                            }}
+                            onZoomPercent={(percent) =>
+                              playback.zoomToPercent(percent, 0.5, 'custom')
+                            }
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                    <div ref={playback.spectrogramRef} className="desktop-tx-spectrogram" />
                   </div>
-                  <div ref={playback.spectrogramRef} className="desktop-tx-spectrogram" />
                 </div>
+                {playback.duration > 0 ? (
+                  <div className="desktop-tx-ruler">
+                    <button
+                      type="button"
+                      className="desktop-tx-header-fold"
+                      aria-label={t(
+                        locale,
+                        layerView.headerFolded
+                          ? 'app.desktopTranscription.layerHeaderExpand'
+                          : 'app.desktopTranscription.layerHeaderCollapse',
+                      )}
+                      title={t(
+                        locale,
+                        layerView.headerFolded
+                          ? 'app.desktopTranscription.layerHeaderExpand'
+                          : 'app.desktopTranscription.layerHeaderCollapse',
+                      )}
+                      aria-expanded={!layerView.headerFolded}
+                      onClick={layerView.toggleHeader}
+                    >
+                      <span aria-hidden className="desktop-tx-header-fold__mark" />
+                    </button>
+                    <TimeRuler
+                      duration={playback.duration}
+                      rulerView={
+                        playback.rulerView && playback.rulerView.end > playback.rulerView.start
+                          ? playback.rulerView
+                          : { start: 0, end: playback.duration }
+                      }
+                      zoomPxPerSec={playback.zoomPxPerSec}
+                      documentSpanSec={playback.duration}
+                      isLaneHeaderCollapsed={false}
+                      onToggleLaneHeader={() => undefined}
+                      seekTo={playback.seekTo}
+                      instanceRef={playback.instanceRef}
+                      waveCanvasRef={playback.waveformRef}
+                      tierContainerRef={tierRef}
+                    />
+                  </div>
+                ) : null}
+              </>
+            ) : units.length === 0 ? (
+              <div className="desktop-tx-no-audio" data-testid="desktop-no-audio">
+                <h2>{t(locale, 'app.desktopTranscription.noAudioTitle')}</h2>
+                <p>{t(locale, 'app.desktopTranscription.noAudioMessage')}</p>
+                <button type="button" className="btn btn-primary" onClick={read.importRecording}>
+                  {t(locale, 'app.desktopTranscription.importAudio')}
+                </button>
               </div>
-              {playback.duration > 0 ? (
-                <div className="desktop-tx-ruler">
-                  <button
-                    type="button"
-                    className="desktop-tx-header-fold"
-                    aria-label={t(
-                      locale,
-                      layerView.headerFolded
-                        ? 'app.desktopTranscription.layerHeaderExpand'
-                        : 'app.desktopTranscription.layerHeaderCollapse',
-                    )}
-                    title={t(
-                      locale,
-                      layerView.headerFolded
-                        ? 'app.desktopTranscription.layerHeaderExpand'
-                        : 'app.desktopTranscription.layerHeaderCollapse',
-                    )}
-                    aria-expanded={!layerView.headerFolded}
-                    onClick={layerView.toggleHeader}
-                  >
-                    <span aria-hidden className="desktop-tx-header-fold__mark" />
-                  </button>
-                  <TimeRuler
-                    duration={playback.duration}
-                    rulerView={
-                      playback.rulerView && playback.rulerView.end > playback.rulerView.start
-                        ? playback.rulerView
-                        : { start: 0, end: playback.duration }
-                    }
-                    zoomPxPerSec={playback.zoomPxPerSec}
-                    documentSpanSec={playback.duration}
-                    isLaneHeaderCollapsed={false}
-                    onToggleLaneHeader={() => undefined}
-                    seekTo={playback.seekTo}
-                    instanceRef={playback.instanceRef}
-                    waveCanvasRef={playback.waveformRef}
-                    tierContainerRef={tierRef}
-                  />
-                </div>
-              ) : null}
-            </>
-          ) : units.length === 0 ? (
-            <div className="desktop-tx-no-audio" data-testid="desktop-no-audio">
-              <h2>{t(locale, 'app.desktopTranscription.noAudioTitle')}</h2>
-              <p>{t(locale, 'app.desktopTranscription.noAudioMessage')}</p>
-              <button type="button" className="btn btn-primary" onClick={read.importRecording}>
-                {t(locale, 'app.desktopTranscription.importAudio')}
-              </button>
-            </div>
-          ) : null}
-          <DesktopLayerDragReason locale={locale} drag={layerActions.drag} />
-          <DesktopTranscriptionLane
-            locale={locale}
-            sessionId={read.sessionId}
-            manuscriptId={read.model?.manuscriptId ?? null}
-            layerId={read.model?.layerId ?? null}
-            layers={read.model?.layers}
-            links={read.model?.links}
-            view={layerView}
-            desktopCall={host?.desktopCall}
-            sourceUnits={sourceUnits}
-            units={units}
-            hasAudio={hasAudio}
-            duration={playback.duration}
-            zoomPxPerSec={playback.zoomPxPerSec}
-            selectedUnitId={selection.selectedUnitId}
-            selectedUnitIds={selection.selectedUnitIds}
-            bodyDraft={draft.draft}
-            onEditBody={draft.edit}
-            onComposeBody={draft.setComposing}
-            onCommitBody={() => void draft.commit()}
-            onSelectUnit={selectPlaybackUnit}
-            onSelectUnits={selectPlaybackUnits}
-            onClearSelection={() => selection.clearSelection()}
-            onSeek={playback.seekTo}
-            reload={() => read.refresh()}
-            tierRef={tierRef}
-            scrollLeftPx={playback.scrollLeftPx}
-            waveCreateRef={waveCreateRef}
-            waveSkipRef={waveSkipRef}
-            waveDeleteRef={waveDeleteRef}
-            waveStage={waveStage}
-            onWaveSegmentMenu={(unitId, x, y) => openWaveRegionMenu.current(unitId, x, y)}
-            onLaneHeight={(layerId, height) => layerActions.setHeight(layerId, height)}
-            layerDrag={layerActions.drag}
-            onCreateTranscription={() =>
-              layerActions.create(
-                'transcription',
-                t(locale, 'app.desktopTranscription.contextLayerTranscription'),
-              )
-            }
-            audioTools={(layerId, unitId) => (
-              <TimelineTranslationAudioControls
-                compact
-                audioSrc={oral.src(layerId, unitId)}
-                isRecording={oral.isRecording(layerId, unitId)}
-                isArming={oral.isArming(layerId, unitId)}
-                isSaving={oral.isSaving(layerId, unitId)}
-                isFailed={oral.isFailed(layerId, unitId)}
-                elapsed={oral.elapsed}
-                takePaused={oral.paused}
-                level={oral.level}
-                disabled={
-                  (oral.micBusy || oral.saveLocked) &&
-                  !oral.isRecording(layerId, unitId) &&
-                  !oral.isArming(layerId, unitId) &&
-                  !oral.isSaving(layerId, unitId) &&
-                  !oral.isFailed(layerId, unitId)
-                }
-                onStartRecording={() => {
-                  if (playback.isPlaying) playback.togglePlayback();
-                  pauseOralAudios();
-                  void oral.start(layerId, unitId);
+            ) : null}
+            <DesktopLayerDragReason locale={locale} drag={layerActions.drag} />
+            <div ref={textWheelRef} className="desktop-tx-tiers">
+              <DesktopTranscriptionLane
+                locale={locale}
+                sessionId={read.sessionId}
+                manuscriptId={read.model?.manuscriptId ?? null}
+                layerId={read.model?.layerId ?? null}
+                layers={read.model?.layers}
+                links={read.model?.links}
+                view={layerView}
+                desktopCall={host?.desktopCall}
+                sourceUnits={sourceUnits}
+                units={units}
+                hasAudio={hasAudio}
+                duration={playback.duration}
+                zoomPxPerSec={playback.zoomPxPerSec}
+                selectedUnitId={selection.selectedUnitId}
+                selectedUnitIds={selection.selectedUnitIds}
+                bodyDraft={draft.draft}
+                onEditBody={draft.edit}
+                onComposeBody={draft.setComposing}
+                onCommitBody={() => void draft.commit()}
+                onSelectUnit={selectPlaybackUnit}
+                onSelectUnits={selectPlaybackUnits}
+                onClearSelection={() => selection.clearSelection()}
+                onSeek={playback.seekTo}
+                reload={() => read.refresh()}
+                tierRef={tierRef}
+                scrollLeftPx={playback.scrollLeftPx}
+                waveCreateRef={waveCreateRef}
+                waveSkipRef={waveSkipRef}
+                waveDeleteRef={waveDeleteRef}
+                waveStage={waveStage}
+                onWaveSegmentMenu={(unitId, x, y) => openWaveRegionMenu.current(unitId, x, y)}
+                onLaneHeight={(layerId, height) => layerActions.setHeight(layerId, height)}
+                onLayerStyle={(layerId, change) => layerActions.setStyle(layerId, change)}
+                loadOrthographies={layerActions.orthographies}
+                onSelectLayer={(layerId) => {
+                  const manuscriptId = read.model?.manuscriptId;
+                  if (manuscriptId) read.selectManuscript(manuscriptId, layerId);
                 }}
-                onRetrySave={() => oral.retry()}
-                onDiscardSave={() => oral.discardSave()}
-                onStopRecording={oral.stop}
-                onDeleteRecording={() => void oral.remove(layerId, unitId)}
-                onTranscribeRecording={() => oral.transcribe(layerId, unitId)}
+                layerDrag={layerActions.drag}
+                onCreateTranscription={() =>
+                  layerActions.create(
+                    'transcription',
+                    t(locale, 'app.desktopTranscription.contextLayerTranscription'),
+                  )
+                }
+                audioTools={(layerId, unitId) => (
+                  <TimelineTranslationAudioControls
+                    compact
+                    audioSrc={oral.src(layerId, unitId)}
+                    isRecording={oral.isRecording(layerId, unitId)}
+                    isArming={oral.isArming(layerId, unitId)}
+                    isSaving={oral.isSaving(layerId, unitId)}
+                    isFailed={oral.isFailed(layerId, unitId)}
+                    elapsed={oral.elapsed}
+                    takePaused={oral.paused}
+                    level={oral.level}
+                    disabled={
+                      (oral.micBusy || oral.saveLocked) &&
+                      !oral.isRecording(layerId, unitId) &&
+                      !oral.isArming(layerId, unitId) &&
+                      !oral.isSaving(layerId, unitId) &&
+                      !oral.isFailed(layerId, unitId)
+                    }
+                    onStartRecording={() => {
+                      if (playback.isPlaying) playback.togglePlayback();
+                      pauseOralAudios();
+                      void oral.start(layerId, unitId);
+                    }}
+                    onRetrySave={() => oral.retry()}
+                    onDiscardSave={() => oral.discardSave()}
+                    onStopRecording={oral.stop}
+                    onDeleteRecording={() => void oral.remove(layerId, unitId)}
+                    onTranscribeRecording={() => oral.transcribe(layerId, unitId)}
+                  />
+                )}
+                openAudioLayerId={oral.openLayerId}
+                onLeave={(go) => oral.leave(() => draft.leave(go))}
+                onOpenBody={(layerId, unitId, saved) => {
+                  const key = textKey(layerId, unitId);
+                  textSync.current.syncSaved(key, saved);
+                  void textSync.current.read(unitId, layerId).then((row) => {
+                    if (row) textSync.current.restore({ ...row, unitId: key }, saved);
+                  });
+                }}
               />
-            )}
-            openAudioLayerId={oral.openLayerId}
-            onLeave={(go) => oral.leave(() => draft.leave(go))}
-            onOpenBody={(layerId, unitId, saved) => {
-              const key = textKey(layerId, unitId);
-              textSync.current.syncSaved(key, saved);
-              void textSync.current.read(unitId, layerId).then((row) => {
-                if (row) textSync.current.restore({ ...row, unitId: key }, saved);
-              });
-            }}
-          />
+            </div>
+          </div>
         </div>
       </div>
 

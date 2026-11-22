@@ -1,4 +1,10 @@
 import type Database from 'better-sqlite3';
+import {
+  BASE_FONT_SIZE,
+  scriptLineHeightScale,
+  storedFontSizeForLaneHeight,
+  storedLaneHeightForFontSize,
+} from '../../utils/layerDisplayStyle';
 import { getLayer, type Layer } from './layers';
 import { readStringMap } from './stringMap';
 
@@ -12,6 +18,16 @@ export interface LayerRename {
 export interface LayerHeight {
   id: string;
   laneHeight: number;
+}
+
+export interface LayerStyle {
+  id: string;
+  orthographyId: string | null;
+  displayFont: string | null;
+  displayFontSize: number | null;
+  displayBold: boolean;
+  displayItalic: boolean;
+  reset?: boolean;
 }
 
 export interface LayerMove {
@@ -64,17 +80,94 @@ export function setLayerHeight(db: SqliteDatabase, input: LayerHeight): Layer {
   }
   const write = db.transaction(() => {
     const current = activeLayer(db, input.id);
-    const now = new Date().toISOString();
-    db.prepare('UPDATE layers SET lane_height = ?, updated_at = ? WHERE id = ?').run(
+    const fontSize = storedFontSizeForLaneHeight(
       input.laneHeight,
+      scriptLineHeightScale(scriptTag(db, current.orthographyId)),
+    );
+    const now = new Date().toISOString();
+    db.prepare(
+      'UPDATE layers SET lane_height = ?, display_font_size = ?, updated_at = ? WHERE id = ?',
+    ).run(input.laneHeight, fontSize, now, current.id);
+    const next = readBack(db, current.id);
+    if (next.laneHeight !== input.laneHeight || next.displayFontSize !== fontSize) {
+      throw new Error('layer height readback failed');
+    }
+    return next;
+  });
+  return write();
+}
+
+export function setLayerStyle(db: SqliteDatabase, input: LayerStyle): Layer {
+  const write = db.transaction(() => {
+    const current = activeLayer(db, input.id);
+    const now = new Date().toISOString();
+    if (input.reset === true) {
+      db.prepare(
+        `UPDATE layers
+         SET orthography_id = NULL, display_font = NULL, display_font_size = NULL,
+             display_bold = NULL, display_italic = NULL, lane_height = ?, updated_at = ?
+         WHERE id = ?`,
+      ).run(storedLaneHeightForFontSize(BASE_FONT_SIZE), now, current.id);
+      return readBack(db, current.id);
+    }
+    const orthographyId = input.orthographyId;
+    if (orthographyId !== null) {
+      if (current.languageId === null) throw new Error('layer language is missing');
+      const orthography = db
+        .prepare('SELECT language_id AS languageId FROM orthographies WHERE id = ?')
+        .get(orthographyId) as { languageId: string } | undefined;
+      if (!orthography) throw new Error('orthography is missing');
+      if (orthography.languageId !== current.languageId) {
+        throw new Error('orthography language does not match');
+      }
+    }
+    const font = input.displayFont === null ? null : input.displayFont.trim();
+    const displayFont = font === null || font.length === 0 ? null : font;
+    const fontSize = input.displayFontSize;
+    if (fontSize !== null && (!Number.isInteger(fontSize) || fontSize < 8 || fontSize > 36)) {
+      throw new Error('font size is out of range');
+    }
+    const laneHeight = storedLaneHeightForFontSize(
+      fontSize ?? BASE_FONT_SIZE,
+      scriptLineHeightScale(scriptTag(db, orthographyId)),
+    );
+    db.prepare(
+      `UPDATE layers
+       SET orthography_id = ?, display_font = ?, display_font_size = ?,
+           display_bold = ?, display_italic = ?, lane_height = ?, updated_at = ?
+       WHERE id = ?`,
+    ).run(
+      orthographyId,
+      displayFont,
+      fontSize,
+      input.displayBold ? 1 : null,
+      input.displayItalic ? 1 : null,
+      laneHeight,
       now,
       current.id,
     );
     const next = readBack(db, current.id);
-    if (next.laneHeight !== input.laneHeight) throw new Error('layer height readback failed');
+    if (
+      next.orthographyId !== orthographyId ||
+      next.displayFont !== displayFont ||
+      next.displayFontSize !== fontSize ||
+      next.displayBold !== input.displayBold ||
+      next.displayItalic !== input.displayItalic ||
+      next.laneHeight !== laneHeight
+    ) {
+      throw new Error('layer style readback failed');
+    }
     return next;
   });
   return write();
+}
+
+function scriptTag(db: SqliteDatabase, orthographyId: string | null): string | null {
+  if (orthographyId === null) return null;
+  const row = db
+    .prepare('SELECT script_tag AS scriptTag FROM orthographies WHERE id = ?')
+    .get(orthographyId) as { scriptTag: string } | undefined;
+  return row?.scriptTag ?? null;
 }
 
 /** Swap this layer with its previous or next sibling. Roots use `sort_order`; hosted layers use the link order. */

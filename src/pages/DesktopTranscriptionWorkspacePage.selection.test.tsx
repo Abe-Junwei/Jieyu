@@ -423,6 +423,8 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     fireEvent.click(screen.getByText('gloss-a'));
     const label = document.querySelector('[data-layer-id="layer-tl"] .desktop-tx-layer-label');
     fireEvent.contextMenu(label as Element);
+    fireEvent.pointerDown(screen.getByRole('menuitem', { name: '收起该层' }));
+    expect(screen.getByRole('menuitem', { name: '收起该层' })).toBeTruthy();
     fireEvent.click(screen.getByRole('menuitem', { name: '收起该层' }));
     await waitFor(() => {
       expect(
@@ -457,6 +459,12 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     expect(elbow('layer-tl')).toBeTruthy();
     expect(elbow('layer-loose')).toBeNull();
     expect(
+      document.querySelector('[data-layer-id="layer-1"]')?.classList.contains('is-group-mid'),
+    ).toBe(true);
+    expect(
+      document.querySelector('[data-layer-id="layer-tl"]')?.classList.contains('is-group-mid'),
+    ).toBe(false);
+    expect(
       document.querySelector('[data-testid="desktop-readonly-timeline"] .tree-elbow'),
     ).toBeNull();
 
@@ -464,6 +472,9 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     await waitFor(() => {
       expect(document.querySelector('[data-layer-id="layer-tl"]')).toBeNull();
     });
+    expect(
+      document.querySelector('[data-layer-id="layer-1"]')?.classList.contains('is-group-mid'),
+    ).toBe(false);
     expect(screen.queryByText('gloss-a')).toBeNull();
     expect(screen.getByText('+1 层')).toBeTruthy();
     expect(document.querySelector('[data-layer-id="layer-loose"]')).toBeTruthy();

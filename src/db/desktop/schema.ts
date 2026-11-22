@@ -2,8 +2,8 @@
 
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
-/** SQLite header offset 60. ADR-0137 moved this to 33. A later table change needs a new decision and a new freeze record. */
-export const DESKTOP_PROJECT_USER_VERSION = 33;
+/** SQLite header offset 60. ADR-0138 moved this to 34. A later table change needs a new decision and a new freeze record. */
+export const DESKTOP_PROJECT_USER_VERSION = 34;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -306,6 +306,14 @@ CREATE TABLE layers (
     lane_height IS NULL OR (lane_height > 0 AND lane_height = CAST(lane_height AS INTEGER))
   ),
   display_font TEXT CHECK (display_font IS NULL OR length(display_font) > 0),
+  display_font_size INTEGER CHECK (
+    display_font_size IS NULL OR (
+      display_font_size >= 8 AND display_font_size <= 36
+      AND display_font_size = CAST(display_font_size AS INTEGER)
+    )
+  ),
+  display_bold INTEGER CHECK (display_bold IS NULL OR display_bold = 1),
+  display_italic INTEGER CHECK (display_italic IS NULL OR display_italic = 1),
   deleted_at TEXT CHECK (deleted_at IS NULL OR length(deleted_at) > 0),
   retain_until TEXT CHECK (retain_until IS NULL OR length(retain_until) > 0),
   reminder_shown_at TEXT CHECK (reminder_shown_at IS NULL OR length(reminder_shown_at) > 0),

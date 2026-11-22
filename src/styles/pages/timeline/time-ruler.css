@@ -19,6 +19,19 @@
   pointer-events: none;
 }
 
+/* 左侧层名列：盖住滚出可视区的刻度 | Opaque gutter so scrolled ticks do not show through */
+.time-ruler::after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
+  background: color-mix(in srgb, var(--surface-header) 76%, var(--border-soft));
+  pointer-events: none;
+}
+
 /* 时间尺同位分隔线，保持上下视觉连续 | Matching separator on ruler for vertical continuity */
 .time-ruler::before {
   content: '';

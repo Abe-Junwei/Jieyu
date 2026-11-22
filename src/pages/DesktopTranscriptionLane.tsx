@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type CSSProperties,
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -20,6 +21,12 @@ import { DesktopTranscriptionCreatePreview } from './DesktopTranscriptionCreateP
 import { DesktopTranscriptionLaneResize } from './DesktopTranscriptionLaneResize';
 import { DesktopWaveformEdges } from './DesktopWaveformEdges';
 import { TimelineAnnotationItem } from '../components/TimelineAnnotationItem';
+import { desktopAnnotationStyle } from '../utils/layerDisplayStyle';
+import {
+  layerStyleFields,
+  styleMenuProps,
+  type LayerStyleChange,
+} from './DesktopTranscriptionLayerStyleMenu';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, tf, type Locale } from '../i18n';
 import { getTranscriptionPlaybackClockSnapshot } from '../hooks/transcription/transcriptionPlaybackClock';
@@ -104,7 +111,12 @@ export function DesktopTranscriptionLane(props: {
   /** A body editor opened on `layerId`'s text of `unitId`: bring back its stored draft. */
   onOpenBody: (layerId: string, unitId: string, savedText: string) => void;
   onLaneHeight?: (layerId: string, height: number) => void;
+  onLayerStyle?: (layerId: string, change: LayerStyleChange) => void;
+  loadOrthographies?: (
+    languageId: string,
+  ) => Promise<{ id: string; name: Record<string, string>; scriptTag: string }[]>;
   layerDrag?: DesktopLayerDrag;
+  onSelectLayer?: (layerId: string) => void;
   audioTools?: (layerId: string, unitId: string) => ReactNode;
   onCreateTranscription: () => void;
 }) {
@@ -348,7 +360,7 @@ export function DesktopTranscriptionLane(props: {
     props.locale,
     t(props.locale, 'app.desktopTranscription.contextLayerTranscription'),
   );
-  const renderMain = (row: LayerTreeRow) => {
+  const renderMain = (row: LayerTreeRow, groupContinues = false) => {
     const dragBits = timelineDragProps(props.layerDrag, row.layerId, row.folded);
     return props.hasAudio || props.units.length > 0 ? (
       <>
@@ -360,11 +372,14 @@ export function DesktopTranscriptionLane(props: {
             row={row}
             segmentCount={props.units.length}
             onExpand={() => props.view.toggleRow(row.layerId)}
+            {...(props.onSelectLayer === undefined
+              ? {}
+              : { onSelect: () => props.onSelectLayer?.(row.layerId) })}
           />
         ) : null}
 
         <div
-          className={`desktop-tx-lane${row.folded ? ' is-folded' : ''}${dragBits.laneClass}`}
+          className={`desktop-tx-lane${row.folded ? ' is-folded' : ''}${groupContinues ? ' is-group-mid' : ''}${dragBits.laneClass}`}
           data-layer-id={row.layerId}
           data-drag-surface="timeline"
           data-testid="desktop-readonly-timeline"
@@ -379,10 +394,23 @@ export function DesktopTranscriptionLane(props: {
             locale={props.locale}
             name={mainName}
             row={row}
-            focused={focus === null}
+            focused
             onToggleGroup={() => toggleGroup(row.layerId)}
             onCollapse={() => collapseLayer(row.layerId)}
+            {...(props.onSelectLayer === undefined
+              ? {}
+              : { onSelect: () => props.onSelectLayer?.(row.layerId) })}
             {...dragBits.label}
+            {...(props.onLayerStyle === undefined || props.loadOrthographies === undefined
+              ? {}
+              : styleMenuProps(
+                  layerStyleFields(
+                    props.layers?.find((layer) => layer.id === row.layerId),
+                    props.locale,
+                  ),
+                  props.loadOrthographies,
+                  (change) => props.onLayerStyle?.(row.layerId, change),
+                ))}
           />
           <div ref={props.tierRef} className="desktop-tx-lane__body">
             <div
@@ -411,6 +439,7 @@ export function DesktopTranscriptionLane(props: {
                 const shownSelected = selected && focus === null;
                 const draft =
                   props.bodyDraft?.unitId === keyOf(unit.id) ? props.bodyDraft.text : unit.text;
+                const painted = mainAnnotationStyle(props.layers, props.layerId);
                 return (
                   <TimelineAnnotationItem
                     key={unit.id}
@@ -426,6 +455,7 @@ export function DesktopTranscriptionLane(props: {
                     {...(typeof unit.confidence === 'number'
                       ? { confidence: unit.confidence }
                       : {})}
+                    {...(painted === undefined ? {} : { layerStyle: painted })}
                     onClick={() => {
                       if (selected && focus === null) {
                         openEdit(mainCard(unit.id), unit.text);
@@ -517,7 +547,12 @@ export function DesktopTranscriptionLane(props: {
           onToggleGroup={toggleGroup}
           onCollapse={collapseLayer}
           onExpand={props.view.toggleRow}
+          {...(props.onSelectLayer === undefined ? {} : { onSelectLayer: props.onSelectLayer })}
           {...(props.layerDrag === undefined ? {} : { drag: props.layerDrag })}
+          {...(props.onLayerStyle === undefined ? {} : { onLayerStyle: props.onLayerStyle })}
+          {...(props.loadOrthographies === undefined
+            ? {}
+            : { loadOrthographies: props.loadOrthographies })}
           compact={props.view.compact}
           duration={props.duration}
           zoomPxPerSec={props.zoomPxPerSec}
@@ -608,6 +643,32 @@ export function DesktopTranscriptionLane(props: {
       />
     </>
   );
+}
+
+function mainAnnotationStyle(
+  layers: readonly LayerRowLayer[] | undefined,
+  layerId: string | null,
+): CSSProperties | undefined {
+  const layer = layers?.find((item) => item.id === layerId);
+  if (layer === undefined) return undefined;
+  const style = desktopAnnotationStyle({
+    ...(layer.displayFont === undefined ? {} : { displayFont: layer.displayFont }),
+    ...(layer.displayFontSize === undefined ? {} : { displayFontSize: layer.displayFontSize }),
+    ...(layer.displayBold === undefined ? {} : { displayBold: layer.displayBold }),
+    ...(layer.displayItalic === undefined ? {} : { displayItalic: layer.displayItalic }),
+    ...(layer.orthographyScriptTag === undefined ? {} : { scriptTag: layer.orthographyScriptTag }),
+    ...(layer.languageId === undefined ? {} : { languageId: layer.languageId }),
+  });
+  if (
+    style.fontFamily === undefined &&
+    style.fontSize === undefined &&
+    style.fontWeight === undefined &&
+    style.fontStyle === undefined &&
+    style.direction === undefined
+  ) {
+    return undefined;
+  }
+  return style;
 }
 
 function timedOf(unit: { id: string; startMs: number | null; endMs: number | null }) {

@@ -46,6 +46,7 @@ import type {
   LayerHeight,
   LayerMove,
   LayerRename,
+  LayerStyle,
 } from './layerStructure';
 import type { Layer, LayerCreate, LayerHostInput, LayerLink, LayerLinkType } from './layers';
 import type {
@@ -207,6 +208,40 @@ function checkLayerHeight(input: Record<string, unknown>): LayerHeight {
   return {
     id: requiredString(input.id, 'id'),
     laneHeight: requiredNumber(input.laneHeight, 'laneHeight'),
+  };
+}
+
+function checkLayerStyle(input: Record<string, unknown>): LayerStyle {
+  knownKeys(input, [
+    'id',
+    'orthographyId',
+    'displayFont',
+    'displayFontSize',
+    'displayBold',
+    'displayItalic',
+    'reset',
+  ]);
+  if (typeof input.displayBold !== 'boolean') {
+    throw new Error('desktop call displayBold must be a boolean');
+  }
+  if (typeof input.displayItalic !== 'boolean') {
+    throw new Error('desktop call displayItalic must be a boolean');
+  }
+  if (input.reset !== undefined && input.reset !== true) {
+    throw new Error('desktop call reset is not supported');
+  }
+  const fontSize = input.displayFontSize;
+  if (fontSize !== null && typeof fontSize !== 'number') {
+    throw new Error('desktop call displayFontSize must be a number');
+  }
+  return {
+    id: requiredString(input.id, 'id'),
+    orthographyId: optionalString(input.orthographyId, 'orthographyId'),
+    displayFont: optionalString(input.displayFont, 'displayFont'),
+    displayFontSize: fontSize === null ? null : requiredNumber(fontSize, 'displayFontSize'),
+    displayBold: input.displayBold,
+    displayItalic: input.displayItalic,
+    ...(input.reset === true ? { reset: true } : {}),
   };
 }
 
@@ -1615,6 +1650,7 @@ export const desktopOperations = {
   'layers.place': spec<'clear', LayerPlace, { layerId: string }>('clear', checkLayerPlace),
   'layers.rename': spec<'clear', LayerRename, Layer>('clear', checkLayerRename),
   'layers.setHeight': spec<'clear', LayerHeight, Layer>('clear', checkLayerHeight),
+  'layers.setStyle': spec<'clear', LayerStyle, Layer>('clear', checkLayerStyle),
   'layers.move': spec<'clear', LayerMove, Layer>('clear', checkLayerMove),
   'layers.delete': spec<'clear', LayerDelete, { id: string }>('clear', checkLayerDelete),
   'layers.listDeleted': spec<'keep', Record<string, never>, DeletedLayer[]>('keep', (input) => {

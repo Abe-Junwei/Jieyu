@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { t, useLocale } from '../i18n';
 import { useDesktopTranscriptionLayerDragController } from './useDesktopTranscriptionLayerDragController';
+import { readOrthographyRows, type LayerStyleChange } from './DesktopTranscriptionLayerStyleMenu';
 
 interface StructureLayer {
   id: string;
@@ -162,6 +163,16 @@ export function useDesktopTranscriptionLayerController(input: {
       },
       setHeight: (id: string, laneHeight: number) => {
         void run('layers.setHeight', { id, laneHeight });
+      },
+      setStyle: (id: string, input: LayerStyleChange) => {
+        void run('layers.setStyle', { id, ...input });
+      },
+      orthographies: async (languageId: string) => {
+        const current = latest.current;
+        if (current.sessionId === null || current.desktopCall === undefined) return [];
+        return readOrthographyRows(
+          await current.desktopCall(current.sessionId, 'orthographies.list', { languageId }),
+        );
       },
       remove: (id: string, mode: 'soft' | 'migrate' | 'purge', targetLayerId?: string) => {
         void run('layers.delete', {

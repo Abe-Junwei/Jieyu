@@ -154,25 +154,25 @@
     },
     {
       "file": "src/pages/DesktopTranscriptionLayerLabel.tsx",
-      "reason": "Tree guide, elbow and side-lane offsets derive from each row's runtime depth and lane index; the context menu follows the live pointer. A dragged label adds translateY.",
+      "reason": "Tree guide, elbow, jog and side-lane offsets derive from each row's runtime depth, lane index, and the nameplate jog. A dragged label adds translateY.",
       "reviewer": "Cursor + junwei",
       "reviewedAt": "2026-11-22",
       "snippets": [
         {
           "anchor": "levelX(level)",
-          "reviewedSha256": "223db34b227ee596bf3e78e99a37d027282da399dbeb8cebc993bd3276a6f922"
+          "reviewedSha256": "4ee5c0fdd07558112b1837bfd0467a74a8068d45227b5017d871c0e058407c85"
         },
         {
-          "anchor": "levelX(row.depth - 1)",
-          "reviewedSha256": "fe217391bd3ebcc6bcabe1b68858ea6e55471245989c797f36ab472c2a422b9e"
+          "anchor": "parentX - shift",
+          "reviewedSha256": "c515cfdb0a6d3e4e975eac9bc5c17a407509d24efff75ad30c2149b51cad5755"
         },
         {
-          "anchor": "'--x': px(dotX) })",
-          "reviewedSha256": "2d665ad274b26b337b17689b043c92a68f8a49138a8098a4254837566fb58edf"
+          "anchor": "'--x': px(dotX - shift) })}",
+          "reviewedSha256": "fe0329e9d0cb6831797d3b93478ba17737743d9bb0596b24bce3709e50efc42c"
         },
         {
-          "anchor": "left: menu.x, top: menu.y",
-          "reviewedSha256": "0022b7ff6223889daac1da9d2249bbe069dd72469f20eb5f4b7da08f16452669"
+          "anchor": "'--w': px(shift)",
+          "reviewedSha256": "03160e00781b00e55a860a4c7f968fb57412af73d61dd777502fd25091a2c3c2"
         },
         {
           "anchor": "'--x': px(x) })",
@@ -189,6 +189,18 @@
         {
           "anchor": "'--dot-x': px(levelX(props.row.depth))",
           "reviewedSha256": "5f78cf263e0f851eefcb29f24b7e4446e8d54b1a2a4edcb082d977ff2ba849f1"
+        }
+      ]
+    },
+    {
+      "file": "src/pages/DesktopTranscriptionLayerStyleMenu.tsx",
+      "reason": "The layer menu opens at the pointer, then clamps to the viewport after it measures itself.",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-22",
+      "snippets": [
+        {
+          "anchor": "left: place.x, top: place.y",
+          "reviewedSha256": "6911a1b62a15ccdf9197e91c804b319dd793e91d55f2660565197b74d376b7bc"
         }
       ]
     },

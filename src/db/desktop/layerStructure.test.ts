@@ -321,4 +321,149 @@ describe('layer structure', () => {
     }[];
     expect(listed.map((item) => item.id)).toEqual([host.id]);
   });
+
+  it('stores style, couples height, and rejects an orthography from another language', () => {
+    const { sessionId, manuscriptId } = openManuscript();
+    const language = callDesktopSession(sessionId, 'catalog.ensureProjectDefinition', {
+      name: { zh: '甲' },
+      sourceType: 'user-custom',
+      iso6393: 'eng',
+    }) as { id: string };
+    const other = callDesktopSession(sessionId, 'catalog.ensureProjectDefinition', {
+      name: { zh: '乙' },
+      sourceType: 'user-custom',
+      iso6393: 'fra',
+    }) as { id: string };
+    const orthography = callDesktopSession(sessionId, 'orthographies.create', {
+      languageId: language.id,
+      name: { zh: '拉丁' },
+      scriptTag: 'Latn',
+      sourceType: 'user-custom',
+    }) as { id: string };
+    const foreign = callDesktopSession(sessionId, 'orthographies.create', {
+      languageId: other.id,
+      name: { zh: '另一套' },
+      scriptTag: 'Latn',
+      sourceType: 'user-custom',
+    }) as { id: string };
+    const owned = layer(sessionId, manuscriptId, 'tx', 'transcription', {
+      languageId: language.id,
+    });
+    const bare = layer(sessionId, manuscriptId, 'tx2', 'transcription');
+    const styled = callDesktopSession(sessionId, 'layers.setStyle', {
+      id: owned.id,
+      orthographyId: orthography.id,
+      displayFont: '"Charis SIL", serif',
+      displayFontSize: 18,
+      displayBold: true,
+      displayItalic: true,
+    }) as {
+      orthographyId: string | null;
+      displayFont: string | null;
+      displayFontSize: number | null;
+      displayBold: boolean;
+      displayItalic: boolean;
+      laneHeight: number | null;
+    };
+    expect(styled).toMatchObject({
+      orthographyId: orthography.id,
+      displayFont: '"Charis SIL", serif',
+      displayFontSize: 18,
+      displayBold: true,
+      displayItalic: true,
+      laneHeight: 75,
+    });
+    expect('color' in styled).toBe(false);
+    const dragged = callDesktopSession(sessionId, 'layers.setHeight', {
+      id: owned.id,
+      laneHeight: 80,
+    }) as { laneHeight: number | null; displayFontSize: number | null };
+    expect(dragged.laneHeight).toBe(80);
+    expect(dragged.displayFontSize).toBe(19);
+    expect(() =>
+      callDesktopSession(sessionId, 'layers.setStyle', {
+        id: owned.id,
+        orthographyId: foreign.id,
+        displayFont: null,
+        displayFontSize: 18,
+        displayBold: true,
+        displayItalic: true,
+      }),
+    ).toThrow('orthography language does not match');
+    const kept = (
+      callDesktopSession(sessionId, 'layers.list', { manuscriptId }) as {
+        id: string;
+        orthographyId: string | null;
+        displayFont: string | null;
+        displayFontSize: number | null;
+        laneHeight: number | null;
+      }[]
+    ).find((item) => item.id === owned.id);
+    expect(kept).toMatchObject({
+      orthographyId: orthography.id,
+      displayFont: '"Charis SIL", serif',
+      displayFontSize: 19,
+      laneHeight: 80,
+    });
+    expect(() =>
+      callDesktopSession(sessionId, 'layers.setStyle', {
+        id: bare.id,
+        orthographyId: orthography.id,
+        displayFont: null,
+        displayFontSize: null,
+        displayBold: false,
+        displayItalic: false,
+      }),
+    ).toThrow('layer language is missing');
+    const fontOnly = callDesktopSession(sessionId, 'layers.setStyle', {
+      id: bare.id,
+      orthographyId: null,
+      displayFont: 'Noto Sans SC',
+      displayFontSize: null,
+      displayBold: false,
+      displayItalic: false,
+    }) as { displayFont: string | null; orthographyId: string | null; laneHeight: number | null };
+    expect(fontOnly.displayFont).toBe('Noto Sans SC');
+    expect(fontOnly.orthographyId).toBeNull();
+    expect(fontOnly.laneHeight).toBe(54);
+    callDesktopSession(sessionId, 'layers.setStyle', {
+      id: owned.id,
+      orthographyId: orthography.id,
+      displayFont: '"Charis SIL", serif',
+      displayFontSize: 18,
+      displayBold: true,
+      displayItalic: true,
+      reset: true,
+    });
+    callDesktopSession(sessionId, 'reopen', {});
+    const listed = callDesktopSession(sessionId, 'layers.list', { manuscriptId }) as {
+      id: string;
+      orthographyId: string | null;
+      displayFont: string | null;
+      displayFontSize: number | null;
+      displayBold: boolean;
+      displayItalic: boolean;
+      laneHeight: number | null;
+    }[];
+    const again = listed.find((item) => item.id === owned.id);
+    expect(again).toMatchObject({
+      orthographyId: null,
+      displayFont: null,
+      displayFontSize: null,
+      displayBold: false,
+      displayItalic: false,
+      laneHeight: 54,
+    });
+    expect(() =>
+      callDesktopSession(sessionId, 'layers.setStyle', {
+        id: owned.id,
+        orthographyId: null,
+        displayFont: null,
+        displayFontSize: null,
+        displayBold: false,
+        displayItalic: false,
+        color: '#111111',
+      }),
+    ).toThrow('color is not supported');
+  });
 });

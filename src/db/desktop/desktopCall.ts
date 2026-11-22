@@ -79,6 +79,7 @@ import {
   renameLayer,
   restoreLayer,
   setLayerHeight,
+  setLayerStyle,
 } from './layerStructure';
 import { linkSense, removeSense, saveLexemeEntry, getLexemeEntry } from './lexicon';
 import {
@@ -268,6 +269,10 @@ const operationHandlers = {
   'layers.setHeight': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.setHeight']['check']>) =>
       setLayerHeight(ctx.db, input),
+  },
+  'layers.setStyle': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.setStyle']['check']>) =>
+      setLayerStyle(ctx.db, input),
   },
   'layers.move': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['layers.move']['check']>) =>
