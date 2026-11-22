@@ -1,13 +1,11 @@
 import {
   useEffect,
-  useRef,
   useState,
   type CSSProperties,
   type KeyboardEvent,
   type MouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { createPortal } from 'react-dom';
 import { t, tf, type Locale } from '../i18n';
 import type { LayerTreeRow } from './desktopTranscriptionLayerTree';
 
@@ -70,49 +68,12 @@ function TreeLines(props: { row: LayerTreeRow }) {
   );
 }
 
-/**
- * The layer's node: hovering it, or focusing the label, shows the name and what the layer hangs
- * on. Portalled so the clipped label column cannot cut the bubble.
- */
-function LayerNode(props: {
-  locale: Locale;
-  row: LayerTreeRow;
-  name: string;
-  hostNames: readonly string[];
-  shown: boolean;
-  onShow: (shown: boolean) => void;
-}) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const box = props.shown ? ref.current?.getBoundingClientRect() : undefined;
-  const note =
-    props.hostNames.length > 0
-      ? tf(props.locale, 'app.desktopTranscription.layerHostsNote', {
-          names: new Intl.ListFormat(props.locale, { type: 'conjunction' }).format(props.hostNames),
-        })
-      : t(props.locale, 'app.desktopTranscription.layerRootNote');
+/** The layer's node: tree lines and the dot. No hover note. */
+function LayerNode(props: { row: LayerTreeRow }) {
   return (
     <>
       <TreeLines row={props.row} />
-      <span
-        ref={ref}
-        aria-hidden
-        className="desktop-tx-layer-dot"
-        onPointerEnter={() => props.onShow(true)}
-        onPointerLeave={() => props.onShow(false)}
-      />
-      {box
-        ? createPortal(
-            <span
-              role="tooltip"
-              className="desktop-tx-layer-tip"
-              style={{ left: box.left + box.width / 2, top: box.bottom + 6 }}
-            >
-              <span className="desktop-tx-layer-tip__name">{props.name}</span>
-              <span>{note}</span>
-            </span>,
-            document.body,
-          )
-        : null}
+      <span aria-hidden className="desktop-tx-layer-dot" />
     </>
   );
 }
@@ -125,8 +86,6 @@ export function DesktopTranscriptionLayerLabel(props: {
   locale: Locale;
   name: string;
   row: LayerTreeRow;
-  /** Host names, preferred first, for the node's hover note. */
-  hostNames: readonly string[];
   focused: boolean;
   onToggleGroup: () => void;
   onCollapse: () => void;
@@ -134,10 +93,10 @@ export function DesktopTranscriptionLayerLabel(props: {
   dragOffset?: number;
   onLayerPointerDown?: (event: ReactPointerEvent<HTMLElement>) => void;
   onLayerPointerUp?: () => void;
+  dragHint?: string;
 }) {
   const { row, locale } = props;
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
-  const [tip, setTip] = useState(false);
   useEffect(() => {
     if (menu === null) return undefined;
     const close = () => setMenu(null);
@@ -180,21 +139,15 @@ export function DesktopTranscriptionLayerLabel(props: {
           : { transform: `translateY(${props.dragOffset}px)` }),
       }}
       tabIndex={0}
-      onFocus={(event) => setTip(event.target === event.currentTarget)}
-      onBlur={() => setTip(false)}
       onContextMenu={open}
       onKeyDown={onKeyDown}
     >
-      <LayerNode
-        locale={locale}
-        row={row}
-        name={props.name}
-        hostNames={props.hostNames}
-        shown={tip}
-        onShow={setTip}
-      />
+      <LayerNode row={row} />
       <span
         className="desktop-tx-layer-name"
+        {...(props.dragHint === undefined
+          ? {}
+          : { title: props.dragHint, 'aria-description': props.dragHint })}
         {...(props.onLayerPointerDown === undefined
           ? {}
           : { onPointerDown: props.onLayerPointerDown })}
@@ -257,13 +210,11 @@ export function DesktopTranscriptionFoldedStrip(props: {
   locale: Locale;
   name: string;
   row: LayerTreeRow;
-  hostNames: readonly string[];
   segmentCount: number;
   onExpand: () => void;
   className?: string;
   style?: CSSProperties;
 }) {
-  const [tip, setTip] = useState(false);
   return (
     <div
       className={`desktop-tx-layer-strip${props.className ?? ''}`}
@@ -275,14 +226,7 @@ export function DesktopTranscriptionFoldedStrip(props: {
         className="desktop-tx-band-label desktop-tx-layer-label desktop-tx-layer-strip__label"
         style={cssVars({ '--dot-x': px(levelX(props.row.depth)) })}
       >
-        <LayerNode
-          locale={props.locale}
-          row={props.row}
-          name={props.name}
-          hostNames={props.hostNames}
-          shown={tip}
-          onShow={setTip}
-        />
+        <LayerNode row={props.row} />
       </div>
       <button type="button" className="desktop-tx-layer-strip__body" onClick={props.onExpand}>
         <span className="desktop-tx-layer-strip__expand">

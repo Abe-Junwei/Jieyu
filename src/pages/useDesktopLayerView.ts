@@ -51,6 +51,16 @@ export function useDesktopLayerView(manuscriptId: string | null) {
     setHeaderFolded(next);
     if (manuscriptId !== null) write(HEADER_KEY + manuscriptId, next ? '1' : '0');
   }, [headerFolded, manuscriptId]);
+  const reveal = useCallback(
+    (hostIds: readonly string[]) => {
+      if (hostIds.length === 0) return;
+      const open = new Set(hostIds);
+      const groups = fold.groups.filter((id) => !open.has(id));
+      if (groups.length === fold.groups.length) return;
+      update({ ...fold, groups });
+    },
+    [fold, update],
+  );
   const toggleCompact = useCallback(() => {
     setCompact((current) => {
       const next = !current;
@@ -58,7 +68,16 @@ export function useDesktopLayerView(manuscriptId: string | null) {
       return next;
     });
   }, []);
-  return { fold, headerFolded, compact, toggleGroup, toggleRow, toggleHeader, toggleCompact };
+  return {
+    fold,
+    headerFolded,
+    compact,
+    toggleGroup,
+    toggleRow,
+    toggleHeader,
+    toggleCompact,
+    reveal,
+  };
 }
 
 export type DesktopLayerView = ReturnType<typeof useDesktopLayerView>;

@@ -22,6 +22,16 @@ describe('useDesktopLayerView', () => {
     expect(other.result.current.fold.rows).toEqual([]);
   });
 
+  it('opens only the collapsed hosts that hide a moved layer', () => {
+    const view = renderHook(() => useDesktopLayerView('ms-1'));
+    act(() => view.result.current.toggleGroup('host'));
+    act(() => view.result.current.toggleGroup('other'));
+    act(() => view.result.current.reveal(['host']));
+    expect(view.result.current.fold.groups).toEqual(['other']);
+    act(() => view.result.current.reveal([]));
+    expect(view.result.current.fold.groups).toEqual(['other']);
+  });
+
   it('keeps compact density on this machine, not per manuscript', () => {
     const first = renderHook(() => useDesktopLayerView('ms-1'));
     expect(first.result.current.compact).toBe(false);

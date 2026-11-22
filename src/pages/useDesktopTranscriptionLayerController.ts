@@ -6,6 +6,7 @@ import { useDesktopTranscriptionLayerDragController } from './useDesktopTranscri
 interface StructureLayer {
   id: string;
   key?: string;
+  name?: Record<string, string>;
   contentType?: string;
   tierType?: string;
   sortOrder?: number;
@@ -29,37 +30,50 @@ export function useDesktopTranscriptionLayerController(input: {
   links: readonly StructureLink[] | undefined;
   currentLayerId: string | null;
   refresh: () => Promise<unknown>;
+  onLayerMoved?: (layerId: string, hostIds: readonly string[]) => void;
 }) {
   const locale = useLocale();
   const [error, setError] = useState('');
   const latest = useRef(input);
   latest.current = input;
+  const dragLayers = useMemo(
+    () =>
+      (input.layers ?? []).flatMap((layer) =>
+        layer.contentType === undefined || layer.tierType === undefined
+          ? []
+          : [
+              {
+                id: layer.id,
+                contentType: layer.contentType,
+                tierType: layer.tierType,
+                ...(layer.sortOrder === undefined ? {} : { sortOrder: layer.sortOrder }),
+                ...(layer.parentId === undefined ? {} : { parentId: layer.parentId }),
+                ...(layer.name === undefined ? {} : { name: layer.name }),
+              },
+            ],
+      ),
+    [input.layers],
+  );
+  const dragLinks = useMemo(
+    () =>
+      (input.links ?? []).map((link) => ({
+        layerId: link.layerId,
+        hostLayerId: link.hostLayerId,
+        isPreferred: link.isPreferred === true,
+        ...(link.sortOrder === undefined ? {} : { sortOrder: link.sortOrder }),
+        ...(link.linkType === undefined ? {} : { linkType: link.linkType }),
+      })),
+    [input.links],
+  );
   const drag = useDesktopTranscriptionLayerDragController({
     sessionId: input.sessionId,
     desktopCall: input.desktopCall,
-    layers: (input.layers ?? []).flatMap((layer) =>
-      layer.contentType === undefined || layer.tierType === undefined
-        ? []
-        : [
-            {
-              id: layer.id,
-              contentType: layer.contentType,
-              tierType: layer.tierType,
-              ...(layer.sortOrder === undefined ? {} : { sortOrder: layer.sortOrder }),
-              ...(layer.parentId === undefined ? {} : { parentId: layer.parentId }),
-            },
-          ],
-    ),
-    links: (input.links ?? []).map((link) => ({
-      layerId: link.layerId,
-      hostLayerId: link.hostLayerId,
-      isPreferred: link.isPreferred === true,
-      ...(link.sortOrder === undefined ? {} : { sortOrder: link.sortOrder }),
-      ...(link.linkType === undefined ? {} : { linkType: link.linkType }),
-    })),
+    layers: dragLayers,
+    links: dragLinks,
     currentLayerId: input.currentLayerId,
     refresh: input.refresh,
     report: (message) => setError(layerErrorText(locale, message)),
+    ...(input.onLayerMoved === undefined ? {} : { onLayerMoved: input.onLayerMoved }),
   });
   return useMemo(() => {
     const run = async (method: string, args: unknown) => {
