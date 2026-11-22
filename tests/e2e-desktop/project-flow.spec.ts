@@ -216,7 +216,7 @@ test('oral clip records, plays, transcribes, reopens, then delete drops the file
     await page
       .getByRole('button', { name: /^(语音转文字（STT）|Transcribe recording \(STT\))$/ })
       .first()
-      .click();
+      .evaluate((button: HTMLButtonElement) => button.click());
     await expect(page.getByText(/转写已放进文字层|transcript is in the text layer/)).toBeVisible();
     const pair = await findOralPair(page, sessionId);
     const clips = await desktopCall<{ unitId: string }[]>(page, sessionId, 'recordings.list', {
