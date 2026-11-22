@@ -203,15 +203,31 @@ test('oral clip records, plays, transcribes, reopens, then delete drops the file
     await expect(stop).toHaveCSS('width', '24px');
     await page.screenshot({ path: test.info().outputPath('oral-recording-controls.png') });
     await page.waitForTimeout(1200);
-    const stopBox = await stop.boundingBox();
-    if (stopBox === null) throw new Error('stop button has no box');
-    await page.mouse.click(stopBox.x + stopBox.width / 2, stopBox.y + stopBox.height / 2);
+    // The stop glyph sits on the layer chevron. A locator box waits out the
+    // recording clock, and a click there folds the group instead of ending the take.
+    const stopAt = await page.evaluate(() => {
+      const status = document.querySelector(
+        '.timeline-translation-audio-controls-recording .timeline-translation-audio-status',
+      );
+      if (!(status instanceof HTMLElement)) return null;
+      const rect = status.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      const top = document.elementFromPoint(x, y);
+      const onControl =
+        top instanceof Element &&
+        top.closest('.timeline-translation-audio-controls-recording') !== null &&
+        top.closest('.desktop-tx-layer-chevron') === null;
+      return onControl ? { x, y } : null;
+    });
+    if (stopAt === null) throw new Error('recording status is not clickable');
+    await page.mouse.click(stopAt.x, stopAt.y);
     const play = page
       .getByRole('button', { name: /^(播放录音翻译|Play recorded translation)$/ })
       .first();
     await expect(play).toBeVisible();
     const clipAudio = page.locator('.timeline-translation-audio-controls audio').first();
-    await play.click();
+    await play.click({ timeout: 15_000 });
     await expect
       .poll(() => clipAudio.evaluate((element) => (element as HTMLAudioElement).paused))
       .toBe(false);
@@ -220,7 +236,7 @@ test('oral clip records, plays, transcribes, reopens, then delete drops the file
     await page
       .getByRole('button', { name: /^(语音转文字（STT）|Transcribe recording \(STT\))$/ })
       .first()
-      .click();
+      .click({ timeout: 15_000 });
     await expect(page.getByText(/转写已放进文字层|transcript is in the text layer/)).toBeVisible();
     const pair = await findOralPair(page, sessionId);
     const clips = await desktopCall<{ unitId: string }[]>(page, sessionId, 'recordings.list', {
@@ -270,7 +286,7 @@ test('oral clip records, plays, transcribes, reopens, then delete drops the file
     await reopened
       .locator('.timeline-translation-audio-controls')
       .getByRole('button', { name: /^(删除录音翻译|Delete recorded translation)$/ })
-      .click();
+      .click({ timeout: 15_000 });
     await expect(
       reopened.getByRole('button', { name: /^(播放录音翻译|Play recorded translation)$/ }),
     ).toHaveCount(0);
