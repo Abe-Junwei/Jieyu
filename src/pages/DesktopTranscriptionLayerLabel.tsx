@@ -8,11 +8,13 @@ import {
 } from 'react';
 import { t, tf, type Locale } from '../i18n';
 import type { LayerTreeRow } from './desktopTranscriptionLayerTree';
+import type { LayerCommandId, LayerCommandItem } from './desktopTranscriptionLayerCommands';
 import {
   DesktopLayerHeaderMenu,
   type LayerStyleChange,
   type LayerStyleFields,
 } from './DesktopTranscriptionLayerStyleMenu';
+import type { SpeakerLaneMode } from './desktopSpeakerLanes';
 
 const INDENT_BASE = 30;
 const INDENT_STEP = 16;
@@ -129,6 +131,16 @@ export function DesktopTranscriptionLayerLabel(props: {
     languageId: string,
   ) => Promise<{ id: string; name: Record<string, string>; scriptTag: string }[]>;
   onApplyStyle?: (change: LayerStyleChange) => void;
+  commands?: readonly LayerCommandItem[];
+  onCommand?: (command: LayerCommandId) => void;
+  overlapCount?: number;
+  lane?: {
+    mode: SpeakerLaneMode;
+    conflicts: boolean;
+    onMode: (mode: SpeakerLaneMode) => void;
+    onLock: () => void;
+    onClearConflicts: () => void;
+  };
 }) {
   const { row, locale } = props;
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
@@ -214,6 +226,11 @@ export function DesktopTranscriptionLayerLabel(props: {
           >
             {props.name}
           </span>
+          {props.overlapCount !== undefined && props.overlapCount > 0 ? (
+            <span className="desktop-tx-layer-more">
+              {tf(locale, 'app.desktopTranscription.laneOverlaps', { count: props.overlapCount })}
+            </span>
+          ) : null}
           {props.styleFields !== undefined && props.styleFields.orthographyName.length > 0 ? (
             <span className="desktop-tx-layer-script">{props.styleFields.orthographyName}</span>
           ) : null}
@@ -250,6 +267,15 @@ export function DesktopTranscriptionLayerLabel(props: {
             setMenu(null);
             props.onCollapse();
           }}
+          {...(props.commands === undefined || props.onCommand === undefined
+            ? {}
+            : {
+                commands: props.commands,
+                onCommand: (command: LayerCommandId) => {
+                  setMenu(null);
+                  props.onCommand?.(command);
+                },
+              })}
           {...(props.styleFields === undefined ||
           props.onApplyStyle === undefined ||
           props.loadOrthographies === undefined
@@ -259,6 +285,7 @@ export function DesktopTranscriptionLayerLabel(props: {
                 loadOrthographies: props.loadOrthographies,
                 onApply: props.onApplyStyle,
               })}
+          {...(props.lane === undefined ? {} : { lane: props.lane })}
         />
       )}
     </div>

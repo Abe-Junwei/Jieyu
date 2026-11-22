@@ -93,8 +93,16 @@ describe('DesktopTranscriptionContextColumn', () => {
         (node) => node.textContent,
       );
     expect(names()).toEqual(['国际音标', '英语', '汉字转写']);
-    fireEvent.click(screen.getAllByRole('button', { name: '更多' })[1]!);
-    fireEvent.click(screen.getByRole('menuitem', { name: '依附关系…' }));
+    rerender(
+      <DesktopTranscriptionContextColumn
+        {...props}
+        layers={layers}
+        links={links}
+        onPreviewHosts={vi.fn().mockResolvedValue({ removed: [], blocked: false })}
+        onSetHosts={onSetHosts}
+        layerRequest={{ nonce: 1, layerId: 'tl-1', action: 'hosts' }}
+      />,
+    );
     fireEvent.click(screen.getByRole('checkbox', { name: '汉字转写' }));
     fireEvent.click(screen.getByRole('radio', { name: '汉字转写 首选' }));
     await waitFor(() => expect(screen.getByRole('button', { name: '保存' })).toBeEnabled());

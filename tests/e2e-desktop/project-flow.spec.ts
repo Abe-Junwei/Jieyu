@@ -105,6 +105,89 @@ test('transcription workspace seeks a segment and space starts playback', async 
   }
 });
 
+test('speaker lanes split an overlap and keep the lock after reopen', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-speaker-lanes-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  let app: ElectronApplication | undefined = await launch('speaker-lanes');
+  let again: ElectronApplication | undefined;
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const { layerId } = await clipLayer(page, sessionId);
+    const units = await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId });
+    const target = units.find((unit) => unit.text === 'two') ?? units[0];
+    if (target?.startMs == null || target.endMs == null) throw new Error('clip unit missing');
+    const ada = await desktopCall<{ id: string }>(page, sessionId, 'speakers.create', {
+      name: 'Ada',
+    });
+    const bai = await desktopCall<{ id: string }>(page, sessionId, 'speakers.create', {
+      name: 'Bai',
+    });
+    await desktopCall(page, sessionId, 'speakers.assign', {
+      speakerId: ada.id,
+      unitIds: [target.id],
+    });
+    const other = await desktopCall<{ id: string }>(page, sessionId, 'units.create', {
+      layerId,
+      startMs: target.startMs,
+      endMs: target.endMs,
+      text: 'overlap',
+    });
+    await desktopCall(page, sessionId, 'speakers.assign', {
+      speakerId: bai.id,
+      unitIds: [other.id],
+    });
+    await desktopCall(page, sessionId, 'layers.replaceLaneLocks', {
+      layerId,
+      locks: [{ speakerId: bai.id, laneIndex: 1 }],
+    });
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    await page.locator('.desktop-tx-layer-name').first().click({ button: 'right' });
+    await page.getByRole('button', { name: /说话人轨道|Speaker tracks/ }).click();
+    await page.getByRole('menuitemradio', { name: /^(自动分轨|Split overlaps)$/ }).click();
+    await expect(page.getByTestId('speaker-name').filter({ hasText: 'Ada' })).toBeVisible();
+    await expect(page.getByTestId('speaker-name').filter({ hasText: 'Bai' })).toBeVisible();
+    const tops = await page
+      .getByTestId('speaker-name')
+      .evaluateAll((nodes) => nodes.map((node) => Math.round(node.getBoundingClientRect().top)));
+    expect(new Set(tops).size).toBeGreaterThan(1);
+    await app.close();
+    app = undefined;
+    again = await launch('speaker-lanes-again');
+    await stubFolderDialog(again, copy);
+    const reopened = await again.firstWindow();
+    await rememberChosenSession(again);
+    await reopened.getByRole('button', { name: openFolder }).click();
+    await expect(reopened.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const nextSession = await chosenSessionId(again);
+    const manuscripts = await desktopCall<{ id: string; title: Record<string, string> }[]>(
+      reopened,
+      nextSession,
+      'manuscripts.list',
+      {},
+    );
+    const clip = manuscripts.find((item) => item.title.und === 'Clip');
+    if (clip === undefined) throw new Error('clip manuscript missing');
+    const locks = await desktopCall<{ speakerId: string; laneIndex: number }[]>(
+      reopened,
+      nextSession,
+      'layers.listLaneLocks',
+      { manuscriptId: clip.id },
+    );
+    expect(locks).toEqual([{ layerId, speakerId: bai.id, laneIndex: 1 }]);
+  } finally {
+    await app?.close();
+    await again?.close();
+  }
+});
+
 test('layer structure creates a translation layer and reads it back', async () => {
   if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
   const copy = mkdtempSync(join(tmpdir(), 'jieyu-layer-structure-'));
@@ -732,6 +815,9 @@ test('a subdivision card becomes the edge target and its menu deletes only that 
     await card.click({ button: 'right' });
     await page.getByRole('menuitem', { name: /联动共用边界|Link the shared boundary/ }).waitFor();
     await page.getByRole('menuitem', { name: /删除本子段|Delete this sub-segment/ }).click();
+    await expect(page.getByRole('dialog')).toContainText(
+      /将删除这一段，撤销后仍用原来的身份|This deletes the segment\. Undo keeps the same identity/,
+    );
     await page.getByRole('button', { name: /^(Delete segment|删除句段)$/ }).click();
     await expect
       .poll(async () =>

@@ -1,9 +1,10 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
 import { callDesktopSession } from './desktopCall';
-import { openDesktopSession, resetDesktopSessions } from './projectSession';
+import { openDesktopSession, requireDesktopSession, resetDesktopSessions } from './projectSession';
 
 const roots: string[] = [];
 
@@ -68,7 +69,36 @@ function hosts(
   return { layerId, hostLayerIds, preferredHostLayerId, linkType };
 }
 
+function seedLegacyTranscriptionLink(
+  sessionId: string,
+  manuscriptId: string,
+  layerId: string,
+  hostLayerId: string,
+) {
+  requireDesktopSession(sessionId)
+    .db.prepare(
+      `INSERT INTO layer_links (id, manuscript_id, layer_id, host_layer_id, link_type, is_preferred, sort_order, created_at)
+     VALUES (?, ?, ?, ?, 'direct', 1, 0, ?)`,
+    )
+    .run(randomUUID(), manuscriptId, layerId, hostLayerId, new Date().toISOString());
+}
+
 describe('layer hosts', () => {
+  it('rejects host links when creating a time-aligned transcription', () => {
+    const { sessionId, manuscriptId } = openManuscript();
+    const host = layer(sessionId, manuscriptId, 'tx', 'transcription');
+    expect(() =>
+      layer(sessionId, manuscriptId, 'tx-child', 'transcription', {
+        hosts: [{ hostLayerId: host.id, preferred: true }],
+      }),
+    ).toThrow('time-aligned transcription cannot have hosts');
+    expect(
+      (callDesktopSession(sessionId, 'layers.list', { manuscriptId }) as { id: string }[]).map(
+        (item) => item.id,
+      ),
+    ).toEqual([host.id]);
+  });
+
   it('adds a host and reads that host’s segments after reopen', () => {
     const { sessionId, manuscriptId } = openManuscript();
     const first = layer(sessionId, manuscriptId, 'tx', 'transcription');
@@ -311,7 +341,7 @@ describe('layer hosts', () => {
     );
   });
 
-  it('links a time-aligned transcription without taking the host units or parent id', () => {
+  it('rejects new transcription hosts while still reading an existing legacy link', () => {
     const { sessionId, manuscriptId } = openManuscript();
     const host = layer(sessionId, manuscriptId, 'tx', 'transcription');
     const child = layer(sessionId, manuscriptId, 'tx-child', 'transcription');
@@ -323,10 +353,13 @@ describe('layer hosts', () => {
       layerId: child.id,
       text: '自己',
     }) as { id: string; startMs: number | null; endMs: number | null };
-    callDesktopSession(sessionId, 'layers.setHosts', {
-      ...hosts(child.id, [host.id], host.id, 'direct'),
-      append: true,
-    });
+    expect(() =>
+      callDesktopSession(sessionId, 'layers.setHosts', {
+        ...hosts(child.id, [host.id], host.id, 'direct'),
+        append: true,
+      }),
+    ).toThrow('layer cannot change hosts');
+    seedLegacyTranscriptionLink(sessionId, manuscriptId, child.id, host.id);
     callDesktopSession(sessionId, 'reopen', {});
     const own = callDesktopSession(sessionId, 'units.list', { layerId: child.id }) as {
       id: string;
@@ -386,7 +419,7 @@ describe('layer hosts', () => {
     const third = layer(sessionId, manuscriptId, 'tl-3', 'translation', {
       hosts: [{ hostLayerId: host.id, preferred: true }],
     });
-    callDesktopSession(sessionId, 'layers.setHosts', hosts(child.id, [host.id], host.id, 'direct'));
+    seedLegacyTranscriptionLink(sessionId, manuscriptId, child.id, host.id);
     const before = linksOf(sessionId, manuscriptId, translation.id);
     expect(() =>
       callDesktopSession(sessionId, 'layers.clearHosts', { layerId: translation.id, sortOrder: 0 }),
@@ -430,11 +463,7 @@ describe('layer hosts', () => {
         sortOrder: number;
       }[];
     const before = listed().find((row) => row.id === subdivision.id);
-    callDesktopSession(
-      sessionId,
-      'layers.setHosts',
-      hosts(child.id, [first.id], first.id, 'direct'),
-    );
+    seedLegacyTranscriptionLink(sessionId, manuscriptId, child.id, first.id);
     const linked = () =>
       new Set(
         (

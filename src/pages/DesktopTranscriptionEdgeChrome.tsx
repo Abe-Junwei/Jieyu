@@ -44,7 +44,7 @@ export function DesktopTranscriptionEdgeChrome(props: {
     canLink: boolean;
     skipped: boolean;
   } | null;
-  deletePrompt: UnitDeletePreview | null;
+  deletePrompt: { unitIds: string[]; counts: UnitDeletePreview } | null;
   onRebase: (edge: TimeEdge) => void;
   onDiscardDraft: (edge: TimeEdge) => void;
   onDropStale: () => void;
@@ -57,6 +57,13 @@ export function DesktopTranscriptionEdgeChrome(props: {
   onAskDelete: () => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
+  speakers?: {
+    recent: readonly { id: string; name: string }[];
+    rest: readonly { id: string; name: string }[];
+    currentId: string | null;
+    onAssign: (speakerId: string) => void;
+    onClear: () => void;
+  };
 }) {
   const { locale } = props;
   return (
@@ -177,6 +184,41 @@ export function DesktopTranscriptionEdgeChrome(props: {
                     })}
                   </button>
                 )}
+                {props.speakers === undefined ? null : (
+                  <>
+                    <div className="desktop-tx-menu__rule" role="separator" />
+                    {props.speakers.recent.map((speaker) => (
+                      <button
+                        key={speaker.id}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => props.speakers?.onAssign(speaker.id)}
+                      >
+                        {speaker.id === props.speakers?.currentId
+                          ? tf(locale, 'app.desktopTranscription.speakerCurrent', {
+                              name: speaker.name,
+                            })
+                          : speaker.name}
+                      </button>
+                    ))}
+                    {props.speakers.recent.length > 0 && props.speakers.rest.length > 0 ? (
+                      <div className="desktop-tx-menu__rule" role="separator" />
+                    ) : null}
+                    {props.speakers.rest.map((speaker) => (
+                      <button
+                        key={speaker.id}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => props.speakers?.onAssign(speaker.id)}
+                      >
+                        {speaker.name}
+                      </button>
+                    ))}
+                    <button type="button" role="menuitem" onClick={props.speakers.onClear}>
+                      {t(locale, 'app.desktopTranscription.speakerClear')}
+                    </button>
+                  </>
+                )}
                 {props.menu.layerName !== undefined && props.menu.sub !== true ? null : (
                   <button type="button" role="menuitem" onClick={props.onAskDelete}>
                     {t(
@@ -202,7 +244,11 @@ export function DesktopTranscriptionEdgeChrome(props: {
           footer={
             <>
               <button type="button" className="btn btn-danger" onClick={props.onConfirmDelete}>
-                {t(locale, 'app.desktopTranscription.deleteConfirm')}
+                {props.deletePrompt.unitIds.length > 1
+                  ? tf(locale, 'app.desktopTranscription.deleteConfirmMany', {
+                      count: props.deletePrompt.unitIds.length,
+                    })
+                  : t(locale, 'app.desktopTranscription.deleteConfirm')}
               </button>
               <button type="button" className="btn btn-secondary" onClick={props.onCancelDelete}>
                 {t(locale, 'app.desktopTranscription.cancel')}
@@ -210,8 +256,25 @@ export function DesktopTranscriptionEdgeChrome(props: {
             </>
           }
         >
-          <p>{t(locale, 'app.desktopTranscription.deleteBody')}</p>
-          <DeleteCounts locale={locale} counts={props.deletePrompt} />
+          <p>
+            {props.deletePrompt.unitIds.length > 1
+              ? tf(
+                  locale,
+                  Object.values(props.deletePrompt.counts).some((count) => count > 0)
+                    ? 'app.desktopTranscription.deleteBodyMany'
+                    : 'app.desktopTranscription.deleteBodyManySolo',
+                  {
+                    count: props.deletePrompt.unitIds.length,
+                  },
+                )
+              : t(
+                  locale,
+                  Object.values(props.deletePrompt.counts).some((count) => count > 0)
+                    ? 'app.desktopTranscription.deleteBody'
+                    : 'app.desktopTranscription.deleteBodySolo',
+                )}
+          </p>
+          <DeleteCounts locale={locale} counts={props.deletePrompt.counts} />
         </ModalPanel>
       )}
     </>

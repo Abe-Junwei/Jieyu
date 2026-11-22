@@ -4,7 +4,14 @@ import type Database from 'better-sqlite3';
 type SqliteDatabase = InstanceType<typeof Database>;
 
 export type EditReceiptKind =
-  'create' | 'moveEdge' | 'moveSharedBoundary' | 'moveUnit' | 'delete' | 'undo' | 'redo';
+  | 'create'
+  | 'moveEdge'
+  | 'moveSharedBoundary'
+  | 'moveUnit'
+  | 'delete'
+  | 'deleteMany'
+  | 'undo'
+  | 'redo';
 
 export type EditInspection =
   { status: 'committed'; result: unknown } | { status: 'not-submitted' } | { status: 'conflict' };

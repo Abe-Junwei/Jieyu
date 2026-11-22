@@ -1,5 +1,6 @@
 import type { Locale } from '../i18n';
 import { DesktopTranscriptionContextColumn } from './DesktopTranscriptionContextColumn';
+import type { LayerListRequest } from './DesktopTranscriptionLayerList';
 import type { DesktopPlaybackUnit } from './useDesktopTranscriptionMediaController';
 import type { useDesktopTranscriptionLayerController } from './useDesktopTranscriptionLayerController';
 
@@ -36,6 +37,7 @@ export function DesktopTranscriptionSidePane(props: {
   speakerCount: number;
   selectedUnitId: string | null;
   actions: ReturnType<typeof useDesktopTranscriptionLayerController>;
+  layerRequest?: LayerListRequest | null;
   onOpen: (manuscriptId: string, layerId?: string) => void;
   onSelectUnit: (unitId: string) => void;
 }) {
@@ -78,6 +80,7 @@ export function DesktopTranscriptionSidePane(props: {
       onPreviewHosts={(input) => props.actions.previewHosts(input)}
       onSetHosts={(input) => props.actions.setHosts(input)}
       drag={props.actions.drag}
+      {...(props.layerRequest === undefined ? {} : { layerRequest: props.layerRequest })}
       onClearLayerError={props.actions.clearError}
       onSelectLayer={(layerId) => {
         if (model?.manuscriptId) props.onOpen(model.manuscriptId, layerId);

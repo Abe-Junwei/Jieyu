@@ -92,6 +92,13 @@ interface LayerRow {
 }
 
 export function createLayer(db: SqliteDatabase, input: LayerCreate): Layer {
+  if (
+    input.tierType === 'time-aligned' &&
+    input.contentType === 'transcription' &&
+    (input.hosts?.length ?? 0) > 0
+  ) {
+    throw new Error('time-aligned transcription cannot have hosts');
+  }
   const id = randomUUID();
   const now = new Date().toISOString();
   const write = db.transaction(() => {

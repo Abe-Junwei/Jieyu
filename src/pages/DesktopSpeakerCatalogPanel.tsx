@@ -7,7 +7,6 @@ export function DesktopSpeakerCatalogPanel(props: {
   host: DesktopReadHost;
   sessionId: string;
   units: readonly { id: string; text: string; speakerId: string | null }[];
-  onAssigned: () => Promise<unknown>;
 }) {
   const locale = useLocale();
   const catalog = useDesktopSpeakerCatalog(props.host, props.sessionId);
@@ -64,23 +63,6 @@ export function DesktopSpeakerCatalogPanel(props: {
           </button>
         </>
       )}
-      <button
-        type="button"
-        onClick={() => {
-          const id = catalog.speakerId;
-          if (id === null) return;
-          void catalog
-            .assign(
-              id,
-              props.units.map((unit) => unit.id),
-            )
-            .then((ok) => {
-              if (ok) void props.onAssigned();
-            });
-        }}
-      >
-        {t(locale, 'app.desktopRead.assignSpeaker')}
-      </button>
       {props.units.map((unit) => (
         <span key={unit.id}>{unitLine(unit.text, speakerName(unit.speakerId))}</span>
       ))}

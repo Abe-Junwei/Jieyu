@@ -1,6 +1,11 @@
 import type Database from 'better-sqlite3';
 import { undoUnitText } from './analysisRestore';
-import { assignSpeaker, undoAssignSpeaker, type SpeakerAssignUndo } from './speakerAssign';
+import {
+  assignSpeaker,
+  clearSpeaker,
+  undoAssignSpeaker,
+  type SpeakerAssignUndo,
+} from './speakerAssign';
 import {
   moveSharedBoundary,
   moveUnitSpan,
@@ -36,6 +41,7 @@ export type SessionEdit =
   | { kind: 'span'; undo: UnitSpanMove }
   | { kind: 'create'; undo: { manuscriptId: string; tree: RemovedUnit } }
   | { kind: 'delete'; undo: { manuscriptId: string; tree: RemovedUnit } }
+  | { kind: 'deleteMany'; undo: { manuscriptId: string; trees: RemovedUnit[] } }
   | { kind: 'retime'; undo: RetimeUndo; offsetMs: number; scale: number };
 
 type Frame = { edit: SessionEdit };
@@ -68,6 +74,7 @@ function manuscriptOf(edit: SessionEdit): string {
     case 'span':
     case 'create':
     case 'delete':
+    case 'deleteMany':
       return edit.undo.manuscriptId;
     case 'retime':
       return edit.undo.manuscriptId;
@@ -214,6 +221,7 @@ function stampGeneration(db: SqliteDatabase, edit: SessionEdit, generation: numb
     case 'span':
     case 'create':
     case 'delete':
+    case 'deleteMany':
       return;
     case 'retime':
       edit.undo.manuscriptGeneration = generation;
@@ -245,6 +253,8 @@ function applyUndo(db: SqliteDatabase, edit: SessionEdit): Unit | Unit[] {
       return undoCreate(db, edit.undo.tree);
     case 'delete':
       return restoreRemovedUnit(db, edit.undo.tree);
+    case 'deleteMany':
+      return edit.undo.trees.map((tree) => restoreRemovedUnit(db, tree));
     case 'retime':
       undoRetime(db, edit.undo);
       return [];
@@ -291,6 +301,16 @@ function applyRedo(
       const ghost = readStoredUnit(db, edit.undo.tree.unit.id);
       if (ghost) throw new Error('unit delete redo is stale');
       return { value: unitFromTree(edit.undo.tree), edit };
+    }
+    case 'deleteMany': {
+      if (edit.undo.trees.some((tree) => !treeStillMatches(db, tree))) {
+        throw new Error('unit delete redo is stale');
+      }
+      for (const tree of edit.undo.trees) deleteUnitTree(db, tree.unit.id);
+      if (edit.undo.trees.some((tree) => readStoredUnit(db, tree.unit.id))) {
+        throw new Error('unit delete redo is stale');
+      }
+      return { value: edit.undo.trees.map(unitFromTree), edit };
     }
     case 'retime': {
       const retimed = retimeManuscript(db, {
@@ -450,10 +470,13 @@ function redoAssign(
   undo: SpeakerAssignUndo,
 ): { value: Unit[]; edit: SessionEdit } {
   try {
-    const assigned = assignSpeaker(db, {
-      speakerId: undo.speakerId,
-      unitIds: undo.units.map((unit) => unit.id),
-    });
+    const assigned =
+      undo.speakerId === null
+        ? clearSpeaker(db, { unitIds: undo.units.map((unit) => unit.id) })
+        : assignSpeaker(db, {
+            speakerId: undo.speakerId,
+            unitIds: undo.units.map((unit) => unit.id),
+          });
     if (!assigned.undo) throw new Error('assign redo is stale');
     return { value: assigned.units, edit: { kind: 'assign', undo: assigned.undo } };
   } catch (error) {
