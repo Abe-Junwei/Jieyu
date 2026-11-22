@@ -8,6 +8,7 @@ import {
   fontPresetChoices,
   layerStyleMenuContext,
   localFontMatchNames,
+  systemDefaultFontKey,
 } from '../utils/layerDisplayStyle';
 
 export interface LayerStyleFields {
@@ -272,7 +273,8 @@ function StyleFields(props: {
     scriptTag: selected?.scriptTag ?? fields.scriptTag,
   });
   const presets = fontPresetChoices(menu.scriptTag);
-  const defaultFont = presets.find((preset) => preset.key === '系统默认')?.key ?? '';
+  const defaultFont =
+    presets.find((preset) => preset.key === systemDefaultFontKey)?.key ?? systemDefaultFontKey;
 
   useEffect(() => {
     if (fields.languageId === null) {
@@ -309,11 +311,11 @@ function StyleFields(props: {
   };
   const none = t(locale, 'app.desktopTranscription.layerStyleNone');
   const fontChoices = presets
-    .filter((preset) => preset.key !== '系统默认')
+    .filter((preset) => preset.key !== systemDefaultFontKey)
     .filter((preset, index, list) => list.findIndex((item) => item.key === preset.key) === index);
   const fontLabel =
     fields.displayFont === null
-      ? defaultFont || '系统默认'
+      ? defaultFont
       : (fontChoices.find((preset) => preset.key === fields.displayFont)?.key ??
         fields.displayFont);
 
@@ -345,7 +347,7 @@ function StyleFields(props: {
           emptyLabel: t(locale, 'msg.layerStyle.noMatchingLocalFonts'),
         }}
         options={[
-          { id: '', label: defaultFont || '系统默认', selected: fields.displayFont === null },
+          { id: '', label: defaultFont, selected: fields.displayFont === null },
           ...fontChoices.map((preset) => ({
             id: preset.key,
             label: preset.key,

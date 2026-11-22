@@ -565,6 +565,8 @@ const UNIVERSAL_FONTS: FontPreset[] = [
   },
 ];
 
+export const systemDefaultFontKey = UNIVERSAL_FONTS[0]?.key ?? '';
+
 // ── Language → Script mapping | 语言→脚本映射 ────────────────
 
 /** ISO 639-3 → 默认脚本 | ISO 639-3 → default script */
