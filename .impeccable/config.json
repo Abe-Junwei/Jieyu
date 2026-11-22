@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/styles/pages/timeline/time-ruler.css"
+        ],
+        "createdAt": "2026-11-22T07:44:12.304Z",
+        "reason": "Agent: the only side-tab hits are the lane-toggle CSS-triangle chevron (border-left/right 6px), not a card accent"
+      }
+    ]
+  }
+}
