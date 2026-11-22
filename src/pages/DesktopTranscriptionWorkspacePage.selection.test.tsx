@@ -221,6 +221,23 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     expect(calls).not.toContain('units.create');
   });
 
+  it('shows the empty state when no layer remains, and the button creates a transcription layer', async () => {
+    const calls: string[] = [];
+    readState.model = { ...readState.base(), layers: [], layerId: null, units: [] };
+    renderWorkspace('/transcription', async (_sessionId, method) => {
+      calls.push(method);
+      if (method === 'layers.listDeleted') return [];
+      if (method === 'layers.create') return { id: 'layer-new' };
+      return null;
+    });
+
+    expect(screen.getByRole('heading', { name: '还没有层' })).toBeTruthy();
+    expect(screen.getByText('新建一个转写层后，可以在波形上拖出句段。')).toBeTruthy();
+    expect(document.querySelector('.desktop-tx-lane')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '新建转写层' }));
+    await waitFor(() => expect(calls).toContain('layers.create'));
+  });
+
   it('names the lane after the deep-linked layer and keeps that layer’s units', () => {
     readState.model = {
       ...readState.base(),

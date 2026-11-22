@@ -605,6 +605,12 @@ function DesktopTranscriptionWorkspace() {
             onWaveSegmentMenu={(unitId, x, y) => openWaveRegionMenu.current(unitId, x, y)}
             onLaneHeight={(layerId, height) => layerActions.setHeight(layerId, height)}
             layerDrag={layerActions.drag}
+            onCreateTranscription={() =>
+              layerActions.create(
+                'transcription',
+                t(locale, 'app.desktopTranscription.contextLayerTranscription'),
+              )
+            }
             audioTools={(layerId, unitId) => (
               <TimelineTranslationAudioControls
                 compact

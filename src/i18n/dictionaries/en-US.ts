@@ -156,6 +156,8 @@ export const enUSDictionary = {
   'app.desktopTranscription.noAudioTitle': 'No recording yet',
   'app.desktopTranscription.noAudioMessage':
     'After you import a recording, the waveform and segments show up here.',
+  'app.desktopTranscription.noLayerMessage':
+    'Create a transcription layer, then drag a segment on the waveform.',
   'app.desktopTranscription.importAudio': 'Import recording…',
   'app.desktopTranscription.playSegment': 'Play this segment',
   'app.desktopTranscription.compact': 'Compact',

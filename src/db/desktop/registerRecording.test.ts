@@ -76,6 +76,23 @@ describe('registerRecording', () => {
     expect(count(session.sessionId, 'manuscripts')).toBe(0);
     expect(count(session.sessionId, 'layers')).toBe(0);
   });
+
+  it('keeps the layer list empty when the recording has no layer', () => {
+    const dir = folder();
+    writeFileSync(join(dir, 'a.wav'), 'wav');
+    const session = openDesktopSession(dir, [dir]);
+    const registered = callDesktopSession(session.sessionId, 'recordings.register', {
+      relpath: 'a.wav',
+      sha256: 'aa',
+      duration: 1.5,
+      title: { und: 'a' },
+    }) as { manuscriptId: string };
+    expect(
+      callDesktopSession(session.sessionId, 'layers.list', {
+        manuscriptId: registered.manuscriptId,
+      }),
+    ).toEqual([]);
+  });
 });
 
 function count(sessionId: string, table: 'media' | 'manuscripts' | 'layers'): number {

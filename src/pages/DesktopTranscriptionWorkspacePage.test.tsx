@@ -95,8 +95,9 @@ describe('DesktopTranscriptionWorkspacePage', () => {
     await waitFor(() => expect(openBundledSample).not.toHaveBeenCalled());
   });
 
-  it('registers a picked recording on a manuscript and a transcription layer', async () => {
+  it('registers a picked recording on a manuscript and leaves the layer list empty', async () => {
     const calls: string[] = [];
+    let registered: unknown;
     class FakeAudio {
       duration = 2;
       preload = '';
@@ -122,8 +123,9 @@ describe('DesktopTranscriptionWorkspacePage', () => {
           sessionId: 'session-1',
         };
       }),
-      desktopCall: vi.fn(async (_session: string, method: string) => {
+      desktopCall: vi.fn(async (_session: string, method: string, args: unknown) => {
         calls.push(method);
+        if (method === 'recordings.register') registered = args;
         if (method === 'media.list') return [];
         if (method === 'media.create') {
           return { id: 'media-1', relpath: 'media/abc.wav', sha256: 'abc', duration: 2 };
@@ -152,6 +154,12 @@ describe('DesktopTranscriptionWorkspacePage', () => {
     fireEvent.click(screen.getByRole('button', { name: '导入录音…' }));
     await waitFor(() => {
       expect(calls).toEqual(['media.list', 'recordings.register']);
+    });
+    expect(registered).toEqual({
+      relpath: 'media/abc.wav',
+      sha256: 'abc',
+      duration: 2,
+      title: { und: 'take' },
     });
   });
 

@@ -10,10 +10,10 @@ export interface RecordingRegistration {
   sha256: string;
   duration: number;
   title: Record<string, string>;
-  layerKey: string;
-  layerName: Record<string, string>;
-  tierType: string;
-  contentType: string;
+  layerKey?: string;
+  layerName?: Record<string, string>;
+  tierType?: string;
+  contentType?: string;
 }
 
 export interface RegisteredRecording {
@@ -22,7 +22,7 @@ export interface RegisteredRecording {
   created: boolean;
 }
 
-/** One recording, one manuscript, and its transcription layer, or the manuscript already on that file. */
+/** One recording and its manuscript. A layer is written only when the caller names one. */
 export function registerRecording(
   db: SqliteDatabase,
   folder: string,
@@ -39,13 +39,15 @@ export function registerRecording(
     const hung = listManuscripts(db).find((item) => item.mediaId === media.id);
     if (hung) return { mediaId: media.id, manuscriptId: hung.id, created: false };
     const manuscript = createManuscript(db, { title: input.title, mediaId: media.id });
-    createLayer(db, {
-      manuscriptId: manuscript.id,
-      key: input.layerKey,
-      name: input.layerName,
-      tierType: input.tierType,
-      contentType: input.contentType,
-    });
+    if (input.layerKey !== undefined) {
+      createLayer(db, {
+        manuscriptId: manuscript.id,
+        key: input.layerKey,
+        name: input.layerName ?? {},
+        tierType: input.tierType ?? '',
+        contentType: input.contentType ?? '',
+      });
+    }
     return { mediaId: media.id, manuscriptId: manuscript.id, created: true };
   });
   return write();

@@ -132,6 +132,7 @@ export const DICT_KEYS = [
   'app.desktopTranscription.waveformPlaceholder',
   'app.desktopTranscription.noAudioTitle',
   'app.desktopTranscription.noAudioMessage',
+  'app.desktopTranscription.noLayerMessage',
   'app.desktopTranscription.importAudio',
   'app.desktopTranscription.playSegment',
   'app.desktopTranscription.compact',

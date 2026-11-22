@@ -1634,6 +1634,38 @@
   color: var(--text-secondary);
 }
 
+.desktop-tx-no-layers {
+  position: relative;
+  flex: 1;
+  min-height: 240px;
+}
+
+.desktop-tx-no-layers__body {
+  position: absolute;
+  top: 33.333%;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 32px;
+  text-align: center;
+  transform: translateY(-50%);
+}
+
+.desktop-tx-no-layers h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+.desktop-tx-no-layers p {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+}
+
 /* Waveform segment handles: edges resize, the top grip moves the whole segment. */
 .desktop-tx-wave-edges {
   position: absolute;
