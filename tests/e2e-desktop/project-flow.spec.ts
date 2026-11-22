@@ -203,7 +203,9 @@ test('oral clip records, plays, transcribes, reopens, then delete drops the file
     await expect(stop).toHaveCSS('width', '24px');
     await page.screenshot({ path: test.info().outputPath('oral-recording-controls.png') });
     await page.waitForTimeout(1200);
-    await stop.click();
+    const stopBox = await stop.boundingBox();
+    if (stopBox === null) throw new Error('stop button has no box');
+    await page.mouse.click(stopBox.x + stopBox.width / 2, stopBox.y + stopBox.height / 2);
     const play = page
       .getByRole('button', { name: /^(播放录音翻译|Play recorded translation)$/ })
       .first();
