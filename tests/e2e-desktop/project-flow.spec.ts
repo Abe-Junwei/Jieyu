@@ -197,11 +197,13 @@ test('oral clip records, plays, transcribes, reopens, then delete drops the file
       .getByRole('button', { name: /^(开始录音翻译|Start recording translation)$/ })
       .first();
     await record.scrollIntoViewIfNeeded();
-    await record.evaluate((button: HTMLButtonElement) => button.click());
+    await record.click();
     const stop = page.locator('.timeline-translation-audio-btn-recording');
     await expect(stop).toBeVisible();
+    await expect(stop).toHaveCSS('width', '24px');
+    await page.screenshot({ path: test.info().outputPath('oral-recording-controls.png') });
     await page.waitForTimeout(1200);
-    await stop.evaluate((button: HTMLButtonElement) => button.click());
+    await stop.click();
     const play = page
       .getByRole('button', { name: /^(播放录音翻译|Play recorded translation)$/ })
       .first();
@@ -216,7 +218,7 @@ test('oral clip records, plays, transcribes, reopens, then delete drops the file
     await page
       .getByRole('button', { name: /^(语音转文字（STT）|Transcribe recording \(STT\))$/ })
       .first()
-      .evaluate((button: HTMLButtonElement) => button.click());
+      .click();
     await expect(page.getByText(/转写已放进文字层|transcript is in the text layer/)).toBeVisible();
     const pair = await findOralPair(page, sessionId);
     const clips = await desktopCall<{ unitId: string }[]>(page, sessionId, 'recordings.list', {
@@ -266,7 +268,7 @@ test('oral clip records, plays, transcribes, reopens, then delete drops the file
     await reopened
       .locator('.timeline-translation-audio-controls')
       .getByRole('button', { name: /^(删除录音翻译|Delete recorded translation)$/ })
-      .evaluate((button: HTMLButtonElement) => button.click());
+      .click();
     await expect(
       reopened.getByRole('button', { name: /^(播放录音翻译|Play recorded translation)$/ }),
     ).toHaveCount(0);
