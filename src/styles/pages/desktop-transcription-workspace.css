@@ -1399,7 +1399,6 @@
   align-items: center;
   justify-content: center;
   width: auto;
-  min-width: max-content;
   height: auto;
   padding: 0;
 }
