@@ -1414,6 +1414,21 @@
   flex-shrink: 0;
 }
 
+/* A blank card stays under a card that already has a recording, so its record
+   button cannot cover the neighbor's transcribe button. */
+.desktop-tx-lane .timeline-annotation-empty {
+  z-index: 1;
+}
+
+.desktop-tx-lane .timeline-annotation:not(.timeline-annotation-empty) {
+  z-index: 2;
+}
+
+.desktop-tx-lane .timeline-annotation.timeline-annotation-selected,
+.desktop-tx-lane .timeline-annotation:focus-within {
+  z-index: 3;
+}
+
 .desktop-tx-lane .timeline-translation-audio-controls > audio {
   display: none;
 }
