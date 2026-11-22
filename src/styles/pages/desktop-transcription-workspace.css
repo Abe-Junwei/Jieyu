@@ -1414,12 +1414,14 @@
 }
 
 /* A blank card stays under a card that already has a recording, so its record
-   button cannot cover the neighbor's transcribe button. */
+   button cannot cover the neighbor's transcribe or delete button. A saved clip
+   has no text, so it is an empty card too; the delete button is what marks it. */
 .desktop-tx-lane .timeline-annotation-empty {
   z-index: 1;
 }
 
-.desktop-tx-lane .timeline-annotation:not(.timeline-annotation-empty) {
+.desktop-tx-lane .timeline-annotation:not(.timeline-annotation-empty),
+.desktop-tx-lane .timeline-annotation:has(.timeline-translation-audio-btn-delete) {
   z-index: 2;
 }
 
