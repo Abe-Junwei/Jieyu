@@ -1025,6 +1025,17 @@ export function formatLocalFontLabel(
   return `${primaryName} (${englishName})`;
 }
 
+/** Names a font search should hit: family, full, PostScript, and the localized alias. */
+export function localFontMatchNames(font: LocalFontEntry): string[] {
+  const aliases = LOCAL_FONT_LOCALIZED_ALIASES[normalizeFontSearchValue(font.family)];
+  return [
+    font.family,
+    ...font.fullNames,
+    ...font.postscriptNames,
+    ...Object.values(aliases ?? {}).filter((name): name is string => name !== undefined),
+  ];
+}
+
 // ── CSS conversion | CSS 转换 ────────────────────────────────
 
 /**
@@ -1299,6 +1310,80 @@ export function computeFontSizeFromRenderPolicy(
 ): number {
   const raw = (BASE_FONT_SIZE * (laneHeight / BASE_LANE_HEIGHT)) / renderPolicy.lineHeightScale;
   return Math.max(MIN_LAYER_FONT_SIZE, Math.min(MAX_LAYER_FONT_SIZE, Math.round(raw * 4) / 4));
+}
+
+/** Script factor only. Desktop orthographies have no fontPreferences.lineHeightScale. */
+export function scriptLineHeightScale(scriptTag: string | null): number {
+  if (scriptTag === null || scriptTag.length === 0) return 1;
+  return SCRIPT_LINE_HEIGHT_FACTOR[scriptTag] ?? 1;
+}
+
+/** Integer for the display_font_size column. Quarters stay inside computeFontSizeFromRenderPolicy. */
+export function storedFontSizeForLaneHeight(laneHeight: number, lineHeightScale = 1): number {
+  const raw = (BASE_FONT_SIZE * (laneHeight / BASE_LANE_HEIGHT)) / lineHeightScale;
+  const quarter = Math.max(
+    MIN_LAYER_FONT_SIZE,
+    Math.min(MAX_LAYER_FONT_SIZE, Math.round(raw * 4) / 4),
+  );
+  return Math.round(quarter);
+}
+
+export function storedLaneHeightForFontSize(fontSize: number, lineHeightScale = 1): number {
+  const raw = BASE_LANE_HEIGHT * (fontSize / BASE_FONT_SIZE) * lineHeightScale;
+  return Math.max(42, Math.min(180, Math.round(raw)));
+}
+
+/** Desktop menu: no language means Latn and ltr. Exemplars are not on the project row, so coverage is skipped. */
+export function layerStyleMenuContext(input: {
+  languageId: string | null;
+  scriptTag: string | null;
+}): { scriptTag: string; direction: 'ltr' | 'rtl'; skipExemplarCoverage: true } {
+  const scriptTag =
+    input.languageId === null || input.scriptTag === null || input.scriptTag.length === 0
+      ? 'Latn'
+      : input.scriptTag;
+  return {
+    scriptTag,
+    direction: SCRIPT_DEFAULT_DIRECTION[scriptTag] === 'rtl' ? 'rtl' : 'ltr',
+    skipExemplarCoverage: true,
+  };
+}
+
+export function fontPresetChoices(scriptTag: string): { key: string; css: string }[] {
+  return getFontPresetsForScript(scriptTag, false).map((preset) => ({
+    key: preset.key,
+    css: preset.css,
+  }));
+}
+
+export function desktopAnnotationStyle(input: {
+  displayFont?: string | null;
+  displayFontSize?: number | null;
+  displayBold?: boolean;
+  displayItalic?: boolean;
+  scriptTag?: string | null;
+  languageId?: string | null;
+}): CSSProperties {
+  const menu = layerStyleMenuContext({
+    languageId: input.languageId ?? null,
+    scriptTag: input.scriptTag ?? null,
+  });
+  const storedFont = input.displayFont ?? null;
+  const fontIsCss = storedFont !== null && isStoredFontCss(storedFont);
+  const style = layerDisplaySettingsToStyle({
+    ...(storedFont !== null && !fontIsCss ? { fontFamily: storedFont } : {}),
+    ...(typeof input.displayFontSize === 'number' ? { fontSize: input.displayFontSize } : {}),
+    ...(input.displayBold === true ? { bold: true } : {}),
+    ...(input.displayItalic === true ? { italic: true } : {}),
+  });
+  if (fontIsCss && storedFont !== null) style.fontFamily = storedFont;
+  if (menu.direction === 'rtl') style.direction = 'rtl';
+  return style;
+}
+
+/** A value already saved as a CSS font stack, not a preset key. */
+function isStoredFontCss(value: string): boolean {
+  return value.includes(',') || value.startsWith('"') || value.startsWith('var(');
 }
 
 // ── Local font enumeration | 本地字体枚举 ────────────────────

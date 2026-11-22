@@ -145,6 +145,18 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once(sessionId, 'layers.rename', input),
     setLayerHeight: (sessionId: string, input: { id: string; laneHeight: number }) =>
       once(sessionId, 'layers.setHeight', input),
+    setLayerStyle: (
+      sessionId: string,
+      input: {
+        id: string;
+        orthographyId: string | null;
+        displayFont: string | null;
+        displayFontSize: number | null;
+        displayBold: boolean;
+        displayItalic: boolean;
+        reset?: boolean;
+      },
+    ) => once(sessionId, 'layers.setStyle', input),
     moveLayer: (sessionId: string, input: { id: string; direction: 'up' | 'down' }) =>
       once(sessionId, 'layers.move', input),
     deleteLayer: (

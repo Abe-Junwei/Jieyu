@@ -84,6 +84,11 @@ export interface UseZoomInput {
    * Optional shell around wave+spectrogram; wheel uses capture so pan works over the spectrogram pane too.
    */
   waveformWheelCaptureRootRef?: React.RefObject<HTMLElement | null>;
+  /**
+   * 文本行外壳。滚轮用 capture 绑在这里，光标停在任一层文本上都能横滑；真正滚动的仍是 `tierContainerRef`。
+   * Shell around every text lane. Wheel capture lives here so any lane pans; scroll still writes `tierContainerRef`.
+   */
+  tierWheelCaptureRootRef?: React.RefObject<HTMLElement | null>;
   tierContainerRef: React.RefObject<HTMLDivElement | null>;
   playerInstanceRef: React.RefObject<WaveSurfer | null>;
   playerIsReady: boolean;
@@ -118,6 +123,7 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
   const {
     waveCanvasRef,
     waveformWheelCaptureRootRef,
+    tierWheelCaptureRootRef,
     tierContainerRef,
     playerInstanceRef,
     playerIsReady,
@@ -724,12 +730,14 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
 
   // ---- Wheel 拦截（tier lanes）：与波形同步 ----
   useEffect(() => {
-    const el = tierContainerRef.current;
-    if (!el) return;
+    const root = tierWheelCaptureRootRef?.current ?? tierContainerRef.current;
+    if (!root) return;
     const onWheel = (e: WheelEvent) => {
+      const tier = tierContainerRef.current;
+      if (!tier) return;
       // Alt+滚轮保留给波形振幅调节（由上层波形容器处理）| Reserve Alt+wheel for waveform amplitude adjustment in parent container.
       if (e.altKey) return;
-      if (!e.ctrlKey && !e.metaKey && shouldBypassTimelineWheel(e.target, el)) {
+      if (!e.ctrlKey && !e.metaKey && shouldBypassTimelineWheel(e.target, root)) {
         return;
       }
       const ws = playerInstanceRef.current;
@@ -738,14 +746,14 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
         if (mediaDurPan > 0 && docSpanSec > mediaDurPan) {
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
-            const rect = el.getBoundingClientRect();
+            const rect = tier.getBoundingClientRect();
             const frac = (e.clientX - rect.left) / rect.width;
             const factor = e.deltaY > 0 ? 1 / 1.15 : 1.15;
             zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
           } else {
             e.preventDefault();
             const { viewportScrollLeftPx } = applyTimelineViewportWheelPan({
-              tier: el,
+              tier,
               ws,
               documentSpanSec: docSpanSec,
               mediaDurSec: mediaDurPan,
@@ -758,13 +766,12 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
         }
         if (e.ctrlKey || e.metaKey) {
           e.preventDefault();
-          const rect = el.getBoundingClientRect();
+          const rect = tier.getBoundingClientRect();
           const frac = (e.clientX - rect.left) / rect.width;
           const factor = e.deltaY > 0 ? 1 / 1.15 : 1.15;
           zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
         } else {
           e.preventDefault();
-          const tier = tierContainerRef.current;
           const { viewportScrollLeftPx } = applyTimelineViewportWheelPan({
             tier,
             ws,
@@ -780,14 +787,14 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
       if ((playerInstanceRef.current && playerIsReady) || !(docSpanSec > 0)) return;
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        const rect = el.getBoundingClientRect();
+        const rect = tier.getBoundingClientRect();
         const frac = rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0.5;
         const factor = e.deltaY > 0 ? 1 / 1.15 : 1.15;
         zoomToPercentRef.current(zoomPercentRef.current * factor, frac);
       } else {
         e.preventDefault();
         const { viewportScrollLeftPx } = applyTimelineViewportWheelPan({
-          tier: el,
+          tier,
           ws: null,
           documentSpanSec: docSpanSec,
           mediaDurSec: 0,
@@ -797,14 +804,16 @@ export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
         onLogicalTimelineScrollSync?.(viewportScrollLeftPx);
       }
     };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
+    const opts: AddEventListenerOptions = { passive: false, capture: true };
+    root.addEventListener('wheel', onWheel, opts);
+    return () => root.removeEventListener('wheel', onWheel, opts);
   }, [
     selectedMediaUrl,
     playerIsReady,
     playerDuration,
     playerInstanceRef,
     tierContainerRef,
+    tierWheelCaptureRootRef,
     docSpanSec,
     zoomPercentRef,
     zoomPxPerSec,

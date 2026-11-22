@@ -33,6 +33,7 @@ export function useDesktopTranscriptionMediaController(input: {
   selectedUnitIds?: readonly string[];
   tierContainerRef: RefObject<HTMLDivElement | null>;
   waveformWheelCaptureRootRef?: RefObject<HTMLElement | null>;
+  tierWheelCaptureRootRef?: RefObject<HTMLElement | null>;
   onSelectUnit: (unitId: string) => void;
   onRegionContextMenu?: (regionId: string, x: number, y: number) => void;
 }) {
@@ -100,6 +101,9 @@ export function useDesktopTranscriptionMediaController(input: {
     waveCanvasRef: player.waveformRef,
     ...(input.waveformWheelCaptureRootRef
       ? { waveformWheelCaptureRootRef: input.waveformWheelCaptureRootRef }
+      : {}),
+    ...(input.tierWheelCaptureRootRef
+      ? { tierWheelCaptureRootRef: input.tierWheelCaptureRootRef }
       : {}),
     tierContainerRef: input.tierContainerRef,
     playerInstanceRef: player.instanceRef,

@@ -95,6 +95,8 @@ if (SMOKE) {
   app.commandLine.appendSwitch('password-store', 'basic');
   if (process.platform === 'linux') safeStorage.setUsePlainTextEncryption(true);
 }
+// Local Font Access stays off unless this feature is named before ready.
+app.commandLine.appendSwitch('enable-features', 'FontAccess');
 
 const BAIDU_MARKER = '百度网盘';
 const MEDIA_SCHEME = 'jieyu-media';

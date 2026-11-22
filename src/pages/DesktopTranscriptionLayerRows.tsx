@@ -7,6 +7,12 @@ import {
   type ReactNode,
 } from 'react';
 import { TimelineAnnotationItem } from '../components/TimelineAnnotationItem';
+import { desktopAnnotationStyle } from '../utils/layerDisplayStyle';
+import {
+  layerStyleFields,
+  styleMenuProps,
+  type LayerStyleChange,
+} from './DesktopTranscriptionLayerStyleMenu';
 import { t, type Locale } from '../i18n';
 import { DesktopTranscriptionCreatePreview } from './DesktopTranscriptionCreatePreview';
 import { DesktopTranscriptionLaneResize } from './DesktopTranscriptionLaneResize';
@@ -30,6 +36,14 @@ export interface LayerRowLayer {
   name: Record<string, string>;
   sortOrder?: number;
   laneHeight?: number | null;
+  languageId?: string | null;
+  orthographyId?: string | null;
+  orthographyName?: Record<string, string> | null;
+  orthographyScriptTag?: string | null;
+  displayFont?: string | null;
+  displayFontSize?: number | null;
+  displayBold?: boolean;
+  displayItalic?: boolean;
   modality?: string;
   units: readonly {
     id: string;
@@ -58,7 +72,7 @@ export function DesktopTranscriptionLayerRows(props: {
   layers: readonly LayerRowLayer[];
   tree: readonly LayerTreeRow[];
   mainLayerId: string | null;
-  renderMain: (row: LayerTreeRow) => ReactNode;
+  renderMain: (row: LayerTreeRow, groupContinues: boolean) => ReactNode;
   onToggleGroup: (layerId: string) => void;
   onCollapse: (layerId: string) => void;
   onExpand: (layerId: string) => void;
@@ -90,6 +104,11 @@ export function DesktopTranscriptionLayerRows(props: {
     units: readonly TimedEdgeUnit[],
   ) => void;
   onLaneHeight?: (layerId: string, height: number) => void;
+  onLayerStyle?: (layerId: string, change: LayerStyleChange) => void;
+  loadOrthographies?: (
+    languageId: string,
+  ) => Promise<{ id: string; name: Record<string, string>; scriptTag: string }[]>;
+  onSelectLayer?: (layerId: string) => void;
   drag?: DesktopLayerDrag;
   /** Record, play, and delete for a modality=audio card. Text layers ignore it. */
   audioTools?: (layerId: string, unitId: string) => ReactNode;
@@ -114,9 +133,10 @@ export function DesktopTranscriptionLayerRows(props: {
     const layer = props.layers.find((item) => item.id === row.layerId);
     return layer ? [{ row, layer }] : [];
   });
-  const body = rows.map(({ row, layer }) => {
+  const body = rows.map(({ row, layer }, index) => {
+    const groupContinues = (rows[index + 1]?.row.depth ?? 0) > 0;
     if (layer.id === props.mainLayerId)
-      return <Fragment key={layer.id}>{props.renderMain(row)}</Fragment>;
+      return <Fragment key={layer.id}>{props.renderMain(row, groupContinues)}</Fragment>;
     const units = layer.units.flatMap((unit) =>
       unit.startMs === null || unit.endMs === null
         ? []
@@ -149,6 +169,9 @@ export function DesktopTranscriptionLayerRows(props: {
           row={row}
           segmentCount={layer.units.length}
           onExpand={() => props.onExpand(layer.id)}
+          {...(props.onSelectLayer === undefined
+            ? {}
+            : { onSelect: () => props.onSelectLayer?.(layer.id) })}
           className={dragBits.laneClass}
           style={dragBits.laneStyle}
         />
@@ -157,7 +180,7 @@ export function DesktopTranscriptionLayerRows(props: {
     return (
       <div
         key={layer.id}
-        className={`desktop-tx-lane${dragBits.laneClass}`}
+        className={`desktop-tx-lane${groupContinues ? ' is-group-mid' : ''}${dragBits.laneClass}`}
         data-layer-id={layer.id}
         data-drag-surface="timeline"
         style={{ ...(laneHeightStyle(layer.laneHeight) ?? {}), ...dragBits.laneStyle }}
@@ -166,13 +189,23 @@ export function DesktopTranscriptionLayerRows(props: {
           locale={props.locale}
           name={name}
           row={row}
-          focused={props.focus?.layerId === layer.id}
+          focused={false}
           onToggleGroup={() => props.onToggleGroup(layer.id)}
           onCollapse={() => props.onCollapse(layer.id)}
+          {...(props.onSelectLayer === undefined
+            ? {}
+            : { onSelect: () => props.onSelectLayer?.(layer.id) })}
           {...dragBits.label}
           {...(props.drag === undefined
             ? {}
             : { dragHint: t(props.locale, 'app.desktopTranscription.layerDragHold') })}
+          {...(props.onLayerStyle === undefined || props.loadOrthographies === undefined
+            ? {}
+            : styleMenuProps(
+                layerStyleFields(layer, props.locale),
+                props.loadOrthographies,
+                (change) => props.onLayerStyle?.(layer.id, change),
+              ))}
         />
         <div
           className="desktop-tx-lane__body"
@@ -199,6 +232,7 @@ export function DesktopTranscriptionLayerRows(props: {
               const key = textKey(layer.id, unit.id);
               const card = { layerId: layer.id, unitId: unit.id };
               const selected = sameCard(props.focus, card);
+              const painted = annotationStyle(layer);
               return (
                 <TimelineAnnotationItem
                   key={unit.id}
@@ -215,6 +249,7 @@ export function DesktopTranscriptionLayerRows(props: {
                   {...(props.audioTools !== undefined && layer.modality === 'audio'
                     ? { content: props.audioTools(layer.id, unit.id) }
                     : {})}
+                  {...(painted === undefined ? {} : { layerStyle: painted })}
                   onClick={() => props.onPick(card, unit)}
                   onContextMenu={(event) => props.onRowMenu(card, name, event)}
                   onDoubleClick={ignore}
@@ -264,7 +299,7 @@ export function DesktopTranscriptionLayerRows(props: {
           {t(props.locale, 'app.desktopTranscription.layerHintRoot')}
         </div>
       ) : null}
-      {mainInTree || !mainExists ? null : props.renderMain(mainRow)}
+      {mainInTree || !mainExists ? null : props.renderMain(mainRow, false)}
       {body}
       {props.drag?.surface === 'timeline' ? (
         <div
@@ -305,6 +340,27 @@ export function restoreBody(
 export function laneHeightStyle(height: number | null | undefined): CSSProperties | undefined {
   if (height == null) return undefined;
   return { '--lane-height': `${height}px` } as CSSProperties;
+}
+
+function annotationStyle(layer: LayerRowLayer): CSSProperties | undefined {
+  const style = desktopAnnotationStyle({
+    ...(layer.displayFont === undefined ? {} : { displayFont: layer.displayFont }),
+    ...(layer.displayFontSize === undefined ? {} : { displayFontSize: layer.displayFontSize }),
+    ...(layer.displayBold === undefined ? {} : { displayBold: layer.displayBold }),
+    ...(layer.displayItalic === undefined ? {} : { displayItalic: layer.displayItalic }),
+    ...(layer.orthographyScriptTag === undefined ? {} : { scriptTag: layer.orthographyScriptTag }),
+    ...(layer.languageId === undefined ? {} : { languageId: layer.languageId }),
+  });
+  if (
+    style.fontFamily === undefined &&
+    style.fontSize === undefined &&
+    style.fontWeight === undefined &&
+    style.fontStyle === undefined &&
+    style.direction === undefined
+  ) {
+    return undefined;
+  }
+  return style;
 }
 
 export function layerLabel(

@@ -3,7 +3,7 @@ title: desktop-4ws-slice1b-transcription-editing design
 doc_type: execution-spec-design
 status: active
 owner: repo
-last_reviewed: 2026-11-21
+last_reviewed: 2026-11-22
 source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 depends_on:
   - ./requirements.md
@@ -165,3 +165,91 @@ depends_on:
 | 文档守卫  | `npm run check:docs-governance`                                                                                                 | OK，含 Research 与 spec frontmatter 检查  |
 | 桌面流程  | `npm run test:e2e:desktop-project`                                                                                              | green（CI `desktop-flow`）                |
 | 旧页回归  | `npm run test:e2e:chromium`                                                                                                     | green（改旧组件 props 时）                |
+
+## 2026-11-22 调研备忘（非实施决定）：#599 层显示样式
+
+本附录只记录 #599 开工前的读码与外部手册，不修改上文已接受的选择，不升 `user_version`，不改表，不实施。外部页面读取日期为 2026-11-22。
+
+### 已有列与写入口
+
+现行开发格式是 `user_version` 33（`DESKTOP_PROJECT_USER_VERSION`，`src/db/desktop/schema.ts`）。冻结记录 `src/db/desktop/formatFreeze.record.json` 的 `userVersion` 同为 33，且 `formatFreeze.ts` 的 `checkDesktopFormatFreeze` 用整份 `DESKTOP_PROJECT_SCHEMA_SQL` 的 sha256 对照。加列会改这份哈希，须新决定；本片不改表。
+
+`layers` 上与本片相关的列（`schema.ts` 的 `CREATE TABLE layers`）：
+
+| 列 | 约束 | 谁加的 |
+| --- | --- | --- |
+| `orthography_id` | 可空，`REFERENCES orthographies(id)` | [ADR-0085](../../../adr/0085-desktop-project-one-sqlite.md) 的层表；[ADR-0088](../../../adr/0088-desktop-sqlite-domain-landings.md) 第 15 条：只外键指向项目目录行，可空 |
+| `lane_height` | 可空，或正整数 | [ADR-0126](../../../adr/0126-v29-lane-locks-oral-audio-and-layer-retention.md) 第 3 条，与 v29 一次写入 |
+| `display_font` | 可空，或 `length(display_font) > 0` | 同上，ADR-0126 第 3 条 |
+
+ADR-0127 至 ADR-0137 没有再改这两列。`orthographies.font_preferences_json` 在同一份 DDL 里，默认 `'{}'`。桌面 `readOrthography`（`catalog.ts`）只读 `id`、`language_id`、`name_json`、`script_tag`、`catalog_metadata_json`；`createOrthography` / `updateOrthography` 不写字体 JSON。
+
+已有写入口：
+
+- `createLayer`（`layers.ts`）插入时可带 `orthographyId`，不写 `display_font`。`layers.create` 的校验接受 `orthographyId`（`operationContract.ts` 的 `checkLayerCreate`）。`catalog.test.ts`、`desktopCall.test.ts` 已覆盖：建层时写入合法正字法 id，关库重开仍能读回；不存在的 `languageId` 被外键拒绝。
+- 改已有层：`layerStructure.ts` 只有 `renameLayer`、`setLayerHeight`、`moveLayer`、`deleteLayer`、`restoreLayer`。对应 `layers.rename` / `layers.setHeight` / `layers.move` / `layers.delete` / `layers.restore`（`desktopCall.ts`，撤销策略均为 `clear`）。没有 `setFont`、`setOrthography` 或合并的样式写入。
+- `listLayers` / `getLayer` 的 SELECT 含 `orthography_id` 与 `lane_height`，映射为 `orthographyId`、`laneHeight`。SELECT 不含 `display_font`，`Layer` 上也没有该字段。就算直接改列，现有读路径也带不回页面。
+- 转写页新建层（`useDesktopTranscriptionLayerController` 的 `create`）不传 `languageId` 或 `orthographyId`。该 controller 的注释写明页面只透传创建、改名、排序、层高、删除。
+
+正字法目录已有，不要另做一套。挑选调用 `listOrthographies(db, languageId)`，桌面方法是 `orthographies.list`（`catalog.ts`、`desktopCall.ts`）。语言不存在时它抛 `language is missing`。建立项目行用已有 `orthographies.create` / `catalog.ensureProjectDefinition`，与 ADR-0088 第 15 条一致：内置模板先落成项目行，层再引用。
+
+### 桌面页今天怎么画字
+
+`DesktopTranscriptionLayerRows` 把语段交给 `TimelineAnnotationItem`，不传 `layerStyle`。`laneHeight` 只进 `laneHeightStyle`，写成 `--lane-height`。`.timeline-annotation`（`src/styles/pages/timeline/timeline-annotation.css`）设字号，不设 `font-family`。同文件里 `font-family: system-ui, sans-serif` 只用于确定度图标。桌面转写 CSS 里的 `font-family` 只出现在等宽时间码等处（`desktop-transcription-workspace.css`），没有按层的字体或正字法。`src/pages/DesktopTranscription*.tsx` 不引用 `TimelineLaneHeader` 或 `LayerStyleSubmenu`。
+
+### 不要搬回来的旧层头
+
+旧壳是 `src/components/TimelineLaneHeader.tsx`。右键菜单同时装：层操作、视图（折叠、连接线）、可选的轨道模式与说话人快操作，以及 `buildLayerStyleMenuItems`（`LayerStyleSubmenu.ts`）。样式子菜单写的是 Dexie 层文档上的 `displaySettings`：`fontFamily`、`fontSize`、`bold`、`italic`、`color`（`src/db/schemas.ts` 的 `layerDisplaySettingsSchema`；往返见 `src/db/adapter.layerFields.test.ts`）。渲染走 `layerDisplaySettingsToStyle`（`src/utils/layerDisplayStyle.ts`），并带脚本方向、行高缩放、本地字体枚举和覆盖检测。旧轨高拖动会反推字号再写回 `displaySettings`（`useTimelineLaneDisplayStyleResizePreview.ts`）。
+
+#599 的任务行写明不放回旧层头这个壳（`tasks.md`）。2026-11-22 用户决定把壳和功能拆开：不挂 `TimelineLaneHeader`，外观另做；旧功能除字体颜色外都复用。上文若把「不放回旧层头」读成「字号、粗体、斜体、本地字体和层高互算也不做」，以本节「用户决定」为准。
+
+### 外部手册里改变落点的事实
+
+ELAN 把字体放在层上，不放在层类型上。添加层时，层类型只决定 stereotype；输入法与内容语言按层选择；字体在 More Options 里，作为层属性，并可一次套到同类型的多个层（[Adding new tiers](https://www.mpi.nl/tools/elan/docs/manual/Sec_Adding_new_tiers.html)）。新建层类型的字段是类型名、stereotype、受控词表、词库连接、ISO 数据类，没有字体（[Adding new tier types](https://www.mpi.nl/tools/elan/docs/manual/Sec_Adding_new_tier_types.html)）。没有单层字体时，用首选项里的「Default font for tiers, annotations and CV entries」；时间轴层高是查看器首选项 `Reduced Tier Height`，一份文档一个开关。这些首选项在 `.pfsx`，默认与 `.eaf` 同目录（[Editing preferences](https://www.mpi.nl/tools/elan/docs/manual/Sec_Editing_preferences.html)）。字符集在 ELAN 里是输入法（GUK、RTR、拼音等），在录入时选用（[Entering annotations in different character sets](https://www.mpi.nl/tools/elan/docs/manual/Sec_Entering_annotations_in_different_character_sets.html)），不是层上再存一列编码。
+
+FLEx 把默认字体放在书写系统上。`WritingSystemDefinition.DefaultFont` 的注释是 “The font used to display data encoded in this writing system”（[libpalaso `WritingSystemDefinition.cs`](https://github.com/sillsdev/libpalaso/blob/master/SIL.WritingSystems/WritingSystemDefinition.cs)）。官方发行说明要求到 Format / Set Up Writing Systems / Fonts 重设字体特性（[FieldWorks 8.0.10](https://software.sil.org/fieldworks/fw8010/)）。SIL 技术说明同样要求为每个书写系统准备字体和键盘，字段通过书写系统显示（[Technical Notes on SFM Database Import](https://software.sil.org/fieldworks/wp-content/uploads/sites/38/2016/10/Technical-Notes-on-SFM-Database-Import.pdf)、[ICU and writing systems](https://software.sil.org/fieldworks/wp-content/uploads/sites/38/2016/10/ICU-and-writing-systems.pdf)）。
+
+合在一起：正字法 id 是「这一层用哪个书写系统」；`display_font` 是 ELAN 那种按层的字体覆盖，不是再做一套字体目录，也不要只用书写系统上的一把字体代替层覆盖。层高继续按层，不改回 ELAN 的全局开关。不新增编码列。
+
+MDN：`font-family` 是已安装字体或已用 `@font-face` 提供的字体族名列表；只写族名不会带上字体文件。需要一份用户机器上没有的字体时，才要 `@font-face` 的 `src`（[`font-family`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/font-family)、[`@font-face`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@font-face)）。本片存族名字符串，不引入字体选择库，不打包字体文件。字号、粗体、斜体另存列，见下方用户决定。
+
+### 用户决定（2026-11-22）：新层头，复用旧功能，不做字体颜色
+
+时间轴层头另做外观，不挂 `TimelineLaneHeader`。侧栏层行保持已审的 `40:1407` / `81:2020`。样式从新的时间轴层头进入。外观帧是精稿页 `01 转写 · 层头 · 显示样式（待审）`（`94:1`）。层头与白底分不开，另有 `层头底色 · 四案（待审）`（`95:54`）：甲层名成栏、乙整层是槽、丙当前层加深、丁墨底白字。甲的层头和语段同为 `#F5F5F5`。ELAN 把层名色和注释高亮分成两个设置（[Tier attributes](https://www.mpi.nl/corpus/html/elan/ch05s04.html)），这里不按层变色，只借用「两块面不能同色」。错开三案在 `层头和语段错开 · 三案（待审）`（`95:116`）：戊层头深一档、己用线切开、庚三档错开。整页待审：`戊 · 层头深一档（待审）`（`95:166`）、`庚 · 三档错开（待审）`（`95:635`）。灰块加层名太单调，结构三案在 `层头结构 · 三案（待审）`（`95:1106`）。2026-11-22 曾选辛（`95:1110`）。同日改用「1 · 同纸一条线」（`101:5899`），随后落地「1 · 层头用字重」（`101:6967`）：层头和文本区都是纸，不铺灰底，不保留名牌，不加墨色索引。一条分界线从波形顶纵贯到文本区底，落在层名列右缘。层名与所在行对齐。选中层名 14px 半粗墨色，其余层名 13px 中黑墨色；转写正文仍 16px 常规，译文正文仍 14px 常规。没有下级、也没有宿主的独立层不画圆点。同日再落地「1 · 层头悬停与行缝」（`101:7498`）：层名格底边一条 1px `--border-subtle`，不穿过语段。悬停铺 6% 墨色，按下铺 8%，字号和字重不动。键盘焦点用 1.5px `--focus-color` 环。折叠钮仍只在悬停或焦点时出现。没导入音频时不画这条分界线，导入后从波形顶通到舞台底。层头折叠时不画。同一组的层之间不画层名格底缝。文本行上下各留 4px。写界面只按这一帧。未采用的层头待审帧已从精稿页删除。
+
+复用的是功能，不是旧壳：
+
+- 正字法：`layers.orthography_id`，选项只来自该层语言的 `orthographies.list`。旧样式菜单没有这项，#599 原文有，新层头要有。
+- 字体族：已有 `display_font`。预设、本地字体搜索、覆盖检测用 `layerDisplayStyle.ts` 与 `useLocalFonts` 里的纯函数，不新做字体库，不打包字体文件。不把 `ProjectOrthography` 断言成 `OrthographyDocType`，也不直接调用 `buildLayerStyleMenuItems`（它要求非空 `languageId: string` 和 `OrthographyDocType[]`）。
+- 字号、粗体、斜体：旧 `displaySettings` 有，桌面 `layers` 没有列。新增 `display_font_size`（整数 8–36 或 NULL，NULL 表示默认 13）、`display_bold`、`display_italic`（NULL 或 1）。拖层高得到的四分之一像素字号收成整数，与字号菜单一致。
+- 层高与字号互算：拖层高仍写 `lane_height`，并按 `computeFontSizeFromRenderPolicy` 写字号。改字号按 `computeLaneHeightFromRenderPolicy` 写层高。这两函数要的 `lineHeightScale` 用脚本已有的行高系数，没有则 1；桌面正字法行没有 `fontPreferences.lineHeightScale`，不从缺字段另造系数。重置清空样式字段，层高回到默认。两次写入各自一个事务。
+- 正文样式用 `layerDisplaySettingsToStyle` 的结果，不传 `color`。字号、粗体、斜体、重置和本地字体搜索装到新层头上。脚本、方向和覆盖用下面的回退，不靠强制转换。
+
+字体菜单的适配（审查 P1，开工前照此写，不直接接入旧菜单）：
+
+- `ProjectOrthography` 只有 `id`、`languageId`、`name`、`scriptTag`、`sourceType`。没有 `direction`、`exemplarCharacters`、`type`、`fontPreferences`。
+- 层没有 `language_id`：不填假语言 id。正字法选项为空，不能写入正字法。字体预设按 `Latn`。方向 `ltr`。没有字例时覆盖检测跳过字例，不把缺字例当成字体覆盖失败。
+- 层有语言、并选了属于该语言的正字法：脚本用该行 `scriptTag`，空则 `Latn`。方向用这个脚本已有的默认方向，没有则 `ltr`。不读缺失的 `direction`。字例为空则跳过字例覆盖。没有 `type` 则不用 IPA 预设。
+- 无语言层和指定书写体系各验一次菜单：预设、方向和覆盖回退符合上两行，且没有类型断言。
+
+字体颜色不复用：不新增列，不写入，不画，菜单里不提供。旧数据里的 `displaySettings.color` 不迁。
+
+存储决定：不把这些字段塞进 `font_preferences_json` 或 `project.settings_json`。加列会改变 `DESKTOP_PROJECT_SCHEMA_SQL` 的哈希，须新 ADR 并把 `user_version` 从 33 升一档，重写格式冻结记录。不改 ADR-0126 正文。旧库按现有桌面格式政策拒绝，本片不做迁移。
+
+坑：`layers.language_id` 与 `layers.orthography_id` 是各自的外键。外键只拒绝不存在的 id；一个存在但属于另一语言的书写体系仍能写入。`setLayerStyle` 在写入前核对：正字法行的 `language_id` 必须等于该层的 `language_id`。层没有语言，或两边语言不同，整次拒绝，关库重开后原值不变。层没有语言时 `orthographies.list` 也不能列出正字法，字体仍可写。`display_font` 空串违反 CHECK，清空用 NULL。本机没有该字体族时按 `font-family` 回退。`queryLocalFonts` 在当前 Electron 里不可用时，保留「无法加载本地字体」的状态，不改走另一套枚举。样式写入的撤销策略沿用 `layers.setHeight` 的 `clear`。
+
+已知不做：不挂旧层头壳；不做字体颜色；不把分轨锁放进 `project.settings_json`；不开说话人分轨（#600）、拆分（#563）或录音转写。
+
+### 最小施工顺序
+
+1. 时间轴层头外观用「1 · 层头悬停与行缝」（`101:7498`）。写界面只按这一帧。
+2. 新 ADR：三列与 `user_version`。`schema.ts`、`formatFreeze.record.json` 一起改。
+3. `layers.ts` 读出 `displayFont`、`displayFontSize`、`displayBold`、`displayItalic`。`orthographyId` 已在。
+4. `layerStructure.ts`：`setLayerStyle` 一次写入正字法、字体族、字号、粗体、斜体。写入前核对正字法属于该层语言；不属于或层没有语言则整次拒绝，原值不变。改字号的那次调用同时写 `lane_height`。拖层高的现有 `setLayerHeight` 同时写字号。重置把四个样式字段写成 NULL，并把层高写成默认。不写颜色。
+5. `operationContract.ts` 增加 `layers.setStyle`（`clear`），`desktopCall.ts` 与 `client.ts` 接上。`operationContract.test.ts` 的 `addedAfterSnapshot` 列入新方法。不改 `operationCatalog.baseline.ts` 的冻结快照。
+6. 新的时间轴层头只绑定 controller，外观按「1 · 层头悬停与行缝」。右键菜单外壳与行高沿用已审层菜单（`81:1550`，`.desktop-tx-menu`）：32px 行、14/22。正字法和字体向右展开二级列表，项样式同播放速率下拉（`64:3290`）：32px 行，超出后滚动，不把行压矮。查找框同为 32px、14/22。收起时行尾有向右三角。粗体、斜体各占一行，圆形单选（`4:1310`）12px，与字号数字同一列。字体列表打开时读取本机字体，顶部按字体名过滤预设和本机字体，不单列本机字体。字体菜单按上面的适配接，不把 `ProjectOrthography` 断言成 `OrthographyDocType`。正文样式交给已有的 `TimelineAnnotationItem` `layerStyle`。页面不挂 `TimelineLaneHeader`。
+7. 验证：`layerStructure.test.ts` 写后关库重开，读回正字法、字体族、字号、粗体、斜体和层高；拖层高改变字号；改字号改变层高；重置后样式为空且层高为默认；颜色没有列也没有写入。另两组：属于另一语言的正字法 id 被拒绝，关库重开后原值未变；无语言层不能写入正字法，字体仍可写。菜单用无语言层和一条指定书写体系各走一次，预设与方向走回退，覆盖检测不把缺字例当成失败。再跑 `operationContract.test.ts`。不新增依赖。
+
+### 本次未验证
+
+样式列、格式冻结和 typecheck 这一轮没有重跑。层头悬停与行缝：`DesktopTranscriptionWorkspacePage.test.tsx` 与 `selection.test.tsx` 共 29 项通过；桌面转写页上悬停只给层名格铺浅墨，不铺到语段，选中层仍是半粗。未按住层名，未走键盘焦点。未打开真实 `.eaf` / `.pfsx`。未读 FieldWorks 样式表里按样式覆盖字号的实现，只核了书写系统上的 `DefaultFont` 与官方发行说明。未读取任何木雅、EAF 或 FlexText 语料。

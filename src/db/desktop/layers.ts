@@ -15,10 +15,16 @@ export interface Layer {
   contentType: string;
   languageId: string | null;
   orthographyId: string | null;
+  orthographyName: Record<string, string> | null;
+  orthographyScriptTag: string | null;
   parentId: string | null;
   modality: string;
   sortOrder: number;
   laneHeight: number | null;
+  displayFont: string | null;
+  displayFontSize: number | null;
+  displayBold: boolean;
+  displayItalic: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -54,6 +60,14 @@ export interface LayerLink {
   sortOrder: number;
 }
 
+const LAYER_COLUMNS = `layers.id, layers.manuscript_id, layers.key, layers.name_json, layers.tier_type,
+              layers.content_type, layers.language_id, layers.orthography_id, layers.parent_id,
+              layers.modality, layers.sort_order, layers.lane_height, layers.display_font,
+              layers.display_font_size, layers.display_bold, layers.display_italic,
+              orthographies.name_json AS orthography_name_json,
+              orthographies.script_tag AS orthography_script_tag,
+              layers.created_at, layers.updated_at`;
+
 interface LayerRow {
   id: string;
   manuscript_id: string;
@@ -63,10 +77,16 @@ interface LayerRow {
   content_type: string;
   language_id: string | null;
   orthography_id: string | null;
+  orthography_name_json: string | null;
+  orthography_script_tag: string | null;
   parent_id: string | null;
   modality: string;
   sort_order: number;
   lane_height: number | null;
+  display_font: string | null;
+  display_font_size: number | null;
+  display_bold: number | null;
+  display_italic: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -106,10 +126,9 @@ export function createLayer(db: SqliteDatabase, input: LayerCreate): Layer {
 export function listLayers(db: SqliteDatabase, manuscriptId: string): Layer[] {
   const rows = db
     .prepare(
-      `SELECT layers.id, layers.manuscript_id, layers.key, layers.name_json, layers.tier_type,
-              layers.content_type, layers.language_id, layers.orthography_id, layers.parent_id,
-              layers.modality, layers.sort_order, layers.lane_height, layers.created_at, layers.updated_at
+      `SELECT ${LAYER_COLUMNS}
        FROM layers
+       LEFT JOIN orthographies ON orthographies.id = layers.orthography_id
        JOIN manuscripts ON manuscripts.id = layers.manuscript_id
        WHERE layers.manuscript_id = ? AND manuscripts.deleted_at IS NULL
          AND layers.deleted_at IS NULL
@@ -122,10 +141,9 @@ export function listLayers(db: SqliteDatabase, manuscriptId: string): Layer[] {
 export function getLayer(db: SqliteDatabase, id: string): Layer | null {
   const row = db
     .prepare(
-      `SELECT layers.id, layers.manuscript_id, layers.key, layers.name_json, layers.tier_type,
-              layers.content_type, layers.language_id, layers.orthography_id, layers.parent_id,
-              layers.modality, layers.sort_order, layers.lane_height, layers.created_at, layers.updated_at
+      `SELECT ${LAYER_COLUMNS}
        FROM layers
+       LEFT JOIN orthographies ON orthographies.id = layers.orthography_id
        JOIN manuscripts ON manuscripts.id = layers.manuscript_id
        WHERE layers.id = ? AND manuscripts.deleted_at IS NULL`,
     )
@@ -172,10 +190,17 @@ function mapLayer(row: LayerRow): Layer {
     contentType: row.content_type,
     languageId: row.language_id,
     orthographyId: row.orthography_id,
+    orthographyName:
+      row.orthography_name_json === null ? null : readStringMap(row.orthography_name_json),
+    orthographyScriptTag: row.orthography_script_tag,
     parentId: row.parent_id,
     modality: row.modality,
     sortOrder: row.sort_order,
     laneHeight: row.lane_height,
+    displayFont: row.display_font,
+    displayFontSize: row.display_font_size,
+    displayBold: row.display_bold === 1,
+    displayItalic: row.display_italic === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

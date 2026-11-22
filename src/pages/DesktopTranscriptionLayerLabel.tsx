@@ -8,6 +8,11 @@ import {
 } from 'react';
 import { t, tf, type Locale } from '../i18n';
 import type { LayerTreeRow } from './desktopTranscriptionLayerTree';
+import {
+  DesktopLayerHeaderMenu,
+  type LayerStyleChange,
+  type LayerStyleFields,
+} from './DesktopTranscriptionLayerStyleMenu';
 
 const INDENT_BASE = 30;
 const INDENT_STEP = 16;
@@ -20,10 +25,14 @@ const levelX = (depth: number) => INDENT_BASE + INDENT_STEP * Math.min(depth, IN
 const px = (value: number) => `${value}px`;
 const cssVars = (vars: Record<string, string>) => vars as CSSProperties;
 
+const JOG = 16;
+
 /** Tree guides and the side-lane runs; drawn only, hidden from assistive tech. */
-function TreeLines(props: { row: LayerTreeRow }) {
+function TreeLines(props: { row: LayerTreeRow; jog?: boolean }) {
   const { row } = props;
+  const shift = props.jog === true ? JOG : 0;
   const dotX = levelX(row.depth);
+  const parentX = levelX(row.depth - 1);
   return (
     <span aria-hidden className="desktop-tx-tree-lines">
       {row.guides.map((through, level) =>
@@ -31,7 +40,7 @@ function TreeLines(props: { row: LayerTreeRow }) {
           <i
             key={`g${level}`}
             className="tree-guide"
-            style={cssVars({ '--x': px(levelX(level)) })}
+            style={cssVars({ '--x': px(levelX(level) - shift) })}
           />
         ) : null,
       )}
@@ -39,13 +48,18 @@ function TreeLines(props: { row: LayerTreeRow }) {
         <i
           className={`tree-elbow${row.lastChild ? ' is-last' : ''}`}
           style={cssVars({
-            '--x': px(levelX(row.depth - 1)),
-            '--w': px(Math.max(dotX - 4 - levelX(row.depth - 1), 0)),
+            '--x': px(parentX - shift),
+            '--w': px(
+              props.jog === true ? dotX - (parentX - shift) : Math.max(dotX - 4 - parentX, 0),
+            ),
           })}
         />
       ) : null}
       {row.childCount > 0 && !row.groupCollapsed ? (
-        <i className="tree-guide is-own" style={cssVars({ '--x': px(dotX) })} />
+        <i className="tree-guide is-own" style={cssVars({ '--x': px(dotX - shift) })} />
+      ) : null}
+      {props.jog === true && row.childCount > 0 && !row.groupCollapsed ? (
+        <i className="tree-jog" style={cssVars({ '--x': px(dotX - shift), '--w': px(shift) })} />
       ) : null}
       {row.lanes.map((lane) => {
         const x = LANE_BASE + LANE_STEP * lane.lane;
@@ -68,12 +82,26 @@ function TreeLines(props: { row: LayerTreeRow }) {
   );
 }
 
+/** A root with no children and no host link has nothing for a dot to mark. */
+function showsLayerNode(row: LayerTreeRow): boolean {
+  return (
+    row.depth > 0 ||
+    row.hostId !== null ||
+    row.childCount > 0 ||
+    row.lanes.length > 0 ||
+    row.moreHosts > 0
+  );
+}
+
 /** The layer's node: tree lines and the dot. No hover note. */
 function LayerNode(props: { row: LayerTreeRow }) {
   return (
     <>
       <TreeLines row={props.row} />
-      <span aria-hidden className="desktop-tx-layer-dot" />
+      <span
+        aria-hidden
+        className={`desktop-tx-layer-dot${showsLayerNode(props.row) ? '' : ' is-empty'}`}
+      />
     </>
   );
 }
@@ -94,14 +122,29 @@ export function DesktopTranscriptionLayerLabel(props: {
   onLayerPointerDown?: (event: ReactPointerEvent<HTMLElement>) => void;
   onLayerPointerUp?: () => void;
   dragHint?: string;
+  /** A click on the name, including a short press that did not become a drag. */
+  onSelect?: () => void;
+  styleFields?: LayerStyleFields;
+  loadOrthographies?: (
+    languageId: string,
+  ) => Promise<{ id: string; name: Record<string, string>; scriptTag: string }[]>;
+  onApplyStyle?: (change: LayerStyleChange) => void;
 }) {
   const { row, locale } = props;
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   useEffect(() => {
     if (menu === null) return undefined;
-    const close = () => setMenu(null);
+    const close = (event: PointerEvent) => {
+      if (
+        event.target instanceof Element &&
+        event.target.closest('.desktop-tx-layer-menu') !== null
+      ) {
+        return;
+      }
+      setMenu(null);
+    };
     const onKey = (event: globalThis.KeyboardEvent) => {
-      if (event.key === 'Escape') close();
+      if (event.key === 'Escape') setMenu(null);
     };
     window.addEventListener('pointerdown', close);
     window.addEventListener('keydown', onKey);
@@ -142,60 +185,81 @@ export function DesktopTranscriptionLayerLabel(props: {
       onContextMenu={open}
       onKeyDown={onKeyDown}
     >
-      <LayerNode row={row} />
-      <span
-        className="desktop-tx-layer-name"
-        {...(props.dragHint === undefined
-          ? {}
-          : { title: props.dragHint, 'aria-description': props.dragHint })}
-        {...(props.onLayerPointerDown === undefined
-          ? {}
-          : { onPointerDown: props.onLayerPointerDown })}
-        {...(props.onLayerPointerUp === undefined ? {} : { onPointerUp: props.onLayerPointerUp })}
-      >
-        {props.name}
-      </span>
-      {row.groupCollapsed ? (
-        <span className="desktop-tx-layer-more">
-          {tf(locale, 'app.desktopTranscription.layerGroupMore', { count: row.childCount })}
+      <TreeLines row={row} jog />
+      <div className="desktop-tx-nameplate">
+        <span
+          aria-hidden
+          className={`desktop-tx-layer-dot${showsLayerNode(row) ? '' : ' is-empty'}`}
+        />
+        <span className="desktop-tx-nameplate__text">
+          <span
+            className="desktop-tx-layer-name"
+            {...(props.dragHint === undefined
+              ? {}
+              : { title: props.dragHint, 'aria-description': props.dragHint })}
+            {...(props.onLayerPointerDown === undefined
+              ? {}
+              : { onPointerDown: props.onLayerPointerDown })}
+            {...(props.onLayerPointerUp === undefined
+              ? {}
+              : { onPointerUp: props.onLayerPointerUp })}
+            {...(props.onSelect === undefined
+              ? {}
+              : {
+                  onClick: (event: MouseEvent<HTMLElement>) => {
+                    event.stopPropagation();
+                    props.onSelect?.();
+                  },
+                })}
+          >
+            {props.name}
+          </span>
+          {props.styleFields !== undefined && props.styleFields.orthographyName.length > 0 ? (
+            <span className="desktop-tx-layer-script">{props.styleFields.orthographyName}</span>
+          ) : null}
         </span>
-      ) : null}
-      {row.moreHosts > 0 ? (
-        <span aria-hidden className="desktop-tx-layer-more">
-          +{row.moreHosts}
-        </span>
-      ) : null}
-      {row.childCount > 0 ? (
-        <button
-          type="button"
-          className="desktop-tx-layer-chevron"
-          aria-expanded={!row.groupCollapsed}
-          aria-label={groupLabel}
-          title={groupLabel}
-          onClick={props.onToggleGroup}
-        >
-          <span aria-hidden className="desktop-tx-layer-chevron__mark" />
-        </button>
-      ) : null}
-      {menu === null ? null : (
-        <div
-          className="desktop-tx-menu desktop-tx-layer-menu"
-          role="menu"
-          style={{ position: 'fixed', left: menu.x, top: menu.y }}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
+        {row.groupCollapsed ? (
+          <span className="desktop-tx-layer-more">
+            {tf(locale, 'app.desktopTranscription.layerGroupMore', { count: row.childCount })}
+          </span>
+        ) : null}
+        {row.moreHosts > 0 ? (
+          <span aria-hidden className="desktop-tx-layer-more">
+            +{row.moreHosts}
+          </span>
+        ) : null}
+        {row.childCount > 0 ? (
           <button
             type="button"
-            role="menuitem"
-            autoFocus
-            onClick={() => {
-              setMenu(null);
-              props.onCollapse();
-            }}
+            className="desktop-tx-layer-chevron"
+            aria-expanded={!row.groupCollapsed}
+            aria-label={groupLabel}
+            title={groupLabel}
+            onClick={props.onToggleGroup}
           >
-            {t(locale, 'app.desktopTranscription.layerCollapse')}
+            <span aria-hidden className="desktop-tx-layer-chevron__mark" />
           </button>
-        </div>
+        ) : null}
+      </div>
+      {menu === null ? null : (
+        <DesktopLayerHeaderMenu
+          locale={locale}
+          x={menu.x}
+          y={menu.y}
+          onCollapse={() => {
+            setMenu(null);
+            props.onCollapse();
+          }}
+          {...(props.styleFields === undefined ||
+          props.onApplyStyle === undefined ||
+          props.loadOrthographies === undefined
+            ? {}
+            : {
+                fields: props.styleFields,
+                loadOrthographies: props.loadOrthographies,
+                onApply: props.onApplyStyle,
+              })}
+        />
       )}
     </div>
   );
@@ -212,6 +276,7 @@ export function DesktopTranscriptionFoldedStrip(props: {
   row: LayerTreeRow;
   segmentCount: number;
   onExpand: () => void;
+  onSelect?: () => void;
   className?: string;
   style?: CSSProperties;
 }) {
@@ -228,7 +293,14 @@ export function DesktopTranscriptionFoldedStrip(props: {
       >
         <LayerNode row={props.row} />
       </div>
-      <button type="button" className="desktop-tx-layer-strip__body" onClick={props.onExpand}>
+      <button
+        type="button"
+        className="desktop-tx-layer-strip__body"
+        onClick={() => {
+          props.onSelect?.();
+          props.onExpand();
+        }}
+      >
         <span className="desktop-tx-layer-strip__expand">
           {t(props.locale, 'app.desktopTranscription.layerExpand')}
         </span>

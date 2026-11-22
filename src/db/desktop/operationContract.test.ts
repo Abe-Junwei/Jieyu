@@ -92,6 +92,7 @@ describe('desktop operation contract', () => {
       'units.setSkipProcessing',
       'layers.rename',
       'layers.setHeight',
+      'layers.setStyle',
       'layers.move',
       'layers.delete',
       'layers.listDeleted',

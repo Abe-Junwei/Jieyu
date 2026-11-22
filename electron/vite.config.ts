@@ -22,7 +22,8 @@ export default defineConfig({
   build: {
     ssr: true,
     outDir: 'electron/dist',
-    emptyOutDir: true,
+    // preload.cjs is built by vite.preload.config.ts into this same folder.
+    emptyOutDir: false,
     rollupOptions: {
       input: { main: 'electron/main.ts' },
       external,

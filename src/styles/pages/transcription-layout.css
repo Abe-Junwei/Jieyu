@@ -32,7 +32,7 @@
 .app-shell-desktop-transcription .app-side-pane {
   top: 0;
   background: var(--gray-3);
-  border-right: 0;
+  border-right: 1px solid var(--divider-base);
 }
 
 .app-shell-desktop-transcription .app-side-pane-handle-cluster {

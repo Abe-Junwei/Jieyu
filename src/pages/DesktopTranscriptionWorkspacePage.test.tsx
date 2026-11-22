@@ -235,5 +235,27 @@ describe('DesktopTranscriptionWorkspacePage', () => {
     expect(css).toMatch(
       /timeline-annotation-selected\s+\.timeline-annotation-resize-handle[\s\S]*display:\s*block/,
     );
+    expect(css).toMatch(
+      /\.desktop-tx-lane > \.desktop-tx-layer-label::after\s*\{[^}]*background:\s*var\(--border-subtle\)/,
+    );
+    expect(css).toMatch(
+      /\.desktop-tx-lane > \.desktop-tx-layer-label:hover\s*\{[^}]*color-mix\(in srgb, var\(--text-primary\) 6%, var\(--surface-panel\)\)/,
+    );
+    expect(css).not.toMatch(
+      /\.desktop-tx-lane > \.desktop-tx-layer-label:hover\s*\{[^}]*(font-size|font-weight)/,
+    );
+    expect(css).toMatch(
+      /\.desktop-tx-lane > \.desktop-tx-layer-label:active\s*\{[^}]*color-mix\(in srgb, var\(--text-primary\) 8%, var\(--surface-panel\)\)/,
+    );
+    expect(css).toMatch(
+      /\.desktop-tx-lane > \.desktop-tx-layer-label:focus-visible\s*\{[^}]*outline:\s*1\.5px solid var\(--focus-color\)/,
+    );
+    expect(css).toMatch(
+      /\.desktop-tx-workspace\.is-header-folded \.desktop-tx-stage::before,\s*\.desktop-tx-stage:has\(\.desktop-tx-no-audio\)::before\s*\{[^}]*content:\s*none/,
+    );
+    expect(css).toMatch(
+      /\.desktop-tx-lane\.is-group-mid > \.desktop-tx-layer-label::after\s*\{[^}]*content:\s*none/,
+    );
+    expect(css).toMatch(/\.desktop-tx-lane \.timeline-annotation\s*\{[^}]*top:\s*4px/);
   });
 });
