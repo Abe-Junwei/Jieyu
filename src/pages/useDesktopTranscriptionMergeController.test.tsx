@@ -23,7 +23,12 @@ const preview = {
   later: [],
 };
 
-function Host(props: { text: string; units?: readonly MergeUnit[]; selected?: string | null }) {
+function Host(props: {
+  text: string;
+  units?: readonly MergeUnit[];
+  selected?: string | null;
+  prepareText?: () => Promise<boolean>;
+}) {
   const merge = useDesktopTranscriptionMergeController({
     locale: 'zh-CN',
     sessionId: 's',
@@ -31,6 +36,7 @@ function Host(props: { text: string; units?: readonly MergeUnit[]; selected?: st
     selectedUnitId: props.selected === undefined ? 'a' : props.selected,
     textLayerId: 'layer',
     textOf: () => props.text,
+    prepareText: props.prepareText ?? (async () => true),
     desktopCall: calls,
     reload: async () => undefined,
   });
@@ -102,6 +108,39 @@ describe('merge dialog', () => {
       if (method === 'units.mergePreview') return preview;
       return { sessionId, method };
     });
+  });
+
+  it('waits for the editor save before capturing the merge baseline', async () => {
+    let release: (saved: boolean) => void = () => undefined;
+    const prepareText = () =>
+      new Promise<boolean>((resolve) => {
+        release = resolve;
+      });
+    render(
+      <ToastProvider>
+        <Host text="甲" prepareText={prepareText} />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'open' }));
+    expect(calls).not.toHaveBeenCalled();
+    await act(async () => {
+      release(true);
+    });
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+  });
+
+  it('does not offer a merge when the editor cannot finish saving', async () => {
+    render(
+      <ToastProvider>
+        <Host text="甲" prepareText={async () => false} />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'open' }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(calls).not.toHaveBeenCalled();
   });
 
   it('does not write when cancel is chosen', async () => {

@@ -215,6 +215,7 @@ function DesktopTranscriptionWorkspace() {
     selectedUnitId: selection.selectedUnitId,
     textLayerId,
     textOf: (id) => mergeBody(textLayerId, id, draft.draft, sourceUnits, textKey),
+    prepareText: async () => (await draft.flushForClose()) === 'saved',
     desktopCall: host?.desktopCall,
     reload: () => read.refresh(),
   });

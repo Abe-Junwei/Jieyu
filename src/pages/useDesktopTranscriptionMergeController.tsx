@@ -51,6 +51,7 @@ export function useDesktopTranscriptionMergeController(input: {
   selectedUnitId: string | null;
   textLayerId: string | null;
   textOf: (unitId: string) => string;
+  prepareText: () => Promise<boolean>;
   desktopCall: ((sessionId: string, method: string, args: unknown) => Promise<unknown>) | undefined;
   reload: () => Promise<unknown>;
 }) {
@@ -67,6 +68,13 @@ export function useDesktopTranscriptionMergeController(input: {
     const desktopCall = current.desktopCall;
     if (next === null || current.sessionId === null || !desktopCall) return;
     try {
+      // Finish blur/idle saves before freezing the database baseline.
+      if (!(await current.prepareText())) throw new Error('text save incomplete');
+      if (
+        live.current.sessionId !== current.sessionId ||
+        live.current.textLayerId !== current.textLayerId
+      )
+        return;
       const preview = (await desktopCall(current.sessionId, 'units.mergePreview', {
         keepId: unitId,
         removeId: next,
@@ -211,10 +219,16 @@ export function useDesktopTranscriptionMergeController(input: {
     if (current.sessionId === null || desktopCall === undefined) return;
     let dead = false;
     const next = { keep: seenKeep, remove: seenRemove };
-    void desktopCall(current.sessionId, 'units.mergePreview', {
-      keepId: offer.preview.keepId,
-      removeId: offer.preview.removeId,
-    })
+    void current
+      .prepareText()
+      .then((saved) => {
+        if (!saved) throw new Error('text save incomplete');
+        if (dead) return null;
+        return desktopCall(current.sessionId!, 'units.mergePreview', {
+          keepId: offer.preview.keepId,
+          removeId: offer.preview.removeId,
+        });
+      })
       .then((value) => {
         if (dead) return;
         setOffer({ preview: value as MergePreviewView, frozen: next });

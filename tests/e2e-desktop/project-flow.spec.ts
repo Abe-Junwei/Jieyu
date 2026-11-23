@@ -2734,15 +2734,15 @@ test('merge unit keeps both texts and command m does not minimize', async () => 
     const clip = await clipLayer(page, sessionId);
     const left = await desktopCall<{ id: string }>(page, sessionId, 'units.create', {
       layerId: clip.layerId,
-      startMs: 20000,
-      endMs: 21000,
+      startMs: 1000,
+      endMs: 1200,
       text: '甲',
       operationId: 'e2e-merge-left',
     });
     const right = await desktopCall<{ id: string }>(page, sessionId, 'units.create', {
       layerId: clip.layerId,
-      startMs: 21000,
-      endMs: 22000,
+      startMs: 1400,
+      endMs: 1800,
       text: '乙',
       operationId: 'e2e-merge-right',
     });
@@ -2760,4 +2760,191 @@ test('merge unit keeps both texts and command m does not minimize', async () => 
     await app.close();
     rmSync(copy, { recursive: true, force: true });
   }
+});
+
+async function run1b4Window(name: string, run: (ctx: { app: ElectronApplication; page: Page; session: string; layerId: string }) => Promise<void>) {
+  if (!flowReady(folder)) throw new Error('desktop flow fixture missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-1b4-runtime-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  let app = await launch(name, undefined, { JIEYU_DESKTOP_HIDE_WINDOW: '0' });
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const session = await chosenSessionId(app);
+    const { layerId } = await clipLayer(page, session);
+    await run({ app, page, session, layerId });
+    const before = await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId });
+    const manuscripts = await desktopCall<{ id: string }[]>(page, session, 'manuscripts.list', {});
+    if (!manuscripts[0]) throw new Error('manuscript missing');
+    const layers = await desktopCall<{ id: string; modality: string }[]>(page, session, 'layers.list', { manuscriptId: manuscripts[0].id });
+    const audioLayers = layers.filter(layer => layer.modality === 'audio');
+    const recordings = await Promise.all(audioLayers.map(layer => desktopCall(page, session, 'recordings.list', { layerId: layer.id })));
+    await app.close();
+    app = await launch(`${name}-reopen`, undefined, { JIEYU_DESKTOP_HIDE_WINDOW: '0' });
+    await stubFolderDialog(app, copy);
+    const reopened = await app.firstWindow();
+    await rememberChosenSession(app);
+    await reopened.getByRole('button', { name: openFolder }).click();
+    await expect(reopened.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const nextSession = await chosenSessionId(app);
+    expect(await desktopCall(reopened, nextSession, 'units.list', { layerId })).toEqual(before);
+    expect(await Promise.all(audioLayers.map(layer => desktopCall(reopened, nextSession, 'recordings.list', { layerId: layer.id })))).toEqual(recordings);
+  } finally {
+    await app.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+}
+
+async function open1b4(page: Page) {
+  await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+  await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^(Play|播放)$/ })).toBeEnabled();
+}
+
+async function offer1b4(page: Page, layerId: string, unitId: string) {
+  const card = page.locator(`.desktop-tx-lane__track[data-layer-id="${layerId}"] .timeline-annotation[data-unit-id="${unitId}"]`);
+  await card.click();
+  await card.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: /向后合并|Merge with next/ }).click();
+  const dialog = page.getByRole('dialog', { name: /合并下一段|Merge/ });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+async function finish1b4(page: Page, session: string, layerId: string) {
+  const prior = new Set((await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).map(u => u.id));
+  await page.getByRole('dialog').getByRole('button', { name: /^(合并|Merge)$/ }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  let made: ListedUnit | undefined;
+  await expect.poll(async () => {
+    made = (await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).find(u => !prior.has(u.id));
+    return made?.id;
+  }).toBeTruthy();
+  if (!made) throw new Error('merged unit missing');
+  return made;
+}
+
+test('1b4 runtime menu cancel shortcut merge undo redo and no next', async () => {
+  await run1b4Window('1b4-basic', async ({ app, page, session, layerId }) => {
+    const left = await desktopCall<{ id: string }>(page, session, 'units.create', { layerId, startMs: 1000, endMs: 1200, text: '甲' });
+    const right = await desktopCall<{ id: string }>(page, session, 'units.create', { layerId, startMs: 1400, endMs: 1800, text: '乙' });
+    await open1b4(page);
+    const dialog = await offer1b4(page, layerId, left.id);
+    await expect(dialog).toContainText('0.200');
+    await expect(dialog).toContainText('备注 0');
+    await dialog.getByRole('button', { name: /^(取消|Cancel)$/ }).last().click();
+    expect((await desktopCall<ListedUnit>(page, session, 'units.get', { id: left.id })).text).toBe('甲');
+    expect((await desktopCall<ListedUnit>(page, session, 'units.get', { id: right.id })).text).toBe('乙');
+    await page.keyboard.press('Meta+m');
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByRole('dialog').getByRole('textbox', { name: /分隔符|Separator/ }).fill('');
+    const merged = await finish1b4(page, session, layerId);
+    expect(merged).toMatchObject({ text: '甲乙', startMs: 1000, endMs: 1800 });
+    expect(await desktopCall(page, session, 'units.get', { id: left.id })).toBeNull();
+    expect(await desktopCall(page, session, 'units.get', { id: right.id })).toBeNull();
+    await page.keyboard.press('Meta+z');
+    await expect.poll(() => desktopCall(page, session, 'units.get', { id: left.id })).not.toBeNull();
+    expect((await desktopCall<ListedUnit>(page, session, 'units.get', { id: right.id })).text).toBe('乙');
+    await page.keyboard.press('Meta+Shift+z');
+    await expect.poll(async () => (await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).some(u => u.text === '甲乙')).toBe(true);
+    const last = (await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).find(u => u.text === '甲乙');
+    if (!last) throw new Error('redo result missing');
+    const card = page.locator(`.timeline-annotation[data-unit-id="${last.id}"]`).first();
+    await card.click();
+    await page.keyboard.press('Meta+m');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    const win = await app.browserWindow(page);
+    expect(await win.evaluate(w => w.isMinimized())).toBe(false);
+    await card.click({ button: 'right' });
+    await expect(page.getByRole('menuitem', { name: /向后合并|Merge with next/ })).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await page.screenshot({ path: test.info().outputPath('1b4-basic.png') });
+  });
+});
+
+test('1b4 runtime merges current editor text exactly once', async () => {
+  await run1b4Window('1b4-editor', async ({ page, session, layerId }) => {
+    const units = await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId });
+    const left = units.find(u => u.text === 'one');
+    if (!left) throw new Error('left missing');
+    await open1b4(page);
+    const card = page.locator(`.timeline-annotation[data-unit-id="${left.id}"]`).first();
+    await card.click();
+    await card.click();
+    await card.locator('.timeline-annotation-input').fill('新输入');
+    await page.keyboard.press('Meta+m');
+    await expect(page.getByRole('dialog')).toBeVisible();
+    const oldIds = new Set((await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).map(u => u.id));
+    await page.getByRole('dialog').getByRole('button', { name: /^(合并|Merge)$/ }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    const merged = (await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).find(u => !oldIds.has(u.id));
+    if (!merged) throw new Error('editor merge result missing');
+    expect(merged.text).toBe('新输入 two');
+    await page.screenshot({ path: test.info().outputPath('1b4-editor.png') });
+  });
+});
+
+test('1b4 runtime six recordings discard preview playlist play and delete', async () => {
+  await run1b4Window('1b4-recordings', async ({ app, page, session, layerId }) => {
+    const pair = await desktopCall<{ audioLayerId: string }>(page, session, 'recordings.createPair', { hostLayerId: layerId, kind: 'oral', audioName: { und: 'Runtime oral' }, textName: { und: 'Runtime translation' } });
+    const ids: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const unit = await desktopCall<{ id: string }>(page, session, 'units.create', { layerId, startMs: 900 + i * 130, endMs: 1000 + i * 130, text: String.fromCharCode(65 + i) });
+      ids.push(unit.id);
+      await page.evaluate(async ({ session, unitId, audioLayerId, index }) => {
+        const bytes = new Uint8Array(32044), v = new DataView(bytes.buffer);
+        const word = (at: number, s: string) => [...s].forEach((c, j) => v.setUint8(at + j, c.charCodeAt(0)));
+        word(0, 'RIFF'); v.setUint32(4, 32036, true); word(8, 'WAVE'); word(12, 'fmt '); v.setUint32(16, 16, true);
+        v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 16000, true); v.setUint32(28, 32000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); word(36, 'data'); v.setUint32(40, 32000, true);
+        for (let n = 0; n < 16000; n++) v.setInt16(44 + n * 2, Math.round(Math.sin(n * 2 * Math.PI * (220 + index * 40) / 16000) * 6000), true);
+        await (window as unknown as FlowWindow).jieyuDesktop.desktopCall(session, 'recordings.attach', { unitId, layerId: audioLayerId, mimeType: 'audio/wav', bytes, operationId: `runtime-audio-${index}` });
+      }, { session, unitId: unit.id, audioLayerId: pair.audioLayerId, index: i });
+    }
+    await open1b4(page);
+    const merge = async (id: string) => { await offer1b4(page, layerId, id); return finish1b4(page, session, layerId); };
+    const ab = await merge(ids[0]!);
+    const abc = await merge(ab.id);
+    const de = await merge(ids[3]!);
+    await merge(de.id);
+    const dialog = await offer1b4(page, layerId, abc.id);
+    await expect(dialog.locator('.desktop-tx-merge__row')).toHaveCount(6);
+    await expect(dialog.getByRole('button', { name: /^(合并|Merge)$/ })).toBeDisabled();
+    await expect(dialog.locator('.desktop-tx-merge__time')).toHaveCount(6);
+    await expect(dialog.locator('.desktop-tx-merge__time').first()).toHaveText('1 秒');
+    await dialog.getByRole('button', { name: /^(试听|Listen)$/ }).first().click();
+    const audibleWindow = await app.browserWindow(page);
+    await expect.poll(() => audibleWindow.evaluate(w => (w as unknown as { webContents: { isCurrentlyAudible(): boolean } }).webContents.isCurrentlyAudible()), { timeout: 3000, intervals: [50] }).toBe(true);
+    await dialog.getByRole('checkbox').last().check();
+    await expect(dialog.getByRole('button', { name: /^(合并|Merge)$/ })).toBeEnabled();
+    const joined = await finish1b4(page, session, layerId);
+    const audioCard = page.locator(`[data-layer-id="${pair.audioLayerId}"] .timeline-annotation[data-unit-id="${joined.id}"]`);
+    const listButton = audioCard.getByRole('button', { name: /^(播放清单|Playlist)$/ });
+    await expect(listButton).toBeVisible();
+    const audio = audioCard.locator('audio');
+    await listButton.click();
+    const menu = page.getByRole('menu').filter({ has: page.getByText('第 1 条，还剩 4 条', { exact: true }) });
+    await expect(menu).toBeVisible();
+    const buttonBox = await listButton.boundingBox(), menuBox = await menu.boundingBox();
+    if (!buttonBox || !menuBox) throw new Error('playlist geometry missing');
+    expect(menuBox.x).toBeGreaterThanOrEqual(buttonBox.x + buttonBox.width);
+    await menu.getByRole('menuitem', { name: '第 3 条', exact: true }).click();
+    await expect.poll(() => audio.evaluate(el => (el as HTMLAudioElement).paused)).toBe(true);
+    await audioCard.getByRole('button', { name: /^(播放录音翻译|Play recorded translation)$/ }).click();
+    await expect.poll(() => audio.evaluate(el => (el as HTMLAudioElement).paused)).toBe(false);
+    await audioCard.getByRole('button', { name: /^(删除录音翻译|Delete recorded translation)$/ }).click();
+    await listButton.click();
+    await expect(page.getByText('第 3 条，还剩 1 条', { exact: true })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: /^第 \d 条$/ })).toHaveCount(4);
+    await page.getByRole('menuitem', { name: '第 4 条', exact: true }).click();
+    await audioCard.getByRole('button', { name: /^(删除录音翻译|Delete recorded translation)$/ }).click();
+    await listButton.click();
+    await expect(page.getByText('第 3 条，还剩 0 条', { exact: true })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: /^第 \d 条$/ })).toHaveCount(3);
+    await page.screenshot({ path: test.info().outputPath('1b4-playlist.png') });
+  });
 });
