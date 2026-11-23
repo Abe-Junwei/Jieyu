@@ -264,10 +264,11 @@ describe('DesktopProjectReadPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: /原句/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Split' }));
     expect(await screen.findByRole('button', { name: '0.0–0.5 原句' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '0.5–1.0 原句' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^0\.5–1\.0$/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '0.0–0.5 原句' }));
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     expect(await screen.findByRole('button', { name: '0.0–1.0 原句' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '0.5–1.0 原句' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^0\.5–1\.0$/ })).toBeNull();
     reopenDesktopSession(session.sessionId);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
       startMs: 0,
