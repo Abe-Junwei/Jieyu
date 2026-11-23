@@ -7,7 +7,9 @@ type Handler = (...args: unknown[]) => void;
 
 function makeWs() {
   const handlers = new Map<string, Handler[]>();
+  const options = { minPxPerSec: 1 };
   const ws = {
+    options,
     on: vi.fn((event: string, cb: Handler) => {
       const list = handlers.get(event) ?? [];
       list.push(cb);
@@ -24,7 +26,9 @@ function makeWs() {
     setTime: vi.fn(),
     play: vi.fn(() => Promise.resolve()),
     pause: vi.fn(),
-    zoom: vi.fn(),
+    zoom: vi.fn((value: number) => {
+      options.minPxPerSec = value;
+    }),
     getScroll: vi.fn(() => 0),
     getWrapper: vi.fn(() => document.createElement('div')),
     setOptions: vi.fn(),
@@ -192,4 +196,21 @@ describe('useWaveSurfer display-mode rebuild (#506)', () => {
       host.remove();
     },
   );
+  it('preserves external zoom during deferred layout repair', async () => {
+    const { result } = renderHook(() => useWaveSurfer({ mediaUrl: 'blob:zoom-repair' }));
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    act(() => {
+      result.current.waveformRef.current = host;
+    });
+    await flushFrames();
+    const ws = instances[instances.length - 1]!;
+    Object.assign(ws, { getDecodedData: () => ({}) });
+    act(() => {
+      ws.emit('ready');
+      ws.zoom(300);
+    });
+    await flushFrames();
+    expect(ws.zoom).toHaveBeenLastCalledWith(300);
+  });
 });

@@ -848,6 +848,9 @@ function unitSplit(input: Record<string, unknown>): {
   rawInput?: string;
 } {
   knownKeys(input, ['operationId', 'unitId', 'time', 'textLayerId', 'cutIndex', 'rawInput']);
+  if (input.rawInput !== undefined && typeof input.rawInput !== 'string') {
+    throw new Error('desktop call rawInput must be a string');
+  }
   return {
     unitId: requiredString(input.unitId, 'unitId'),
     time: requiredNumber(input.time, 'time'),
@@ -858,9 +861,7 @@ function unitSplit(input: Record<string, unknown>): {
     ...(input.cutIndex === undefined
       ? {}
       : { cutIndex: requiredNumber(input.cutIndex, 'cutIndex') }),
-    ...(input.rawInput === undefined
-      ? {}
-      : { rawInput: requiredString(input.rawInput, 'rawInput') }),
+    ...(input.rawInput === undefined ? {} : { rawInput: input.rawInput }),
   };
 }
 

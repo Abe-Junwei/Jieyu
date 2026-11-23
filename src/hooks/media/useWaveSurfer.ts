@@ -318,13 +318,8 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       });
 
       // The spectrogram plugin renders its wrapper into the dedicated spectrogram container
-      // (outside wavesurfer's scroll container), so synchronise scroll via CSS transform.
-      //
-      // The plugin also sets `width:100%; overflow:hidden` on its wrapper via the
-      // fillParent path.  "100%" resolves to the viewport-sized spectrogram container,
-      // which clips absolute-positioned canvases that extend beyond the viewport.
-      // Override to `overflow:visible` so canvases are only clipped by the outer
-      // spectrogramContainer and translateX works correctly.
+      // (outside wavesurfer's scroll container), so scroll is a translate of a box as wide
+      // as the wave. The outer spectrogram container clips that box to the viewport.
       if (disposed) {
         ws.destroy();
         return;
@@ -334,20 +329,29 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
         // v8 has no public wrapper accessor; the plugin appends it to our container during create().
         const specWrapper = liveSpectrogram.lastElementChild;
         if (specWrapper instanceof HTMLElement) {
-          specWrapper.style.overflow = 'visible';
           const syncScroll = () => {
             if (disposed) return;
+            // The plugin sizes this box to the viewport (`width:100%`). A transform on that
+            // box clips the wider canvases and turns the box into its own scroller, so the
+            // timeline wheel never reaches the waveform. Stretch it to the wave and let the
+            // outer container clip.
+            const full = ws.getWrapper()?.offsetWidth ?? 0;
+            if (full > 0) specWrapper.style.width = `${full}px`;
+            specWrapper.style.overflowX = 'hidden';
+            specWrapper.style.overflowY = 'hidden';
             specWrapper.style.transform = `translateX(-${ws.getScroll()}px)`;
           };
           ws.on('scroll', syncScroll);
-          // Also sync after zoom / redraw so the spectrogram doesn't lag behind
+          ws.on('zoom', syncScroll);
           ws.on('redraw', () => requestAnimationFrame(syncScroll));
+          syncScroll();
         }
       }
 
       const kickLayoutZoom = () => {
         if (disposed || instanceRef.current !== ws) return;
-        const z = cbRef.current.zoomLevel ?? 1;
+        // Preserve zoom applied by callers while the delayed layout repair was pending.
+        const z = cbRef.current.zoomLevel ?? ws.options.minPxPerSec;
         try {
           if (ws.getDecodedData()) ws.zoom(z);
         } catch {
@@ -1037,7 +1041,9 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     if (!ws) return;
     const dur = ws.getDuration() || 0;
     if (dur <= 0) return;
-    ws.setTime(clampTimeToMediaDuration(time, dur));
+    const next = clampTimeToMediaDuration(time, dur);
+    commitPlaybackVisualRef.current?.(next, true);
+    ws.setTime(next);
   }, []);
 
   // 缩放级别变化时动态 zoom | Dynamically zoom waveform when zoom level changes

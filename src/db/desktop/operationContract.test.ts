@@ -11,6 +11,13 @@ const contractSource = readFileSync(
 const clientSource = readFileSync(fileURLToPath(new URL('./client.ts', import.meta.url)), 'utf8');
 
 describe('desktop operation contract', () => {
+  it('allows empty split text and preserves whitespace', () => {
+    const check = desktopOperations['units.split'].check;
+    expect(check({ unitId: 'u', time: 500, rawInput: '' }).rawInput).toBe('');
+    expect(check({ unitId: 'u', time: 500, rawInput: ' a ' }).rawInput).toBe(' a ');
+    expect(() => check({ unitId: 'u', time: 500, rawInput: 0 })).toThrow();
+  });
+
   it('stays free of main-process modules, and the client imports only its type', () => {
     const imports = contractSource.split('\n').filter((line) => line.startsWith('import '));
     expect(imports.length).toBeGreaterThan(0);

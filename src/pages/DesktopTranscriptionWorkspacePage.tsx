@@ -191,11 +191,8 @@ function DesktopTranscriptionWorkspace() {
   });
   openWaveRegionMenu.current = (unitId, x, y) => {
     if (playback.isPlaying) playback.togglePlayback();
-    const wave = playback.waveformRef.current;
-    const zoom = playback.zoomPxPerSec;
-    const time =
-      wave && zoom > 0 ? (x - wave.getBoundingClientRect().left + playback.scrollLeftPx) / zoom : 0;
-    setWaveMenu({ x, y, time, unitId });
+    const time = playback.timeAtClientX(x);
+    if (time !== null) setWaveMenu({ x, y, time, unitId });
   };
   selection.seekToRef.current = playback.seekTo;
   const selectedUnit = units.find((unit) => unit.id === selection.selectedUnitId) ?? null;
@@ -464,6 +461,23 @@ function DesktopTranscriptionWorkspace() {
                   </div>
                   <div
                     ref={waveHostRef}
+                    onPointerMoveCapture={(event) => {
+                      const dock = event.currentTarget.querySelector('.desktop-tx-zoom-dock');
+                      if (!dock) return;
+                      const rect = dock.getBoundingClientRect();
+                      dock.toggleAttribute(
+                        'data-hovered',
+                        event.clientX >= rect.left &&
+                          event.clientX <= rect.right &&
+                          event.clientY >= rect.top &&
+                          event.clientY <= rect.bottom,
+                      );
+                    }}
+                    onPointerLeave={(event) => {
+                      event.currentTarget
+                        .querySelector('.desktop-tx-zoom-dock')
+                        ?.removeAttribute('data-hovered');
+                    }}
                     className={`desktop-tx-wave-host desktop-tx-wave-host-${playback.waveformDisplayMode}`}
                     style={
                       {
@@ -477,23 +491,22 @@ function DesktopTranscriptionWorkspace() {
                       className="desktop-tx-wave-stage"
                       onPointerDown={(event) => {
                         const wave = playback.waveformRef.current;
-                        const zoom = playback.zoomPxPerSec;
                         if (
+                          !playback.isReady ||
                           !wave ||
                           !(event.target instanceof Node) ||
                           !wave.contains(event.target)
                         )
                           return;
-                        const left = wave.getBoundingClientRect().left;
                         waveCreateRef.current?.(
                           event,
-                          (clientX) => ((clientX - left + playback.scrollLeftPx) / zoom) * 1000,
+                          (clientX) => (playback.timeAtClientX(clientX) ?? NaN) * 1000,
                         );
                       }}
                       onContextMenu={(event) => {
                         const wave = playback.waveformRef.current;
-                        const zoom = playback.zoomPxPerSec;
                         if (
+                          !playback.isReady ||
                           !wave ||
                           !(event.target instanceof Node) ||
                           !event.currentTarget.contains(event.target)
@@ -505,10 +518,9 @@ function DesktopTranscriptionWorkspace() {
                         )
                           return;
                         event.preventDefault();
-                        if (!(zoom > 0)) return;
+                        const time = playback.timeAtClientX(event.clientX);
+                        if (time === null) return;
                         if (playback.isPlaying) playback.togglePlayback();
-                        const left = wave.getBoundingClientRect().left;
-                        const time = (event.clientX - left + playback.scrollLeftPx) / zoom;
                         setWaveMenu({
                           x: event.clientX,
                           y: event.clientY,
@@ -551,29 +563,28 @@ function DesktopTranscriptionWorkspace() {
                           }
                         />
                       ) : null}
-                      {playback.waveformDisplayMode !== 'spectrogram' &&
-                      playback.fitPxPerSec > 0 ? (
-                        <div className="desktop-tx-zoom-dock">
-                          <DesktopZoomControls
-                            locale={locale}
-                            zoomPercent={playback.zoomPercent}
-                            fitPxPerSec={playback.fitPxPerSec}
-                            maxZoomPercent={playback.maxZoomPercent}
-                            canFitSelection={selectedUnit !== null}
-                            onFitAll={() => playback.zoomToPercent(100, 0.5, 'fit-all')}
-                            onFitSelection={() => {
-                              if (selectedUnit) {
-                                playback.zoomToUnit(selectedUnit.startTime, selectedUnit.endTime);
-                              }
-                            }}
-                            onZoomPercent={(percent) =>
-                              playback.zoomToPercent(percent, 0.5, 'custom')
-                            }
-                          />
-                        </div>
-                      ) : null}
                     </div>
                     <div ref={playback.spectrogramRef} className="desktop-tx-spectrogram" />
+                    {playback.fitPxPerSec > 0 ? (
+                      <div className="desktop-tx-zoom-dock">
+                        <DesktopZoomControls
+                          locale={locale}
+                          zoomPercent={playback.zoomPercent}
+                          fitPxPerSec={playback.fitPxPerSec}
+                          maxZoomPercent={playback.maxZoomPercent}
+                          canFitSelection={selectedUnit !== null}
+                          onFitAll={() => playback.zoomToPercent(100, 0.5, 'fit-all')}
+                          onFitSelection={() => {
+                            if (selectedUnit) {
+                              playback.zoomToUnit(selectedUnit.startTime, selectedUnit.endTime);
+                            }
+                          }}
+                          onZoomPercent={(percent) =>
+                            playback.zoomToPercent(percent, 0.5, 'custom')
+                          }
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 {playback.duration > 0 ? (

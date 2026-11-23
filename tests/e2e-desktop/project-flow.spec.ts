@@ -833,6 +833,15 @@ test('waveform create writes to the selected transcription after a linked card h
         layerId: clip.layerId,
       })).length,
     }), { timeout: 5000 }).toEqual({ selected: 1, old: oldCount });
+    const [created] = await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId: selected.id });
+    if (!created) throw new Error('created unit missing');
+    await expect(wave.locator(`[part~="region"][part~="${created.id}"]`)).toBeVisible();
+    const nativeBox = await wave.locator(`[part~="region"][part~="${created.id}"]`).boundingBox();
+    const cardBox = await page.locator(`[data-layer-id="${selected.id}"] .timeline-annotation[data-unit-id="${created.id}"]`).boundingBox();
+    expect(nativeBox).not.toBeNull();
+    expect(cardBox).not.toBeNull();
+    expect(Math.abs(nativeBox!.x - cardBox!.x)).toBeLessThan(3);
+    expect(Math.abs(nativeBox!.width - cardBox!.width)).toBeLessThan(3);
   } finally {
     await app.close();
     rmSync(copy, { recursive: true, force: true });
@@ -2408,3 +2417,259 @@ function manuscriptGeneration(folder: string): number {
     db.close();
   }
 }
+
+for (const entry of ['wave', 'text', 'wave-empty', 'text-empty', 'text-caret'] as const) {
+  test(`split UI ${entry} uses the clicked interior time`, async () => {
+    if (!flowReady(folder)) throw new Error('desktop flow folder missing');
+    const copy = mkdtempSync(join(tmpdir(), 'jieyu-split-ui-'));
+    cpSync(folder, copy, { recursive: true });
+    rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+    const app = await launch(`split-ui-${entry}`, undefined, { JIEYU_DESKTOP_HIDE_WINDOW: '0' });
+    try {
+      await stubFolderDialog(app, copy);
+      const page = await app.firstWindow();
+      await rememberChosenSession(app);
+      await page.getByRole('button', { name: openFolder }).click();
+      await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+      const session = await chosenSessionId(app);
+      const clip = await clipLayer(page, session);
+      const before = await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId: clip.layerId });
+      const target = before.find((unit) => unit.text === 'two');
+      if (!target) throw new Error('two missing');
+      if (entry.endsWith('empty')) await desktopCall(page, session, 'units.updateText', { unitId: target.id, text: '' });
+      await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+      await waitForAudio(page);
+      const wave = page.locator(`[data-wave-unit="${target.id}"]`).first();
+      await expect(wave).toBeVisible();
+      const box = await wave.boundingBox();
+      if (!box) throw new Error('wave box missing');
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+      await expect.poll(() => page.locator('audio').evaluate(el => (el as HTMLAudioElement).currentTime)).toBeCloseTo(0.4, 2);
+      const selectedBox = await wave.boundingBox();
+      if (!selectedBox) throw new Error('selected wave missing');
+      await page.mouse.click(selectedBox.x + selectedBox.width / 2, selectedBox.y + selectedBox.height / 2);
+      await expect.poll(() => page.locator('audio').evaluate(el => (el as HTMLAudioElement).currentTime)).toBeGreaterThan(0.5);
+      if (entry.startsWith('wave')) {
+        const nextBox = await wave.boundingBox();
+        if (!nextBox) throw new Error('selected wave box missing');
+        await page.mouse.click(nextBox.x + nextBox.width / 2, nextBox.y + nextBox.height / 2, { button: 'right' });
+      } else {
+        const card = page.locator(`.timeline-annotation[data-unit-id="${target.id}"]`).first();
+        if (entry === 'text-caret') {
+          await card.click();
+          const editor = card.locator('.timeline-annotation-input');
+          await editor.press('Home');
+          await editor.press('ArrowRight');
+          await expect.poll(() => editor.evaluate(el => (el as HTMLInputElement).selectionStart)).toBe(1);
+        }
+        await card.click({ button: 'right', position: { x: 5, y: 5 } });
+      }
+      await page.getByRole('menuitem', { name: /^(Split|拆分|拆分句段)$/ }).click();
+      await expect.poll(() => desktopCall(page, session, 'units.get', { id: target.id })).toBeNull();
+      const after = await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId: clip.layerId });
+      const halves = after.filter(unit => unit.startMs !== null && unit.endMs !== null && unit.startMs >= 400 && unit.endMs <= 800)
+        .sort((a, b) => (a.startMs ?? 0) - (b.startMs ?? 0));
+      expect(halves).toHaveLength(2);
+      const [left, right] = halves;
+      if (!left || !right) throw new Error('split halves missing');
+      expect(left.startMs).toBe(400);
+      expect(left.endMs).toBe(right.startMs);
+      expect(right.endMs).toBe(800);
+      expect(halves.map(unit => unit.text)).toEqual(entry.endsWith('empty') ? ['', ''] : entry === 'text-caret' ? ['t', 'wo'] : ['two', '']);
+    } finally { await app.close(); }
+  });
+}
+
+test('drag create keeps native waveform regions aligned with text cards', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-create-align-'));
+  cpSync(process.env.JIEYU_CREATE_ALIGN_SOURCE ?? folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  const app = await launch('create-align', undefined, { JIEYU_DESKTOP_HIDE_WINDOW: '0' });
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('link', { name: /^(Transcription|转写)$/ })).toBeVisible();
+    const session = await chosenSessionId(app);
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await waitForAudio(page);
+    await expect(page.getByRole('button', { name: /^(Play|播放)$/ })).toBeEnabled();
+    const layerId = await page.locator('.desktop-tx-lane__track[data-layer-id]').first().getAttribute('data-layer-id');
+    const duration = await page.locator('audio').evaluate(el => (el as HTMLAudioElement).duration);
+    const wave = page.getByTestId('desktop-waveform');
+    const initialBox = await wave.boundingBox();
+    if (!initialBox) throw new Error('wave missing before focus');
+    await page.mouse.click(initialBox.x + initialBox.width * 0.45, initialBox.y + initialBox.height / 2);
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const largestGap = (units: ListedUnit[], lower: number, upper: number) => {
+      let cursor = lower;
+      const gaps: Array<readonly [number, number]> = [];
+      for (const unit of units.filter(u => u.startMs !== null && u.endMs !== null).sort((a,b) => a.startMs! - b.startMs!)) {
+        const left = unit.startMs! / 1000, right = unit.endMs! / 1000;
+        if (right <= cursor || left >= upper) continue;
+        if (left > cursor) gaps.push([cursor, left]);
+        cursor = Math.max(cursor, right);
+      }
+      if (cursor < upper) gaps.push([cursor, upper]);
+      const gap = gaps.sort((a,b) => (b[1]-b[0]) - (a[1]-a[0]))[0];
+      if (!gap) throw new Error('no visible gap');
+      return gap;
+    };
+    for (const [from, to] of [[0.5, 0.65], [0.75, 0.9], [0.3, 0.4], [0.2, 0.25]] as const) {
+      if (from === 0.3) {
+        await page.locator('.desktop-tx-zoom-dock').hover({ force: true });
+        const slider = page.locator('.desktop-tx-zoom-slider');
+        const sliderBox = await slider.boundingBox();
+        if (!sliderBox) throw new Error('slider missing');
+        await slider.click({ position: { x: sliderBox.width * 0.6, y: sliderBox.height / 2 } });
+        const host = await wave.boundingBox();
+        if (!host) throw new Error('wave missing before scroll');
+        await page.mouse.move(host.x + host.width / 2, host.y + host.height / 2);
+        await page.mouse.wheel(-2000, 0);
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      }
+      let start = duration * from, end = duration * to;
+      const box = await wave.boundingBox();
+      if (!box) throw new Error('wave missing');
+      const trackBox = await page.locator('.desktop-tx-lane__track[data-layer-id]').first().boundingBox();
+      if (!trackBox) throw new Error('track missing');
+      const listed = () => desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId });
+      const before = await listed();
+      const priorIds = new Set(before.map(u => u.id));
+      if (from === 0.3) {
+        const ratio = trackBox.width / duration;
+        const visibleStart = Math.max(0, (box.x - trackBox.x) / ratio);
+        const visibleEnd = Math.min(duration, (box.x + box.width - trackBox.x) / ratio);
+        const gap = largestGap(before, visibleStart, visibleEnd);
+        start = gap[0] + (gap[1]-gap[0]) * 0.2;
+        end = gap[0] + (gap[1]-gap[0]) * 0.8;
+      }
+      if (from === 0.2) {
+        // Reproduce a native scroll before React receives its next animation-frame snapshot.
+        const gap = largestGap(before, 0, duration);
+        const expected = await wave.locator('[part="scroll"]').evaluate((scroll, { duration, gap }) => {
+          const wrapper = scroll.querySelector('[part="wrapper"]') as HTMLElement;
+          const host = scroll.getRootNode() as ShadowRoot;
+          const target = host.host as HTMLElement;
+          const rect = target.getBoundingClientRect();
+          const scale = wrapper.scrollWidth / duration;
+          scroll.scrollLeft = ((gap[0] + gap[1]) / 2) * scale - rect.width / 2;
+          scroll.dispatchEvent(new Event('scroll'));
+          const lower = Math.max(gap[0], (scroll.scrollLeft + rect.width * 0.1) / scale);
+          const upper = Math.min(gap[1], (scroll.scrollLeft + rect.width * 0.9) / scale);
+          const x1 = rect.left + (lower + (upper - lower) * 0.2) * scale - scroll.scrollLeft;
+          const x2 = rect.left + (lower + (upper - lower) * 0.8) * scale - scroll.scrollLeft;
+          const emit = (type: string, x: number, element: EventTarget) => element.dispatchEvent(new PointerEvent(type, {
+            bubbles: true, composed: true, cancelable: true, button: 0, buttons: type === 'pointerup' ? 0 : 1,
+            pointerId: 1, pointerType: 'mouse', clientX: x, clientY: rect.top + rect.height / 2, altKey: true,
+          }));
+          const expected = { start: (scroll.scrollLeft + x1 - rect.left) / scale, end: (scroll.scrollLeft + x2 - rect.left) / scale };
+          emit('pointerdown', x1, target);
+          emit('pointermove', x2, window);
+          emit('pointerup', x2, window);
+          return expected;
+        }, { duration, gap });
+        start = expected.start;
+        end = expected.end;
+      } else {
+      await page.mouse.move(trackBox.x + trackBox.width * start / duration, box.y + box.height / 2);
+      await page.keyboard.down('Alt');
+      await page.mouse.down();
+      await page.mouse.move(trackBox.x + trackBox.width * end / duration, box.y + box.height / 2, { steps: 10 });
+      await page.mouse.up();
+      await page.keyboard.up('Alt');
+      }
+      await expect.poll(async () => (await listed()).filter(u => !priorIds.has(u.id)).length).toBe(1);
+      const made = (await listed()).find(u => !priorIds.has(u.id))!;
+      const toleranceMs = Math.max(30, 2000 * duration / trackBox.width);
+      expect(Math.abs((made.startMs ?? 0) - start * 1000)).toBeLessThan(toleranceMs);
+      expect(Math.abs((made.endMs ?? 0) - end * 1000)).toBeLessThan(toleranceMs);
+      const native = wave.locator(`[part~="region"][part~="${made.id}"]`);
+      await expect(native).toBeVisible();
+      const card = page.locator(`.timeline-annotation[data-unit-id="${made.id}"]`).first();
+      await expect(card).toBeVisible();
+      await expect.poll(async () => {
+        const a = await native.boundingBox();
+        const b = await card.boundingBox();
+        return a && b ? Math.max(Math.abs(a.x - b.x), Math.abs(a.width - b.width)) : 999;
+      }).toBeLessThan(3);
+    }
+  } finally {
+    await app.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
+
+test('switching to spectrogram or split keeps zoom and wheel scrolling', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder missing');
+  const app = await launch('mode-scroll', undefined, { JIEYU_DESKTOP_HIDE_WINDOW: '0' });
+  try {
+    await stubFolderDialog(app, folder);
+    const page = await app.firstWindow();
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    await page.getByRole('button', { name: openFolder }).click();
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await waitForAudio(page);
+    await expect(page.getByRole('button', { name: /^(Play|播放)$/ })).toBeEnabled();
+    const wave = page.getByTestId('desktop-waveform');
+    await page.locator('.desktop-tx-zoom-dock').hover({ force: true });
+    const slider = page.locator('.desktop-tx-zoom-slider');
+    const sliderBox = await slider.boundingBox();
+    if (!sliderBox) throw new Error('slider missing');
+    await slider.click({ position: { x: sliderBox.width * 0.95, y: sliderBox.height / 2 } });
+    const width = () => wave.locator('[part="wrapper"]').evaluate(el => el.scrollWidth);
+    await expect.poll(width).toBeGreaterThan(2000);
+    const zoomedWidth = await width();
+    for (const mode of [/^(语谱|Spectrogram)$/, /^(分屏|Split)$/]) {
+      await page.getByTestId('desktop-view').locator('summary').click();
+      await page.getByRole('menuitemradio', { name: mode }).click();
+      await expect(page.getByRole('button', { name: /^(Play|播放)$/ })).toBeEnabled();
+      await expect.poll(width).toBeGreaterThan(zoomedWidth - 10);
+      const scroll = wave.locator('[part="scroll"]');
+      const before = await scroll.evaluate(el => el.scrollLeft);
+      const spec = page.locator('.desktop-tx-spectrogram');
+      const box = await spec.boundingBox();
+      if (!box) throw new Error('spectrogram missing');
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.wheel(before > 50 ? -200 : 200, 0);
+      await expect.poll(() => scroll.evaluate(el => el.scrollLeft)).not.toBe(before);
+      await page.getByTestId('desktop-view').locator('summary').click();
+      await page.getByRole('menuitemradio', { name: /^(波形|Waveform)$/ }).click();
+      await expect(page.getByRole('button', { name: /^(Play|播放)$/ })).toBeEnabled();
+    }
+  } finally { await app.close(); }
+});
+
+test('zoom reveal area passes clicks to the waveform segment beneath it', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder missing');
+  const app = await launch('zoom-hit-area', undefined, { JIEYU_DESKTOP_HIDE_WINDOW: '0' });
+  try {
+    await stubFolderDialog(app, folder);
+    const page = await app.firstWindow();
+    await page.getByRole('button', { name: openFolder }).click();
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await waitForAudio(page);
+    await expect(page.getByRole('button', { name: /^(Play|播放)$/ })).toBeEnabled();
+    const wave = page.getByTestId('desktop-waveform');
+    const box = await wave.boundingBox();
+    if (!box) throw new Error('wave missing');
+    const x = box.x + box.width * 0.35, y = box.y + box.height - 60;
+    await page.mouse.move(x, y);
+    await expect.poll(() => page.locator('.desktop-tx-zoom-dock').evaluate(el => getComputedStyle(el).opacity)).toBe('1');
+    await page.mouse.click(x, y);
+    const card = page.locator('.timeline-annotation', { hasText: 'two' });
+    await expect(card).toHaveClass(/timeline-annotation-selected/, { timeout: 3000 });
+    await expect.poll(() => page.locator('audio').evaluate(el => (el as HTMLAudioElement).currentTime)).toBeCloseTo(0.4, 2);
+    const slider = page.locator('.desktop-tx-zoom-slider');
+    const sliderBox = await slider.boundingBox();
+    if (!sliderBox) throw new Error('zoom slider missing');
+    await page.mouse.move(sliderBox.x + sliderBox.width * 0.6, sliderBox.y + sliderBox.height / 2);
+    await slider.click({ position: { x: sliderBox.width * 0.6, y: sliderBox.height / 2 } });
+    await expect(page.locator('.desktop-tx-zoom-pct')).not.toHaveText('100%');
+    await page.getByRole('button', { name: /^(适应全部|Fit all)$/ }).click();
+    await expect(page.locator('.desktop-tx-zoom-pct')).toHaveText('100%');
+  } finally { await app.close(); }
+});
