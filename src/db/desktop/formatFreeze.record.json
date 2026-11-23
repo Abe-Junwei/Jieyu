@@ -1,7 +1,7 @@
 {
-  "userVersion": 34,
+  "userVersion": 35,
   "applicationId": 1247367242,
-  "schemaSha256": "7f4dacedb4b898537c01c50caa8061042be48ada824805cc8bd69bfd03811093",
+  "schemaSha256": "dd6aa57f7f98f57601ec70159a130abafb8519c0b0e0a55533000fb8b2003b89",
   "journalMode": "delete",
   "migrator": false,
   "rejection": "project.sqlite is not a Jieyu project library",
@@ -28,6 +28,7 @@
     "morphemes",
     "lexemes",
     "attachment_files",
+    "unit_text_audios",
     "attachment_links",
     "token_lexeme_links",
     "notes",

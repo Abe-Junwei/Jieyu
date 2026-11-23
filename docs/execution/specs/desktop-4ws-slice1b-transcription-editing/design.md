@@ -3,7 +3,7 @@ title: desktop-4ws-slice1b-transcription-editing design
 doc_type: execution-spec-design
 status: active
 owner: repo
-last_reviewed: 2026-11-22
+last_reviewed: 2026-11-23
 source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 depends_on:
   - ./requirements.md
@@ -40,6 +40,7 @@ depends_on:
 - 用户修正（2026-11-22）：波形拖建只写当前选中的时间对齐转写层，不再受旧文本卡片焦点覆盖；文本行拖建仍以指针所在行为目标。切层查询未完成时保留旧画面但阻止波形建段并提示稍候，明确目标层已不存在时拒绝写入，不回退写入第一层。Electron 临时项目复现了旧文本卡片焦点导致新段写进原宿主层，并以选中层及原宿主层的数据库回读锁定修复。
 - 用户决定（2026-11-23，#563）：拆分把句段上的自定义字段复制到左右两个新段，同一份 JSON，引用仍指向原对象。[ADR-0097](../../../adr/0097-desktop-write-entry-initialization-and-reference-identity.md) 要求每个新段通过必填校验，缺了整次拆分回滚，所以不能只改挂到左段。跨切点子段自己那层的正文草稿整行跟到它的新左段，不按发起层消费。撤销后把该层排在原 `sort_order` 之后的句段序号减一，不留空号。
 - 用户决定（2026-11-23）：新建层和每行的上移、下移、改名、删除不放在侧栏列表。它们在时间轴层头右键菜单的「新建层」和「层」里。精稿 `40:1407` 仍把新建层画在列表末两行、把三点菜单画在每行右侧；落地以这个决定为准。
+- 用户决定（2026-11-23，#564）：合并按 tasks.md 的 1b-4。新身份；下级只改挂，仅约束冲突才拒绝。各层正文按时间拼接，一个 `mergeSeparator`。两侧正文都空时不写内容，但仍有录音或行级备注锚点则保留载体行；空正文保存和撤销分析也不删有录音的行。分析不能留下时，先分别捕获活动图再写成复核快照，然后才清投影。自定义字段冲突整次拒绝。确认框固定两段和录音条目，事务内核对完整基准，不单看文稿 generation。一行最多 5 条录音，表为 `unit_text_audios`，归属 `unit_text_id`，外键 `ON DELETE CASCADE`。同一个文件只留较早那条。删条后 `position` 分两步重排。会话撤销账本仍引用的文件不得物理清理；扫描发生在会话结束、打开项目和清空重做栈之后。只读页去掉合并。34 版项目打不开，不迁移。升 `user_version` 35 的 ADR 与 schema 同一次写完，上述规则写进该 ADR。多段合并与无时间合并不在本片。
 - **数据适配**：当前桌面格式为 v31，`units.layer_id` 是区间所属结构层，`unit_texts` 和 `unit_text_drafts` 目前均按 unit 单键；v32 增加 `unit_texts.layer_id`、显式 `layer_links` 及复合文本草稿／回执身份。按 ADR-0086 严格拒绝旧格式、不迁移；只在合成项目上验证。
 - 动作：`onSelectUnit`、`onSeek`、`onRequestEdge`、`onRequestSharedBoundary`、`onRequestSplit`、`onRequestMerge`、层与分轨操作、口译录音与候选、点层增删改；展示组件不直接 `desktopCall`。
 - 拒绝：在 `useDesktopProjectReadController` 上继续加；一个大 controller 承担全部编辑（会过 300 行，按职责拆分为媒体、选择、层与分轨、口译录音、边界拆合与自动分段）。

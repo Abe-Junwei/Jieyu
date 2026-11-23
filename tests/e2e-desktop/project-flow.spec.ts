@@ -1977,7 +1977,7 @@ function oralAttachmentCounts(projectFolder: string): { clips: number; files: nu
   const db = new Database(join(projectFolder, 'project.sqlite'), { readonly: true });
   try {
     const clips = db
-      .prepare('SELECT COUNT(*) AS n FROM unit_texts WHERE audio_file_id IS NOT NULL')
+      .prepare('SELECT COUNT(*) AS n FROM unit_text_audios')
       .get() as { n: number };
     const files = db.prepare('SELECT COUNT(*) AS n FROM attachment_files').get() as { n: number };
     return { clips: clips.n, files: files.n };
@@ -2712,6 +2712,52 @@ test('clearing inline text saves an empty body without blocking a segment change
     expect((await desktopCall<ListedUnit>(page, nextSession, 'units.get', { id: target.id })).text).toBe('');
   } finally {
     await app?.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
+
+test('merge unit keeps both texts and command m does not minimize', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-merge-unit-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  const app = await launch('merge-unit');
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const clip = await clipLayer(page, sessionId);
+    const left = await desktopCall<{ id: string }>(page, sessionId, 'units.create', {
+      layerId: clip.layerId,
+      startMs: 20000,
+      endMs: 21000,
+      text: '甲',
+      operationId: 'e2e-merge-left',
+    });
+    const right = await desktopCall<{ id: string }>(page, sessionId, 'units.create', {
+      layerId: clip.layerId,
+      startMs: 21000,
+      endMs: 22000,
+      text: '乙',
+      operationId: 'e2e-merge-right',
+    });
+    const merged = await desktopCall<{ id: string; text: string }>(page, sessionId, 'units.merge', {
+      keepId: left.id,
+      removeId: right.id,
+      separator: ' ',
+      operationId: 'e2e-merge',
+    });
+    expect(merged.text).toBe('甲 乙');
+    await page.keyboard.press('Meta+m');
+    const win = await app.browserWindow(page);
+    expect(await win.evaluate((browserWindow) => browserWindow.isMinimized())).toBe(false);
+  } finally {
+    await app.close();
     rmSync(copy, { recursive: true, force: true });
   }
 });

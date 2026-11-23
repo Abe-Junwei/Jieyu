@@ -55,6 +55,7 @@ interface Scope {
   morphemeIds: Set<string>;
   noteIds: Set<string>;
   batchIds: Set<string>;
+  textIds: Set<string>;
 }
 
 export function saveDesktopPackage(file: string, bytes: Uint8Array): { file: string } {
@@ -218,6 +219,7 @@ function filterManuscripts(
     tables.notes,
     (row) => row.manuscript_id != null && wanted.has(String(row.manuscript_id)),
   );
+  const textIds = idsWhere(tables.unit_texts, (row) => unitIds.has(String(row.unit_id)));
   const batchIds = idsWhere(tables.reception_batches, (row) => unitIds.has(String(row.unit_id)));
   const scope: Scope = {
     wanted,
@@ -228,6 +230,7 @@ function filterManuscripts(
     morphemeIds,
     noteIds,
     batchIds,
+    textIds,
   };
   const filtered: Record<string, Row[]> = {};
   for (const [name, rows] of Object.entries(tables)) {
@@ -249,6 +252,7 @@ function keepRow(name: string, row: Row, scope: Scope): boolean {
   if (name === 'unit_span_maps') {
     return scope.unitIds.has(String(row.old_id)) || scope.unitIds.has(String(row.new_id));
   }
+  if (name === 'unit_text_audios') return scope.textIds.has(String(row.unit_text_id));
   if ('manuscript_id' in row && row.manuscript_id != null) {
     return scope.wanted.has(String(row.manuscript_id));
   }

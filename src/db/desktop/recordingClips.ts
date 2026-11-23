@@ -8,6 +8,7 @@ import {
 import { createLayer } from './layers';
 import { provenanceSchema } from '../provenanceSchema';
 import { putUnitTextDraft, readUnitTextDraft } from './textSave';
+import { audiosOfText, insertTextAudio, repackTextAudios } from './unitTextAudios';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -34,6 +35,7 @@ export interface RecordingAttach {
 }
 
 export interface RecordingClipRef {
+  id: string;
   unitId: string;
   fileId: string;
 }
@@ -132,30 +134,35 @@ export function attachRecording(
       }
       const existing = db
         .prepare(
-          `SELECT id, audio_file_id FROM unit_texts
+          `SELECT id FROM unit_texts
            WHERE unit_id = ? AND layer_id = ? AND role = ?`,
         )
-        .get(input.unitId, layer.id, layer.content_type) as
-        { id: string; audio_file_id: string | null } | undefined;
+        .get(input.unitId, layer.id, layer.content_type) as { id: string } | undefined;
       const now = new Date().toISOString();
-      const previous = existing?.audio_file_id ?? null;
+      const textId = existing?.id ?? randomUUID();
       if (existing === undefined) {
         db.prepare(
-          `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, audio_file_id, updated_at)
-           VALUES (?, ?, ?, ?, '', ?, ?)`,
-        ).run(randomUUID(), input.unitId, layer.id, layer.content_type, stored.fileId, now);
-      } else {
-        db.prepare(`UPDATE unit_texts SET audio_file_id = ?, updated_at = ? WHERE id = ?`).run(
-          stored.fileId,
-          now,
-          existing.id,
-        );
+          `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at)
+           VALUES (?, ?, ?, ?, '', ?)`,
+        ).run(textId, input.unitId, layer.id, layer.content_type, now);
       }
-      if (previous !== null && previous !== stored.fileId)
-        queueUnreferencedAttachment(db, previous);
+      const previous = audiosOfText(db, textId)[0] ?? null;
+      if (previous !== null) {
+        db.prepare('DELETE FROM unit_text_audios WHERE id = ?').run(previous.id);
+      }
+      insertTextAudio(db, {
+        id: randomUUID(),
+        unit_text_id: textId,
+        file_id: stored.fileId,
+        position: 1,
+      });
+      if (previous !== null && previous.file_id !== stored.fileId) {
+        queueUnreferencedAttachment(db, previous.file_id);
+      }
       return {
         fileId: stored.fileId,
-        replacedFileId: previous !== null && previous !== stored.fileId ? previous : null,
+        replacedFileId:
+          previous !== null && previous.file_id !== stored.fileId ? previous.file_id : null,
       };
     })();
   } catch (error) {
@@ -166,28 +173,28 @@ export function attachRecording(
 
 export function detachRecording(
   db: SqliteDatabase,
-  input: { unitId: string; layerId: string },
+  input: { unitId: string; layerId: string; audioId?: string },
 ): { fileId: string } {
   return db.transaction(() => {
     const layer = audioLayer(db, input.layerId);
     const existing = db
       .prepare(
-        `SELECT id, body, audio_file_id FROM unit_texts
+        `SELECT id, body FROM unit_texts
          WHERE unit_id = ? AND layer_id = ? AND role = ?`,
       )
-      .get(input.unitId, layer.id, layer.content_type) as
-      { id: string; body: string; audio_file_id: string | null } | undefined;
-    if (existing?.audio_file_id == null) throw new Error('recording is missing');
-    if (existing.body === '') {
+      .get(input.unitId, layer.id, layer.content_type) as { id: string; body: string } | undefined;
+    const clips = existing === undefined ? [] : audiosOfText(db, existing.id);
+    const clip =
+      input.audioId === undefined ? clips[0] : clips.find((row) => row.id === input.audioId);
+    if (clip === undefined) throw new Error('recording is missing');
+    if (existing !== undefined && existing.body === '' && clips.length === 1) {
       db.prepare('DELETE FROM unit_texts WHERE id = ?').run(existing.id);
-    } else {
-      db.prepare(`UPDATE unit_texts SET audio_file_id = NULL, updated_at = ? WHERE id = ?`).run(
-        new Date().toISOString(),
-        existing.id,
-      );
+    } else if (existing !== undefined) {
+      db.prepare('DELETE FROM unit_text_audios WHERE id = ?').run(clip.id);
+      repackTextAudios(db, existing.id);
     }
-    queueUnreferencedAttachment(db, existing.audio_file_id);
-    return { fileId: existing.audio_file_id };
+    queueUnreferencedAttachment(db, clip.file_id);
+    return { fileId: clip.file_id };
   })();
 }
 
@@ -198,11 +205,15 @@ export function recordingFileId(
 ): string | null {
   const row = db
     .prepare(
-      `SELECT audio_file_id FROM unit_texts
-       WHERE unit_id = ? AND layer_id = ? AND audio_file_id IS NOT NULL`,
+      `SELECT unit_text_audios.file_id AS fileId
+       FROM unit_text_audios
+       JOIN unit_texts ON unit_texts.id = unit_text_audios.unit_text_id
+       WHERE unit_texts.unit_id = ? AND unit_texts.layer_id = ?
+       ORDER BY unit_text_audios.position
+       LIMIT 1`,
     )
-    .get(unitId, layerId) as { audio_file_id: string } | undefined;
-  return row?.audio_file_id ?? null;
+    .get(unitId, layerId) as { fileId: string } | undefined;
+  return row?.fileId ?? null;
 }
 
 /** Write the transcript only when the clip it heard is still the clip on the card. */
@@ -226,16 +237,31 @@ export function commitOralTranscript(
 export function readRecording(
   db: SqliteDatabase,
   folder: string,
-  input: { unitId: string; layerId: string },
+  input: { unitId: string; layerId: string; audioId?: string },
 ): { mimeType: string; bytes: Uint8Array } {
+  const fileId =
+    input.audioId === undefined
+      ? recordingFileId(db, input.unitId, input.layerId)
+      : clipFileId(db, input.unitId, input.layerId, input.audioId);
+  if (fileId === null) throw new Error('recording is missing');
+  return readAttachmentFile(db, folder, fileId);
+}
+
+function clipFileId(
+  db: SqliteDatabase,
+  unitId: string,
+  layerId: string,
+  audioId: string,
+): string | null {
   const row = db
     .prepare(
-      `SELECT audio_file_id FROM unit_texts
-       WHERE unit_id = ? AND layer_id = ? AND audio_file_id IS NOT NULL`,
+      `SELECT unit_text_audios.file_id AS fileId
+       FROM unit_text_audios
+       JOIN unit_texts ON unit_texts.id = unit_text_audios.unit_text_id
+       WHERE unit_text_audios.id = ? AND unit_texts.unit_id = ? AND unit_texts.layer_id = ?`,
     )
-    .get(input.unitId, input.layerId) as { audio_file_id: string } | undefined;
-  if (row === undefined) throw new Error('recording is missing');
-  return readAttachmentFile(db, folder, row.audio_file_id);
+    .get(audioId, unitId, layerId) as { fileId: string } | undefined;
+  return row?.fileId ?? null;
 }
 
 export interface OralTranscript {
@@ -320,12 +346,15 @@ export function oralProvenanceJson(engine: OralEngine): string {
 export function listRecordings(db: SqliteDatabase, layerId: string): RecordingClipRef[] {
   const rows = db
     .prepare(
-      `SELECT unit_id, audio_file_id FROM unit_texts
-       WHERE layer_id = ? AND audio_file_id IS NOT NULL
-       ORDER BY unit_id`,
+      `SELECT unit_text_audios.id AS id, unit_texts.unit_id AS unitId,
+              unit_text_audios.file_id AS fileId
+       FROM unit_text_audios
+       JOIN unit_texts ON unit_texts.id = unit_text_audios.unit_text_id
+       WHERE unit_texts.layer_id = ?
+       ORDER BY unit_texts.unit_id, unit_text_audios.position, unit_text_audios.id`,
     )
-    .all(layerId) as { unit_id: string; audio_file_id: string }[];
-  return rows.map((row) => ({ unitId: row.unit_id, fileId: row.audio_file_id }));
+    .all(layerId) as { id: string; unitId: string; fileId: string }[];
+  return rows;
 }
 
 function pairContent(kind: RecordingKind): 'transcription' | 'translation' {

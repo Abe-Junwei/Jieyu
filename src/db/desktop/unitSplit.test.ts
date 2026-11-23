@@ -2,7 +2,11 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { callDesktopSession } from './desktopCall';
+import { storeAttachmentFile } from './attachments';
+import { splitUnit, undoSplit } from './unitSplit';
+import { insertTextAudio } from './unitTextAudios';
 import { setFieldValue } from './customFields';
 import {
   closeDesktopSession,
@@ -452,6 +456,39 @@ function linkWord(sessionId: string): { unitId: string; tokenId: string; linkId:
   if (link === undefined) throw new Error('link missing');
   return { unitId, tokenId, linkId: link.id };
 }
+
+describe('unit split recordings', () => {
+  it('refuses undo after a new recording is attached', () => {
+    const session = open();
+    const { unitId } = seed(session.sessionId);
+    const db = requireDesktopSession(session.sessionId).db;
+    const split = splitUnit(db, { unitId, time: 1000 });
+    const textId = (
+      db.prepare('SELECT id FROM unit_texts WHERE unit_id = ?').get(split.left.id) as {
+        id: string;
+      }
+    ).id;
+    const clip = storeAttachmentFile(db, desktopSessionFolder(session.sessionId), {
+      kind: 'audio',
+      mimeType: 'audio/wav',
+      bytes: Buffer.from('new-take'),
+      operationId: 'split-take',
+    });
+    insertTextAudio(db, {
+      id: randomUUID(),
+      unit_text_id: textId,
+      file_id: clip.fileId,
+      position: 1,
+    });
+    expect(() => undoSplit(db, split.undo)).toThrow('unit split undo is stale');
+    expect(db.prepare('SELECT id FROM units WHERE id = ?').get(split.left.id)).toEqual({
+      id: split.left.id,
+    });
+    expect(
+      db.prepare('SELECT file_id FROM unit_text_audios WHERE unit_text_id = ?').get(textId),
+    ).toEqual({ file_id: clip.fileId });
+  });
+});
 
 function linkRow(
   sessionId: string,

@@ -1,6 +1,12 @@
 import type Database from 'better-sqlite3';
 import { queueUnreferencedAttachment, retainReferencedAttachment } from './attachments';
-import { assertUnitTextRoleFree, readStoredUnit, type Unit } from './units';
+import { assertUnitTextRoleFree } from './units';
+import {
+  audiosOfUnit,
+  fileIdsOfUnit,
+  insertTextAudio,
+  type StoredTextAudio,
+} from './unitTextAudios';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -27,7 +33,6 @@ interface TextRow {
   layer_id: string;
   role: string;
   body: string;
-  audio_file_id: string | null;
   provenance_json: string | null;
   updated_at: string;
 }
@@ -151,6 +156,7 @@ interface TimeDraftRow {
 export interface RemovedUnit {
   unit: UnitRow;
   texts: TextRow[];
+  audios: StoredTextAudio[];
   tokens: TokenRow[];
   morphemes: MorphemeRow[];
   notes: NoteRow[];
@@ -161,181 +167,6 @@ export interface RemovedUnit {
   localIds: LocalIdRow[];
   acceptances: AcceptanceRow[];
   timeDrafts: TimeDraftRow[];
-}
-
-export interface UnitMergeUndo {
-  keepId: string;
-  removeId: string;
-  keepStart: number;
-  keepEnd: number;
-  keepText: string;
-  keepFingerprint: string;
-  mergedStart: number;
-  mergedEnd: number;
-  manuscriptId: string;
-  manuscriptGeneration: number;
-  removed: RemovedUnit;
-}
-
-export function mergeUnits(
-  db: SqliteDatabase,
-  input: { keepId: string; removeId: string },
-  afterWrite?: () => void,
-): { unit: Unit; undo: UnitMergeUndo } {
-  const write = db.transaction(() => {
-    const keep = requireLiveUnit(db, input.keepId);
-    const remove = requireLiveUnit(db, input.removeId);
-    if (keep.id === remove.id || keep.layerId !== remove.layerId) {
-      throw new Error('units are not in the same layer');
-    }
-    if (
-      keep.startMs === null ||
-      keep.endMs === null ||
-      remove.startMs === null ||
-      remove.endMs === null
-    ) {
-      throw new Error('units are not adjacent');
-    }
-    const adjacent = keep.endMs === remove.startMs || remove.endMs === keep.startMs;
-    if (!adjacent) throw new Error('units are not adjacent');
-    const place = manuscriptOf(db, keep.id);
-    const keepFingerprint = fingerprintOf(db, keep.id);
-    const removed = readRemovedUnit(db, remove.id);
-    const mergedStart = Math.min(keep.startMs, remove.startMs);
-    const mergedEnd = Math.max(keep.endMs, remove.endMs);
-    const now = new Date().toISOString();
-    deleteUnitTree(db, remove.id);
-    db.prepare('UPDATE units SET start_ms = ?, end_ms = ?, updated_at = ? WHERE id = ?').run(
-      mergedStart,
-      mergedEnd,
-      now,
-      keep.id,
-    );
-    bumpGeneration(db, place.manuscriptId, now);
-    afterWrite?.();
-    const unit = readStoredUnit(db, keep.id);
-    const gone = readStoredUnit(db, remove.id);
-    if (
-      !unit ||
-      gone !== null ||
-      unit.startMs !== mergedStart ||
-      unit.endMs !== mergedEnd ||
-      unit.text !== keep.text ||
-      fingerprintOf(db, keep.id) !== keepFingerprint ||
-      generationOf(db, place.manuscriptId) !== place.generation + 1
-    ) {
-      throw new Error('unit merge readback failed');
-    }
-    return {
-      unit,
-      undo: {
-        keepId: keep.id,
-        removeId: remove.id,
-        keepStart: keep.startMs,
-        keepEnd: keep.endMs,
-        keepText: keep.text,
-        keepFingerprint,
-        mergedStart,
-        mergedEnd,
-        manuscriptId: place.manuscriptId,
-        manuscriptGeneration: place.generation + 1,
-        removed,
-      },
-    };
-  });
-  return write();
-}
-
-export function undoMerge(db: SqliteDatabase, undo: UnitMergeUndo, afterWrite?: () => void): Unit {
-  const write = db.transaction(() => {
-    if (!mergeStillAfter(db, undo)) throw new Error('unit merge undo is stale');
-    const now = new Date().toISOString();
-    db.prepare('UPDATE units SET start_ms = ?, end_ms = ?, updated_at = ? WHERE id = ?').run(
-      undo.keepStart,
-      undo.keepEnd,
-      now,
-      undo.keepId,
-    );
-    insertRemovedUnit(db, undo.removed);
-    bumpGeneration(db, undo.manuscriptId, now);
-    afterWrite?.();
-    const keep = readStoredUnit(db, undo.keepId);
-    const removed = readStoredUnit(db, undo.removeId);
-    if (
-      !keep ||
-      !removed ||
-      keep.startMs !== undo.keepStart ||
-      keep.endMs !== undo.keepEnd ||
-      keep.text !== undo.keepText ||
-      fingerprintOf(db, undo.keepId) !== undo.keepFingerprint ||
-      removed.startMs !== undo.removed.unit.start_ms ||
-      removed.endMs !== undo.removed.unit.end_ms ||
-      removed.text !==
-        (undo.removed.texts.find((row) => row.layer_id === undo.removed.unit.layer_id)?.body ??
-          '') ||
-      generationOf(db, undo.manuscriptId) !== undo.manuscriptGeneration + 1
-    ) {
-      throw new Error('unit merge undo readback failed');
-    }
-    return keep;
-  });
-  return write();
-}
-
-function requireLiveUnit(db: SqliteDatabase, id: string): Unit {
-  const unit = readStoredUnit(db, id);
-  if (!unit) throw new Error('unit is missing');
-  return unit;
-}
-
-function manuscriptOf(
-  db: SqliteDatabase,
-  unitId: string,
-): { manuscriptId: string; generation: number } {
-  const row = db
-    .prepare(
-      `SELECT manuscripts.id AS manuscriptId, manuscripts.generation AS generation
-       FROM units
-       JOIN layers ON layers.id = units.layer_id
-       JOIN manuscripts ON manuscripts.id = layers.manuscript_id
-       WHERE units.id = ?`,
-    )
-    .get(unitId) as { manuscriptId: string; generation: number } | undefined;
-  if (!row) throw new Error('unit is missing');
-  return row;
-}
-
-function generationOf(db: SqliteDatabase, manuscriptId: string): number {
-  const row = db.prepare('SELECT generation FROM manuscripts WHERE id = ?').get(manuscriptId) as
-    { generation: number } | undefined;
-  if (!row) throw new Error('unit is missing');
-  return row.generation;
-}
-
-function bumpGeneration(db: SqliteDatabase, manuscriptId: string, now: string): void {
-  db.prepare('UPDATE manuscripts SET generation = generation + 1, updated_at = ? WHERE id = ?').run(
-    now,
-    manuscriptId,
-  );
-}
-
-function fingerprintOf(db: SqliteDatabase, unitId: string): string {
-  const row = db.prepare('SELECT graph_fingerprint FROM units WHERE id = ?').get(unitId) as
-    { graph_fingerprint: string } | undefined;
-  return row?.graph_fingerprint ?? '';
-}
-
-function mergeStillAfter(db: SqliteDatabase, undo: UnitMergeUndo): boolean {
-  const keep = readStoredUnit(db, undo.keepId);
-  return (
-    keep !== null &&
-    readStoredUnit(db, undo.removeId) === null &&
-    keep.startMs === undo.mergedStart &&
-    keep.endMs === undo.mergedEnd &&
-    keep.text === undo.keepText &&
-    fingerprintOf(db, undo.keepId) === undo.keepFingerprint &&
-    generationOf(db, undo.manuscriptId) === undo.manuscriptGeneration
-  );
 }
 
 export function readRemovedUnit(db: SqliteDatabase, unitId: string): RemovedUnit {
@@ -358,10 +189,11 @@ export function readRemovedUnit(db: SqliteDatabase, unitId: string): RemovedUnit
     unit,
     texts: db
       .prepare(
-        `SELECT id, layer_id, role, body, audio_file_id, provenance_json, updated_at
+        `SELECT id, layer_id, role, body, provenance_json, updated_at
          FROM unit_texts WHERE unit_id = ?`,
       )
       .all(unitId) as TextRow[],
+    audios: audiosOfUnit(db, unitId),
     tokens: db
       .prepare(
         `SELECT id, token_index, form_json, gloss_json, pos, provenance_json, created_at, updated_at
@@ -436,8 +268,8 @@ export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): voi
   );
   const insertText = db.prepare(
     `INSERT INTO unit_texts (
-       id, unit_id, layer_id, role, body, audio_file_id, provenance_json, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       id, unit_id, layer_id, role, body, provenance_json, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
   );
   for (const row of removed.texts) {
     assertUnitTextRoleFree(db, unit.id, row.role, row.layer_id);
@@ -447,11 +279,13 @@ export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): voi
       row.layer_id,
       row.role,
       row.body,
-      row.audio_file_id,
       row.provenance_json,
       row.updated_at,
     );
-    if (row.audio_file_id !== null) retainReferencedAttachment(db, row.audio_file_id);
+  }
+  for (const row of removed.audios) {
+    insertTextAudio(db, row);
+    retainReferencedAttachment(db, row.file_id);
   }
   const insertToken = db.prepare(
     `INSERT INTO tokens (
@@ -627,14 +461,9 @@ export function deleteUnitTree(db: SqliteDatabase, unitId: string): void {
   }
   db.prepare('DELETE FROM reception_batches WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM transcription_acceptances WHERE unit_id = ?').run(unitId);
-  const clips = db
-    .prepare(
-      `SELECT audio_file_id FROM unit_texts
-       WHERE unit_id = ? AND audio_file_id IS NOT NULL`,
-    )
-    .all(unitId) as { audio_file_id: string }[];
+  const clips = fileIdsOfUnit(db, unitId);
   db.prepare('DELETE FROM unit_texts WHERE unit_id = ?').run(unitId);
-  for (const clip of clips) queueUnreferencedAttachment(db, clip.audio_file_id);
+  for (const fileId of clips) queueUnreferencedAttachment(db, fileId);
   db.prepare('DELETE FROM unit_text_drafts WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM unit_time_drafts WHERE unit_id = ?').run(unitId);
   db.prepare('DELETE FROM text_save_receipts WHERE unit_id = ?').run(unitId);
@@ -737,4 +566,28 @@ function noteValues(row: NoteRow): unknown[] {
     row.created_at,
     row.updated_at,
   ];
+}
+
+/** Two-phase renumber so UNIQUE(layer_id, sort_order) never sees a collision. */
+export function shiftSortOrders(
+  db: SqliteDatabase,
+  layerId: string,
+  sortOrder: number,
+  direction: 'up' | 'down',
+  excludeIds: readonly string[],
+  compare: 'gt' | 'gte',
+): void {
+  const cmp = compare === 'gt' ? '>' : '>=';
+  const exclude =
+    excludeIds.length === 0 ? '' : ` AND id NOT IN (${excludeIds.map(() => '?').join(', ')})`;
+  const bump = 1_000_000;
+  const settle = direction === 'down' ? bump + 1 : bump - 1;
+  db.prepare(
+    `UPDATE units SET sort_order = sort_order + ?
+     WHERE layer_id = ? AND sort_order ${cmp} ?${exclude}`,
+  ).run(bump, layerId, sortOrder, ...excludeIds);
+  db.prepare(
+    `UPDATE units SET sort_order = sort_order - ?
+     WHERE layer_id = ? AND sort_order >= ?${exclude}`,
+  ).run(settle, layerId, bump, ...excludeIds);
 }

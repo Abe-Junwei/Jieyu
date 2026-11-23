@@ -17,7 +17,7 @@ import {
   removeUnitValue,
   setFieldValue,
 } from './customFields';
-import { mergeUnits, undoMerge } from './unitSpan';
+import { mergeUnits, undoMerge } from './unitMerge';
 import { splitUnit, undoSplit } from './unitSplit';
 import { getAnalysisRoot, updateUnitText, writeAnalysisRoot } from './units';
 
@@ -147,12 +147,13 @@ describe('unit span', () => {
     );
 
     const merged = mergeUnits(db, { keepId: left, removeId: right });
-    expect(merged.unit).toMatchObject({ id: left, startMs: 0, endMs: 2, text: '甲' });
-    expect(count(db, 'SELECT COUNT(*) AS n FROM notes WHERE id = ?', 'drop-note')).toBe(0);
+    expect(merged.unit.id).not.toBe(left);
+    expect(merged.unit).toMatchObject({ startMs: 0, endMs: 2, text: '甲 乙' });
+    expect(count(db, 'SELECT COUNT(*) AS n FROM notes WHERE id = ?', 'drop-note')).toBe(1);
     expect(count(db, 'SELECT COUNT(*) AS n FROM notes WHERE id = ?', 'keep-note')).toBe(1);
-    expect(count(db, 'SELECT COUNT(*) AS n FROM analysis_candidates WHERE id = ?', 'cand-1')).toBe(
-      0,
-    );
+    expect(
+      db.prepare('SELECT unit_id, status FROM analysis_candidates WHERE id = ?').get('cand-1'),
+    ).toEqual({ unit_id: merged.unit.id, status: 'rejected' });
 
     undoMerge(db, merged.undo);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: right })).toMatchObject({
@@ -174,7 +175,8 @@ describe('unit span', () => {
       keepId: right,
       removeId: left,
     });
-    expect(other.unit).toMatchObject({ id: right, startMs: 0, endMs: 2, text: '乙' });
+    expect(other.unit.id).not.toBe(right);
+    expect(other.unit).toMatchObject({ startMs: 0, endMs: 2, text: '甲 乙' });
     expect(callDesktopSession(session.sessionId, 'units.get', { id: left })).toBeNull();
     undoMerge(requireDesktopSession(session.sessionId).db, other.undo);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: left })).toMatchObject({
@@ -465,25 +467,12 @@ describe('unit span', () => {
       expectedRevision: 1,
     });
     const merged = mergeUnits(db, { keepId: unitId, removeId: targetId });
-    expect(readFieldValue(db, field.id, 'unit', unitId)).toEqual(pointer);
-    const optional = createDefinition(db, {
+    expect(readFieldValue(db, field.id, 'unit', merged.unit.id)).toEqual({
       targetType: 'unit',
-      name: { zh: '另' },
-      fieldType: 'text',
+      targetId: merged.unit.id,
     });
-    setFieldValue(db, {
-      definitionId: optional.id,
-      targetType: 'unit',
-      targetId: unitId,
-      value: 'still',
-      expectedRevision: 1,
-    });
-    expect(() => splitUnit(db, { unitId, time: 20 })).toThrow('unit is missing a required field');
-    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
-      endMs: 50,
-      text: 'ka',
-    });
-    expect(readFieldValue(db, optional.id, 'unit', unitId)).toBe('still');
+    expect(missingUnitFields(db, merged.unit.id)).toEqual([]);
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toBeNull();
     undoMerge(db, merged.undo);
     expect(missingUnitFields(db, unitId)).toEqual([]);
     const namesake = (
@@ -515,7 +504,10 @@ describe('unit span', () => {
     expect(() => splitUnit(db, { unitId: left, time: 0.01 })).toThrow(
       'split point is outside the unit',
     );
-    expect(() => mergeUnits(db, { keepId: left, removeId: gap })).toThrow('units are not adjacent');
+    seedUnit(session.sessionId, layerOf(session.sessionId, left), 1, 2, '间');
+    expect(() => mergeUnits(db, { keepId: left, removeId: gap })).toThrow(
+      'a unit sits between the pair',
+    );
     expect(() => mergeUnits(db, { keepId: left, removeId: foreign })).toThrow(
       'units are not in the same layer',
     );

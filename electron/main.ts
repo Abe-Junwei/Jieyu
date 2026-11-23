@@ -55,9 +55,11 @@ import {
   abandonDesktopSession,
   closeDesktopSession,
   desktopSessionFolder,
+  expireAndSweepAttachments,
   openDesktopSession,
   openPreparedDesktopSession,
   resetDesktopSessions,
+  sweepCurrentAttachments,
 } from '../src/db/desktop/projectSession';
 import { DESKTOP_CSP } from '../src/desktop/skeleton/desktopCsp';
 import { packagedPageFile } from '../src/desktop/skeleton/packagedPage';
@@ -284,6 +286,13 @@ async function runOutboundRequest(
   }
 }
 
+async function settleThenOpen<T>(open: () => T): Promise<T> {
+  await expireAndSweepAttachments(trashFile);
+  const opened = open();
+  await sweepCurrentAttachments(trashFile);
+  return opened;
+}
+
 function openUserProjectSession(folder: string): { sessionId: string } {
   resetProjectTranscriptions();
   void stopLocalWhisper();
@@ -300,18 +309,19 @@ function registerIpc(): void {
     return writeSkeletonProbe(app.getPath('temp'), note);
   });
 
-  handle('desktop:open-session', (folder: unknown) => {
+  handle('desktop:open-session', async (folder: unknown) => {
     if (typeof folder !== 'string' || folder.length === 0) throw new Error('empty folder');
-    const opened = openUserProjectSession(folder);
+    const opened = await settleThenOpen(() => openUserProjectSession(folder));
     bindDesktopMediaSession(opened.sessionId);
     return opened;
   });
 
-  handle('desktop:close-session', (sessionId: unknown) => {
+  handle('desktop:close-session', async (sessionId: unknown) => {
     if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
     desktopSessionFolder(sessionId);
     resetProjectTranscriptions();
     void stopLocalWhisper();
+    await expireAndSweepAttachments(trashFile);
     closeDesktopSession(sessionId);
     releaseDesktopMediaSession(sessionId);
     return { closed: true };
@@ -350,7 +360,7 @@ function registerIpc(): void {
     return { folder: destination };
   });
 
-  handle('desktop:open-restored-backup', (sessionId: unknown) => {
+  handle('desktop:open-restored-backup', async (sessionId: unknown) => {
     if (typeof sessionId !== 'string' || sessionId.length === 0) throw new Error('empty session');
     desktopSessionFolder(sessionId);
     const folder = readRestoredProjectGrant(sessionId);
@@ -358,9 +368,11 @@ function registerIpc(): void {
     const alreadyAllowed = allowedProjectFolders.has(resolved);
     if (!alreadyAllowed) allowedProjectFolders.add(resolved);
     try {
-      const opened = openPreparedDesktopSession(resolved, [...allowedProjectFolders], {
-        dir: projectBackupDir(app.getPath('userData'), resolved),
-      });
+      const opened = await settleThenOpen(() =>
+        openPreparedDesktopSession(resolved, [...allowedProjectFolders], {
+          dir: projectBackupDir(app.getPath('userData'), resolved),
+        }),
+      );
       resetProjectTranscriptions();
       void stopLocalWhisper();
       recoverProjectTranscriptions(opened.sessionId);
@@ -611,8 +623,10 @@ async function openWindow(): Promise<BrowserWindow> {
       loadedOnce = true;
       return;
     }
-    const abandoned = abandonDesktopSession();
-    if (abandoned !== null) releaseDesktopMediaSession(abandoned);
+    void expireAndSweepAttachments(trashFile).finally(() => {
+      const abandoned = abandonDesktopSession();
+      if (abandoned !== null) releaseDesktopMediaSession(abandoned);
+    });
   });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   // 渲染进程有未保存正文时会取消 beforeunload。先尝试保存；失败才问用户。

@@ -19,6 +19,7 @@ import { assertStoredCustomFields, writeUnitFieldValues } from './customFields';
 import { claimTextSave, finishTextSave, textSaveDigest } from './textSave';
 import { secToMs } from './timeMs';
 import { readUnitTextBody, resolveUnitTextContext } from './unitTextLayers';
+import { textAudioCount } from './unitTextAudios';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -36,6 +37,8 @@ export interface Unit {
   text: string;
   textId: string | null;
   textLayerId: string;
+  /** Saved draft for this text layer. Null when the layer has no draft row. */
+  draftText: string | null;
   /** Machine-transcription confidence, 0–1. Null when none was stored. */
   confidence: number | null;
   skipProcessing: boolean;
@@ -64,6 +67,7 @@ interface UnitRow {
   text: string;
   text_id: string | null;
   text_layer_id: string;
+  draft_text: string | null;
   confidence: number | null;
   skip_processing: number;
 }
@@ -261,7 +265,7 @@ function readUnitRow(
               units.start_ms, units.end_ms, units.confidence, units.skip_processing,
               units.created_at, units.updated_at,
               unit_texts.id AS text_id, COALESCE(unit_texts.body, '') AS text,
-              text_layer.id AS text_layer_id
+              text_layer.id AS text_layer_id, unit_text_drafts.raw_input AS draft_text
        FROM units
        JOIN layers AS source_layer ON source_layer.id = units.layer_id
        JOIN layers AS text_layer ON text_layer.id = ?
@@ -270,6 +274,9 @@ function readUnitRow(
          ON unit_texts.unit_id = units.id
         AND unit_texts.layer_id = text_layer.id
         AND unit_texts.role = text_layer.content_type
+       LEFT JOIN unit_text_drafts
+         ON unit_text_drafts.unit_id = units.id
+        AND unit_text_drafts.layer_id = text_layer.id
        WHERE units.id = ? ${
          visible
            ? 'AND manuscripts.deleted_at IS NULL AND source_layer.deleted_at IS NULL AND text_layer.deleted_at IS NULL'
@@ -304,7 +311,7 @@ export function listUnits(db: SqliteDatabase, layerId: string): Unit[] {
               units.start_ms, units.end_ms, units.confidence, units.skip_processing,
               units.created_at, units.updated_at,
               unit_texts.id AS text_id, COALESCE(unit_texts.body, '') AS text,
-              target.id AS text_layer_id
+              target.id AS text_layer_id, unit_text_drafts.raw_input AS draft_text
        FROM units
        JOIN layers AS source ON source.id = units.layer_id
        JOIN layers AS target ON target.id = ?
@@ -313,6 +320,9 @@ export function listUnits(db: SqliteDatabase, layerId: string): Unit[] {
          ON unit_texts.unit_id = units.id
         AND unit_texts.layer_id = target.id
         AND unit_texts.role = target.content_type
+       LEFT JOIN unit_text_drafts
+         ON unit_text_drafts.unit_id = units.id
+        AND unit_text_drafts.layer_id = target.id
        WHERE units.layer_id IN (${sourceIds.map(() => '?').join(', ')})
          AND manuscripts.deleted_at IS NULL
          AND source.deleted_at IS NULL
@@ -437,11 +447,17 @@ export function updateUnitText(
     }
     const now = new Date().toISOString();
     if (input.text.length === 0) {
-      db.prepare('DELETE FROM unit_texts WHERE unit_id = ? AND layer_id = ? AND role = ?').run(
-        input.unitId,
-        context.textLayerId,
-        context.role,
-      );
+      if (currentText.id !== null && textAudioCount(db, currentText.id) > 0) {
+        db.prepare(
+          'UPDATE unit_texts SET body = ?, provenance_json = NULL, updated_at = ? WHERE id = ?',
+        ).run('', now, currentText.id);
+      } else {
+        db.prepare('DELETE FROM unit_texts WHERE unit_id = ? AND layer_id = ? AND role = ?').run(
+          input.unitId,
+          context.textLayerId,
+          context.role,
+        );
+      }
     } else if (currentText.id === null) {
       db.prepare(
         `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, provenance_json, updated_at)
@@ -652,6 +668,7 @@ function mapUnit(row: UnitRow): Unit {
     text: row.text,
     textId: row.text_id,
     textLayerId: row.text_layer_id,
+    draftText: row.draft_text,
     confidence: row.confidence,
     skipProcessing: row.skip_processing === 1,
   };

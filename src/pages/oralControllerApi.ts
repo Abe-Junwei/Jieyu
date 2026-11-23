@@ -48,7 +48,11 @@ export type OralBag = {
 export function oralControllerApi(ctx: {
   locale: Locale;
   toast: { showToast: (message: string, tone: 'error' | 'info') => void };
-  clips: Record<string, string>;
+  takes: Record<string, { id: string | null; url: string }[]>;
+  picked: Record<string, string>;
+  setPicked: (
+    value: Record<string, string> | ((current: Record<string, string>) => Record<string, string>),
+  ) => void;
   ui: OralUi;
   setUi: (value: OralUi | ((current: OralUi) => OralUi)) => void;
   setAsk: (value: boolean) => void;
@@ -56,7 +60,7 @@ export function oralControllerApi(ctx: {
   ask: boolean;
   bag: { current: OralBag };
 }) {
-  const { locale, toast, clips, ui, setUi, setAsk, setStamp, ask, bag } = ctx;
+  const { locale, toast, takes, picked, setPicked, ui, setUi, setAsk, setStamp, ask, bag } = ctx;
   const elapsedNow = () =>
     bag.current.accrued +
     (bag.current.started === 0 ? 0 : Math.floor((Date.now() - bag.current.started) / 1000));
@@ -164,7 +168,20 @@ export function oralControllerApi(ctx: {
     ask,
     saving: ui.save?.phase === 'saving',
     openLayerId: ui.live?.pinned.layerId ?? ui.save?.pinned.layerId ?? null,
-    src: (layerId: string, unitId: string) => clips[clipKey(layerId, unitId)] ?? null,
+    src: (layerId: string, unitId: string) => {
+      const key = clipKey(layerId, unitId);
+      const list = takes[key] ?? [];
+      return (list.find((take) => take.id === picked[key]) ?? list[0])?.url ?? null;
+    },
+    clips: (layerId: string, unitId: string) => takes[clipKey(layerId, unitId)] ?? [],
+    currentId: (layerId: string, unitId: string) => {
+      const key = clipKey(layerId, unitId);
+      const list = takes[key] ?? [];
+      return list.find((take) => take.id === picked[key])?.id ?? list[0]?.id ?? null;
+    },
+    pick: (layerId: string, unitId: string, id: string) => {
+      setPicked((current) => ({ ...current, [clipKey(layerId, unitId)]: id }));
+    },
     isRecording: (layerId: string, unitId: string) =>
       ui.live !== null &&
       ui.live.pinned.key === clipKey(layerId, unitId) &&
@@ -430,8 +447,20 @@ export function oralControllerApi(ctx: {
       if (bag.current.recorder || ui.save?.pinned.key === key) return;
       const current = bag.current.latest;
       if (current.sessionId === null || current.desktopCall === undefined) return;
+      const list = takes[key] ?? [];
+      const chosen = list.find((take) => take.id === picked[key]) ?? list[0];
+      const index = chosen === undefined ? -1 : list.indexOf(chosen);
+      const follow = list[index + 1] ?? list[index - 1];
       try {
-        await current.desktopCall(current.sessionId, 'recordings.detach', { unitId, layerId });
+        await current.desktopCall(
+          current.sessionId,
+          'recordings.detach',
+          chosen?.id === undefined || chosen.id === null
+            ? { unitId, layerId }
+            : { unitId, layerId, audioId: chosen.id },
+        );
+        const nextId = follow?.id;
+        if (nextId) setPicked((prev) => ({ ...prev, [key]: nextId }));
         await current.refresh();
         setStamp((value) => value + 1);
       } catch {

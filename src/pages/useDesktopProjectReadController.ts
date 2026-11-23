@@ -200,18 +200,6 @@ export function useDesktopProjectReadController(
       });
   };
 
-  const mergeUnits = (keepId: string, removeId: string) => {
-    if (host === null || sessionId === null) return;
-    setError('');
-    void createDesktopClient({ desktopCall: host.desktopCall })
-      .mergeUnits(sessionId, { keepId, removeId })
-      .then(() => reload())
-      .catch(() => {
-        if (shownSession.current !== sessionId) return;
-        setError(t(locale, 'app.desktopRead.loadFailed'));
-      });
-  };
-
   const moveBoundary = (leftId: string, rightId: string, time: number) => {
     if (host === null || sessionId === null) return;
     setError('');
@@ -264,7 +252,6 @@ export function useDesktopProjectReadController(
     refresh: reload,
     adoptOpenedSession,
     splitUnit,
-    mergeUnits,
     moveBoundary,
     ...noteActions,
   };

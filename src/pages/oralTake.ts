@@ -116,12 +116,14 @@ export function dropFailedTake(id?: number): void {
   publishFailedTake();
 }
 
+export type OralTake = { id: string | null; url: string };
+
 export async function loadOralClips(
   sessionId: string,
   call: OralCall,
   layerIds: readonly string[],
-): Promise<{ clips: Record<string, string>; broken: string[]; urls: string[] }> {
-  const clips: Record<string, string> = {};
+): Promise<{ takes: Record<string, OralTake[]>; broken: string[]; urls: string[] }> {
+  const takes: Record<string, OralTake[]> = {};
   const broken: string[] = [];
   const urls: string[] = [];
   for (const layerId of layerIds) {
@@ -136,12 +138,15 @@ export async function loadOralClips(
     for (const row of rows) {
       if (typeof row !== 'object' || row === null) continue;
       const unitId = (row as { unitId?: unknown }).unitId;
+      const audioId = (row as { id?: unknown }).id;
       if (typeof unitId !== 'string') continue;
+      const id = typeof audioId === 'string' ? audioId : null;
       try {
-        const read = (await call(sessionId, 'recordings.read', { unitId, layerId })) as {
-          mimeType?: unknown;
-          bytes?: unknown;
-        };
+        const read = (await call(
+          sessionId,
+          'recordings.read',
+          id === null ? { unitId, layerId } : { unitId, layerId, audioId: id },
+        )) as { mimeType?: unknown; bytes?: unknown };
         if (!(read.bytes instanceof Uint8Array) || typeof read.mimeType !== 'string') {
           broken.push(unitId);
           continue;
@@ -150,13 +155,14 @@ export async function loadOralClips(
           new Blob([new Uint8Array(read.bytes)], { type: read.mimeType }),
         );
         urls.push(url);
-        clips[clipKey(layerId, unitId)] = url;
+        const key = clipKey(layerId, unitId);
+        takes[key] = [...(takes[key] ?? []), { id, url }];
       } catch {
         broken.push(unitId);
       }
     }
   }
-  return { clips, broken, urls };
+  return { takes, broken, urls };
 }
 
 export function openOralRecorder(options: {
@@ -232,6 +238,8 @@ export async function persistTake(
   }
 }
 
-export function releaseClipUrls(clips: Record<string, string>): void {
-  for (const url of Object.values(clips)) URL.revokeObjectURL(url);
+export function releaseClipUrls(takes: Record<string, readonly { url: string }[]>): void {
+  for (const list of Object.values(takes)) {
+    for (const take of list) URL.revokeObjectURL(take.url);
+  }
 }

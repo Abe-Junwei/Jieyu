@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -110,10 +110,12 @@ describe('lexeme attachments', () => {
     entry(session.sessionId, 'one');
     const published = publish(session.sessionId, 'one', bytes, 'op-1');
     const db = requireDesktopSession(session.sessionId).db;
-    db.prepare('UPDATE unit_texts SET audio_file_id = ? WHERE unit_id = ?').run(
-      published.fileId,
-      unit.id,
-    );
+    const text = db.prepare('SELECT id FROM unit_texts WHERE unit_id = ?').get(unit.id) as {
+      id: string;
+    };
+    db.prepare(
+      `INSERT INTO unit_text_audios (id, unit_text_id, file_id, position) VALUES (?, ?, ?, 1)`,
+    ).run(randomUUID(), text.id, published.fileId);
     const object = join(dir, 'attachments', 'objects', sha256(bytes));
 
     const removed = callDesktopSession(session.sessionId, 'attachments.removeLink', {
@@ -134,7 +136,7 @@ describe('lexeme attachments', () => {
     ).toBe('ready');
     expect(existsSync(object)).toBe(true);
 
-    db.prepare('UPDATE unit_texts SET audio_file_id = NULL WHERE unit_id = ?').run(unit.id);
+    db.prepare('DELETE FROM unit_text_audios WHERE unit_text_id = ?').run(text.id);
     db.prepare(`UPDATE attachment_files SET state = 'cleanup_pending' WHERE id = ?`).run(
       published.fileId,
     );

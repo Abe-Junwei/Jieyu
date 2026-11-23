@@ -17,15 +17,11 @@ import {
   type UnitSpanMove,
 } from './unitEdges';
 import { splitUnit, undoSplit, type UnitSplitUndo } from './unitSplit';
-import {
-  deleteUnitTree,
-  mergeUnits,
-  undoMerge,
-  type RemovedUnit,
-  type UnitMergeUndo,
-} from './unitSpan';
+import { mergeUnits, undoMerge, type UnitMergeUndo } from './unitMerge';
+import { deleteUnitTree, readRemovedUnit, type RemovedUnit } from './unitSpan';
 import { retimeManuscript, undoRetime, type RetimeUndo } from './manuscripts';
 import { readStoredUnit, updateUnitText, type Unit, type UnitTextUndo } from './units';
+import { bindHeldAttachmentIds } from './attachments';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -49,6 +45,77 @@ type Book = { undo: Frame[]; redo: Frame[] };
 let activeSessionId: string | undefined;
 const books = new Map<string, Map<string, Book>>();
 const lastManuscript = new Map<string, string>();
+let redoSweepDue = false;
+
+export function sessionHeldFileIds(): ReadonlySet<string> {
+  const ids = new Set<string>();
+  for (const session of books.values()) {
+    for (const book of session.values()) {
+      for (const frame of [...book.undo, ...book.redo]) {
+        for (const id of fileIdsOf(frame.edit)) ids.add(id);
+      }
+    }
+  }
+  return ids;
+}
+
+bindHeldAttachmentIds(sessionHeldFileIds);
+
+/** Attach and detach keep this stack. Fold the live clips into snapshots that redo would restore. */
+export function noteLiveUnitAudios(db: SqliteDatabase, unitId: string): void {
+  if (activeSessionId === undefined || readStoredUnit(db, unitId) === null) return;
+  const session = books.get(activeSessionId);
+  if (session === undefined) return;
+  const live = readRemovedUnit(db, unitId);
+  for (const book of session.values()) {
+    for (const frame of [...book.undo, ...book.redo]) {
+      for (const tree of snapshotTrees(frame.edit)) patchLiveAudios(tree, live);
+    }
+  }
+}
+
+function snapshotTrees(edit: SessionEdit): RemovedUnit[] {
+  switch (edit.kind) {
+    case 'create':
+      return [edit.undo.tree];
+    case 'text':
+    case 'split':
+    case 'merge':
+    case 'assign':
+    case 'edge':
+    case 'boundary':
+    case 'span':
+    case 'delete':
+    case 'deleteMany':
+    case 'retime':
+      return [];
+    default: {
+      const unreachable: never = edit;
+      return unreachable;
+    }
+  }
+}
+
+function patchLiveAudios(tree: RemovedUnit, live: RemovedUnit): void {
+  if (tree.unit.id !== live.unit.id) return;
+  const needed = new Set(live.audios.map((row) => row.unit_text_id));
+  const have = new Set(tree.texts.map((row) => row.id));
+  for (const row of live.texts) {
+    if (needed.has(row.id) && !have.has(row.id)) tree.texts.push({ ...row });
+  }
+  const still = new Set(live.texts.map((row) => row.id));
+  tree.texts = tree.texts.filter((row) => {
+    const carried = tree.audios.some((audio) => audio.unit_text_id === row.id);
+    return !carried || still.has(row.id);
+  });
+  tree.audios = live.audios.map((row) => ({ ...row }));
+}
+
+export function consumeRedoSweep(): boolean {
+  const due = redoSweepDue;
+  redoSweepDue = false;
+  return due;
+}
 
 export function bindSessionEdit(sessionId: string): void {
   activeSessionId = sessionId;
@@ -58,6 +125,38 @@ export function expireSessionEdit(): void {
   activeSessionId = undefined;
   books.clear();
   lastManuscript.clear();
+  redoSweepDue = false;
+}
+
+function fileIdsOf(edit: SessionEdit): string[] {
+  switch (edit.kind) {
+    case 'create':
+    case 'delete':
+      return edit.undo.tree.audios.map((row) => row.file_id);
+    case 'deleteMany':
+      return edit.undo.trees.flatMap((tree) => tree.audios.map((row) => row.file_id));
+    case 'split':
+      return edit.undo.removed.flatMap((tree) => tree.audios.map((row) => row.file_id));
+    case 'merge':
+      return [...edit.undo.earlier.audios, ...edit.undo.later.audios].map((row) => row.file_id);
+    case 'text':
+    case 'assign':
+    case 'edge':
+    case 'boundary':
+    case 'span':
+    case 'retime':
+      return [];
+    default: {
+      const unreachable: never = edit;
+      return unreachable;
+    }
+  }
+}
+
+function redoFrames(sessionId?: string): Frame[] {
+  const sessions =
+    sessionId === undefined ? [...books.values()] : [books.get(sessionId) ?? new Map()];
+  return sessions.flatMap((session) => [...session.values()].flatMap((book) => book.redo));
 }
 
 function manuscriptOf(edit: SessionEdit): string {
@@ -102,11 +201,13 @@ export function rememberSessionEdit(sessionId: string, edit: SessionEdit): void 
   const manuscriptId = manuscriptOf(edit);
   const book = bookOf(sessionId, manuscriptId);
   book.undo.push({ edit });
+  if (book.redo.length > 0) redoSweepDue = true;
   book.redo = [];
   lastManuscript.set(sessionId, manuscriptId);
 }
 
 export function clearSessionEdit(sessionId?: string): void {
+  if (redoFrames(sessionId).length > 0) redoSweepDue = true;
   if (sessionId === undefined) {
     books.clear();
     lastManuscript.clear();
@@ -463,7 +564,21 @@ function redoSplit(db: SqliteDatabase, undo: UnitSplitUndo): { value: Unit; edit
 
 function redoMerge(db: SqliteDatabase, undo: UnitMergeUndo): { value: Unit; edit: SessionEdit } {
   try {
-    const merged = mergeUnits(db, { keepId: undo.keepId, removeId: undo.removeId });
+    const merged = mergeUnits(db, {
+      keepId: undo.earlier.unit.id,
+      removeId: undo.later.unit.id,
+      operationId: undo.operationId,
+      separator: undo.separator,
+      discardAudioIds: undo.discardAudioIds,
+      newId: undo.newId,
+      ...(undo.textLayerId === undefined
+        ? {}
+        : {
+            textLayerId: undo.textLayerId,
+            keepText: undo.keepText ?? '',
+            removeText: undo.removeText ?? '',
+          }),
+    });
     return { value: merged.unit, edit: { kind: 'merge', undo: merged.undo } };
   } catch (error) {
     if (error instanceof Error && error.message.endsWith('redo is stale')) throw error;
@@ -503,6 +618,7 @@ function unitFromTree(tree: RemovedUnit): Unit {
     endMs: tree.unit.end_ms,
     text,
     textId: tree.texts.find((row) => row.role === 'transcription')?.id ?? null,
+    draftText: null,
     createdAt: tree.unit.created_at,
     updatedAt: tree.unit.updated_at,
     confidence: tree.unit.confidence ?? null,

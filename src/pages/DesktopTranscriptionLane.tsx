@@ -33,6 +33,7 @@ import { t, tf, type Locale } from '../i18n';
 import { getTranscriptionPlaybackClockSnapshot } from '../hooks/transcription/transcriptionPlaybackClock';
 import { useToast } from '../contexts/ToastContext';
 import { DesktopTranscriptionEdgeChrome } from './DesktopTranscriptionEdgeChrome';
+import { segmentMenuActions } from './desktopTranscriptionSegmentMenu';
 import {
   desktopSegmentFrame,
   edgeNotice,
@@ -116,6 +117,8 @@ export function DesktopTranscriptionLane(props: {
   /** Right-click on a waveform segment overlay (the highlighted body sits above the region). */
   onWaveSegmentMenu: (unitId: string, x: number, y: number) => void;
   onSplit?: (unitId: string) => void;
+  canMerge?: (unitId: string) => boolean;
+  onMerge?: (unitId: string) => void;
   /** Runs `go` once the open body draft is saved or dropped (the leave guard). */
   onLeave: (go: () => void) => void;
   /** Layer id of an open recording. Folding it away must ask first. */
@@ -717,15 +720,7 @@ export function DesktopTranscriptionLane(props: {
           const unitId = edges.ui.menu?.unitId;
           if (unitId) void edges.askDelete(unitId);
         }}
-        {...(props.onSplit === undefined
-          ? {}
-          : {
-              onAskSplit: () => {
-                const unitId = edges.ui.menu?.unitId;
-                edges.closeMenu();
-                if (unitId) props.onSplit?.(unitId);
-              },
-            })}
+        {...segmentMenuActions(edges.ui.menu, edges.closeMenu, props)}
         onCancelDelete={edges.cancelDelete}
         onConfirmDelete={edges.confirmDelete}
       />

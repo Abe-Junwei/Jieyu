@@ -698,4 +698,85 @@ describe('oral recording controller', () => {
     unmount();
     expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2);
   });
+
+  it('switches the current clip and deletes that clip', async () => {
+    URL.createObjectURL = vi.fn(() => 'blob:clip');
+    URL.revokeObjectURL = vi.fn();
+    let rows = [
+      { id: 'a', unitId: 'unit-1', fileId: 'f1' },
+      { id: 'b', unitId: 'unit-1', fileId: 'f2' },
+    ];
+    const desktopCall = vi.fn(async (_session: string, method: string, args: unknown) => {
+      if (method === 'recordings.list') return rows;
+      if (method === 'recordings.read') return { mimeType: 'audio/wav', bytes: Uint8Array.of(1) };
+      if (method === 'recordings.detach') {
+        const id = (args as { audioId?: string }).audioId;
+        rows = rows.filter((row) => row.id !== id);
+        return { fileId: id };
+      }
+      return null;
+    });
+    const { result } = renderHook(
+      () =>
+        useDesktopTranscriptionOralController({
+          sessionId: 'session-1',
+          desktopCall,
+          audioLayerIds: ['layer-1'],
+          refresh: async () => undefined,
+        }),
+      { wrapper: ToastProvider },
+    );
+    await waitFor(() => {
+      expect(result.current.clips('layer-1', 'unit-1')).toHaveLength(2);
+    });
+    expect(result.current.currentId('layer-1', 'unit-1')).toBe('a');
+    act(() => {
+      result.current.pick('layer-1', 'unit-1', 'b');
+    });
+    expect(result.current.currentId('layer-1', 'unit-1')).toBe('b');
+    await act(async () => {
+      await result.current.remove('layer-1', 'unit-1');
+    });
+    await waitFor(() => {
+      expect(result.current.clips('layer-1', 'unit-1')).toHaveLength(1);
+    });
+    expect(result.current.currentId('layer-1', 'unit-1')).toBe('a');
+    expect(desktopCall).toHaveBeenCalledWith('session-1', 'recordings.detach', {
+      unitId: 'unit-1',
+      layerId: 'layer-1',
+      audioId: 'b',
+    });
+  });
+
+  it('reloads clips when the unit ids change', async () => {
+    URL.createObjectURL = vi.fn(() => 'blob:clip');
+    URL.revokeObjectURL = vi.fn();
+    const desktopCall = vi.fn(async (_session: string, method: string) => {
+      if (method === 'recordings.list') return [{ id: 'a', unitId: 'unit-1', fileId: 'f1' }];
+      if (method === 'recordings.read') return { mimeType: 'audio/wav', bytes: Uint8Array.of(1) };
+      return null;
+    });
+    const { rerender } = renderHook(
+      (props: { structureKey: string }) =>
+        useDesktopTranscriptionOralController({
+          sessionId: 'session-1',
+          desktopCall,
+          audioLayerIds: ['layer-1'],
+          structureKey: props.structureKey,
+          refresh: async () => undefined,
+        }),
+      { wrapper: ToastProvider, initialProps: { structureKey: 'unit-1' } },
+    );
+    await waitFor(() => {
+      expect(desktopCall.mock.calls.filter((call) => call[1] === 'recordings.list')).toHaveLength(
+        1,
+      );
+    });
+    rerender({ structureKey: 'unit-2' });
+    await waitFor(() => {
+      expect(desktopCall.mock.calls.filter((call) => call[1] === 'recordings.list')).toHaveLength(
+        2,
+      );
+    });
+  });
 });

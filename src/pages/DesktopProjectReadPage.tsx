@@ -129,7 +129,6 @@ export function DesktopProjectReadPage() {
           undoTextLabel={t(locale, 'app.desktopRead.undoText')}
           splitLabel={t(locale, 'app.desktopRead.split')}
           splitTimeLabel={t(locale, 'app.desktopRead.splitTime')}
-          mergeNextLabel={t(locale, 'app.desktopRead.mergeNext')}
           boundaryLabel={t(locale, 'app.desktopRead.boundary')}
           moveBoundaryLabel={t(locale, 'app.desktopRead.moveBoundary')}
           noteLabel={t(locale, 'app.desktopRead.note')}
@@ -150,7 +149,6 @@ export function DesktopProjectReadPage() {
           onLeaveUnit={(go) => draft.leave(go)}
           onUndoText={read.undoText}
           onSplit={read.splitUnit}
-          onMerge={read.mergeUnits}
           onMoveBoundary={read.moveBoundary}
           onSaveNote={read.saveUnitNote}
           onSaveTierNote={read.saveTierNote}

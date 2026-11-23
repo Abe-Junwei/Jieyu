@@ -5,6 +5,11 @@ import { isAllowedProjectFolder } from '../../desktop/skeleton/desktopSecurity';
 import { saveDailyProjectBackup } from './dailyBackup';
 import { openProject, type DesktopProject } from './openProject';
 import { ensureProjectIdentity } from './projectIdentity';
+import {
+  attachmentSweepSettled,
+  sweepUnheldAttachments,
+  type AttachmentTrash,
+} from './attachments';
 import { bindSessionEdit, expireSessionEdit } from './sessionEdit';
 
 type Session = {
@@ -140,6 +145,21 @@ export function reopenDesktopSession(sessionId: string): void {
     resetRestoredProjectGrant();
     throw error;
   }
+}
+
+/** Book is already empty. Pending files that undo no longer cites can leave. */
+export async function expireAndSweepAttachments(trash: AttachmentTrash): Promise<void> {
+  await attachmentSweepSettled();
+  const live = current;
+  expireSessionEdit();
+  if (live === undefined) return;
+  await sweepUnheldAttachments(live.project.db, live.folder, trash);
+}
+
+/** Crash recovery: the new process has no undo book, so pending files are unheld. */
+export async function sweepCurrentAttachments(trash: AttachmentTrash): Promise<void> {
+  if (current === undefined) return;
+  await sweepUnheldAttachments(current.project.db, current.folder, trash);
 }
 
 export function resetDesktopSessions(): void {

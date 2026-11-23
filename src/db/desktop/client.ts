@@ -28,7 +28,8 @@ type EditMethod =
   | 'units.deleteMany'
   | 'units.undo'
   | 'units.redo'
-  | 'units.split';
+  | 'units.split'
+  | 'units.merge';
 
 const EDIT_KINDS: Record<EditMethod, EditReceiptKind> = {
   'units.create': 'create',
@@ -40,6 +41,7 @@ const EDIT_KINDS: Record<EditMethod, EditReceiptKind> = {
   'units.undo': 'undo',
   'units.redo': 'redo',
   'units.split': 'split',
+  'units.merge': 'merge',
 };
 
 /** ADR-0129: the edit may or may not have committed, and the library could not say which. */
@@ -221,8 +223,16 @@ export function createDesktopClient(bridge: DesktopBridge) {
         rawInput?: string;
       },
     ) => receipted(sessionId, 'units.split', { ...input }),
-    mergeUnits: (sessionId: string, input: { keepId: string; removeId: string }) =>
-      once(sessionId, 'units.merge', input),
+    mergeUnits: (
+      sessionId: string,
+      input: {
+        keepId: string;
+        removeId: string;
+        separator?: string;
+        discardAudioIds?: string[];
+        baseline?: string;
+      },
+    ) => receipted(sessionId, 'units.merge', { ...input }),
     updateBoundary: (sessionId: string, input: { leftId: string; rightId: string; time: number }) =>
       once(sessionId, 'units.updateBoundary', input),
     moveUnitEdge: (

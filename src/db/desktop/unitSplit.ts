@@ -9,7 +9,13 @@ import {
 } from './analysisCandidates';
 import { missingFields } from './customFields';
 import { assertUnitTextRoleFree, readStoredUnit, type Unit } from './units';
-import { deleteUnitTree, insertRemovedUnit, readRemovedUnit, type RemovedUnit } from './unitSpan';
+import {
+  deleteUnitTree,
+  insertRemovedUnit,
+  readRemovedUnit,
+  shiftSortOrders,
+  type RemovedUnit,
+} from './unitSpan';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -80,7 +86,6 @@ interface TextRow {
   layer_id: string;
   role: string;
   body: string;
-  audio_file_id: string | null;
   provenance_json: string | null;
 }
 
@@ -211,7 +216,7 @@ export function undoSplit(db: SqliteDatabase, undo: UnitSplitUndo, afterWrite?: 
     for (const id of [...undo.createdIds].reverse()) deleteUnitTree(db, id);
     for (const removed of undo.removed) insertRemovedContents(db, removed);
     for (const removed of [...undo.removed].sort((a, b) => b.unit.sort_order - a.unit.sort_order)) {
-      closeSortGap(db, removed.unit.layer_id, removed.unit.sort_order);
+      shiftSortOrders(db, removed.unit.layer_id, removed.unit.sort_order, 'down', [], 'gt');
     }
     restoreDrafts(db, undo);
     db.prepare('DELETE FROM unit_span_maps WHERE operation_id = ?').run(undo.operationId);
@@ -271,7 +276,7 @@ function splitOne(
   db.prepare(
     'UPDATE units SET start_ms = NULL, end_ms = NULL, sort_order = ?, updated_at = ? WHERE id = ?',
   ).run(parked, now, unit.id);
-  shiftSortAfter(db, unit.layer_id, unit.sort_order, unit.id);
+  shiftSortOrders(db, unit.layer_id, unit.sort_order, 'up', [unit.id], 'gt');
   insertHalf(db, {
     id: leftId,
     unit,
@@ -438,8 +443,8 @@ function moveTexts(
     ).run(leftId, leftBody, now, row.id);
     assertUnitTextRoleFree(db, rightId, row.role, row.layer_id);
     db.prepare(
-      `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, audio_file_id, updated_at)
-       VALUES (?, ?, ?, ?, ?, NULL, ?)`,
+      `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
     ).run(randomUUID(), rightId, row.layer_id, row.role, rightBody, now);
   }
   if (sawCut) return;
@@ -639,6 +644,15 @@ function fingerprintOf(db: SqliteDatabase, ids: readonly string[]): string {
          WHERE target_type = 'unit' AND target_id = ? ORDER BY definition_id`,
       )
       .all(id),
+    clips: db
+      .prepare(
+        `SELECT unit_text_audios.id AS id
+         FROM unit_text_audios
+         JOIN unit_texts ON unit_texts.id = unit_text_audios.unit_text_id
+         WHERE unit_texts.unit_id = ?
+         ORDER BY unit_text_audios.position, unit_text_audios.id`,
+      )
+      .all(id),
   }));
   return createHash('sha256').update(JSON.stringify(parts)).digest('hex');
 }
@@ -659,7 +673,7 @@ function liveUnit(db: SqliteDatabase, id: string): LiveUnit {
 function textsOf(db: SqliteDatabase, unitId: string): TextRow[] {
   return db
     .prepare(
-      `SELECT id, layer_id, role, body, audio_file_id, provenance_json
+      `SELECT id, layer_id, role, body, provenance_json
        FROM unit_texts WHERE unit_id = ?`,
     )
     .all(unitId) as TextRow[];
@@ -753,8 +767,8 @@ function insertText(
 ): void {
   assertUnitTextRoleFree(db, unitId, role, layerId);
   db.prepare(
-    `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, audio_file_id, updated_at)
-     VALUES (?, ?, ?, ?, ?, NULL, ?)`,
+    `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
   ).run(randomUUID(), unitId, layerId, role, body, now);
 }
 
@@ -828,33 +842,6 @@ function restoreDrafts(db: SqliteDatabase, undo: UnitSplitUndo): void {
   for (const row of undo.saveReceipts) {
     receipt.run(row.operation_id, row.digest, row.unit_id, row.layer_id, row.committed_at);
   }
-}
-
-function closeSortGap(db: SqliteDatabase, layerId: string, sortOrder: number): void {
-  db.prepare(
-    `UPDATE units SET sort_order = sort_order + 1000000
-     WHERE layer_id = ? AND sort_order > ?`,
-  ).run(layerId, sortOrder);
-  db.prepare(
-    `UPDATE units SET sort_order = sort_order - 1000001
-     WHERE layer_id = ? AND sort_order >= 1000000`,
-  ).run(layerId);
-}
-
-function shiftSortAfter(
-  db: SqliteDatabase,
-  layerId: string,
-  sortOrder: number,
-  parkedId: string,
-): void {
-  db.prepare(
-    `UPDATE units SET sort_order = sort_order + 1000000
-     WHERE layer_id = ? AND sort_order > ? AND id <> ?`,
-  ).run(layerId, sortOrder, parkedId);
-  db.prepare(
-    `UPDATE units SET sort_order = sort_order - 999999
-     WHERE layer_id = ? AND sort_order >= 1000000 AND id <> ?`,
-  ).run(layerId, parkedId);
 }
 
 function nextSort(db: SqliteDatabase, layerId: string): number {

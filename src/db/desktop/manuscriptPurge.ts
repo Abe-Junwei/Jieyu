@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { queueUnreferencedAttachment } from './attachments';
 import { mediaCleanupReady } from './mediaCleanup';
 import { readStringMap } from './stringMap';
 
@@ -171,7 +172,16 @@ function removeOwnedRows(db: SqliteDatabase, manuscriptId: string): void {
     )`,
   ).run(manuscriptId);
   db.prepare(`DELETE FROM tokens WHERE unit_id IN (${units})`).run(manuscriptId);
+  const clipFiles = db
+    .prepare(
+      `SELECT unit_text_audios.file_id AS fileId
+       FROM unit_text_audios
+       JOIN unit_texts ON unit_texts.id = unit_text_audios.unit_text_id
+       WHERE unit_texts.unit_id IN (${units})`,
+    )
+    .all(manuscriptId) as { fileId: string }[];
   db.prepare(`DELETE FROM unit_texts WHERE unit_id IN (${units})`).run(manuscriptId);
+  for (const clip of clipFiles) queueUnreferencedAttachment(db, clip.fileId);
   db.prepare(`DELETE FROM unit_text_drafts WHERE unit_id IN (${units})`).run(manuscriptId);
   db.prepare(`DELETE FROM unit_time_drafts WHERE unit_id IN (${units})`).run(manuscriptId);
   db.prepare(`DELETE FROM text_save_receipts WHERE unit_id IN (${units})`).run(manuscriptId);

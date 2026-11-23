@@ -415,6 +415,18 @@
           "reviewedSha256": "288d3709ae0d224b19c3f10e66caed2ef870bf68da56bf6de14634f6590de2e3"
         }
       ]
+    },
+    {
+      "file": "src/pages/OralClipList.tsx",
+      "reason": "Playlist menu opens to the right of the button, so its position follows the button's live coordinates.",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-23",
+      "snippets": [
+        {
+          "anchor": "style={{ top: at.top, left: at.left }}",
+          "reviewedSha256": "0eb79daf4a8e3795c2340bbf1e05e0aa046911810d386b33b8642884277e238a"
+        }
+      ]
     }
   ]
 }

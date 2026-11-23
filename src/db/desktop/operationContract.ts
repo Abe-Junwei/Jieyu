@@ -865,10 +865,66 @@ function unitSplit(input: Record<string, unknown>): {
   };
 }
 
-function unitMerge(input: Record<string, unknown>): { keepId: string; removeId: string } {
+function mergeSeparatorOf(value: unknown): string {
+  if (typeof value !== 'string') throw new Error('desktop call separator must be a string');
+  return value;
+}
+
+function unitMergePreview(input: Record<string, unknown>): {
+  keepId: string;
+  removeId: string;
+  discardAudioIds?: string[];
+} {
+  knownKeys(input, ['keepId', 'removeId', 'discardAudioIds']);
   return {
     keepId: requiredString(input.keepId, 'keepId'),
     removeId: requiredString(input.removeId, 'removeId'),
+    ...(input.discardAudioIds === undefined
+      ? {}
+      : { discardAudioIds: stringIds(input.discardAudioIds, 'discardAudioIds') }),
+  };
+}
+
+function unitMergeText(value: unknown, name: string): string {
+  if (typeof value !== 'string') throw new Error(`desktop call ${name} must be a string`);
+  return value;
+}
+
+function unitMerge(input: Record<string, unknown>): {
+  keepId: string;
+  removeId: string;
+  operationId?: string;
+  separator?: string;
+  discardAudioIds?: string[];
+  baseline?: string;
+  textLayerId?: string;
+  keepText?: string;
+  removeText?: string;
+} {
+  const textCount = [input.textLayerId, input.keepText, input.removeText].filter(
+    (value) => value !== undefined,
+  ).length;
+  if (textCount !== 0 && textCount !== 3) throw new Error('desktop call merge text is incomplete');
+  return {
+    keepId: requiredString(input.keepId, 'keepId'),
+    removeId: requiredString(input.removeId, 'removeId'),
+    ...(input.operationId === undefined
+      ? {}
+      : { operationId: requiredString(input.operationId, 'operationId') }),
+    ...(input.separator === undefined ? {} : { separator: mergeSeparatorOf(input.separator) }),
+    ...(input.discardAudioIds === undefined
+      ? {}
+      : { discardAudioIds: stringIds(input.discardAudioIds, 'discardAudioIds') }),
+    ...(input.baseline === undefined
+      ? {}
+      : { baseline: requiredString(input.baseline, 'baseline') }),
+    ...(textCount === 0
+      ? {}
+      : {
+          textLayerId: requiredString(input.textLayerId, 'textLayerId'),
+          keepText: unitMergeText(input.keepText, 'keepText'),
+          removeText: unitMergeText(input.removeText, 'removeText'),
+        }),
   };
 }
 
@@ -952,8 +1008,11 @@ const EDIT_RECEIPT_KINDS: readonly EditReceiptKind[] = [
   'moveSharedBoundary',
   'moveUnit',
   'delete',
+  'deleteMany',
   'undo',
   'redo',
+  'split',
+  'merge',
 ];
 
 function editInspect(input: Record<string, unknown>): {
@@ -1880,7 +1939,7 @@ export const desktopOperations = {
       textName: stringMap(input.textName, 'textName'),
     };
   }),
-  'recordings.attach': spec<'clear', RecordingAttach, { fileId: string }>('clear', (input) => {
+  'recordings.attach': spec<'keep', RecordingAttach, { fileId: string }>('keep', (input) => {
     knownKeys(input, ['unitId', 'layerId', 'mimeType', 'bytes', 'operationId']);
     return {
       unitId: requiredString(input.unitId, 'unitId'),
@@ -1890,25 +1949,28 @@ export const desktopOperations = {
       operationId: requiredString(input.operationId, 'operationId'),
     };
   }),
-  'recordings.detach': spec<'clear', { unitId: string; layerId: string }, { fileId: string }>(
-    'clear',
-    (input) => {
-      knownKeys(input, ['unitId', 'layerId']);
-      return {
-        unitId: requiredString(input.unitId, 'unitId'),
-        layerId: requiredString(input.layerId, 'layerId'),
-      };
-    },
-  ),
-  'recordings.read': spec<
+  'recordings.detach': spec<
     'keep',
-    { unitId: string; layerId: string },
-    { mimeType: string; bytes: Uint8Array }
+    { unitId: string; layerId: string; audioId?: string },
+    { fileId: string }
   >('keep', (input) => {
-    knownKeys(input, ['unitId', 'layerId']);
+    knownKeys(input, ['unitId', 'layerId', 'audioId']);
     return {
       unitId: requiredString(input.unitId, 'unitId'),
       layerId: requiredString(input.layerId, 'layerId'),
+      ...(input.audioId === undefined ? {} : { audioId: requiredString(input.audioId, 'audioId') }),
+    };
+  }),
+  'recordings.read': spec<
+    'keep',
+    { unitId: string; layerId: string; audioId?: string },
+    { mimeType: string; bytes: Uint8Array }
+  >('keep', (input) => {
+    knownKeys(input, ['unitId', 'layerId', 'audioId']);
+    return {
+      unitId: requiredString(input.unitId, 'unitId'),
+      layerId: requiredString(input.layerId, 'layerId'),
+      ...(input.audioId === undefined ? {} : { audioId: requiredString(input.audioId, 'audioId') }),
     };
   }),
   'recordings.list': spec<'keep', { layerId: string }, RecordingClipRef[]>('keep', (input) => {
@@ -2257,7 +2319,35 @@ export const desktopOperations = {
     },
     { left: Unit; right: Unit }
   >('keep', unitSplit),
-  'units.merge': spec<'clear', { keepId: string; removeId: string }, Unit>('clear', unitMerge),
+  'units.merge': spec<
+    'keep',
+    {
+      keepId: string;
+      removeId: string;
+      operationId?: string;
+      separator?: string;
+      discardAudioIds?: string[];
+      baseline?: string;
+      textLayerId?: string;
+      keepText?: string;
+      removeText?: string;
+    },
+    Unit
+  >('keep', unitMerge),
+  'units.mergePreview': spec<
+    'keep',
+    { keepId: string; removeId: string; discardAudioIds?: string[] },
+    {
+      keepId: string;
+      removeId: string;
+      gapMs: number;
+      noteCount: number;
+      separator: string;
+      baseline: string;
+      earlier: { id: string; unitId: string; layerId: string; fileId: string }[];
+      later: { id: string; unitId: string; layerId: string; fileId: string }[];
+    }
+  >('keep', unitMergePreview),
   'units.updateBoundary': spec<
     'keep',
     { leftId: string; rightId: string; time: number },

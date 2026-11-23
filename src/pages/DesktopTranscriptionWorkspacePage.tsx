@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { TimeRuler } from '../components/TimeRuler';
-import { TimelineTranslationAudioControls } from '../components/TimelineTranslationAudioControls';
+import { DesktopTranscriptionOralTools } from './DesktopTranscriptionOralTools';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
 import { JieyuIcon } from '../components/ui/JieyuIcon';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
@@ -27,6 +27,8 @@ import {
   type WaveMenuState,
 } from './DesktopTranscriptionWaveMenu';
 import { useDesktopTranscriptionSplitController } from './useDesktopTranscriptionSplitController';
+import { mergeBody } from './desktopTranscriptionMerge';
+import { useDesktopTranscriptionMergeController } from './useDesktopTranscriptionMergeController';
 import { readDesktopCorpusLocate } from './desktopCorpusLocate';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';
 import { useDesktopTranscriptionSelectionController } from './useDesktopTranscriptionSelectionController';
@@ -41,7 +43,6 @@ import type { LayerListRequest } from './DesktopTranscriptionLayerList';
 import type { LayerCommandId } from './desktopTranscriptionLayerCommands';
 import { DesktopLayerDragReason } from './useDesktopTranscriptionLayerDragController';
 import { useDesktopTranscriptionOralController } from './useDesktopTranscriptionOralController';
-import { pauseOralAudios } from './oralPlayback';
 import { DesktopOralLeaveDialog } from './DesktopOralLeaveDialog';
 import { useOralNavigationGuard } from './oralNavigationGuard';
 import {
@@ -207,6 +208,16 @@ function DesktopTranscriptionWorkspace() {
     read: read.readTextDraft,
   };
   const textLayerId = read.model?.layerId ?? null;
+  const merge = useDesktopTranscriptionMergeController({
+    locale,
+    sessionId: read.sessionId,
+    units: sourceUnits ?? [],
+    selectedUnitId: selection.selectedUnitId,
+    textLayerId,
+    textOf: (id) => mergeBody(textLayerId, id, draft.draft, sourceUnits, textKey),
+    desktopCall: host?.desktopCall,
+    reload: () => read.refresh(),
+  });
   const split = useDesktopTranscriptionSplitController({
     locale,
     sessionId: read.sessionId,
@@ -260,6 +271,7 @@ function DesktopTranscriptionWorkspace() {
     audioLayerIds: (read.model?.layers ?? []).flatMap((layer) =>
       layer.modality === 'audio' ? [layer.id] : [],
     ),
+    structureKey: (sourceUnits ?? []).map((unit) => unit.id).join('\n'),
     refresh: () => read.refresh(),
   });
   oralGate.current = { holding: oral.holding, leave: oral.leave };
@@ -678,6 +690,8 @@ function DesktopTranscriptionWorkspace() {
                 waveSkipRef={waveSkipRef}
                 waveDeleteRef={waveDeleteRef}
                 onSplit={(unitId) => split.ask(unitId, 'playhead')}
+                canMerge={merge.canMerge}
+                onMerge={(unitId) => void merge.ask(unitId)}
                 waveStage={waveStage}
                 onWaveSegmentMenu={(unitId, x, y) => openWaveRegionMenu.current(unitId, x, y)}
                 onLaneHeight={(layerId, height) => layerActions.setHeight(layerId, height)}
@@ -707,33 +721,12 @@ function DesktopTranscriptionWorkspace() {
                 }
                 lanes={laneChrome}
                 audioTools={(layerId, unitId) => (
-                  <TimelineTranslationAudioControls
-                    compact
-                    audioSrc={oral.src(layerId, unitId)}
-                    isRecording={oral.isRecording(layerId, unitId)}
-                    isArming={oral.isArming(layerId, unitId)}
-                    isSaving={oral.isSaving(layerId, unitId)}
-                    isFailed={oral.isFailed(layerId, unitId)}
-                    elapsed={oral.elapsed}
-                    takePaused={oral.paused}
-                    level={oral.level}
-                    disabled={
-                      (oral.micBusy || oral.saveLocked) &&
-                      !oral.isRecording(layerId, unitId) &&
-                      !oral.isArming(layerId, unitId) &&
-                      !oral.isSaving(layerId, unitId) &&
-                      !oral.isFailed(layerId, unitId)
-                    }
-                    onStartRecording={() => {
-                      if (playback.isPlaying) playback.togglePlayback();
-                      pauseOralAudios();
-                      void oral.start(layerId, unitId);
-                    }}
-                    onRetrySave={() => oral.retry()}
-                    onDiscardSave={() => oral.discardSave()}
-                    onStopRecording={oral.stop}
-                    onDeleteRecording={() => void oral.remove(layerId, unitId)}
-                    onTranscribeRecording={() => oral.transcribe(layerId, unitId)}
+                  <DesktopTranscriptionOralTools
+                    oral={oral}
+                    layerId={layerId}
+                    unitId={unitId}
+                    playing={playback.isPlaying}
+                    togglePlayback={playback.togglePlayback}
                   />
                 )}
                 openAudioLayerId={oral.openLayerId}
@@ -751,6 +744,7 @@ function DesktopTranscriptionWorkspace() {
         </div>
       </div>
 
+      {merge.dialog}
       {waveMenu === null ? null : (
         <DesktopTranscriptionWaveMenu
           locale={locale}

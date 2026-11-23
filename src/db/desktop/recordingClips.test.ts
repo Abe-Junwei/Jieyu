@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -196,11 +196,13 @@ describe('recording clips', () => {
       trash,
     )) as { fileId: string };
     const db = requireDesktopSession(session.sessionId).db;
-    db.prepare(`UPDATE unit_texts SET audio_file_id = ? WHERE unit_id = ? AND layer_id = ?`).run(
-      kept.fileId,
-      other.id,
-      pair.audioLayerId,
-    );
+    const otherText = db
+      .prepare('SELECT id FROM unit_texts WHERE unit_id = ? AND layer_id = ?')
+      .get(other.id, pair.audioLayerId) as { id: string };
+    db.prepare('DELETE FROM unit_text_audios WHERE unit_text_id = ?').run(otherText.id);
+    db.prepare(
+      `INSERT INTO unit_text_audios (id, unit_text_id, file_id, position) VALUES (?, ?, ?, 1)`,
+    ).run(randomUUID(), otherText.id, kept.fileId);
     await callDesktopSession(
       session.sessionId,
       'recordings.detach',
@@ -238,7 +240,7 @@ describe('recording clips', () => {
     );
     const row = db.prepare('SELECT state FROM attachment_files WHERE id = ?').get(kept.fileId);
     const refs = db
-      .prepare('SELECT COUNT(*) AS n FROM unit_texts WHERE audio_file_id = ?')
+      .prepare('SELECT COUNT(*) AS n FROM unit_text_audios WHERE file_id = ?')
       .get(kept.fileId);
     expect({ row, refs }).toEqual({ row: undefined, refs: { n: 0 } });
   });
@@ -565,5 +567,160 @@ describe('recording clips', () => {
       .db.prepare('SELECT body, provenance_json FROM unit_texts WHERE unit_id = ? AND layer_id = ?')
       .get(unit.id, pair.textLayerId) as { body: string; provenance_json: string | null };
     expect(saved).toEqual({ body: '改过', provenance_json: null });
+  });
+
+  it('repacks a later clip into 1..5 when the first clip of a written row is removed', async () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '稿' },
+    }) as { id: string };
+    const host = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: host.id,
+      text: '原句',
+    }) as { id: string };
+    const other = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: host.id,
+      text: '另一句',
+    }) as { id: string };
+    const pair = callDesktopSession(session.sessionId, 'recordings.createPair', {
+      hostLayerId: host.id,
+      kind: 'voice',
+      audioName: { zh: '语音' },
+      textName: { zh: '文本' },
+    }) as { audioLayerId: string };
+    const discard = async (absolute: string) => {
+      rmSync(absolute);
+      return 'moved' as const;
+    };
+    await callDesktopSession(
+      session.sessionId,
+      'recordings.attach',
+      {
+        unitId: unit.id,
+        layerId: pair.audioLayerId,
+        mimeType: 'audio/webm;codecs=opus',
+        bytes: Buffer.from('first'),
+        operationId: 'op-first',
+      },
+      discard,
+    );
+    const second = (await callDesktopSession(
+      session.sessionId,
+      'recordings.attach',
+      {
+        unitId: other.id,
+        layerId: pair.audioLayerId,
+        mimeType: 'audio/webm;codecs=opus',
+        bytes: Buffer.from('second'),
+        operationId: 'op-second',
+      },
+      discard,
+    )) as { fileId: string };
+    const db = requireDesktopSession(session.sessionId).db;
+    const text = db
+      .prepare('SELECT id FROM unit_texts WHERE unit_id = ? AND layer_id = ?')
+      .get(unit.id, pair.audioLayerId) as { id: string };
+    db.prepare('UPDATE unit_texts SET body = ? WHERE id = ?').run('有字', text.id);
+    db.prepare(
+      `INSERT INTO unit_text_audios (id, unit_text_id, file_id, position) VALUES (?, ?, ?, 2)`,
+    ).run(randomUUID(), text.id, second.fileId);
+    await callDesktopSession(
+      session.sessionId,
+      'recordings.detach',
+      { unitId: unit.id, layerId: pair.audioLayerId },
+      discard,
+    );
+    expect(
+      db
+        .prepare('SELECT position, file_id FROM unit_text_audios WHERE unit_text_id = ?')
+        .all(text.id),
+    ).toEqual([{ position: 1, file_id: second.fileId }]);
+  });
+
+  it('lists every clip and deletes the one named by audioId', async () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const manuscript = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '稿' },
+    }) as { id: string };
+    const host = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: manuscript.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const unit = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: host.id,
+      text: '原句',
+    }) as { id: string };
+    const other = callDesktopSession(session.sessionId, 'units.create', {
+      layerId: host.id,
+      text: '另一句',
+    }) as { id: string };
+    const pair = callDesktopSession(session.sessionId, 'recordings.createPair', {
+      hostLayerId: host.id,
+      kind: 'voice',
+      audioName: { zh: '语音' },
+      textName: { zh: '文本' },
+    }) as { audioLayerId: string };
+    const discard = async (absolute: string) => {
+      rmSync(absolute);
+      return 'moved' as const;
+    };
+    await callDesktopSession(
+      session.sessionId,
+      'recordings.attach',
+      {
+        unitId: unit.id,
+        layerId: pair.audioLayerId,
+        mimeType: 'audio/webm;codecs=opus',
+        bytes: Buffer.from('first'),
+        operationId: 'op-first',
+      },
+      discard,
+    );
+    const second = (await callDesktopSession(
+      session.sessionId,
+      'recordings.attach',
+      {
+        unitId: other.id,
+        layerId: pair.audioLayerId,
+        mimeType: 'audio/webm;codecs=opus',
+        bytes: Buffer.from('second'),
+        operationId: 'op-second',
+      },
+      discard,
+    )) as { fileId: string };
+    const db = requireDesktopSession(session.sessionId).db;
+    const text = db
+      .prepare('SELECT id FROM unit_texts WHERE unit_id = ? AND layer_id = ?')
+      .get(unit.id, pair.audioLayerId) as { id: string };
+    const later = randomUUID();
+    db.prepare(
+      `INSERT INTO unit_text_audios (id, unit_text_id, file_id, position) VALUES (?, ?, ?, 2)`,
+    ).run(later, text.id, second.fileId);
+    const listed = callDesktopSession(session.sessionId, 'recordings.list', {
+      layerId: pair.audioLayerId,
+    }) as { id: string; unitId: string }[];
+    expect(listed.map((row) => row.id)).toContain(later);
+    await callDesktopSession(
+      session.sessionId,
+      'recordings.detach',
+      { unitId: unit.id, layerId: pair.audioLayerId, audioId: later },
+      discard,
+    );
+    expect(
+      db.prepare('SELECT id FROM unit_text_audios WHERE unit_text_id = ?').all(text.id),
+    ).toHaveLength(1);
+    expect(db.prepare('SELECT id FROM unit_text_audios WHERE id = ?').get(later)).toBeUndefined();
   });
 });

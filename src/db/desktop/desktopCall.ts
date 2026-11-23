@@ -2,8 +2,10 @@ import {
   finishAttachmentCleanup,
   listAttachmentLinks,
   publishAttachment,
+  queueAttachmentSweep,
   readAttachmentLink,
   removeAttachmentLink,
+  sweepUnheldAttachments,
 } from './attachments';
 import { applyAnalysis } from './analysis';
 import { importForeignFile } from './foreignImport';
@@ -155,7 +157,9 @@ import {
 } from './projectSession';
 import {
   clearSessionEdit,
+  consumeRedoSweep,
   dropSessionEdit,
+  noteLiveUnitAudios,
   rememberSessionEdit,
   redoSessionEdit,
   sessionEditManuscript,
@@ -180,7 +184,8 @@ import {
   textSaveDigest,
 } from './textSave';
 import { resolveUnitTextContext } from './unitTextLayers';
-import { mergeUnits, readRemovedUnit } from './unitSpan';
+import { mergePreview, mergeUnits } from './unitMerge';
+import { readRemovedUnit } from './unitSpan';
 import { splitUnit } from './unitSplit';
 import {
   manuscriptIdOf,
@@ -230,6 +235,7 @@ const EDIT_METHODS = {
   undo: 'units.undo',
   redo: 'units.redo',
   split: 'units.split',
+  merge: 'units.merge',
 } as const satisfies Record<EditReceiptKind, keyof DesktopOperations>;
 
 const operationHandlers = {
@@ -583,11 +589,36 @@ const operationHandlers = {
       );
     },
   },
+  'units.mergePreview': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.mergePreview']['check']>) =>
+      mergePreview(ctx.db, input),
+  },
   'units.merge': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.merge']['check']>) => {
-      const merged = mergeUnits(ctx.db, input);
-      rememberSessionEdit(ctx.sessionId, { kind: 'merge', undo: merged.undo });
-      return merged.unit;
+      const { operationId, ...mergeInput } = input;
+      let manuscriptId: string | undefined;
+      try {
+        manuscriptId = manuscriptIdOf(ctx.db, input.keepId);
+      } catch (error) {
+        if (!(error instanceof Error) || error.message !== 'unit is missing') throw error;
+      }
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'merge',
+          payload: mergeInput,
+          manuscriptId: () => {
+            if (manuscriptId === undefined) throw new Error('unit is missing');
+            return manuscriptId;
+          },
+        },
+        () => {
+          const merged = mergeUnits(ctx.db, input);
+          rememberSessionEdit(ctx.sessionId, { kind: 'merge', undo: merged.undo });
+          return merged.unit;
+        },
+      );
     },
   },
   'units.updateBoundary': {
@@ -1215,6 +1246,7 @@ const operationHandlers = {
       input: ReturnType<DesktopOperations['recordings.attach']['check']>,
     ) => {
       const stored = attachRecording(ctx.db, ctx.folder, input);
+      noteLiveUnitAudios(ctx.db, input.unitId);
       if (ctx.trash !== undefined && stored.replacedFileId !== null) {
         await finishAttachmentCleanup(ctx.db, ctx.folder, stored.replacedFileId, ctx.trash);
       }
@@ -1227,6 +1259,7 @@ const operationHandlers = {
       input: ReturnType<DesktopOperations['recordings.detach']['check']>,
     ) => {
       const removed = detachRecording(ctx.db, input);
+      noteLiveUnitAudios(ctx.db, input.unitId);
       if (ctx.trash !== undefined) {
         await finishAttachmentCleanup(ctx.db, ctx.folder, removed.fileId, ctx.trash);
       }
@@ -1363,12 +1396,26 @@ function runContract(
       desktopOperations['units.updateText'].check(raw),
     );
     if (done.undo !== null) operationHandlers['units.updateText'].remember(sessionId, done.undo);
+    sweepClearedRedo(project.db, ctx.folder, trash);
     return done.value;
   }
   // ponytail: one cast. Each handler is still checked by `satisfies ContractHandlers`. Put a case back if a call is not check-then-run.
   const check = desktopOperations[method].check as (input: Record<string, unknown>) => unknown;
   const run = operationHandlers[method].run as (ctx: ContractCtx, input: unknown) => unknown;
-  return run(ctx, check(raw));
+  try {
+    return run(ctx, check(raw));
+  } finally {
+    sweepClearedRedo(project.db, ctx.folder, trash);
+  }
+}
+
+function sweepClearedRedo(
+  db: ContractCtx['db'],
+  folder: string,
+  trash: MediaTrash | undefined,
+): void {
+  if (trash === undefined || !consumeRedoSweep()) return;
+  queueAttachmentSweep(sweepUnheldAttachments(db, folder, trash));
 }
 
 export function callDesktopSession(

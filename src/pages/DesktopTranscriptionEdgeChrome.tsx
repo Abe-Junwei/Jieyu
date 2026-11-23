@@ -56,6 +56,8 @@ export function DesktopTranscriptionEdgeChrome(props: {
   onToggleSkip: () => void;
   onAskDelete: () => void;
   onAskSplit?: () => void;
+  canMerge?: boolean;
+  onAskMerge?: () => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
   speakers?: {
@@ -233,6 +235,17 @@ export function DesktopTranscriptionEdgeChrome(props: {
                     {props.onAskSplit === undefined ? null : (
                       <button type="button" role="menuitem" onClick={props.onAskSplit}>
                         {t(locale, 'app.desktopTranscription.splitSegment')}
+                      </button>
+                    )}
+                    {props.onAskMerge === undefined ? null : (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        disabled={props.canMerge !== true}
+                        onClick={props.onAskMerge}
+                      >
+                        {t(locale, 'app.desktopTranscription.mergeNext')}
+                        <span className="desktop-tx-menu__key">⌘M</span>
                       </button>
                     )}
                   </>

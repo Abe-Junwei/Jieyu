@@ -9,6 +9,7 @@ import {
 import { projectAnalysisGraph } from '../../annotation/analysisGraphDomainProjection';
 import { assertTokenLanguages, replaceProjection, syncProjectedLinks } from './analysis';
 import { unitBelongsToDeletedManuscript } from './manuscripts';
+import { textAudioCount } from './unitTextAudios';
 import {
   detachAnalysisAssociations,
   getAnalysisCandidate,
@@ -298,6 +299,10 @@ export function undoUnitText(db: SqliteDatabase, undo: UnitTextUndo, afterText?:
           'UPDATE unit_texts SET body = ?, provenance_json = ?, updated_at = ? WHERE id = ?',
         ).run(undo.prior.text, undo.prior.provenanceJson, now, currentText.id);
       }
+    } else if (currentText.id !== null && textAudioCount(db, currentText.id) > 0) {
+      db.prepare(
+        'UPDATE unit_texts SET body = ?, provenance_json = NULL, updated_at = ? WHERE id = ?',
+      ).run('', now, currentText.id);
     } else {
       db.prepare('DELETE FROM unit_texts WHERE unit_id = ? AND layer_id = ?').run(
         undo.unitId,

@@ -30,7 +30,6 @@ export function DesktopProjectReadView(props: {
   undoTextLabel: string;
   splitLabel: string;
   splitTimeLabel: string;
-  mergeNextLabel: string;
   boundaryLabel: string;
   moveBoundaryLabel: string;
   noteLabel: string;
@@ -49,7 +48,6 @@ export function DesktopProjectReadView(props: {
   onLeaveUnit: (go: () => void) => void;
   onUndoText: () => void;
   onSplit: (unitId: string, time: number) => void;
-  onMerge: (keepId: string, removeId: string) => void;
   onMoveBoundary: (leftId: string, rightId: string, time: number) => void;
   onSaveNote: (unitId: string, text: string) => void | Promise<void>;
   onSaveTierNote: (
@@ -177,11 +175,6 @@ export function DesktopProjectReadView(props: {
           >
             {props.splitLabel}
           </button>
-          {next === null ? null : (
-            <button type="button" onClick={() => props.onMerge(selected.id, next.id)}>
-              {props.mergeNextLabel}
-            </button>
-          )}
           {next === null ? null : (
             <>
               <input
