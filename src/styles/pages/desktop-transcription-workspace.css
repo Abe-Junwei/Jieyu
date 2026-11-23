@@ -1407,10 +1407,6 @@
   background: color-mix(in srgb, var(--brand-solid) 65%, transparent);
 }
 
-.desktop-tx-context__menu {
-  min-width: 168px;
-}
-
 .desktop-tx-layer-delete__footer {
   display: flex;
   justify-content: flex-end;
