@@ -298,15 +298,13 @@ export function DesktopTranscriptionLayerRows(props: {
                 />
               );
             })}
-            {joinSeconds(
-              units.map((unit) => playbackWithPreview(unit, props.preview, unit.parentUnitId)),
-            ).map((mark) => (
-              <div
-                key={mark}
-                className="desktop-tx-join"
-                style={{ left: seamLeft(mark, props.duration, props.zoomPxPerSec) }}
-              />
-            ))}
+            <DesktopTranscriptionJoins
+              units={units.map((unit) =>
+                playbackWithPreview(unit, props.preview, unit.parentUnitId),
+              )}
+              duration={props.duration}
+              zoomPxPerSec={props.zoomPxPerSec}
+            />
             {props.createLayerId === layer.id && props.createFrame ? (
               <DesktopTranscriptionCreatePreview
                 className="desktop-tx-create"
@@ -414,4 +412,18 @@ export function layerLabel(
   const preferred = locale.startsWith('zh') ? name.zh : name.en;
   const label = (preferred ?? name.zh ?? name.en ?? Object.values(name)[0] ?? '').trim();
   return label.length > 0 ? label : fallback;
+}
+
+export function DesktopTranscriptionJoins(props: {
+  units: readonly { startTime: number; endTime: number }[];
+  duration: number;
+  zoomPxPerSec: number;
+}) {
+  return joinSeconds(props.units).map((mark) => (
+    <div
+      key={mark}
+      className="desktop-tx-join"
+      style={{ left: seamLeft(mark, props.duration, props.zoomPxPerSec) }}
+    />
+  ));
 }

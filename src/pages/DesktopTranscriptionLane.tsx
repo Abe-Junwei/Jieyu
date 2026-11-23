@@ -37,7 +37,6 @@ import {
   desktopSegmentFrame,
   edgeNotice,
   followTip,
-  joinSeconds,
   playbackWithPreview,
   seamLeft,
   seamSeconds,
@@ -48,6 +47,7 @@ import { NO_CONFLICTS } from './desktopTranscriptionEdgeSession';
 import type { RouteLayer, RouteLink } from './desktopTranscriptionCreateRoute';
 import { textKey } from './desktopTranscriptionTextKey';
 import {
+  DesktopTranscriptionJoins,
   DesktopTranscriptionLayerRows,
   laneHeightStyle,
   layerLabel,
@@ -555,15 +555,11 @@ export function DesktopTranscriptionLane(props: {
                   />
                 );
               })}
-              {joinSeconds(
-                props.units.map((unit) => playbackWithPreview(unit, edges.ui.preview)),
-              ).map((mark) => (
-                <div
-                  key={mark}
-                  className="desktop-tx-join"
-                  style={{ left: seamLeft(mark, props.duration, props.zoomPxPerSec) }}
-                />
-              ))}
+              <DesktopTranscriptionJoins
+                units={props.units.map((unit) => playbackWithPreview(unit, edges.ui.preview))}
+                duration={props.duration}
+                zoomPxPerSec={props.zoomPxPerSec}
+              />
               {previewFrame && createLayerId === null ? (
                 <DesktopTranscriptionCreatePreview
                   className="desktop-tx-create"
