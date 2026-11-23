@@ -218,9 +218,6 @@ export const enUSDictionary = {
   'app.desktopTranscription.clearLayerText': 'Clear “{layer}” text',
   'app.desktopTranscription.deleteSegment': 'Delete segment',
   'app.desktopTranscription.splitSegment': 'Split segment',
-  'app.desktopTranscription.splitConfirm': 'Split',
-  'app.desktopTranscription.splitOtherLayers':
-    'Only this layer is cut at the cursor. Other layers stay on the left.',
   'app.desktopTranscription.splitTooClose': 'The cut is under 10 milliseconds from an edge',
   'app.desktopTranscription.splitOutside': 'The playhead is outside this segment',
   'app.desktopTranscription.splitFailed': 'Could not split',

@@ -26,10 +26,7 @@ import {
   waveMenuUnitAt,
   type WaveMenuState,
 } from './DesktopTranscriptionWaveMenu';
-import {
-  DesktopTranscriptionSplitDialog,
-  useDesktopTranscriptionSplitController,
-} from './useDesktopTranscriptionSplitController';
+import { useDesktopTranscriptionSplitController } from './useDesktopTranscriptionSplitController';
 import { readDesktopCorpusLocate } from './desktopCorpusLocate';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';
 import { useDesktopTranscriptionSelectionController } from './useDesktopTranscriptionSelectionController';
@@ -751,13 +748,6 @@ function DesktopTranscriptionWorkspace() {
           onSplit={(unitId, time) => split.ask(unitId, time)}
         />
       )}
-      <DesktopTranscriptionSplitDialog
-        locale={locale}
-        prompt={split.prompt}
-        onCutIndex={split.setCutIndex}
-        onConfirm={split.confirm}
-        onCancel={split.cancel}
-      />
       {oral.ask ? (
         <DesktopOralLeaveDialog
           saving={oral.saving}

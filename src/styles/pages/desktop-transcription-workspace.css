@@ -1225,13 +1225,19 @@
   transition: opacity 0.14s;
 }
 
-.desktop-tx-zoom-dock:hover,
+.desktop-tx-zoom-dock[data-hovered],
 .desktop-tx-zoom-dock:focus-within {
   opacity: 1;
 }
 
-.desktop-tx-zoom-dock:not(:hover):not(:focus-within) .desktop-tx-zoom {
+.desktop-tx-zoom-dock,
+.desktop-tx-zoom {
   pointer-events: none;
+}
+
+.desktop-tx-zoom-dock[data-hovered] .desktop-tx-zoom :is(button, input),
+.desktop-tx-zoom-dock:focus-within .desktop-tx-zoom :is(button, input) {
+  pointer-events: auto;
 }
 
 .desktop-tx-zoom {
@@ -1650,6 +1656,12 @@
    has no text, so it is an empty card too; the delete button is what marks it. */
 .desktop-tx-lane .timeline-annotation-empty {
   z-index: 1;
+}
+
+.desktop-tx-lane
+  .timeline-annotation-empty
+  + .timeline-annotation-empty:not(.timeline-annotation-has-speaker) {
+  --timeline-item-divider-width: 1px;
 }
 
 .desktop-tx-lane .timeline-annotation:not(.timeline-annotation-empty),

@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest';
-import { splitOpen } from './useDesktopTranscriptionSplitController';
+/** @vitest-environment jsdom */
+import { act, cleanup, renderHook, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ToastProvider } from '../contexts/ToastContext';
+import { textKey } from './desktopTranscriptionTextKey';
+import {
+  splitOpen,
+  useDesktopTranscriptionSplitController,
+} from './useDesktopTranscriptionSplitController';
 
 const unit = {
   timeMs: 500,
@@ -44,5 +51,92 @@ describe('splitOpen', () => {
     expect(splitOpen({ ...unit, timeMs: 2000, caret: null }).ok).toBe(false);
     expect(splitOpen({ ...unit, timeMs: 2000, caret: null })).toMatchObject({ reason: 'outside' });
     expect(splitOpen({ ...unit, timeMs: 5, caret: null })).toMatchObject({ reason: 'too-close' });
+  });
+});
+
+const segment = { id: 'u', startTime: 0, endTime: 2, text: '原文句子' };
+
+function mount(overrides: {
+  text?: string;
+  draft?: { unitId: string; text: string } | null;
+  desktopCall?: ReturnType<typeof vi.fn>;
+}) {
+  const desktopCall = overrides.desktopCall ?? vi.fn(async () => ({}));
+  const reload = vi.fn(async () => undefined);
+  const rendered = renderHook(
+    () =>
+      useDesktopTranscriptionSplitController({
+        locale: 'zh-CN',
+        sessionId: 's',
+        textLayerId: 'tx',
+        units: [{ ...segment, ...(overrides.text === undefined ? {} : { text: overrides.text }) }],
+        draft: overrides.draft ?? null,
+        desktopCall: desktopCall as (
+          sessionId: string,
+          method: string,
+          args: unknown,
+        ) => Promise<unknown>,
+        playheadSec: () => 0.5,
+        reload,
+      }),
+    { wrapper: ToastProvider },
+  );
+  return { ...rendered, desktopCall, reload };
+}
+
+describe('split ask', () => {
+  afterEach(() => cleanup());
+
+  it('writes the split at once when the segment has text', async () => {
+    const { result, desktopCall, reload } = mount({});
+    await act(async () => {
+      await result.current.ask('u', 'playhead');
+    });
+    expect(desktopCall).toHaveBeenCalledTimes(1);
+    expect(desktopCall).toHaveBeenCalledWith(
+      's',
+      'units.split',
+      expect.objectContaining({ unitId: 'u', time: 500, rawInput: '原文句子', cutIndex: 4 }),
+    );
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('splits an empty segment at a valid time', async () => {
+    const { result, desktopCall } = mount({ text: '' });
+    await act(async () => {
+      await result.current.ask('u', 'playhead');
+    });
+    expect(desktopCall).toHaveBeenCalledWith(
+      's',
+      'units.split',
+      expect.objectContaining({ time: 500, rawInput: '', cutIndex: 0 }),
+    );
+  });
+
+  it('stores unsaved text as a draft before splitting it', async () => {
+    const { result, desktopCall } = mount({
+      text: '',
+      draft: { unitId: textKey('tx', 'u'), text: '新的句子' },
+    });
+    await act(async () => {
+      await result.current.ask('u', 'playhead');
+    });
+    expect(desktopCall.mock.calls.map((call) => call[1])).toEqual([
+      'units.putTextDraft',
+      'units.split',
+    ]);
+    expect(desktopCall).toHaveBeenNthCalledWith(
+      1,
+      's',
+      'units.putTextDraft',
+      expect.objectContaining({ rawInput: '新的句子', baseBody: '', textLayerId: 'tx' }),
+    );
+    expect(desktopCall).toHaveBeenNthCalledWith(
+      2,
+      's',
+      'units.split',
+      expect.objectContaining({ rawInput: '新的句子', cutIndex: 4 }),
+    );
   });
 });

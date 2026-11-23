@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
-import { ModalPanel } from '../components/ui/ModalPanel';
+import { useEffect, useRef } from 'react';
 import { t, type Locale } from '../i18n';
 import { useToast } from '../contexts/ToastContext';
 import { textKey } from './desktopTranscriptionTextKey';
@@ -11,14 +10,6 @@ interface SplitUnit {
   startTime: number;
   endTime: number;
   text: string;
-}
-
-interface Prompt {
-  unitId: string;
-  timeMs: number;
-  textLayerId: string;
-  source: string;
-  cutIndex: number;
 }
 
 interface SplitCaret {
@@ -56,13 +47,26 @@ export function splitOpen(input: {
   return { ok: true, textLayerId, source, cutIndex };
 }
 
-function caretFrom(target: EventTarget | null): SplitCaret | null {
-  if (!(target instanceof HTMLInputElement)) return null;
+function annotationField(
+  target: EventTarget | null,
+): HTMLInputElement | HTMLTextAreaElement | null {
+  if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return null;
   if (!target.classList.contains('timeline-annotation-input')) return null;
-  const unitId = target.closest('[data-unit-id]')?.getAttribute('data-unit-id');
-  const layerId = target.closest('[data-layer-id]')?.getAttribute('data-layer-id');
-  if (!unitId || !layerId || target.selectionStart === null) return null;
-  return { layerId, unitId, index: target.selectionStart, source: target.value };
+  return target;
+}
+
+function caretFrom(target: EventTarget | null): SplitCaret | null {
+  const field = annotationField(target);
+  if (!field) return null;
+  const unitId = field.closest('[data-unit-id]')?.getAttribute('data-unit-id');
+  const layerId = field.closest('[data-layer-id]')?.getAttribute('data-layer-id');
+  if (!unitId || !layerId) return null;
+  return {
+    layerId,
+    unitId,
+    index: field.selectionStart ?? field.value.length,
+    source: field.value,
+  };
 }
 
 export function useDesktopTranscriptionSplitController(input: {
@@ -76,40 +80,36 @@ export function useDesktopTranscriptionSplitController(input: {
   reload: () => Promise<unknown>;
 }) {
   const toast = useToast();
-  const [prompt, setPrompt] = useState<Prompt | null>(null);
   const live = useRef(input);
   live.current = input;
   const caret = useRef<SplitCaret | null>(null);
   const askLatest = useRef<(unitId: string, at: number | 'playhead') => void>(() => undefined);
 
-  function ask(unitId: string, at: number | 'playhead') {
+  async function ask(unitId: string, at: number | 'playhead') {
     const current = live.current;
+    const sessionId = current.sessionId;
+    const textLayerId = current.textLayerId;
+    const desktopCall = current.desktopCall;
     const unit = current.units.find((item) => item.id === unitId);
-    if (
-      !unit ||
-      current.sessionId === null ||
-      current.textLayerId === null ||
-      !current.desktopCall
-    ) {
-      return;
-    }
+    if (!unit || sessionId === null || textLayerId === null || !desktopCall) return;
     const seconds = at === 'playhead' ? current.playheadSec() : at;
     const timeMs = Math.round(seconds * 1000);
-    const marked = caret.current;
+    const liveField = caretFrom(document.activeElement);
+    const marked = liveField ?? caret.current;
     const markedSource =
-      marked && current.draft?.unitId === textKey(marked.layerId, marked.unitId)
-        ? { ...marked, source: current.draft.text }
-        : marked;
+      liveField !== null
+        ? liveField
+        : marked && current.draft?.unitId === textKey(marked.layerId, marked.unitId)
+          ? { ...marked, source: current.draft.text }
+          : marked;
     const activeSource =
-      current.draft?.unitId === textKey(current.textLayerId, unitId)
-        ? current.draft.text
-        : unit.text;
+      current.draft?.unitId === textKey(textLayerId, unitId) ? current.draft.text : unit.text;
     const plan = splitOpen({
       timeMs,
       startMs: Math.round(unit.startTime * 1000),
       endMs: Math.round(unit.endTime * 1000),
       unitId,
-      activeLayerId: current.textLayerId,
+      activeLayerId: textLayerId,
       activeSource,
       caret: markedSource,
     });
@@ -125,53 +125,49 @@ export function useDesktopTranscriptionSplitController(input: {
       );
       return;
     }
-    setPrompt({
-      unitId,
-      timeMs,
-      textLayerId: plan.textLayerId,
-      source: plan.source,
-      cutIndex: plan.cutIndex,
-    });
-  }
-  askLatest.current = ask;
-
-  async function confirm() {
-    const current = prompt;
-    const page = live.current;
-    if (!current || page.sessionId === null || !page.desktopCall) return;
     const operationId = globalThis.crypto.randomUUID();
     const args = {
-      unitId: current.unitId,
-      time: current.timeMs,
-      textLayerId: current.textLayerId,
-      cutIndex: current.cutIndex,
-      rawInput: current.source,
+      unitId,
+      time: timeMs,
+      textLayerId: plan.textLayerId,
+      cutIndex: plan.cutIndex,
+      rawInput: plan.source,
       operationId,
     };
     try {
-      await page.desktopCall(page.sessionId, 'units.split', args);
+      if (plan.source !== unit.text) {
+        await desktopCall(sessionId, 'units.putTextDraft', {
+          unitId,
+          textLayerId: plan.textLayerId,
+          rawInput: plan.source,
+          baseBody: unit.text,
+        });
+      }
+      await desktopCall(sessionId, 'units.split', args);
     } catch (error) {
       try {
-        const found = (await page.desktopCall(page.sessionId, 'units.inspectEdit', {
+        const found = (await desktopCall(sessionId, 'units.inspectEdit', {
           operationId,
           kind: 'split',
           payload: {
-            unitId: current.unitId,
-            time: current.timeMs,
-            textLayerId: current.textLayerId,
-            cutIndex: current.cutIndex,
-            rawInput: current.source,
+            unitId,
+            time: timeMs,
+            textLayerId: plan.textLayerId,
+            cutIndex: plan.cutIndex,
+            rawInput: plan.source,
           },
         })) as { status?: string };
         if (found.status !== 'committed') throw error;
       } catch {
-        toast.showToast(t(page.locale, 'app.desktopTranscription.splitFailed'), 'error');
+        toast.showToast(t(current.locale, 'app.desktopTranscription.splitFailed'), 'error');
         return;
       }
     }
-    setPrompt(null);
-    await page.reload();
+    await current.reload();
   }
+  askLatest.current = (unitId, at) => {
+    void ask(unitId, at);
+  };
 
   useEffect(() => {
     const remember = (event: Event) => {
@@ -198,6 +194,7 @@ export function useDesktopTranscriptionSplitController(input: {
       const target = event.target;
       if (
         !fromEditor &&
+        annotationField(target) === null &&
         (target instanceof HTMLInputElement ||
           target instanceof HTMLTextAreaElement ||
           (target instanceof HTMLElement && target.isContentEditable))
@@ -217,81 +214,5 @@ export function useDesktopTranscriptionSplitController(input: {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  return {
-    ask,
-    prompt,
-    setCutIndex: (cutIndex: number) =>
-      setPrompt((current) => (current === null ? current : { ...current, cutIndex })),
-    confirm: () => void confirm(),
-    cancel: () => setPrompt(null),
-  };
-}
-
-function SplitPreview(props: {
-  label: string;
-  source: string;
-  cutIndex: number;
-  onCutIndex: (cutIndex: number) => void;
-}) {
-  const placed = useRef(false);
-  return (
-    <textarea
-      aria-label={props.label}
-      value={props.source}
-      readOnly
-      ref={(node) => {
-        if (!node || placed.current) return;
-        placed.current = true;
-        node.setSelectionRange(props.cutIndex, props.cutIndex);
-      }}
-      onSelect={(event) =>
-        props.onCutIndex(event.currentTarget.selectionStart ?? props.source.length)
-      }
-      onKeyUp={(event) =>
-        props.onCutIndex(event.currentTarget.selectionStart ?? props.source.length)
-      }
-      onClick={(event) =>
-        props.onCutIndex(event.currentTarget.selectionStart ?? props.source.length)
-      }
-    />
-  );
-}
-
-export function DesktopTranscriptionSplitDialog(props: {
-  locale: Locale;
-  prompt: Prompt | null;
-  onCutIndex: (cutIndex: number) => void;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  if (props.prompt === null) return null;
-  const { prompt } = props;
-  return (
-    <ModalPanel
-      isOpen
-      compact
-      className="desktop-tx-delete"
-      closeLabel={t(props.locale, 'app.desktopTranscription.cancel')}
-      onClose={props.onCancel}
-      title={t(props.locale, 'app.desktopTranscription.splitSegment')}
-      footer={
-        <>
-          <button type="button" className="btn btn-primary" onClick={props.onConfirm}>
-            {t(props.locale, 'app.desktopTranscription.splitConfirm')}
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={props.onCancel}>
-            {t(props.locale, 'app.desktopTranscription.cancel')}
-          </button>
-        </>
-      }
-    >
-      <p>{t(props.locale, 'app.desktopTranscription.splitOtherLayers')}</p>
-      <SplitPreview
-        label={t(props.locale, 'app.desktopTranscription.splitSegment')}
-        source={prompt.source}
-        cutIndex={prompt.cutIndex}
-        onCutIndex={props.onCutIndex}
-      />
-    </ModalPanel>
-  );
+  return { ask };
 }
