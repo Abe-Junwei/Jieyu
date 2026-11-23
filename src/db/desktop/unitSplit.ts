@@ -210,6 +210,9 @@ export function undoSplit(db: SqliteDatabase, undo: UnitSplitUndo, afterWrite?: 
     }
     for (const id of [...undo.createdIds].reverse()) deleteUnitTree(db, id);
     for (const removed of undo.removed) insertRemovedContents(db, removed);
+    for (const removed of [...undo.removed].sort((a, b) => b.unit.sort_order - a.unit.sort_order)) {
+      closeSortGap(db, removed.unit.layer_id, removed.unit.sort_order);
+    }
     restoreDrafts(db, undo);
     db.prepare('DELETE FROM unit_span_maps WHERE operation_id = ?').run(undo.operationId);
     bumpGeneration(db, undo.manuscriptId, now);
@@ -236,6 +239,7 @@ function splitOne(
     source: string;
     parentLeft: string | null;
     parentRight: string | null;
+    consumeTextDraft?: boolean;
   },
 ): { leftId: string; rightId: string } {
   if (unit.start_ms === null || unit.end_ms === null) {
@@ -290,7 +294,16 @@ function splitOne(
   });
   writeMaps(db, accum.operationId, unit.id, leftId, rightId, now);
   moveTexts(db, leftId, rightId, texts, cut, now);
-  moveDrafts(db, unit.id, leftId, rightId, cut.textLayerId, unit.start_ms, unit.end_ms);
+  moveDrafts(
+    db,
+    unit.id,
+    leftId,
+    rightId,
+    cut.textLayerId,
+    unit.start_ms,
+    unit.end_ms,
+    cut.consumeTextDraft !== false,
+  );
   db.prepare('UPDATE text_save_receipts SET unit_id = ? WHERE unit_id = ?').run(leftId, unit.id);
   if (!keepGraph && unit.analysis_graph_json !== null) {
     if (material?.graph) insertReviewSnapshot(db, { ...material, unitId: leftId });
@@ -339,6 +352,7 @@ function splitOne(
         source: childBody,
         parentLeft: leftId,
         parentRight: rightId,
+        consumeTextDraft: false,
       });
     }
   }
@@ -444,11 +458,14 @@ function moveDrafts(
   textLayerId: string,
   startMs: number,
   endMs: number,
+  consumeTextDraft: boolean,
 ): void {
-  db.prepare('DELETE FROM unit_text_drafts WHERE unit_id = ? AND layer_id = ?').run(
-    oldId,
-    textLayerId,
-  );
+  if (consumeTextDraft) {
+    db.prepare('DELETE FROM unit_text_drafts WHERE unit_id = ? AND layer_id = ?').run(
+      oldId,
+      textLayerId,
+    );
+  }
   db.prepare('UPDATE unit_text_drafts SET unit_id = ? WHERE unit_id = ?').run(leftId, oldId);
   const drafts = db
     .prepare('SELECT edge, base_ms FROM unit_time_drafts WHERE unit_id = ?')
@@ -811,6 +828,17 @@ function restoreDrafts(db: SqliteDatabase, undo: UnitSplitUndo): void {
   for (const row of undo.saveReceipts) {
     receipt.run(row.operation_id, row.digest, row.unit_id, row.layer_id, row.committed_at);
   }
+}
+
+function closeSortGap(db: SqliteDatabase, layerId: string, sortOrder: number): void {
+  db.prepare(
+    `UPDATE units SET sort_order = sort_order + 1000000
+     WHERE layer_id = ? AND sort_order > ?`,
+  ).run(layerId, sortOrder);
+  db.prepare(
+    `UPDATE units SET sort_order = sort_order - 1000001
+     WHERE layer_id = ? AND sort_order >= 1000000`,
+  ).run(layerId);
 }
 
 function shiftSortAfter(

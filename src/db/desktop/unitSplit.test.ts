@@ -376,6 +376,62 @@ describe('unit split', () => {
       },
     );
   });
+
+  it('keeps a straddling child draft on its new left and closes the sort gap on undo', () => {
+    const session = open();
+    const { unitId, layerId, manuscriptId } = seed(session.sessionId);
+    const later = (
+      callDesktopSession(session.sessionId, 'units.create', {
+        layerId,
+        startMs: 2000,
+        endMs: 2400,
+        text: '后',
+      }) as { id: string }
+    ).id;
+    const sub = (
+      callDesktopSession(session.sessionId, 'layers.create', {
+        manuscriptId,
+        key: 'sub',
+        name: { zh: '细分' },
+        tierType: 'time-subdivision',
+        contentType: 'transcription',
+        hosts: [{ hostLayerId: layerId }],
+      }) as { id: string }
+    ).id;
+    const child = (
+      callDesktopSession(session.sessionId, 'units.create', {
+        layerId: sub,
+        parentUnitId: unitId,
+        startMs: 400,
+        endMs: 1600,
+        text: '子',
+      }) as { id: string }
+    ).id;
+    const db = requireDesktopSession(session.sessionId).db;
+    const now = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO unit_text_drafts (unit_id, layer_id, raw_input, base_body, updated_at)
+       VALUES (?, ?, '子改', '子', ?)`,
+    ).run(child, sub, now);
+    const sortOf = (id: string) =>
+      (db.prepare('SELECT sort_order FROM units WHERE id = ?').get(id) as { sort_order: number })
+        .sort_order;
+    const laterSort = sortOf(later);
+    const rootSort = sortOf(unitId);
+    callDesktopSession(session.sessionId, 'units.split', { unitId, time: 1000 });
+    const leftChild = db
+      .prepare('SELECT id FROM units WHERE layer_id = ? AND start_ms = 400')
+      .get(sub) as { id: string };
+    expect(
+      db.prepare('SELECT unit_id, raw_input FROM unit_text_drafts WHERE layer_id = ?').get(sub),
+    ).toEqual({ unit_id: leftChild.id, raw_input: '子改' });
+    expect(callDesktopSession(session.sessionId, 'units.undo', {})).toMatchObject({ id: unitId });
+    expect(sortOf(unitId)).toBe(rootSort);
+    expect(sortOf(later)).toBe(laterSort);
+    expect(
+      db.prepare('SELECT unit_id, raw_input FROM unit_text_drafts WHERE layer_id = ?').get(sub),
+    ).toEqual({ unit_id: child, raw_input: '子改' });
+  });
 });
 
 function linkWord(sessionId: string): { unitId: string; tokenId: string; linkId: string } {

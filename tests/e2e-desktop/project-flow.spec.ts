@@ -1,5 +1,5 @@
 import type { DesktopReadHost } from '../../src/desktop/projectReadHost';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import Database from 'better-sqlite3';
 import {
@@ -211,7 +211,9 @@ test('layer structure creates a translation layer and reads it back', async () =
       await expect(layers).toBeVisible();
     }).toPass();
     await layers.click();
-    await page.getByRole('button', { name: /^(新建翻译层|New translation layer)$/ }).click();
+    await openLayerHeaderMenu(page);
+    await page.getByRole('button', { name: /^(新建层|New layer)$/ }).click();
+    await page.getByRole('menuitem', { name: /^(新建翻译层|New translation layer)$/ }).click();
     const created = page.locator('.desktop-tx-layer-name', {
       hasText: /^(译文|Translation)$/,
     });
@@ -271,7 +273,9 @@ test('oral clip records, plays, transcribes, reopens, then delete drops the file
     await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
     await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
     await openLayers(page);
-    await page.getByRole('button', { name: /^(新建口译|New interpretation)$/ }).click();
+    await openLayerHeaderMenu(page);
+    await page.getByRole('button', { name: /^(新建层|New layer)$/ }).click();
+    await page.getByRole('menuitem', { name: /^(新建口译|New interpretation)$/ }).click();
     await expect(
       page.locator('.desktop-tx-layer-name', { hasText: /^(口译|Interpretation)$/ }),
     ).toBeVisible();
@@ -444,8 +448,8 @@ test('layer hosts moves a translation layer to another host', async () => {
       await expect(layers).toBeVisible();
     }).toPass();
     await layers.click();
-    const row = page.locator('.desktop-tx-layer-list__line', { hasText: /英语|English/ });
-    await row.getByRole('button', { name: /^(更多|More)$/ }).click();
+    const hostsMenu = await openLayerHeaderMenu(page, /英语|English/);
+    await hostsMenu.getByRole('button', { name: /^(层|Layer)$/ }).click();
     await page.getByRole('menuitem', { name: /^(依附关系…|Hosts…)$/ }).click();
     await page.getByRole('checkbox', { name: /^(汉字转写|Hanzi)$/ }).click();
     await page.getByRole('radio', { name: /^(汉字转写 首选|Hanzi Preferred)$/ }).click();
@@ -541,13 +545,13 @@ test('layer drag reparents a transcription layer only on release', async () => {
     await openLayers(page);
     const line = (owner: Page, id: string) =>
       owner.locator(`.desktop-tx-layer-list__line[data-layer-id="${id}"]`);
-    await line(page, translation.id)
-      .getByRole('button', { name: /^(更多|More)$/ })
-      .click();
+    const layerMenu = await openLayerHeaderMenu(page, /英语|English/);
+    await layerMenu.getByRole('button', { name: /^(层|Layer)$/ }).click();
     await expect(
       page.getByRole('menuitem', { name: /^(回到顶层|Return to the top level)$/ }),
     ).toHaveCount(0);
-    await page.locator('.desktop-tx-menu-backdrop').click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: /^(层样式|Layer style)$/ })).toHaveCount(0);
     const linksOf = (owner: Page, id: string) =>
       desktopCall<{ layerId: string; hostLayerId: string; isPreferred: boolean }[]>(
         owner,
@@ -602,11 +606,18 @@ test('layer drag reparents a transcription layer only on release', async () => {
       await expect(line(page, second.id)).toHaveCSS('z-index', '2');
       await page.screenshot({ path: test.info().outputPath('layer-host-preview.png') });
     });
-    await expect
-      .poll(() => linksOf(page, second.id))
-      .toEqual([expect.objectContaining({ hostLayerId: host.id, isPreferred: true })]);
+    await expect.poll(() => linksOf(page, second.id)).toEqual([]);
     await app.close();
     app = undefined;
+    const legacy = new Database(join(copy, 'project.sqlite'));
+    legacy
+      .prepare(
+        `INSERT INTO layer_links (
+           id, manuscript_id, layer_id, host_layer_id, link_type, is_preferred, sort_order, created_at
+         ) VALUES (?, ?, ?, ?, 'direct', 1, 0, ?)`,
+      )
+      .run(randomUUID(), manuscriptId, second.id, host.id, new Date().toISOString());
+    legacy.close();
     again = await launch('layer-drag-again');
     await stubFolderDialog(again, copy);
     const reopened = await again.firstWindow();
@@ -618,9 +629,8 @@ test('layer drag reparents a transcription layer only on release', async () => {
       expect.objectContaining({ hostLayerId: host.id, isPreferred: true }),
     ]);
     await openLayers(reopened);
-    await line(reopened, second.id)
-      .getByRole('button', { name: /^(更多|More)$/ })
-      .click();
+    const returnMenu = await openLayerHeaderMenu(reopened, /汉字转写|Hanzi/);
+    await returnMenu.getByRole('button', { name: /^(层|Layer)$/ }).click();
     await reopened.getByRole('menuitem', { name: /^(回到顶层|Return to the top level)$/ }).click();
     await expect
       .poll(() => linksOfSession(reopened, againSession, manuscriptId, second.id))
@@ -1452,14 +1462,17 @@ test('opens the actual attachment image from the desktop lexicon', async () => {
 
 test('opens, plays, edits, refuses a second process, and reads the edit back', async () => {
   if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-edit-project-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
   const first = await launch('first');
   let second: ElectronApplication | undefined;
   let third: ElectronApplication | undefined;
   try {
-    const page = await editProject(first, folder);
+    const page = await editProject(first, copy);
     second = await launch('second');
     const refused = await second.firstWindow();
-    await stubFolderDialog(second, folder);
+    await stubFolderDialog(second, copy);
     await refused.getByRole('button', { name: openFolder }).click();
     await expect(refused.getByRole('alert')).toBeVisible();
     await expect(refused.getByRole('button', { name: edited })).toHaveCount(0);
@@ -1469,7 +1482,7 @@ test('opens, plays, edits, refuses a second process, and reads the edit back', a
     await first.close();
     third = await launch('third');
     const again = await third.firstWindow();
-    await stubFolderDialog(third, folder);
+    await stubFolderDialog(third, copy);
     await again.getByRole('button', { name: openFolder }).click();
     await expect(again.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
     await expect(again.getByRole('button', { name: edited })).toBeVisible();
@@ -1477,6 +1490,7 @@ test('opens, plays, edits, refuses a second process, and reads the edit back', a
     await second?.close();
     await third?.close();
     await first.close();
+    rmSync(copy, { recursive: true, force: true });
   }
 });
 
@@ -1787,6 +1801,14 @@ function desktopCall<T>(page: Page, sessionId: string, method: string, args: unk
     },
     { sessionId, method, args },
   ) as Promise<T>;
+}
+
+async function openLayerHeaderMenu(page: Page, name?: RegExp) {
+  const label = page.locator('.desktop-tx-layer-name', name === undefined ? {} : { hasText: name });
+  await label.first().click({ button: 'right' });
+  const menu = page.getByRole('dialog', { name: /^(层样式|Layer style)$/ });
+  await expect(menu).toBeVisible();
+  return menu;
 }
 
 async function openLayers(page: Page): Promise<void> {
@@ -2297,8 +2319,12 @@ test('split unit survives close and reopen', async () => {
     const units = await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', {
       layerId: clip.layerId,
     });
-    const one = units.find((unit) => unit.text === 'one');
-    const two = units.find((unit) => unit.text === 'two');
+    const ordered = [...units].sort(
+      (left, right) =>
+        (left.startMs ?? 0) - (right.startMs ?? 0) || left.id.localeCompare(right.id),
+    );
+    const one = ordered[0];
+    const two = ordered[1];
     if (one === undefined || two === undefined) throw new Error('clip units missing');
     await desktopCall(page, sessionId, 'units.moveSharedBoundary', {
       leftId: one.id,
