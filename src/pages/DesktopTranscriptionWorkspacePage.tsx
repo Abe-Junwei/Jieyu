@@ -491,16 +491,23 @@ function DesktopTranscriptionWorkspace() {
                       className="desktop-tx-wave-stage"
                       onPointerDown={(event) => {
                         const wave = playback.waveformRef.current;
+                        const zoom = playback.zoomPxPerSec;
                         if (
                           !playback.isReady ||
+                          !(zoom > 0) ||
                           !wave ||
                           !(event.target instanceof Node) ||
                           !wave.contains(event.target)
                         )
                           return;
+                        // Freeze scroll for the gesture. Live getScroll() grows if the drag
+                        // itself scrolls, and the new segment then covers the next gap.
+                        const left = wave.getBoundingClientRect().left;
+                        const scroll =
+                          playback.instanceRef.current?.getScroll() ?? playback.scrollLeftPx;
                         waveCreateRef.current?.(
                           event,
-                          (clientX) => (playback.timeAtClientX(clientX) ?? NaN) * 1000,
+                          (clientX) => ((clientX - left + scroll) / zoom) * 1000,
                         );
                       }}
                       onContextMenu={(event) => {

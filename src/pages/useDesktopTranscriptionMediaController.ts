@@ -132,11 +132,8 @@ export function useDesktopTranscriptionMediaController(input: {
     if (!player.isReady || !ws || !host) return null;
     const duration = ws.getDuration();
     const width = ws.getWrapper().scrollWidth;
-    // Lane cards use zoomPxPerSec. The wavesurfer wrapper is often narrower than that
-    // host, so dividing by its scrollWidth lands the drag on top of the next segment.
-    const scale = zoomPxPerSec > 0 ? zoomPxPerSec : width / duration;
-    if (!(scale > 0)) return null;
-    return (clientX - host.getBoundingClientRect().left + ws.getScroll()) / scale;
+    if (!(duration > 0 && width > 0)) return null;
+    return ((clientX - host.getBoundingClientRect().left + ws.getScroll()) / width) * duration;
   };
   const { setVolume: applyVolume, setPlaybackRate: applyRate } = player;
   seekToRef.current = player.seekTo;

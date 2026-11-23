@@ -37,6 +37,7 @@ import {
   desktopSegmentFrame,
   edgeNotice,
   followTip,
+  joinSeconds,
   playbackWithPreview,
   seamLeft,
   seamSeconds,
@@ -554,6 +555,15 @@ export function DesktopTranscriptionLane(props: {
                   />
                 );
               })}
+              {joinSeconds(
+                props.units.map((unit) => playbackWithPreview(unit, edges.ui.preview)),
+              ).map((mark) => (
+                <div
+                  key={mark}
+                  className="desktop-tx-join"
+                  style={{ left: seamLeft(mark, props.duration, props.zoomPxPerSec) }}
+                />
+              ))}
               {previewFrame && createLayerId === null ? (
                 <DesktopTranscriptionCreatePreview
                   className="desktop-tx-create"

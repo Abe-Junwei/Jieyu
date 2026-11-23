@@ -24,7 +24,12 @@ import {
 } from './DesktopTranscriptionLayerLabel';
 import type { LayerTreeRow } from './desktopTranscriptionLayerTree';
 import type { TimedEdgeUnit } from './desktopTranscriptionEdge';
-import { desktopSegmentFrame, playbackWithPreview } from './desktopTranscriptionEdgeView';
+import {
+  desktopSegmentFrame,
+  joinSeconds,
+  playbackWithPreview,
+  seamLeft,
+} from './desktopTranscriptionEdgeView';
 import type { ShownPreview } from './desktopTranscriptionEdgePointer';
 import { textKey } from './desktopTranscriptionTextKey';
 import type { DesktopPlaybackUnit } from './useDesktopTranscriptionMediaController';
@@ -293,6 +298,15 @@ export function DesktopTranscriptionLayerRows(props: {
                 />
               );
             })}
+            {joinSeconds(
+              units.map((unit) => playbackWithPreview(unit, props.preview, unit.parentUnitId)),
+            ).map((mark) => (
+              <div
+                key={mark}
+                className="desktop-tx-join"
+                style={{ left: seamLeft(mark, props.duration, props.zoomPxPerSec) }}
+              />
+            ))}
             {props.createLayerId === layer.id && props.createFrame ? (
               <DesktopTranscriptionCreatePreview
                 className="desktop-tx-create"
