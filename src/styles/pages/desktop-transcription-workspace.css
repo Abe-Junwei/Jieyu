@@ -1373,8 +1373,6 @@
 }
 
 .desktop-tx-lane {
-  --desktop-tx-card-edge: #dcdcdc;
-  --desktop-tx-card-lift: 0 2px 5px color-mix(in srgb, #3c4043 3.5%, transparent);
   position: relative;
   display: flex;
   height: var(--lane-height, 54px);
@@ -1382,11 +1380,6 @@
   padding: 0;
   overflow: hidden;
   isolation: isolate;
-}
-
-:root[data-theme='dark'] .desktop-tx-lane {
-  --desktop-tx-card-edge: #393937;
-  --desktop-tx-card-lift: 0 2px 5px color-mix(in srgb, #000 6%, transparent);
 }
 
 .desktop-tx-lane-resize {
