@@ -91,6 +91,27 @@ export function desktopSegmentFrame(
   return { left: `${index * share}%`, width: `${share}%` };
 }
 
+/** Times where two segments on one lane meet, so the track can mark the join. */
+export function joinSeconds(units: readonly { startTime: number; endTime: number }[]): number[] {
+  const timed = units
+    .filter((unit) => unit.endTime > unit.startTime)
+    .slice()
+    .sort((a, b) => a.startTime - b.startTime || a.endTime - b.endTime);
+  const marks: number[] = [];
+  for (let index = 1; index < timed.length; index += 1) {
+    const previous = timed[index - 1];
+    const next = timed[index];
+    if (
+      previous !== undefined &&
+      next !== undefined &&
+      Math.round(previous.endTime * 1000) === Math.round(next.startTime * 1000)
+    ) {
+      marks.push(next.startTime);
+    }
+  }
+  return marks;
+}
+
 export function seamLeft(seconds: number, duration: number, zoomPxPerSec: number): number | string {
   if (zoomPxPerSec > 0) return seconds * zoomPxPerSec;
   if (duration > 0) return `${(seconds / duration) * 100}%`;

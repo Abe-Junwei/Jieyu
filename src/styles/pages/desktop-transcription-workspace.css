@@ -1225,13 +1225,19 @@
   transition: opacity 0.14s;
 }
 
-.desktop-tx-zoom-dock:hover,
+.desktop-tx-zoom-dock[data-hovered],
 .desktop-tx-zoom-dock:focus-within {
   opacity: 1;
 }
 
-.desktop-tx-zoom-dock:not(:hover):not(:focus-within) .desktop-tx-zoom {
+.desktop-tx-zoom-dock,
+.desktop-tx-zoom {
   pointer-events: none;
+}
+
+.desktop-tx-zoom-dock[data-hovered] .desktop-tx-zoom :is(button, input),
+.desktop-tx-zoom-dock:focus-within .desktop-tx-zoom :is(button, input) {
+  pointer-events: auto;
 }
 
 .desktop-tx-zoom {
@@ -1652,6 +1658,17 @@
   z-index: 1;
 }
 
+.desktop-tx-join {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  width: 1px;
+  height: 14px;
+  margin-top: -7px;
+  background: var(--text-tertiary);
+  pointer-events: none;
+}
+
 .desktop-tx-lane .timeline-annotation:not(.timeline-annotation-empty),
 .desktop-tx-lane .timeline-annotation:has(.timeline-translation-audio-btn-delete) {
   z-index: 2;
@@ -1849,11 +1866,14 @@
 
 .desktop-tx-lane .timeline-annotation.timeline-annotation-selected,
 .desktop-tx-lane .timeline-annotation.timeline-annotation-selected:hover,
-.desktop-tx-lane .timeline-annotation.timeline-annotation-selected:focus-within {
-  background: var(--brand-tint);
-  border: 1px solid var(--text-secondary);
+.desktop-tx-lane .timeline-annotation.timeline-annotation-selected:focus-within,
+.desktop-tx-lane .timeline-annotation.timeline-annotation-active,
+.desktop-tx-lane .timeline-annotation.timeline-annotation-active:hover,
+.desktop-tx-lane .timeline-annotation.timeline-annotation-active:focus-within {
+  background: var(--surface-panel);
+  border: 1px solid var(--desktop-tx-card-edge);
   border-radius: var(--radius-md);
-  box-shadow: 0 0 0 3px var(--focus-ring-soft);
+  box-shadow: var(--desktop-tx-card-lift);
 }
 
 .desktop-tx-lane .timeline-annotation.timeline-annotation-skipped,

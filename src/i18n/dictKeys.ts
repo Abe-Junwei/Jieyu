@@ -188,8 +188,6 @@ export const DICT_KEYS = [
   'app.desktopTranscription.clearLayerText',
   'app.desktopTranscription.deleteSegment',
   'app.desktopTranscription.splitSegment',
-  'app.desktopTranscription.splitConfirm',
-  'app.desktopTranscription.splitOtherLayers',
   'app.desktopTranscription.splitTooClose',
   'app.desktopTranscription.splitOutside',
   'app.desktopTranscription.splitFailed',

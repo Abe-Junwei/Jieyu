@@ -83,6 +83,28 @@ async function flushMicrotasks() {
 }
 
 describe('useDesktopDraftGuard', () => {
+  it('saves cleared text and leaves without an unsaved prompt', async () => {
+    const saved: DesktopTextDraft[] = [];
+    const view = mount(async (draft) => {
+      saved.push(draft);
+      return true;
+    });
+    act(() => view.guard().edit('u1', '', 'saved text'));
+    view.navigate('/other');
+    expect(await screen.findByText('other')).toBeTruthy();
+    expect(saved).toEqual([{ unitId: 'u1', text: '' }]);
+  });
+
+  it('does not save when newly typed text is erased back to the empty baseline', async () => {
+    const save = vi.fn(async () => true);
+    const view = mount(save);
+    act(() => view.guard().edit('u1', 'typed', ''));
+    act(() => view.guard().edit('u1', '', ''));
+    view.navigate('/other');
+    expect(await screen.findByText('other')).toBeTruthy();
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it('lets a route change through when nothing is unsaved', async () => {
     const view = mount(() => Promise.resolve(true));
     view.navigate('/other');
@@ -544,12 +566,12 @@ describe('useDesktopDraftGuard', () => {
     });
   }
 
-  it('inspects an unknown write before allowing an empty draft to be discarded', async () => {
+  it('inspects an unknown prior write before saving cleared text', async () => {
     const writes: string[] = [];
     const view = mount(
       (draft) => {
         writes.push(draft.text);
-        return Promise.resolve('unknown');
+        return Promise.resolve(writes.length === 1 ? 'unknown' : 'saved');
       },
       {
         persist: () => Promise.resolve(),
@@ -560,9 +582,8 @@ describe('useDesktopDraftGuard', () => {
     act(() => view.guard().edit('u1', 'A', 'O'));
     await act(() => view.guard().commit());
     act(() => view.guard().edit('u1', '', 'O'));
-    expect(await act(() => view.guard().flushForClose())).toBe('blocked');
-    expect(writes).toEqual(['A']);
-    expect(await act(() => view.guard().discard())).toBe(true);
+    expect(await act(() => view.guard().flushForClose())).toBe('saved');
+    expect(writes).toEqual(['A', '']);
     expect(view.guard().draft).toBeNull();
   });
 

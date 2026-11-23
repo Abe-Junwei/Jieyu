@@ -226,7 +226,7 @@ describe('DesktopTranscriptionWorkspacePage', () => {
     );
     expect(css).not.toMatch(/\.desktop-tx-bar\s*\{[^}]*box-shadow/);
     expect(css).toMatch(
-      /\.desktop-tx-lane \.timeline-annotation\.timeline-annotation-selected[\s\S]*var\(--brand-tint\)[\s\S]*var\(--text-secondary\)[\s\S]*var\(--radius-md\)[\s\S]*var\(--focus-ring-soft\)/,
+      /\.desktop-tx-lane \.timeline-annotation\.timeline-annotation-selected[\s\S]*var\(--surface-panel\)[\s\S]*var\(--desktop-tx-card-edge\)[\s\S]*var\(--radius-md\)[\s\S]*var\(--desktop-tx-card-lift\)/,
     );
     expect(css).not.toMatch(/\.desktop-tx-lane[^{]*timeline-annotation-selected[^{]*\{[^}]*rgb\(/);
     expect(css).toMatch(

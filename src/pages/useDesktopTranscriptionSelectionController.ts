@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 
-type SelectableUnit = { id: string; startTime: number };
+import { getTranscriptionPlaybackClockSnapshot } from '../hooks/transcription/transcriptionPlaybackClock';
+
+type SelectableUnit = { id: string; startTime: number; endTime?: number };
 
 export function useDesktopTranscriptionSelectionController(locateUnitId: string | null) {
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(locateUnitId);
@@ -9,7 +11,10 @@ export function useDesktopTranscriptionSelectionController(locateUnitId: string 
   const selectUnit = useCallback((unit: SelectableUnit) => {
     setSelectedUnitId(unit.id);
     setExtraIds([]);
-    seekToRef.current(unit.startTime);
+    const time = getTranscriptionPlaybackClockSnapshot();
+    if (unit.endTime === undefined || time < unit.startTime || time >= unit.endTime) {
+      seekToRef.current(unit.startTime);
+    }
   }, []);
   /** A box select: the first unit is the primary (edges, keys), the rest are highlighted too. */
   const selectUnits = useCallback((units: readonly SelectableUnit[]) => {

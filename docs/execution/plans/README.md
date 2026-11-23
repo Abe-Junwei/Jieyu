@@ -3,7 +3,7 @@ title: execution/plans 文档索引（自动生成）
 doc_type: execution-plans-index
 status: active
 owner: repo
-last_reviewed: 2026-11-20
+last_reviewed: 2026-11-23
 source_of_truth: execution-plan-index
 ---
 
@@ -16,9 +16,9 @@ source_of_truth: execution-plan-index
 
 | status | title | last_reviewed |
 | --- | --- | --- |
+| active | [解语四页工作区 · 实施清单](./jieyu-4ws-impl-checklist-2026-10-31.md) | 2026-11-23 |
+| active | [解语主路线图（master plan · 切片执行）](./解语-主路线图-master-roadmap-2026-06-01.md) | 2026-11-23 |
 | proposed | [波形顶栏与克制阴影：官方设计系统调研](./波形顶栏与克制阴影-业内调研-2026-11-20.md) | 2026-11-20 |
-| active | [解语主路线图（master plan · 切片执行）](./解语-主路线图-master-roadmap-2026-06-01.md) | 2026-11-20 |
-| active | [解语四页工作区 · 实施清单](./jieyu-4ws-impl-checklist-2026-10-31.md) | 2026-11-17 |
 | active | [解语四页工作区 · 功能对账账本](./jieyu-4ws-ledger-2026-10-31.md) | 2026-11-17 |
 | active | [四页切片 1 · 转写复杂度差额与精稿定稿](./jieyu-4ws-slice1-transcription-gap-2026-11-01.md) | 2026-11-17 |
 | active | [Pixso 设计工作区落地（变量同步、组件库、规范页重拼）](./pixso-design-workspace-2026-11-17.md) | 2026-11-17 |
@@ -28,12 +28,13 @@ source_of_truth: execution-plan-index
 | active | [解语 AI 智能体运行时迁移评估](./AI智能体运行时迁移评估-2026-10-13.md) | 2026-10-17 |
 | proposed | [用户自带语音与 NLP 模型接入方案](./用户自带语音NLP模型接入方案-2026-10-13.md) | 2026-10-15 |
 
-## 搁置（11）
+## 搁置（12）
 
 不在当前试用程。`revisit_when` 发生时改回 `active`，确定不做就删除。
 
 | title | revisit_when | last_reviewed |
 | --- | --- | --- |
+| [标注分析图的句内位置与投影：业内调研](./标注分析图位置与投影-业内调研-2026-11-23.md) | 主路线图切片 2（#622）开工写 SDD 时，按本文三小片落地 | 2026-11-23 |
 | [卡片文件、项目与删除恢复改造方案](./deletion-policy-industry-research-2026-10-15.md) | 用户另行要求核对既有录音保留与只读诊断时，仅复查未解决的数据保护事项 | 2026-10-25 |
 | [托管实时协同 Supabase 完整落地方案](./托管实时协同-Supabase完整落地方案-2026-04-17.md) | 桌面版发布后，主路线图 C4 协作云重新排期 | 2026-10-14 |
 | [协作云桥接审查改进方案](./协作云桥接审查改进方案-2026-04-18.md) | 桌面版发布后，主路线图 C4 协作云重新排期 | 2026-10-14 |

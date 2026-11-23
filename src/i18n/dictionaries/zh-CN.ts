@@ -196,8 +196,6 @@ export const zhCNDictionary = {
   'app.desktopTranscription.clearLayerText': '清空「{layer}」文本',
   'app.desktopTranscription.deleteSegment': '删除句段',
   'app.desktopTranscription.splitSegment': '拆分句段',
-  'app.desktopTranscription.splitConfirm': '拆分',
-  'app.desktopTranscription.splitOtherLayers': '只有这一层按光标切开，其他层整段留在左侧。',
   'app.desktopTranscription.splitTooClose': '切点距边缘不足 10 毫秒',
   'app.desktopTranscription.splitOutside': '播放头不在这段里',
   'app.desktopTranscription.splitFailed': '没有拆开',

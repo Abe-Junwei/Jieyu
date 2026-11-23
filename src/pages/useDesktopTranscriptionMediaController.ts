@@ -84,10 +84,12 @@ export function useDesktopTranscriptionMediaController(input: {
     regionsInteractive: false,
     waveformDisplayMode,
     waveformVisualStyle,
-    onRegionClick: (regionId) => {
+    onRegionClick: (regionId, clickTime) => {
       const unit = unitsRef.current.find((item) => item.id === regionId);
+      if (unit) {
+        seekToRef.current(regionId === selectedRef.current ? clickTime : unit.startTime);
+      }
       input.onSelectUnit(regionId);
-      if (unit) seekToRef.current(unit.startTime);
     },
     ...(input.onRegionContextMenu ? { onRegionContextMenu: input.onRegionContextMenu } : {}),
   };
@@ -123,6 +125,16 @@ export function useDesktopTranscriptionMediaController(input: {
     onBatchedRulerFrameScrollLeft: setScrollLeftPx,
     waveformScrollLeft: scrollLeftPx,
   });
+  // Scroll state is batched to animation frames; pointer writes need the live viewport.
+  const timeAtClientX = (clientX: number): number | null => {
+    const ws = player.instanceRef.current;
+    const host = player.waveformRef.current;
+    if (!player.isReady || !ws || !host) return null;
+    const duration = ws.getDuration();
+    const width = ws.getWrapper().scrollWidth;
+    if (!(duration > 0 && width > 0)) return null;
+    return ((clientX - host.getBoundingClientRect().left + ws.getScroll()) / width) * duration;
+  };
   const { setVolume: applyVolume, setPlaybackRate: applyRate } = player;
   seekToRef.current = player.seekTo;
   const playRegionRef = useRef(player.playRegion);
@@ -195,5 +207,6 @@ export function useDesktopTranscriptionMediaController(input: {
     playSegment,
     seekBySeconds: player.seekBySeconds,
     seekTo: player.seekTo,
+    timeAtClientX,
   };
 }

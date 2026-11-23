@@ -101,6 +101,8 @@ vi.mock('./useDesktopTranscriptionMediaController', async (importOriginal) => {
         playSegment: vi.fn(),
         seekBySeconds: vi.fn(),
         seekTo: playback.seekTo,
+        timeAtClientX: (x: number) =>
+          (x - (playback.waveformRef.current?.getBoundingClientRect().left ?? 0)) / 100,
       };
     },
   };

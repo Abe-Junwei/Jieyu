@@ -51,6 +51,9 @@
   --border-strong: #c8c8c8;
   /* 控件边界 ≥ 3:1 对纸面 #ffffff（3.03:1，ADR-0108） */
   --border-control: #949494;
+  /* 桌面文本卡选中边和轻投影（ADR-0139）。工作面卡片本身仍无投影。 */
+  --desktop-tx-card-edge: #dcdcdc;
+  --desktop-tx-card-lift: 0 2px 5px color-mix(in srgb, #3c4043 3.5%, transparent);
 
   /* 语义映射 — 文本 */
   --text-primary: #111111;
@@ -517,6 +520,8 @@
   --border-strong: #5c5952;
   /* 控件边界 ≥ 3:1 对纸页 #161614（3.21:1，ADR-0108） */
   --border-control: #6a675f;
+  --desktop-tx-card-edge: #393937;
+  --desktop-tx-card-lift: 0 2px 5px color-mix(in srgb, #000 6%, transparent);
 
   --text-primary: #f4f2ec;
   --text-secondary: #c8c4ba;

@@ -21,12 +21,14 @@ const player = vi.hoisted(() => ({
 const waveOptions = vi.hoisted(() => ({
   current: null as {
     onRegionContextMenu?: (regionId: string, x: number, y: number) => void;
+    onRegionClick?: (regionId: string, time: number) => void;
   } | null,
 }));
 
 vi.mock('../hooks/media/useWaveSurfer', () => ({
   useWaveSurfer: (options: {
     onRegionContextMenu?: (regionId: string, x: number, y: number) => void;
+    onRegionClick?: (regionId: string, time: number) => void;
   }) => {
     waveOptions.current = options;
     return player;
@@ -76,6 +78,63 @@ describe('useDesktopTranscriptionMediaController', () => {
     player.playRegion.mockClear();
     result.current.playSegment();
     expect(player.playRegion).toHaveBeenCalledWith(0.4, 0.8, true);
+  });
+
+  it('seeks to the start on the first waveform click', () => {
+    renderHook(() =>
+      useDesktopTranscriptionMediaController({
+        mediaUrl: 'blob:test-audio',
+        units,
+        selectedUnitId: null,
+        tierContainerRef: { current: null },
+        onSelectUnit: vi.fn(),
+      }),
+    );
+    player.seekTo.mockClear();
+    waveOptions.current?.onRegionClick?.('u-a', 0.6);
+    expect(player.seekTo).toHaveBeenLastCalledWith(0.4);
+  });
+
+  it('keeps the clicked time inside a waveform segment', () => {
+    renderHook(() =>
+      useDesktopTranscriptionMediaController({
+        mediaUrl: 'blob:test-audio',
+        units,
+        selectedUnitId: 'u-a',
+        tierContainerRef: { current: null },
+        onSelectUnit: vi.fn(),
+      }),
+    );
+    player.seekTo.mockClear();
+    waveOptions.current?.onRegionClick?.('u-a', 0.6);
+    expect(player.seekTo).toHaveBeenLastCalledWith(0.6);
+  });
+
+  it('reads pointer time from the live waveform scroll before React catches up', () => {
+    const host = document.createElement('div');
+    host.getBoundingClientRect = () => new DOMRect(100, 0, 500, 224);
+    const wrapper = document.createElement('div');
+    Object.defineProperty(wrapper, 'scrollWidth', { value: 2000 });
+    const getScroll = vi.fn(() => 800);
+    const { result } = renderHook(() =>
+      useDesktopTranscriptionMediaController({
+        mediaUrl: 'blob:test-audio',
+        units,
+        selectedUnitId: null,
+        tierContainerRef: { current: null },
+        onSelectUnit: vi.fn(),
+      }),
+    );
+    Object.assign(player.waveformRef, { current: host });
+    Object.assign(player.instanceRef, {
+      current: { getDuration: () => 2, getWrapper: () => wrapper, getScroll },
+    });
+    expect(result.current.scrollLeftPx).toBe(0);
+    expect(result.current.timeAtClientX(300)).toBe(1);
+    getScroll.mockReturnValue(1200);
+    expect(result.current.timeAtClientX(300)).toBe(1.4);
+    Object.assign(player.waveformRef, { current: null });
+    Object.assign(player.instanceRef, { current: null });
   });
 
   it('forwards a waveform segment context menu', () => {

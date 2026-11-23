@@ -131,7 +131,7 @@
           "reviewedSha256": "7da5a8496052ba8db2f890badef400d3f824e342a44b6663085223ad0ee27035"
         },
         {
-          "anchor": "left: seamLeft(",
+          "anchor": "left: seamLeft(seconds",
           "reviewedSha256": "c0fba6a18c29c85606885c1629a33ded60dd42774ae251eae86121688f4c3fa8"
         },
         {
@@ -206,7 +206,7 @@
     },
     {
       "file": "src/pages/DesktopTranscriptionLayerRows.tsx",
-      "reason": "Linked-layer height, track width, and the create preview frame follow the saved height, live zoom, and drag time. A dragged or shifted lane adds translateY.",
+      "reason": "Linked-layer height, track width, the create preview frame, and the join tick follow the saved height, live zoom, and drag time. A dragged or shifted lane adds translateY.",
       "reviewer": "Cursor + junwei",
       "reviewedAt": "2026-11-23",
       "snippets": [
@@ -217,6 +217,10 @@
         {
           "anchor": "style={props.createFrame}",
           "reviewedSha256": "83b5e8922ce9a653fc88eadc91c3c98c946d3dfe45a03cc0491afd0d6ef20474"
+        },
+        {
+          "anchor": "left: seamLeft(mark",
+          "reviewedSha256": "75f7729ccb754f30c600a20b1d9f350aac56161697d37ab728bbab395b68f884"
         },
         {
           "anchor": "...dragBits.laneStyle",

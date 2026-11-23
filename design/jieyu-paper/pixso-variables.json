@@ -1,6 +1,6 @@
 {
   "$comment": "生成文件，不要手改。改 src/styles/tokens.css 后运行 `npm run build:od-tokens`，再由代理同步到 Pixso（ADR-0118）。",
-  "sourceSha256": "a2a21a22693f9b374f0d740ccc29626de236c24dd92202bfcaf8cf4163e0a9a9",
+  "sourceSha256": "923da58548c430bca5cacbafd29494fcecadc1f13ee7d43ee01826fe5ba5cbbd",
   "bodySha256": "79b442324dc8fd7cfbde32161a0a171eb86fe77651f02ee612255f4534bcc482",
   "variableSets": {
     "颜色": {
