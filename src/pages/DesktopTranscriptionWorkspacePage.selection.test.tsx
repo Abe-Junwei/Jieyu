@@ -72,6 +72,7 @@ vi.mock('./useDesktopProjectReadController', () => ({
   }),
 }));
 
+import { joinSeconds } from './desktopTranscriptionEdgeView';
 import {
   desktopSegmentFrame,
   DesktopTranscriptionWorkspacePage,
@@ -163,6 +164,27 @@ describe('desktopSegmentFrame', () => {
 
   it('uses the full duration before a pixel width exists', () => {
     expect(desktopSegmentFrame(unit, 10, 0, 1, 0)).toEqual({ left: '10%', width: '20%' });
+  });
+});
+
+describe('joinSeconds', () => {
+  it('marks a shared boundary even when the pair is unsorted', () => {
+    expect(
+      joinSeconds([
+        { startTime: 2.0004, endTime: 3 },
+        { startTime: 1, endTime: 2.0004 },
+      ]),
+    ).toEqual([2.0004]);
+  });
+
+  it('skips a gap and a zero-length unit', () => {
+    expect(
+      joinSeconds([
+        { startTime: 1, endTime: 1 },
+        { startTime: 1, endTime: 2 },
+        { startTime: 2.002, endTime: 3 },
+      ]),
+    ).toEqual([]);
   });
 });
 
@@ -386,9 +408,10 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     const again = bodyInput();
     fireEvent.change(again, { target: { value: '' } });
     fireEvent.blur(again);
-    expect(saveText).not.toHaveBeenCalled();
-    expect(persistTextDraft).toHaveBeenCalled();
-    expect(screen.getByText('草稿已保存，尚未生效')).toBeTruthy();
+    await waitFor(() => {
+      expect(saveText).toHaveBeenCalledWith('u-a', '', expect.any(String), 'layer-1');
+    });
+    expect(screen.queryByText('草稿已保存，尚未生效')).toBeNull();
 
     fireEvent.change(again, { target: { value: 'alpha beta' } });
     fireEvent.blur(again);

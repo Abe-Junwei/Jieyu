@@ -2673,3 +2673,45 @@ test('zoom reveal area passes clicks to the waveform segment beneath it', async 
     await expect(page.locator('.desktop-tx-zoom-pct')).toHaveText('100%');
   } finally { await app.close(); }
 });
+
+test('clearing inline text saves an empty body without blocking a segment change', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-clear-text-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  let app: ElectronApplication | undefined = await launch('clear-text', undefined, { JIEYU_DESKTOP_HIDE_WINDOW: '0' });
+  try {
+    await stubFolderDialog(app, copy);
+    let page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const session = await chosenSessionId(app);
+    const clip = await clipLayer(page, session);
+    const units = await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId: clip.layerId });
+    const target = units.find(u => u.text === 'two');
+    if (!target) throw new Error('target missing');
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    const card = page.locator(`.timeline-annotation[data-unit-id="${target.id}"]`).first();
+    await card.click();
+    await card.click();
+    const editor = card.locator('.timeline-annotation-input');
+    await editor.fill('new content');
+    await editor.fill('');
+    await page.locator('.timeline-annotation', { hasText: 'one' }).first().click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect.poll(async () => (await desktopCall<ListedUnit>(page, session, 'units.get', { id: target.id })).text).toBe('');
+    await app.close();
+    app = await launch('clear-text-reopen', undefined, { JIEYU_DESKTOP_HIDE_WINDOW: '0' });
+    await stubFolderDialog(app, copy);
+    page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const nextSession = await chosenSessionId(app);
+    expect((await desktopCall<ListedUnit>(page, nextSession, 'units.get', { id: target.id })).text).toBe('');
+  } finally {
+    await app?.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
