@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { JieyuIcon } from '../components/ui/JieyuIcon';
 import { ModalPanel } from '../components/ui/ModalPanel';
 import { t, tf, type Locale } from '../i18n';
-import { JIEYU_ICON_INLINE_TIGHT } from '../utils/jieyuIcon';
 import { DesktopTranscriptionLayerHostsDialog } from './DesktopTranscriptionLayerHostsDialog';
 import { layerLabel } from './DesktopTranscriptionLayerRows';
 import { buildLayerTree, emptyFold } from './desktopTranscriptionLayerTree';
@@ -34,16 +32,13 @@ export interface LayerHostsInput {
   linkType: 'direct' | 'free' | 'literal' | 'pedagogical';
 }
 
-/** The next unused display name: the base word, then "base 2", "base 3", and so on. */
-function nextLayerName(base: string, layers: readonly ContextLayer[], locale: Locale): string {
-  const taken = new Set(layers.map((layer) => layerLabel(layer.name, locale, layer.id)));
-  if (!taken.has(base)) return base;
-  let count = 2;
-  while (taken.has(`${base} ${count}`)) count += 1;
-  return `${base} ${count}`;
+export interface LayerListRequest {
+  nonce: number;
+  layerId: string;
+  action: 'rename' | 'delete' | 'migrate' | 'hosts';
 }
 
-/** The context-column layer list: create, rename, reorder, and delete. Height is dragged on the lane. */
+/** The context-column layer list: rename, reorder, and delete. New layers start from the header menu. */
 export function DesktopTranscriptionLayerList(props: {
   locale: Locale;
   layers: readonly ContextLayer[];
@@ -51,8 +46,6 @@ export function DesktopTranscriptionLayerList(props: {
   currentId: string | null;
   error: string;
   onSelect: (layerId: string) => void;
-  onCreate: (kind: 'transcription' | 'translation', label: string) => void;
-  onCreatePair?: (kind: 'voice' | 'oral', audioName: string, textName: string) => void;
   onRename: (layerId: string, name: Record<string, string>) => void;
   onMove: (layerId: string, direction: 'up' | 'down') => void;
   onDelete: (layerId: string, mode: 'soft' | 'migrate' | 'purge', targetLayerId?: string) => void;
@@ -63,22 +56,18 @@ export function DesktopTranscriptionLayerList(props: {
   onSetHosts?: (input: LayerHostsInput) => void;
   onClearError?: () => void;
   drag?: DesktopLayerDrag;
+  /** Opens rename, delete, migrate, or hosts. The header menu sends this. */
+  request?: LayerListRequest | null;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [deleting, setDeleting] = useState<ContextLayer | null>(null);
   const [migrating, setMigrating] = useState<ContextLayer | null>(null);
   const [targetId, setTargetId] = useState('');
-  const [menu, setMenu] = useState<{ layerId: string; x: number; y: number } | null>(null);
   const [hostsLayer, setHostsLayer] = useState<ContextLayer | null>(null);
   const [targetOpen, setTargetOpen] = useState(false);
   const renameOpen = useRef(false);
-  const menuRoot = useRef<HTMLDivElement | null>(null);
-  const menuReturn = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    if (menu === null) return;
-    menuRoot.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
-  }, [menu]);
+  const seenRequest = useRef<number | null>(null);
   const commitRename = (layer: ContextLayer) => {
     if (!renameOpen.current) return;
     renameOpen.current = false;
@@ -89,12 +78,6 @@ export function DesktopTranscriptionLayerList(props: {
     const localeKey = props.locale.startsWith('zh') ? 'zh' : 'en';
     props.onRename(layer.id, { ...layer.name, [localeKey]: trimmed });
   };
-  const currentNamed = props.layers.find((item) => item.id === props.currentId);
-  const attachLabel = currentNamed
-    ? tf(props.locale, 'app.desktopTranscription.layerAttachNamed', {
-        name: layerLabel(currentNamed.name, props.locale, currentNamed.id),
-      })
-    : t(props.locale, 'app.desktopTranscription.layerAttachCurrent');
   const childCount = (id: string) => {
     const ids = new Set<string>();
     for (const link of props.links) if (link.hostLayerId === id) ids.add(link.layerId);
@@ -123,6 +106,45 @@ export function DesktopTranscriptionLayerList(props: {
     const layer = props.layers.find((item) => item.id === id);
     return layer !== undefined && targets(layer).length > 0;
   };
+  const openRequestRef = useRef<(request: LayerListRequest) => void>(() => undefined);
+  openRequestRef.current = (request) => {
+    if (seenRequest.current === request.nonce) return;
+    seenRequest.current = request.nonce;
+    const layer = props.layers.find((item) => item.id === request.layerId);
+    if (layer === undefined) return;
+    if (request.action === 'rename') {
+      renameOpen.current = true;
+      setEditingId(layer.id);
+      setDraft(layerLabel(layer.name, props.locale, layer.id));
+      return;
+    }
+    if (request.action === 'hosts') {
+      if (
+        props.onPreviewHosts !== undefined &&
+        props.onSetHosts !== undefined &&
+        layer.tierType === 'symbolic-association'
+      ) {
+        setHostsLayer(layer);
+      }
+      return;
+    }
+    if (request.action === 'migrate') {
+      if (!canMigrate(layer.id)) return;
+      setMigrating(layer);
+      setTargetId('');
+      setTargetOpen(false);
+      return;
+    }
+    if (layer.contentCount === 0 && childCount(layer.id) === 0) {
+      props.onDelete(layer.id, 'soft');
+      return;
+    }
+    setDeleting(layer);
+  };
+  useEffect(() => {
+    if (props.request == null) return;
+    openRequestRef.current(props.request);
+  }, [props.request]);
   return (
     <div className="desktop-tx-layer-list">
       {props.error.length > 0 ? <p role="alert">{props.error}</p> : null}
@@ -217,30 +239,6 @@ export function DesktopTranscriptionLayerList(props: {
                     <span className="desktop-tx-context__name">{name}</span>
                   </button>
                 )}
-                <button
-                  type="button"
-                  className="desktop-tx-context__more"
-                  aria-label={t(props.locale, 'app.desktopTranscription.layerMenu')}
-                  aria-haspopup="menu"
-                  aria-expanded={menu?.layerId === layer.id}
-                  onClick={(event) => {
-                    menuReturn.current = event.currentTarget;
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    setMenu((current) =>
-                      current?.layerId === layer.id
-                        ? null
-                        : {
-                            layerId: layer.id,
-                            x: Math.max(8, rect.right - 168),
-                            y: rect.bottom + 4,
-                          },
-                    );
-                  }}
-                >
-                  <span />
-                  <span />
-                  <span />
-                </button>
               </li>
             );
           })}
@@ -255,272 +253,7 @@ export function DesktopTranscriptionLayerList(props: {
               data-drag-surface="sidebar"
             />
           ) : null}
-          <li className="desktop-tx-layer-list__add">
-            <button
-              type="button"
-              className="desktop-tx-context__row"
-              onClick={() =>
-                props.onCreate(
-                  'transcription',
-                  nextLayerName(
-                    t(props.locale, 'app.desktopTranscription.contextLayerTranscription'),
-                    props.layers,
-                    props.locale,
-                  ),
-                )
-              }
-            >
-              <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
-              {t(props.locale, 'transcription.laneHeader.layer.createTranscription')}
-            </button>
-          </li>
-          <li className="desktop-tx-layer-list__add">
-            <button
-              type="button"
-              className="desktop-tx-context__row"
-              onClick={() =>
-                props.onCreate(
-                  'translation',
-                  nextLayerName(
-                    t(props.locale, 'app.desktopTranscription.contextLayerTranslation'),
-                    props.layers,
-                    props.locale,
-                  ),
-                )
-              }
-            >
-              <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
-              {t(props.locale, 'transcription.laneHeader.layer.createTranslation')}
-            </button>
-          </li>
-          {props.onCreatePair === undefined ? null : (
-            <>
-              <li className="desktop-tx-layer-list__add">
-                <button
-                  type="button"
-                  className="desktop-tx-context__row"
-                  onClick={() =>
-                    props.onCreatePair?.(
-                      'voice',
-                      nextLayerName(
-                        t(props.locale, 'app.desktopTranscription.contextLayerVoice'),
-                        props.layers,
-                        props.locale,
-                      ),
-                      nextLayerName(
-                        t(props.locale, 'app.desktopTranscription.contextLayerVoiceText'),
-                        props.layers,
-                        props.locale,
-                      ),
-                    )
-                  }
-                >
-                  <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
-                  {t(props.locale, 'transcription.laneHeader.layer.createVoice')}
-                </button>
-              </li>
-              <li className="desktop-tx-layer-list__add">
-                <button
-                  type="button"
-                  className="desktop-tx-context__row"
-                  onClick={() =>
-                    props.onCreatePair?.(
-                      'oral',
-                      nextLayerName(
-                        t(props.locale, 'app.desktopTranscription.contextLayerOral'),
-                        props.layers,
-                        props.locale,
-                      ),
-                      nextLayerName(
-                        t(props.locale, 'app.desktopTranscription.contextLayerOralText'),
-                        props.layers,
-                        props.locale,
-                      ),
-                    )
-                  }
-                >
-                  <JieyuIcon name="Plus" className={JIEYU_ICON_INLINE_TIGHT} aria-hidden />
-                  {t(props.locale, 'transcription.laneHeader.layer.createOral')}
-                </button>
-              </li>
-            </>
-          )}
         </ul>
-      )}
-      {menu === null ? null : (
-        <>
-          <button
-            type="button"
-            className="desktop-tx-menu-backdrop"
-            aria-label={t(props.locale, 'app.desktopTranscription.cancel')}
-            onClick={() => setMenu(null)}
-          />
-          <div
-            ref={menuRoot}
-            className="desktop-tx-menu desktop-tx-menu-fixed desktop-tx-context__menu"
-            style={{ left: menu.x, top: menu.y }}
-            role="menu"
-            onKeyDown={(event) => {
-              const items = [
-                ...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
-              ];
-              const index = items.indexOf(document.activeElement as HTMLButtonElement);
-              if (event.key === 'Escape') {
-                event.preventDefault();
-                setMenu(null);
-                menuReturn.current?.focus();
-                return;
-              }
-              if (event.key === 'Home') {
-                event.preventDefault();
-                items[0]?.focus();
-              } else if (event.key === 'End') {
-                event.preventDefault();
-                items.at(-1)?.focus();
-              } else if (event.key === 'ArrowDown') {
-                event.preventDefault();
-                items[(index + 1) % items.length]?.focus();
-              } else if (event.key === 'ArrowUp') {
-                event.preventDefault();
-                items[(index - 1 + items.length) % items.length]?.focus();
-              }
-            }}
-          >
-            {(
-              [
-                ['up', 'app.desktopTranscription.layerMoveUp'],
-                ['down', 'app.desktopTranscription.layerMoveDown'],
-                ['rename', 'app.desktopTranscription.layerRename'],
-              ] as const
-            ).map(([action, key]) => (
-              <button
-                key={action}
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  const layer = props.layers.find((item) => item.id === menu.layerId);
-                  setMenu(null);
-                  if (!layer) return;
-                  if (action === 'rename') {
-                    renameOpen.current = true;
-                    setEditingId(layer.id);
-                    setDraft(layerLabel(layer.name, props.locale, layer.id));
-                    return;
-                  }
-                  props.onMove(layer.id, action);
-                }}
-              >
-                {t(props.locale, key)}
-              </button>
-            ))}
-            {props.drag ? (
-              <button
-                type="button"
-                role="menuitem"
-                aria-disabled={props.drag.attachReason(menu.layerId) !== null}
-                {...(props.drag.attachReason(menu.layerId) === null
-                  ? {}
-                  : {
-                      'aria-description': t(
-                        props.locale,
-                        props.drag.attachReason(menu.layerId) ??
-                          'app.desktopTranscription.layerDropNotHost',
-                      ),
-                      title: t(
-                        props.locale,
-                        props.drag.attachReason(menu.layerId) ??
-                          'app.desktopTranscription.layerDropNotHost',
-                      ),
-                    })}
-                onClick={() => {
-                  if (props.drag?.attachReason(menu.layerId) !== null) return;
-                  props.drag?.attachToCurrent(menu.layerId);
-                  setMenu(null);
-                }}
-              >
-                {attachLabel}
-              </button>
-            ) : null}
-            {props.drag?.showReturn(menu.layerId) ? (
-              <button
-                type="button"
-                role="menuitem"
-                aria-disabled={props.drag.returnReason(menu.layerId) !== null}
-                {...(props.drag.returnReason(menu.layerId) === null
-                  ? {}
-                  : {
-                      'aria-description': t(
-                        props.locale,
-                        props.drag.returnReason(menu.layerId) ??
-                          'app.desktopTranscription.layerAlreadyRoot',
-                      ),
-                      title: t(
-                        props.locale,
-                        props.drag.returnReason(menu.layerId) ??
-                          'app.desktopTranscription.layerAlreadyRoot',
-                      ),
-                    })}
-                onClick={() => {
-                  if (props.drag?.returnReason(menu.layerId) !== null) return;
-                  props.drag?.returnToRoot(menu.layerId);
-                  setMenu(null);
-                }}
-              >
-                {t(props.locale, 'app.desktopTranscription.layerReturnRoot')}
-              </button>
-            ) : null}
-            {props.onPreviewHosts !== undefined &&
-            props.onSetHosts !== undefined &&
-            props.layers.find((item) => item.id === menu.layerId)?.tierType ===
-              'symbolic-association' ? (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  const layer = props.layers.find((item) => item.id === menu.layerId);
-                  setMenu(null);
-                  if (layer) setHostsLayer(layer);
-                }}
-              >
-                {t(props.locale, 'app.desktopTranscription.layerHostsMenu')}
-              </button>
-            ) : null}
-            {canMigrate(menu.layerId) ? (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  const layer = props.layers.find((item) => item.id === menu.layerId);
-                  setMenu(null);
-                  if (!layer) return;
-                  setMigrating(layer);
-                  setTargetId('');
-                  setTargetOpen(false);
-                }}
-              >
-                {t(props.locale, 'app.desktopTranscription.layerDeleteMigrate')}
-              </button>
-            ) : null}
-            <div className="desktop-tx-menu__rule" role="separator" />
-            <button
-              type="button"
-              role="menuitem"
-              className="is-danger"
-              onClick={() => {
-                const layer = props.layers.find((item) => item.id === menu.layerId);
-                setMenu(null);
-                if (!layer) return;
-                if (layer.contentCount === 0 && childCount(layer.id) === 0) {
-                  props.onDelete(layer.id, 'soft');
-                  return;
-                }
-                setDeleting(layer);
-              }}
-            >
-              {t(props.locale, 'app.desktopTranscription.layerDelete')}
-            </button>
-          </div>
-        </>
       )}
       {hostsLayer === null ||
       props.onPreviewHosts === undefined ||

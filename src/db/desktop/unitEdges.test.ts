@@ -274,6 +274,42 @@ describe('desktop unit edges', () => {
     callDesktopSession(id, 'units.updateText', { unitId: host, textLayerId: tl, text: '' });
     expect(linked()).toBe(0);
   });
+  it('deletes selected units in one transaction and restores them in one undo step', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const layerId = layer(session.sessionId, true);
+    const first = unit(session.sessionId, layerId, 0, 500, 'one');
+    const second = unit(session.sessionId, layerId, 500, 1000, 'two');
+    expect(
+      callDesktopSession(session.sessionId, 'units.deleteManyPreview', {
+        unitIds: [first, second],
+      }),
+    ).toMatchObject({ linkedTexts: 0 });
+    expect(() =>
+      callDesktopSession(session.sessionId, 'units.deleteMany', {
+        unitIds: [first, 'missing'],
+      }),
+    ).toThrow();
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: first })).not.toBeNull();
+    expect(
+      callDesktopSession(session.sessionId, 'units.deleteMany', {
+        unitIds: [first, second],
+      }),
+    ).toEqual({ ids: [first, second] });
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: first })).toBeNull();
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: second })).toBeNull();
+    expect(callDesktopSession(session.sessionId, 'units.undo', {})).toEqual([
+      expect.objectContaining({ id: first, text: 'one' }),
+      expect.objectContaining({ id: second, text: 'two' }),
+    ]);
+    expect(callDesktopSession(session.sessionId, 'units.redo', {})).toHaveLength(2);
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: first })).toBeNull();
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: second })).toBeNull();
+    closeDesktopSession(session.sessionId);
+    const reopened = openDesktopSession(dir, [dir]);
+    expect(callDesktopSession(reopened.sessionId, 'units.get', { id: first })).toBeNull();
+    expect(callDesktopSession(reopened.sessionId, 'units.get', { id: second })).toBeNull();
+  });
   it('moves a whole segment with its subdivision children as one undoable step', () => {
     const dir = folder();
     const session = openDesktopSession(dir, [dir]);

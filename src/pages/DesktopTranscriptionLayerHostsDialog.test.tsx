@@ -5,7 +5,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DesktopTranscriptionLayerHostsDialog } from './DesktopTranscriptionLayerHostsDialog';
-import { DesktopTranscriptionLayerList } from './DesktopTranscriptionLayerList';
 
 const hosts = [
   {
@@ -51,30 +50,6 @@ const links = [
 
 describe('layer host dialog', () => {
   afterEach(() => cleanup());
-
-  it('shows the hosts menu only on a symbolic layer', () => {
-    render(
-      <DesktopTranscriptionLayerList
-        locale="zh-CN"
-        layers={[hosts[0]!, translation]}
-        links={links}
-        currentId={null}
-        error=""
-        onSelect={vi.fn()}
-        onCreate={vi.fn()}
-        onRename={vi.fn()}
-        onMove={vi.fn()}
-        onDelete={vi.fn()}
-        onPreviewHosts={vi.fn()}
-        onSetHosts={vi.fn()}
-      />,
-    );
-    fireEvent.click(screen.getAllByRole('button', { name: '更多' })[0]!);
-    expect(screen.queryByRole('menuitem', { name: '依附关系…' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: '取消' }));
-    fireEvent.click(screen.getAllByRole('button', { name: '更多' })[1]!);
-    expect(screen.getByRole('menuitem', { name: '依附关系…' })).toBeTruthy();
-  });
 
   it('disables save and explains when detaching a host that still has text', async () => {
     const onPreview = vi.fn().mockResolvedValue({

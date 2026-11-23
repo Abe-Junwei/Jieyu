@@ -104,17 +104,6 @@ export function useDesktopSpeakerCatalog(host: DesktopReadHost, sessionId: strin
         .then(() => load({ speakerId: speaker.id, languageId: languageId ?? undefined }))
         .catch(fail);
     },
-    assign: (id: string, unitIds: string[]) => {
-      if (unitIds.length === 0) return Promise.resolve(false);
-      setError('');
-      return createDesktopClient({ desktopCall: host.desktopCall })
-        .assignSpeaker(sessionId, { speakerId: id, unitIds })
-        .then(() => true)
-        .catch((error: unknown) => {
-          fail(error);
-          return false;
-        });
-    },
     saveLanguage: (id: string, value: string) => {
       setError('');
       return createDesktopClient({ desktopCall: host.desktopCall })

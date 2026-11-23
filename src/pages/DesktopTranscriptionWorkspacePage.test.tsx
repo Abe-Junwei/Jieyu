@@ -251,7 +251,7 @@ describe('DesktopTranscriptionWorkspacePage', () => {
       /\.desktop-tx-lane > \.desktop-tx-layer-label:focus-visible\s*\{[^}]*outline:\s*1\.5px solid var\(--focus-color\)/,
     );
     expect(css).toMatch(
-      /\.desktop-tx-workspace\.is-header-folded \.desktop-tx-stage::before,\s*\.desktop-tx-stage:has\(\.desktop-tx-no-audio\)::before\s*\{[^}]*content:\s*none/,
+      /\.desktop-tx-workspace\.is-header-folded \.desktop-tx-stage::before,\s*\.desktop-tx-workspace\.is-no-audio \.desktop-tx-stage::before\s*\{[^}]*content:\s*none/,
     );
     expect(css).toMatch(
       /\.desktop-tx-lane\.is-group-mid > \.desktop-tx-layer-label::after\s*\{[^}]*content:\s*none/,

@@ -111,6 +111,20 @@ describe('layer structure', () => {
     expect(childOrder()).toEqual([b.id, a.id]);
     expect(rootOrder()).toEqual([before[1], before[0]]);
     expect(new Set(before)).toEqual(new Set([host.id, other.id]));
+    const roots = rootOrder();
+    const children = childOrder();
+    expect(() =>
+      callDesktopSession(sessionId, 'layers.move', { id: roots[0], direction: 'up' }),
+    ).toThrow('layer is already first');
+    expect(() =>
+      callDesktopSession(sessionId, 'layers.move', { id: roots[1], direction: 'down' }),
+    ).toThrow('layer is already last');
+    expect(() =>
+      callDesktopSession(sessionId, 'layers.move', { id: children[0], direction: 'up' }),
+    ).toThrow('layer is already first');
+    expect(() =>
+      callDesktopSession(sessionId, 'layers.move', { id: children[1], direction: 'down' }),
+    ).toThrow('layer is already last');
   });
 
   it('soft-deletes a layer and its child, then restores the child only after the host', () => {

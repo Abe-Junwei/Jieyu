@@ -49,6 +49,7 @@ describe('desktop create routing', () => {
     ).toBe('tx-b');
     expect(resolveCreateSourceLayer('tr', [txA, tr], [])).toBeNull();
     expect(resolveCreateSourceLayer('tx-b', [txA, txB], [])?.id).toBe('tx-b');
+    expect(resolveCreateSourceLayer('missing', [txA, txB], [])).toBeNull();
   });
 
   it('rejects a drag under 50ms and turns a drag over a segment into a selection', () => {

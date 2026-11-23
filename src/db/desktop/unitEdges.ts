@@ -312,6 +312,36 @@ export function previewUnitDeletion(db: SqliteDatabase, unitId: string): UnitDel
   return read();
 }
 
+export function previewUnitsDeletion(
+  db: SqliteDatabase,
+  unitIds: readonly string[],
+): UnitDeletePreview {
+  if (unitIds.length < 2 || new Set(unitIds).size !== unitIds.length) {
+    throw new Error('multiple units are required');
+  }
+  return db.transaction(() =>
+    unitIds.reduce(
+      (total, id) => {
+        const next = previewUnitDeletion(db, id);
+        for (const key of Object.keys(total) as (keyof UnitDeletePreview)[])
+          total[key] += next[key];
+        return total;
+      },
+      {
+        linkedTexts: 0,
+        tokens: 0,
+        morphemes: 0,
+        notes: 0,
+        lexemeLinks: 0,
+        analysisCandidates: 0,
+        customFieldValues: 0,
+        drafts: 0,
+        receptionRecords: 0,
+      } satisfies UnitDeletePreview,
+    ),
+  )();
+}
+
 export function removeUnit(db: SqliteDatabase, unitId: string): RemovedUnit {
   const write = db.transaction(() => {
     const tree = readRemovedUnit(db, unitId);
@@ -322,6 +352,28 @@ export function removeUnit(db: SqliteDatabase, unitId: string): RemovedUnit {
     return tree;
   });
   return write();
+}
+
+export function removeUnits(db: SqliteDatabase, unitIds: readonly string[]): RemovedUnit[] {
+  if (unitIds.length < 2 || new Set(unitIds).size !== unitIds.length) {
+    throw new Error('multiple units are required');
+  }
+  return db.transaction(() => {
+    const trees = unitIds.map((id) => readRemovedUnit(db, id));
+    const manuscriptIds = new Set(trees.map((tree) => manuscriptIdOf(db, tree.unit.id)));
+    if (manuscriptIds.size !== 1) throw new Error('units are not in the same manuscript');
+    for (const id of unitIds) {
+      if (
+        db.prepare('SELECT 1 FROM units WHERE parent_unit_id = ? LIMIT 1').get(id) !== undefined
+      ) {
+        throw new Error('unit has time subdivisions');
+      }
+    }
+    for (const id of unitIds) deleteUnitTree(db, id);
+    if (unitIds.some((id) => readStoredUnit(db, id)))
+      throw new Error('unit delete readback failed');
+    return trees;
+  })();
 }
 
 export function treeStillMatches(db: SqliteDatabase, tree: RemovedUnit): boolean {

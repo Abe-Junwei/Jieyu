@@ -26,6 +26,10 @@ import {
   waveMenuUnitAt,
   type WaveMenuState,
 } from './DesktopTranscriptionWaveMenu';
+import {
+  DesktopTranscriptionSplitDialog,
+  useDesktopTranscriptionSplitController,
+} from './useDesktopTranscriptionSplitController';
 import { readDesktopCorpusLocate } from './desktopCorpusLocate';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';
 import { useDesktopTranscriptionSelectionController } from './useDesktopTranscriptionSelectionController';
@@ -35,6 +39,9 @@ import {
 } from '../hooks/transcription/transcriptionPlaybackClock';
 import { useDesktopLayerView } from './useDesktopLayerView';
 import { useDesktopTranscriptionLayerController } from './useDesktopTranscriptionLayerController';
+import { useDesktopTranscriptionLaneController } from './useDesktopTranscriptionLaneController';
+import type { LayerListRequest } from './DesktopTranscriptionLayerList';
+import type { LayerCommandId } from './desktopTranscriptionLayerCommands';
 import { DesktopLayerDragReason } from './useDesktopTranscriptionLayerDragController';
 import { useDesktopTranscriptionOralController } from './useDesktopTranscriptionOralController';
 import { pauseOralAudios } from './oralPlayback';
@@ -206,6 +213,16 @@ function DesktopTranscriptionWorkspace() {
     read: read.readTextDraft,
   };
   const textLayerId = read.model?.layerId ?? null;
+  const split = useDesktopTranscriptionSplitController({
+    locale,
+    sessionId: read.sessionId,
+    textLayerId,
+    units,
+    draft: draft.draft,
+    desktopCall: host?.desktopCall,
+    playheadSec: getTranscriptionPlaybackClockSnapshot,
+    reload: () => read.refresh(),
+  });
   useEffect(() => {
     const id = selection.selectedUnitId;
     if (id === null || selectedUnit === null || textLayerId === null) return;
@@ -221,6 +238,14 @@ function DesktopTranscriptionWorkspace() {
   const speakerCount = new Set(
     (sourceUnits ?? []).map((unit) => unit.speakerId).filter((id) => id !== null),
   ).size;
+  const laneChrome = useDesktopTranscriptionLaneController({
+    sessionId: read.sessionId,
+    desktopCall: host?.desktopCall,
+    manuscriptId: read.model?.manuscriptId ?? null,
+    layers: read.model?.layers,
+    selectedUnitId: selection.selectedUnitId,
+    refresh: () => read.refresh(),
+  });
   const layerActions = useDesktopTranscriptionLayerController({
     sessionId: read.sessionId,
     desktopCall: host?.desktopCall,
@@ -245,6 +270,25 @@ function DesktopTranscriptionWorkspace() {
   });
   oralGate.current = { holding: oral.holding, leave: oral.leave };
   useOralNavigationGuard(oral.holding, oral.leave);
+  const [layerRequest, setLayerRequest] = useState<LayerListRequest | null>(null);
+  const layerRequestNonce = useRef(0);
+  const runLayerCommand = (layerId: string, command: LayerCommandId) => {
+    if (command === 'up' || command === 'down') {
+      layerActions.move(layerId, command);
+      return;
+    }
+    if (command === 'attach') {
+      layerActions.drag.attachToCurrent(layerId);
+      return;
+    }
+    if (command === 'return') {
+      layerActions.drag.returnToRoot(layerId);
+      return;
+    }
+    layerRequestNonce.current += 1;
+    const action = command;
+    setLayerRequest({ nonce: layerRequestNonce.current, layerId, action });
+  };
   const sideActions = useRef({ draft, read, selection, oral });
   sideActions.current = { draft, read, selection, oral };
   const playbackDuration = playback.duration;
@@ -262,6 +306,7 @@ function DesktopTranscriptionWorkspace() {
         speakerCount={speakerCount}
         selectedUnitId={selectedUnitId}
         actions={layerActions}
+        layerRequest={layerRequest}
         onOpen={(manuscriptId, layerId) =>
           sideActions.current.oral.leave(() =>
             sideActions.current.draft.leave(() => {
@@ -280,6 +325,7 @@ function DesktopTranscriptionWorkspace() {
     [
       hasAudio,
       layerActions,
+      layerRequest,
       locale,
       playbackDuration,
       readModel,
@@ -298,7 +344,7 @@ function DesktopTranscriptionWorkspace() {
 
   return (
     <section
-      className={`desktop-tx-workspace${layerView.headerFolded ? ' is-header-folded' : ''}${layerView.compact ? ' is-compact' : ''}`}
+      className={`desktop-tx-workspace${layerView.headerFolded ? ' is-header-folded' : ''}${layerView.compact ? ' is-compact' : ''}${hasAudio ? '' : ' is-no-audio'}`}
       data-testid="desktop-transcription-workspace"
     >
       <div className="desktop-tx-workspace__body">
@@ -613,8 +659,10 @@ function DesktopTranscriptionWorkspace() {
                 tierRef={tierRef}
                 scrollLeftPx={playback.scrollLeftPx}
                 waveCreateRef={waveCreateRef}
+                waveCreateEnabled={!read.selectionPending}
                 waveSkipRef={waveSkipRef}
                 waveDeleteRef={waveDeleteRef}
+                onSplit={(unitId) => split.ask(unitId, 'playhead')}
                 waveStage={waveStage}
                 onWaveSegmentMenu={(unitId, x, y) => openWaveRegionMenu.current(unitId, x, y)}
                 onLaneHeight={(layerId, height) => layerActions.setHeight(layerId, height)}
@@ -622,15 +670,27 @@ function DesktopTranscriptionWorkspace() {
                 loadOrthographies={layerActions.orthographies}
                 onSelectLayer={(layerId) => {
                   const manuscriptId = read.model?.manuscriptId;
-                  if (manuscriptId) read.selectManuscript(manuscriptId, layerId);
+                  const layer = read.model?.layers.find((item) => item.id === layerId);
+                  if (
+                    manuscriptId &&
+                    layer?.contentType === 'transcription' &&
+                    layer.tierType === 'time-aligned'
+                  ) {
+                    read.selectManuscript(manuscriptId, layerId);
+                  }
                 }}
                 layerDrag={layerActions.drag}
+                layerHosts
+                onLayerCommand={runLayerCommand}
+                onCreateLayer={layerActions.create}
+                onCreatePair={layerActions.createPair}
                 onCreateTranscription={() =>
                   layerActions.create(
                     'transcription',
                     t(locale, 'app.desktopTranscription.contextLayerTranscription'),
                   )
                 }
+                lanes={laneChrome}
                 audioTools={(layerId, unitId) => (
                   <TimelineTranslationAudioControls
                     compact
@@ -688,8 +748,16 @@ function DesktopTranscriptionWorkspace() {
           }}
           onToggleSkip={(unitId) => waveSkipRef.current?.(unitId)}
           onDelete={(unitId) => waveDeleteRef.current?.(unitId)}
+          onSplit={(unitId, time) => split.ask(unitId, time)}
         />
       )}
+      <DesktopTranscriptionSplitDialog
+        locale={locale}
+        prompt={split.prompt}
+        onCutIndex={split.setCutIndex}
+        onConfirm={split.confirm}
+        onCancel={split.cancel}
+      />
       {oral.ask ? (
         <DesktopOralLeaveDialog
           saving={oral.saving}
