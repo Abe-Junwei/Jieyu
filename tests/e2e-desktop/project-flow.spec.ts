@@ -2464,7 +2464,7 @@ for (const entry of ['wave', 'text', 'wave-empty', 'text-empty', 'text-caret'] a
         }
         await card.click({ button: 'right', position: { x: 5, y: 5 } });
       }
-      await page.getByRole('menuitem', { name: /^(Split|拆分|拆分句段)$/ }).click();
+      await page.getByRole('menuitem', { name: /^(Split segment|拆分句段)$/ }).click();
       await expect.poll(() => desktopCall(page, session, 'units.get', { id: target.id })).toBeNull();
       const after = await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId: clip.layerId });
       const halves = after.filter(unit => unit.startMs !== null && unit.endMs !== null && unit.startMs >= 400 && unit.endMs <= 800)
@@ -2623,7 +2623,7 @@ test('switching to spectrogram or split keeps zoom and wheel scrolling', async (
     const width = () => wave.locator('[part="wrapper"]').evaluate(el => el.scrollWidth);
     await expect.poll(width).toBeGreaterThan(2000);
     const zoomedWidth = await width();
-    for (const mode of [/^(语谱|Spectrogram)$/, /^(分屏|Split)$/]) {
+    for (const mode of [/^(语谱|Spectrogram)$/, /^(分屏|Split view)$/]) {
       await page.getByTestId('desktop-view').locator('summary').click();
       await page.getByRole('menuitemradio', { name: mode }).click();
       await expect(page.getByRole('button', { name: /^(Play|播放)$/ })).toBeEnabled();
