@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import type { ReactElement } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '../i18n';
@@ -8,6 +8,7 @@ import { DesktopPageRouter, resetDesktopPageRouters } from '../test/desktopPageR
 
 const saveText = vi.fn(async () => true);
 const persistTextDraft = vi.fn(async () => undefined);
+const selectManuscript = vi.fn();
 
 const readState = vi.hoisted(() => {
   const base = () => ({
@@ -41,7 +42,7 @@ const readState = vi.hoisted(() => {
       { id: 'u-a', startMs: 0, endMs: 1000, text: 'alpha', speakerId: null as string | null },
       { id: 'u-b', startMs: 1000, endMs: 2000, text: 'beta', speakerId: null as string | null },
     ],
-    audioUrl: 'blob:test-audio',
+    audioUrl: 'blob:test-audio' as string | null,
   });
   return { model: base(), base };
 });
@@ -54,7 +55,7 @@ vi.mock('./useDesktopProjectReadController', () => ({
     projectTitle: 'Project',
     error: '',
     openFolder: vi.fn(),
-    selectManuscript: vi.fn(),
+    selectManuscript,
     saveText,
     persistTextDraft,
     discardTextDraft: vi.fn(async () => undefined),
@@ -111,6 +112,7 @@ afterEach(() => {
   cleanup();
   saveText.mockClear();
   persistTextDraft.mockClear();
+  selectManuscript.mockClear();
   delete (globalThis as { jieyuDesktop?: unknown }).jieyuDesktop;
 });
 
@@ -255,6 +257,77 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     expect(screen.getByText('译文')).toBeTruthy();
     expect(screen.queryByText('alpha')).toBeNull();
     expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('keeps the transcription timeline when a secondary layer name is clicked', () => {
+    readState.model = {
+      ...readState.base(),
+      layers: [
+        {
+          id: 'layer-1',
+          name: { zh: '转写' },
+          contentType: 'transcription',
+          tierType: 'time-aligned',
+          units: [],
+        },
+        {
+          id: 'layer-tl',
+          name: { zh: '翻译' },
+          contentType: 'translation',
+          tierType: 'symbolic-association',
+          units: [{ id: 'u-a', startMs: 0, endMs: 1000, text: 'gloss-a' }],
+        },
+        {
+          id: 'layer-rec',
+          name: { zh: '口译' },
+          contentType: 'transcription',
+          tierType: 'symbolic-association',
+          units: [{ id: 'u-a', startMs: 0, endMs: 1000, text: '' }],
+        },
+        {
+          id: 'layer-2',
+          name: { zh: '转写乙' },
+          contentType: 'transcription',
+          tierType: 'time-aligned',
+          units: [],
+        },
+      ],
+    };
+    renderWorkspace();
+    fireEvent.click(screen.getByText('翻译'));
+    fireEvent.click(screen.getByText('口译'));
+    expect(selectManuscript).not.toHaveBeenCalled();
+    expect(screen.getByTestId('desktop-readonly-timeline').getAttribute('data-layer-id')).toBe(
+      'layer-1',
+    );
+    expect(screen.getByText('alpha')).toBeTruthy();
+    fireEvent.click(screen.getByText('转写乙'));
+    expect(selectManuscript).toHaveBeenCalledTimes(1);
+    expect(selectManuscript).toHaveBeenCalledWith('ms-1', 'layer-2');
+  });
+
+  it('shows a refused layer move on the workspace', async () => {
+    renderWorkspace('/transcription', async (_sessionId, method) => {
+      if (method === 'layers.move') throw new Error('layer host still has texts');
+      if (method === 'layers.listDeleted') return [];
+      return null;
+    });
+    fireEvent.contextMenu(screen.getByText('转写'));
+    fireEvent.click(screen.getByRole('button', { name: /^层$/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '上移' }));
+    expect(
+      (await screen.findByText('这个宿主上还有正文，不能拆')).closest('.transcription-toast'),
+    ).toBeTruthy();
+  });
+
+  it('marks a timed manuscript without audio so the stage rule stays off', () => {
+    readState.model = { ...readState.base(), audioUrl: null };
+    renderWorkspace();
+    expect(document.querySelector('.desktop-tx-no-audio')).toBeNull();
+    expect(screen.getByText('alpha')).toBeTruthy();
+    expect(document.querySelector('.desktop-tx-workspace')?.classList.contains('is-no-audio')).toBe(
+      true,
+    );
   });
 
   it('replaces a deep-linked unit when another unit is clicked', () => {
@@ -641,6 +714,7 @@ describe('DesktopTranscriptionWorkspacePage edge gaps (#562)', () => {
     fireEvent.click(screen.getByText('alpha'));
     fireEvent.keyDown(window, { key: 'Delete' });
     const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('将删除这一段及下列下级内容');
     expect(dialog.textContent).toContain('词注 2');
     expect(dialog.textContent).toContain('备注 1');
     expect(dialog.textContent).not.toContain('语素');
@@ -650,6 +724,29 @@ describe('DesktopTranscriptionWorkspacePage edge gaps (#562)', () => {
     });
     await waitFor(() => expect(document.activeElement).toBe(annotation('alpha')));
     expect(calls.some((call) => call.method === 'units.delete')).toBe(false);
+  });
+
+  it('does not claim there are child contents when the delete preview has none', async () => {
+    recordCalls((method) =>
+      method === 'units.deletePreview'
+        ? {
+            linkedTexts: 0,
+            tokens: 0,
+            morphemes: 0,
+            notes: 0,
+            lexemeLinks: 0,
+            analysisCandidates: 0,
+            customFieldValues: 0,
+            drafts: 0,
+            receptionRecords: 0,
+          }
+        : null,
+    );
+    fireEvent.click(screen.getByText('alpha'));
+    fireEvent.keyDown(window, { key: 'Delete' });
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('将删除这一段，撤销后仍用原来的身份');
+    expect(dialog.textContent).not.toContain('下级内容');
   });
 
   it('keeps a stale undo step and drops it only when asked', async () => {
@@ -706,7 +803,11 @@ describe('DesktopTranscriptionWorkspacePage layers (#597)', () => {
     render(pane as ReactElement);
     fireEvent.click(screen.getByRole('button', { name: /^层\d+$/ }));
     expect(screen.getByRole('button', { name: /^译文翻译$/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '新建翻译层' }));
+    fireEvent.contextMenu(
+      within(screen.getByTestId('desktop-readonly-timeline')).getByText('转写'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^新建层$/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '新建翻译层' }));
     await waitFor(() => {
       expect(calls).toContainEqual({
         method: 'layers.create',
@@ -759,8 +860,11 @@ describe('DesktopTranscriptionWorkspacePage layers (#597)', () => {
     const pane = sidePaneContents.at(-1);
     if (pane === undefined) throw new Error('missing context column');
     render(pane as ReactElement);
-    fireEvent.click(screen.getByRole('button', { name: /^层\d+$/ }));
-    fireEvent.click(screen.getByRole('button', { name: '新建翻译层' }));
+    fireEvent.contextMenu(
+      within(screen.getByTestId('desktop-readonly-timeline')).getByText('翻译'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^新建层$/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '新建翻译层' }));
     await waitFor(() => {
       expect(calls).toContainEqual({
         method: 'layers.create',
@@ -797,8 +901,11 @@ describe('DesktopTranscriptionWorkspacePage layers (#597)', () => {
     const pane = sidePaneContents.at(-1);
     if (pane === undefined) throw new Error('missing context column');
     render(pane as ReactElement);
-    fireEvent.click(screen.getByRole('button', { name: /^层\d+$/ }));
-    fireEvent.click(screen.getByRole('button', { name: '新建翻译层' }));
+    fireEvent.contextMenu(
+      within(screen.getByTestId('desktop-readonly-timeline')).getByText('转写'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^新建层$/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '新建翻译层' }));
     await waitFor(() => {
       expect(calls).toContainEqual({
         method: 'layers.create',

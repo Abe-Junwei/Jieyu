@@ -264,10 +264,11 @@ describe('DesktopProjectReadPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: /原句/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Split' }));
     expect(await screen.findByRole('button', { name: '0.0–0.5 原句' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '0.5–1.0 原句' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^0\.5–1\.0$/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '0.0–0.5 原句' }));
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     expect(await screen.findByRole('button', { name: '0.0–1.0 原句' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '0.5–1.0 原句' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^0\.5–1\.0$/ })).toBeNull();
     reopenDesktopSession(session.sessionId);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unit.id })).toMatchObject({
       startMs: 0,
@@ -578,28 +579,21 @@ describe('DesktopProjectReadPage', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save bridge' }));
     expect(await screen.findByDisplayValue('{"mappings":[{"from":"a","to":"c"}]}')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Assign speaker' }));
-    expect(await screen.findByText('原句 · Ada')).toBeTruthy();
-    expect(screen.getByText('后句 · Ada')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Assign speaker' })).toBeNull();
+    expect(screen.getByText('原句')).toBeTruthy();
 
     cleanup();
     mount(session.sessionId);
-    expect(await screen.findByText('原句 · Ada')).toBeTruthy();
-    expect(screen.getByDisplayValue('田野')).toBeTruthy();
+    expect(await screen.findByDisplayValue('田野')).toBeTruthy();
     expect(screen.getByRole('button', { name: '木雅' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Syrc' })).toBeTruthy();
     expect(screen.getByDisplayValue('{"mappings":[{"from":"a","to":"c"}]}')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '0.0–1.0 原句' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
-    await waitFor(() => {
-      expect(screen.queryByText('原句 · Ada')).toBeNull();
-    });
+    expect(screen.getByText('原句')).toBeTruthy();
     reopenDesktopSession(session.sessionId);
     cleanup();
     mount(session.sessionId);
     expect(await screen.findByDisplayValue('田野')).toBeTruthy();
     expect(screen.getByRole('button', { name: '木雅' })).toBeTruthy();
-    expect(screen.queryByText('原句 · Ada')).toBeNull();
     expect(screen.getByText('原句')).toBeTruthy();
   });
 

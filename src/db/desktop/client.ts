@@ -25,8 +25,10 @@ type EditMethod =
   | 'units.moveSharedBoundary'
   | 'units.moveUnit'
   | 'units.delete'
+  | 'units.deleteMany'
   | 'units.undo'
-  | 'units.redo';
+  | 'units.redo'
+  | 'units.split';
 
 const EDIT_KINDS: Record<EditMethod, EditReceiptKind> = {
   'units.create': 'create',
@@ -34,8 +36,10 @@ const EDIT_KINDS: Record<EditMethod, EditReceiptKind> = {
   'units.moveSharedBoundary': 'moveSharedBoundary',
   'units.moveUnit': 'moveUnit',
   'units.delete': 'delete',
+  'units.deleteMany': 'deleteMany',
   'units.undo': 'undo',
   'units.redo': 'redo',
+  'units.split': 'split',
 };
 
 /** ADR-0129: the edit may or may not have committed, and the library could not say which. */
@@ -207,8 +211,16 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once(sessionId, 'units.dropUndo', manuscriptId === undefined ? {} : { manuscriptId }),
     dropRedoStep: (sessionId: string, manuscriptId?: string) =>
       once(sessionId, 'units.dropRedo', manuscriptId === undefined ? {} : { manuscriptId }),
-    splitUnit: (sessionId: string, input: { unitId: string; time: number }) =>
-      once(sessionId, 'units.split', input),
+    splitUnit: (
+      sessionId: string,
+      input: {
+        unitId: string;
+        time: number;
+        textLayerId?: string;
+        cutIndex?: number;
+        rawInput?: string;
+      },
+    ) => receipted(sessionId, 'units.split', { ...input }),
     mergeUnits: (sessionId: string, input: { keepId: string; removeId: string }) =>
       once(sessionId, 'units.merge', input),
     updateBoundary: (sessionId: string, input: { leftId: string; rightId: string; time: number }) =>
@@ -225,8 +237,12 @@ export function createDesktopClient(bridge: DesktopBridge) {
       receipted(sessionId, 'units.moveUnit', { ...input }),
     previewUnitDelete: (sessionId: string, unitId: string) =>
       once(sessionId, 'units.deletePreview', { unitId }),
+    previewUnitsDelete: (sessionId: string, unitIds: string[]) =>
+      once(sessionId, 'units.deleteManyPreview', { unitIds }),
     deleteUnit: (sessionId: string, unitId: string) =>
       receipted(sessionId, 'units.delete', { unitId }),
+    deleteUnits: (sessionId: string, unitIds: string[]) =>
+      receipted(sessionId, 'units.deleteMany', { unitIds }),
     readTimeDraft: (sessionId: string, unitId: string) =>
       once(sessionId, 'units.readTimeDraft', { unitId }),
     putTimeDraft: (
@@ -309,6 +325,16 @@ export function createDesktopClient(bridge: DesktopBridge) {
     listSpeakers: (sessionId: string) => once(sessionId, 'speakers.list', {}),
     assignSpeaker: (sessionId: string, input: { speakerId: string; unitIds: string[] }) =>
       once(sessionId, 'speakers.assign', input),
+    clearSpeaker: (sessionId: string, input: { unitIds: string[] }) =>
+      once(sessionId, 'speakers.clear', input),
+    listLaneLocks: (sessionId: string, manuscriptId: string) =>
+      once(sessionId, 'layers.listLaneLocks', { manuscriptId }),
+    replaceLaneLocks: (
+      sessionId: string,
+      input: { layerId: string; locks: { speakerId: string; laneIndex: number }[] },
+    ) => once(sessionId, 'layers.replaceLaneLocks', input),
+    clearLaneLocks: (sessionId: string, input: { layerId: string; speakerIds: string[] }) =>
+      once(sessionId, 'layers.clearLaneLocks', input),
     patchSpeaker: (sessionId: string, input: unknown) => once(sessionId, 'speakers.patch', input),
     saveLexemeEntry: (sessionId: string, input: LexemeSave) =>
       once(sessionId, 'lexicon.saveEntry', input),

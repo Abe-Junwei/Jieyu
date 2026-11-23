@@ -51,12 +51,12 @@
     {
       "file": "src/components/TimelineAnnotationItem.tsx",
       "reason": "Timeline annotation layout uses per-item left/width geometry and speaker color variables.",
-      "reviewer": "GitHub Copilot + junwei",
-      "reviewedAt": "2026-04-26",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-23",
       "snippets": [
         {
           "anchor": "'--speaker-color': speakerColor",
-          "reviewedSha256": "405a9dad5417a97912144d2aafdc459d3c0bae7c6cbcc35dc0fab576a2368258"
+          "reviewedSha256": "208b79a953135f0b3f98d4f14e29a668aebbc214992bbf8c1fb04a3338b884c0"
         }
       ]
     },
@@ -116,7 +116,7 @@
       "file": "src/pages/DesktopTranscriptionLane.tsx",
       "reason": "Lane height, track width, draft frame, wave-stage preview, and seam position follow the saved height, live zoom, and pointer time. A dragged or shifted lane adds translateY.",
       "reviewer": "Cursor + junwei",
-      "reviewedAt": "2026-11-22",
+      "reviewedAt": "2026-11-23",
       "snippets": [
         {
           "anchor": "width: props.duration * props.zoomPxPerSec",
@@ -136,7 +136,7 @@
         },
         {
           "anchor": "...dragBits.laneStyle",
-          "reviewedSha256": "515cb1c8dcb637f95b4bb5733b699f69cab9bf2ede70a4256a2a24e41b1c62d5"
+          "reviewedSha256": "af2aca81482240f125c585681b3e0cc5d9d9ec34db2794ea1dfa315bf73bf502"
         }
       ]
     },
@@ -208,7 +208,7 @@
       "file": "src/pages/DesktopTranscriptionLayerRows.tsx",
       "reason": "Linked-layer height, track width, and the create preview frame follow the saved height, live zoom, and drag time. A dragged or shifted lane adds translateY.",
       "reviewer": "Cursor + junwei",
-      "reviewedAt": "2026-11-22",
+      "reviewedAt": "2026-11-23",
       "snippets": [
         {
           "anchor": "width: props.duration * props.zoomPxPerSec",
@@ -220,7 +220,7 @@
         },
         {
           "anchor": "...dragBits.laneStyle",
-          "reviewedSha256": "d9f0bc2571d1d2619152e4eb1e79ab0669b60431ad6e91bfe676b3d33ad6b929"
+          "reviewedSha256": "30a9be9734d4ebd33fa6a8cee8e1eb20a34696f8cf320f35c16ae7abe2c02f4b"
         },
         {
           "anchor": "style={dragBits.laneStyle}",
@@ -253,18 +253,6 @@
         {
           "anchor": "'--zoom-fill'",
           "reviewedSha256": "8d9e3589d2c4bcdcb02682dda7ff0fe57d9af9bd2fe28d896c7c167a91b2b94f"
-        }
-      ]
-    },
-    {
-      "file": "src/pages/DesktopTranscriptionLayerList.tsx",
-      "reason": "The layer row menu opens under its button.",
-      "reviewer": "Cursor + junwei",
-      "reviewedAt": "2026-11-21",
-      "snippets": [
-        {
-          "anchor": "left: menu.x, top: menu.y",
-          "reviewedSha256": "725f0effad3b8ba68e7e7c6a46980a6adae11a17800940ce7777bda38a3c103a"
         }
       ]
     },

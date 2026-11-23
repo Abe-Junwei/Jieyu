@@ -9,7 +9,7 @@ import {
   requireDesktopSession,
   resetDesktopSessions,
 } from './projectSession';
-import { assignSpeaker, undoAssignSpeaker } from './speakerAssign';
+import { assignSpeaker, clearSpeaker, undoAssignSpeaker } from './speakerAssign';
 
 const roots: string[] = [];
 
@@ -75,6 +75,41 @@ describe('speaker assign', () => {
     expect(() => undoAssignSpeaker(db, assigned.undo!)).toThrow('speaker assign undo is stale');
     expect(speakerOf(session.sessionId, right)).toBe(speaker.id);
     expect(speakerOf(session.sessionId, left)).toBeNull();
+  });
+});
+
+describe('speaker clear', () => {
+  it('clears one card, undoes it, and rejects a write that would overlap', () => {
+    const { session } = open();
+    const left = seed(session.sessionId, 0, 2000, '甲');
+    const layerId = layerOf(session.sessionId, left);
+    const ada = callDesktopSession(session.sessionId, 'speakers.create', { name: '阿达' }) as {
+      id: string;
+    };
+    const bai = callDesktopSession(session.sessionId, 'speakers.create', { name: '白玛' }) as {
+      id: string;
+    };
+    const db = requireDesktopSession(session.sessionId).db;
+    assignSpeaker(db, { speakerId: ada.id, unitIds: [left] });
+    const right = unit(session.sessionId, layerId, 1000, 3000, '乙');
+    assignSpeaker(db, { speakerId: bai.id, unitIds: [right] });
+    expect(() => assignSpeaker(db, { speakerId: ada.id, unitIds: [right] })).toThrow(
+      /same speaker intervals overlap/,
+    );
+    expect(speakerOf(session.sessionId, right)).toBe(bai.id);
+
+    const cleared = clearSpeaker(db, { unitIds: [right] });
+    expect(cleared.undo?.speakerId).toBeNull();
+    undoAssignSpeaker(db, cleared.undo!);
+    expect(speakerOf(session.sessionId, right)).toBe(bai.id);
+    callDesktopSession(session.sessionId, 'speakers.clear', { unitIds: [right] });
+    expect(callDesktopSession(session.sessionId, 'units.undo', {})).toEqual([
+      expect.objectContaining({ id: right, speakerId: bai.id }),
+    ]);
+    callDesktopSession(session.sessionId, 'speakers.clear', { unitIds: [right] });
+    expect(() => clearSpeaker(db, { unitIds: [left] })).toThrow(/same speaker intervals overlap/);
+    expect(speakerOf(session.sessionId, left)).toBe(ada.id);
+    expect(speakerOf(session.sessionId, right)).toBeNull();
   });
 });
 

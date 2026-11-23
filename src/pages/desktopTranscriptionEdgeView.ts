@@ -15,6 +15,8 @@ const EDGE_REASON = {
   apart: 'app.desktopTranscription.edgeNotTouching',
   order: 'app.desktopTranscription.edgeOrder',
   failed: 'app.desktopTranscription.edgeFailed',
+  deleteFailed: 'app.desktopTranscription.deleteFailed',
+  deleteRefreshFailed: 'app.desktopTranscription.deleteRefreshFailed',
   unknown: 'app.desktopTranscription.edgeUnknown',
   stale: 'app.desktopTranscription.edgeStale',
 } as const;

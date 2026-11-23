@@ -5,7 +5,8 @@ import { readStoredUnit, type Unit } from './units';
 type SqliteDatabase = InstanceType<typeof Database>;
 
 export interface SpeakerAssignUndo {
-  speakerId: string;
+  /** Speaker after the write. `null` means the units were cleared. */
+  speakerId: string | null;
   manuscriptId: string;
   units: { id: string; speakerId: string | null }[];
 }
@@ -48,6 +49,49 @@ export function assignSpeaker(
       units,
       undo: {
         speakerId: input.speakerId,
+        manuscriptId: manuscript.manuscriptId,
+        units: before.map((unit) => ({ id: unit.id, speakerId: unit.speakerId })),
+      },
+    };
+  });
+  return write();
+}
+
+export function clearSpeaker(
+  db: SqliteDatabase,
+  input: { unitIds: readonly string[] },
+  afterWrite?: () => void,
+): { units: Unit[]; undo: SpeakerAssignUndo | null } {
+  if (input.unitIds.length === 0) throw new Error('speaker assign is empty');
+  if (new Set(input.unitIds).size !== input.unitIds.length) {
+    throw new Error('speaker assign ids repeat');
+  }
+  const write = db.transaction(() => {
+    const before = input.unitIds.map((id) => {
+      const unit = readStoredUnit(db, id);
+      if (!unit) throw new Error('unit is missing');
+      return unit;
+    });
+    if (before.every((unit) => unit.speakerId === null)) return { units: before, undo: null };
+    const now = new Date().toISOString();
+    const update = db.prepare('UPDATE units SET speaker_id = NULL, updated_at = ? WHERE id = ?');
+    for (const unit of before) update.run(now, unit.id);
+    afterWrite?.();
+    const units = before.map((unit) => {
+      const stored = readStoredUnit(db, unit.id);
+      if (!stored || stored.speakerId !== null || stored.text !== unit.text) {
+        throw new Error('speaker assign readback failed');
+      }
+      return stored;
+    });
+    const manuscript = db
+      .prepare(`SELECT manuscript_id AS manuscriptId FROM layers WHERE id = ?`)
+      .get(before[0]?.layerId) as { manuscriptId: string } | undefined;
+    if (!manuscript) throw new Error('unit is missing');
+    return {
+      units,
+      undo: {
+        speakerId: null,
         manuscriptId: manuscript.manuscriptId,
         units: before.map((unit) => ({ id: unit.id, speakerId: unit.speakerId })),
       },

@@ -22,6 +22,7 @@ export function useDesktopProjectReadController(
     layerId: locate?.layerId,
   });
   const model = reads.model;
+  const selectionPending = reads.selectionPending;
   const notes = reads.notes;
   const error =
     writeError.length > 0
@@ -237,6 +238,7 @@ export function useDesktopProjectReadController(
   return {
     sessionId,
     model,
+    selectionPending,
     notes,
     projectTitle: reads.projectTitle,
     error,

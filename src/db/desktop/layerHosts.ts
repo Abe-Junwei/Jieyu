@@ -305,9 +305,7 @@ function checkHosts(db: SqliteDatabase, input: LayerHostsSet): CheckedHosts {
         deletedAt: string | null;
       }
     | undefined;
-  const canChange =
-    layer?.tierType === 'symbolic-association' ||
-    (layer?.tierType === 'time-aligned' && layer.contentType === 'transcription');
+  const canChange = layer?.tierType === 'symbolic-association';
   if (!layer || layer.deletedAt !== null || !canChange) {
     throw new Error('layer cannot change hosts');
   }

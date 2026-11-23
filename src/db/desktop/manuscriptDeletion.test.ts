@@ -22,7 +22,7 @@ import { listAcceptableRuns, startModelRun } from './modelRuns';
 import { callDesktopSession } from './desktopCall';
 import { openDesktopSession, requireDesktopSession, resetDesktopSessions } from './projectSession';
 import { createUnit, getUnit, readStoredUnit, updateBoundary, updateUnitText } from './units';
-import { splitUnit } from './unitSpan';
+import { splitUnit } from './unitSplit';
 
 const roots: string[] = [];
 

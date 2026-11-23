@@ -63,6 +63,8 @@ export type EdgeNoticeKind =
   | 'order'
   | 'unknown'
   | 'stale'
+  | 'deleteFailed'
+  | 'deleteRefreshFailed'
   | 'failed';
 
 export interface EdgeControllerInput {
@@ -76,6 +78,8 @@ export interface EdgeControllerInput {
   hasMedia: boolean;
   zoomPxPerSec: number;
   selectedUnitId: string | null;
+  selectedUnitIds: readonly string[];
+  clearSelection: () => void;
   playheadMs: () => number | null;
   reload: () => Promise<void> | undefined;
   message: (kind: EdgeNoticeKind, time: string) => string;
@@ -109,7 +113,7 @@ export interface EdgeUi {
     canLink: boolean;
     skipped: boolean;
   } | null;
-  deletePrompt: { unitId: string; counts: UnitDeletePreview } | null;
+  deletePrompt: { unitIds: string[]; counts: UnitDeletePreview } | null;
   raw: { unitId: string } & StoredTimes;
   /** An undo/redo step that later edits made stale; it stays until dropped (ADR-0129 E04). */
   stale: { action: 'undo' | 'redo' } | null;
@@ -228,8 +232,15 @@ export function createEdgeActions(ctx: {
     const current = call();
     if (!current) return;
     try {
-      const counts = await current.api.previewUnitDelete(current.sessionId, unitId);
-      setUi((state) => ({ ...state, menu: null, deletePrompt: { unitId, counts } }));
+      const selected = live.current.selectedUnitIds.filter((id) =>
+        live.current.units.some((unit) => unit.id === id),
+      );
+      const unitIds = selected.length > 1 && selected.includes(unitId) ? selected : [unitId];
+      const counts =
+        unitIds.length > 1
+          ? await current.api.previewUnitsDelete(current.sessionId, unitIds)
+          : await current.api.previewUnitDelete(current.sessionId, unitId);
+      setUi((state) => ({ ...state, menu: null, deletePrompt: { unitIds, counts } }));
     } catch {
       failed();
     }
@@ -241,6 +252,7 @@ export function createEdgeActions(ctx: {
       deletePrompt: null,
       edge: deleted ? null : current.edge,
     }));
+    if (deleted) live.current.clearSelection();
     if (!deleted) window.setTimeout(() => live.current.focusUnit?.(unitId), 0);
   }
 
@@ -510,21 +522,28 @@ export function createEdgeActions(ctx: {
     },
     cancelDelete() {
       const prompt = uiRef.current.deletePrompt;
-      if (prompt) closeDelete(prompt.unitId, false);
+      if (prompt?.unitIds[0]) closeDelete(prompt.unitIds[0], false);
     },
     confirmDelete() {
       const prompt = uiRef.current.deletePrompt;
       const session = call();
-      if (!prompt || !session) return;
-      void session.api
-        .deleteUnit(session.sessionId, prompt.unitId)
+      const firstId = prompt?.unitIds[0];
+      if (!prompt || !session || firstId === undefined) return;
+      const deleting =
+        prompt.unitIds.length > 1
+          ? session.api.deleteUnits(session.sessionId, prompt.unitIds)
+          : session.api.deleteUnit(session.sessionId, firstId);
+      void deleting
         .then(() => {
-          closeDelete(prompt.unitId, true);
-          return live.current.reload();
+          closeDelete(firstId, true);
+          return Promise.resolve(live.current.reload()).catch(() => {
+            live.current.notify(live.current.message('deleteRefreshFailed', ''));
+          });
         })
         .catch((error: unknown) => {
           const text = error instanceof Error ? error.message : '';
-          live.current.notify(live.current.message(edgeRejectKind(text), ''));
+          const kind = edgeRejectKind(text);
+          live.current.notify(live.current.message(kind === 'failed' ? 'deleteFailed' : kind, ''));
         });
     },
   };

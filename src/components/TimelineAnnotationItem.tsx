@@ -34,6 +34,11 @@ export interface TimelineAnnotationItemProps {
   placeholder?: string;
   speakerLabel?: string;
   speakerColor?: string;
+  /** Visible speaker name. The badge above stays hidden. */
+  speakerName?: string;
+  /** Extra box style for a speaker row: top, height, z-index. */
+  frameStyle?: CSSProperties;
+  onCycleOverlap?: () => void;
   noteCount?: number;
   overlapCycleIndicator?: { index: number; total: number };
   /** Machine-transcription confidence 0–1. A number colors the text; absent stays ink. */
@@ -83,6 +88,9 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   placeholder,
   speakerLabel,
   speakerColor,
+  speakerName,
+  frameStyle,
+  onCycleOverlap,
   noteCount,
   overlapCycleIndicator,
   confidence,
@@ -143,6 +151,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         width,
         ...(speakerColor ? ({ '--speaker-color': speakerColor } as CSSProperties) : {}),
         ...layerStyle,
+        ...frameStyle,
       }}
       dir={contentDirection}
       {...(unitId === undefined ? {} : { 'data-unit-id': unitId, tabIndex: -1 })}
@@ -173,7 +182,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
           aria-hidden
         />
       ) : null}
-      {overlapCycleIndicator && overlapCycleIndicator.total > 1 && isActive && (
+      {overlapCycleIndicator && overlapCycleIndicator.total > 1 && isActive && !onCycleOverlap ? (
         <span
           className="timeline-annotation-overlap-cycle-badge"
           title={tf(locale, 'transcription.timeline.overlapCycleTitle', {
@@ -183,7 +192,28 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         >
           {overlapCycleIndicator.index}/{overlapCycleIndicator.total}
         </span>
-      )}
+      ) : null}
+      {overlapCycleIndicator && overlapCycleIndicator.total > 1 && onCycleOverlap ? (
+        <button
+          type="button"
+          className="timeline-annotation-overlap-cycle-badge"
+          title={tf(locale, 'transcription.timeline.overlapCycleTitle', {
+            index: overlapCycleIndicator.index,
+            total: overlapCycleIndicator.total,
+          })}
+          onClick={(event) => {
+            event.stopPropagation();
+            onCycleOverlap();
+          }}
+        >
+          {overlapCycleIndicator.index}/{overlapCycleIndicator.total}
+        </button>
+      ) : null}
+      {speakerName ? (
+        <span className="timeline-annotation-speaker-name" data-testid="speaker-name">
+          {speakerName}
+        </span>
+      ) : null}
       {skipProcessing ? (
         <span className="timeline-annotation-skipped-label">
           {t(locale, 'transcription.action.skipProcessingMarked')}

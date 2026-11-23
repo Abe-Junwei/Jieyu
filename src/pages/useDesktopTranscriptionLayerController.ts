@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
+import { useToast } from '../contexts/ToastContext';
 import { t, useLocale } from '../i18n';
 import { useDesktopTranscriptionLayerDragController } from './useDesktopTranscriptionLayerDragController';
 import { readOrthographyRows, type LayerStyleChange } from './DesktopTranscriptionLayerStyleMenu';
@@ -34,7 +35,15 @@ export function useDesktopTranscriptionLayerController(input: {
   onLayerMoved?: (layerId: string, hostIds: readonly string[]) => void;
 }) {
   const locale = useLocale();
+  const toast = useToast();
   const [error, setError] = useState('');
+  const showFailure = useCallback(
+    (text: string) => {
+      setError(text);
+      toast.showToast(text, 'error');
+    },
+    [toast],
+  );
   const latest = useRef(input);
   latest.current = input;
   const dragLayers = useMemo(
@@ -73,7 +82,7 @@ export function useDesktopTranscriptionLayerController(input: {
     links: dragLinks,
     currentLayerId: input.currentLayerId,
     refresh: input.refresh,
-    report: (message) => setError(layerErrorText(locale, message)),
+    report: (message) => showFailure(layerErrorText(locale, message)),
     ...(input.onLayerMoved === undefined ? {} : { onLayerMoved: input.onLayerMoved }),
   });
   return useMemo(() => {
@@ -92,7 +101,7 @@ export function useDesktopTranscriptionLayerController(input: {
         await current.refresh();
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : '';
-        setError(layerErrorText(locale, message));
+        showFailure(layerErrorText(locale, message));
       }
     };
     const create = (kind: 'transcription' | 'translation', label: string) => {
@@ -100,13 +109,13 @@ export function useDesktopTranscriptionLayerController(input: {
       const layers = current.layers ?? [];
       const host = transcriptionHost(layers, current.links ?? [], current.currentLayerId);
       if (kind === 'translation' && host === undefined) {
-        setError(t(locale, 'app.desktopTranscription.layerActionFailed'));
+        showFailure(t(locale, 'app.desktopTranscription.layerActionFailed'));
         return;
       }
       void (async () => {
         const taken = await deletedKeys(latest.current);
         if (taken === null) {
-          setError(t(locale, 'app.desktopTranscription.layerActionFailed'));
+          showFailure(t(locale, 'app.desktopTranscription.layerActionFailed'));
           return;
         }
         const prefix = kind === 'transcription' ? 'tx' : 'tl';
@@ -141,7 +150,7 @@ export function useDesktopTranscriptionLayerController(input: {
         current.currentLayerId,
       );
       if (host === undefined) {
-        setError(t(locale, 'app.desktopTranscription.layerActionFailed'));
+        showFailure(t(locale, 'app.desktopTranscription.layerActionFailed'));
         return;
       }
       void run('recordings.createPair', {
@@ -200,7 +209,7 @@ export function useDesktopTranscriptionLayerController(input: {
         }
       },
     };
-  }, [drag, error, locale]);
+  }, [drag, error, locale, showFailure]);
 }
 
 interface HostsInput {
@@ -229,6 +238,10 @@ function layerErrorText(locale: Parameters<typeof t>[0], message: string): strin
   if (message.includes('unit text stays on its layer')) {
     return t(locale, 'app.desktopTranscription.layerTextStays');
   }
+  if (message.includes('layer is already first'))
+    return t(locale, 'app.desktopTranscription.layerMoveFirst');
+  if (message.includes('layer is already last'))
+    return t(locale, 'app.desktopTranscription.layerMoveLast');
   if (message.includes('layer cannot leave its host')) {
     return t(locale, 'app.desktopTranscription.layerHostsRefused');
   }
