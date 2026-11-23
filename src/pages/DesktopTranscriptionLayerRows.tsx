@@ -11,11 +11,13 @@ import { desktopAnnotationStyle } from '../utils/layerDisplayStyle';
 import {
   layerStyleFields,
   styleMenuProps,
+  type LayerCreateActions,
   type LayerStyleChange,
 } from './DesktopTranscriptionLayerStyleMenu';
 import { t, type Locale } from '../i18n';
 import { DesktopTranscriptionCreatePreview } from './DesktopTranscriptionCreatePreview';
 import { DesktopTranscriptionLaneResize } from './DesktopTranscriptionLaneResize';
+import type { LayerCommandId, LayerCommandItem } from './desktopTranscriptionLayerCommands';
 import {
   DesktopTranscriptionFoldedStrip,
   DesktopTranscriptionLayerLabel,
@@ -30,6 +32,12 @@ import {
   timelineDragProps,
   type DesktopLayerDrag,
 } from './useDesktopTranscriptionLayerDragController';
+import {
+  laneLabelProps,
+  lanePaintHeight,
+  speakerPaint,
+  type SpeakerLaneChrome,
+} from './desktopSpeakerLanes';
 
 export interface LayerRowLayer {
   id: string;
@@ -50,6 +58,7 @@ export interface LayerRowLayer {
     startMs: number | null;
     endMs: number | null;
     text: string;
+    speakerId?: string | null;
     parentUnitId?: string | null;
     confidence?: number | null;
     skipProcessing?: boolean;
@@ -110,8 +119,12 @@ export function DesktopTranscriptionLayerRows(props: {
   ) => Promise<{ id: string; name: Record<string, string>; scriptTag: string }[]>;
   onSelectLayer?: (layerId: string) => void;
   drag?: DesktopLayerDrag;
+  layerCommands?: (layerId: string) => readonly LayerCommandItem[];
+  onLayerCommand?: (layerId: string, command: LayerCommandId) => void;
+  layerCreate?: LayerCreateActions;
   /** Record, play, and delete for a modality=audio card. Text layers ignore it. */
   audioTools?: (layerId: string, unitId: string) => ReactNode;
+  lanes?: SpeakerLaneChrome;
 }) {
   const mainInTree = props.tree.some((row) => row.layerId === props.mainLayerId);
   const mainExists =
@@ -183,7 +196,13 @@ export function DesktopTranscriptionLayerRows(props: {
         className={`desktop-tx-lane${groupContinues ? ' is-group-mid' : ''}${dragBits.laneClass}`}
         data-layer-id={layer.id}
         data-drag-surface="timeline"
-        style={{ ...(laneHeightStyle(layer.laneHeight) ?? {}), ...dragBits.laneStyle }}
+        style={{
+          ...(laneHeightStyle(
+            lanePaintHeight(layer.laneHeight, props.lanes?.layoutOf(layer.id)?.rowCount ?? 1) ??
+              layer.laneHeight,
+          ) ?? {}),
+          ...dragBits.laneStyle,
+        }}
       >
         <DesktopTranscriptionLayerLabel
           locale={props.locale}
@@ -206,6 +225,14 @@ export function DesktopTranscriptionLayerRows(props: {
                 props.loadOrthographies,
                 (change) => props.onLayerStyle?.(layer.id, change),
               ))}
+          {...(props.onLayerCommand === undefined
+            ? {}
+            : {
+                commands: props.layerCommands?.(layer.id) ?? [],
+                onCommand: (command: LayerCommandId) => props.onLayerCommand?.(layer.id, command),
+              })}
+          {...(props.layerCreate === undefined ? {} : { create: props.layerCreate })}
+          {...laneLabelProps(props.lanes, layer.id)}
         />
         <div
           className="desktop-tx-lane__body"
@@ -250,6 +277,7 @@ export function DesktopTranscriptionLayerRows(props: {
                     ? { content: props.audioTools(layer.id, unit.id) }
                     : {})}
                   {...(painted === undefined ? {} : { layerStyle: painted })}
+                  {...speakerPaint(props.lanes, layer.id, unit.id)}
                   onClick={() => props.onPick(card, unit)}
                   onContextMenu={(event) => props.onRowMenu(card, name, event)}
                   onDoubleClick={ignore}

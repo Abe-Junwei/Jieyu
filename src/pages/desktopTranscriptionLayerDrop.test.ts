@@ -30,7 +30,7 @@ const link = (
 describe('resolveDesktopLayerDrop', () => {
   const layers = [host, child, other, translation, sibling, sub];
 
-  it('attaches a transcription layer under a transcription header and keeps an existing link type', () => {
+  it('rejects attaching a transcription layer even when it has a legacy host', () => {
     expect(
       resolveDesktopLayerDrop({
         dragId: child.id,
@@ -38,23 +38,17 @@ describe('resolveDesktopLayerDrop', () => {
         layers,
         links: [link(child.id, other.id, 'literal')],
       }),
-    ).toEqual({
-      ok: true,
-      action: 'set-host',
-      layerId: child.id,
-      hostLayerId: host.id,
-      linkType: 'literal',
-    });
+    ).toEqual({ ok: false, reason: 'not-host' });
   });
 
-  it('writes direct when the transcription layer has no link yet', () => {
+  it('rejects attaching an independent transcription layer', () => {
     const decision = resolveDesktopLayerDrop({
       dragId: child.id,
       target: { kind: 'header', layerId: host.id },
       layers,
       links: [],
     });
-    expect(decision).toMatchObject({ ok: true, action: 'set-host', linkType: 'direct' });
+    expect(decision).toEqual({ ok: false, reason: 'not-host' });
   });
 
   it('reorders a translation under the same host and rejects a different host', () => {
@@ -200,7 +194,7 @@ describe('layerDragShifts', () => {
     ).toEqual(new Map([[sibling.id, height]]));
   });
 
-  it('opens the gap after the host’s last remaining child', () => {
+  it('opens no gap for a rejected transcription attachment', () => {
     const order = [host.id, child.id, sibling.id];
     const links = [link(child.id, host.id), link(sibling.id, host.id, 'literal')];
     const decision = resolveDesktopLayerDrop({
@@ -218,7 +212,7 @@ describe('layerDragShifts', () => {
         layers,
         links,
       }),
-    ).toEqual(new Map([[sibling.id, -height]]));
+    ).toEqual(new Map());
   });
 
   it('slides earlier roots down when a transcription returns to the top', () => {
@@ -340,6 +334,6 @@ describe('layerDragShifts', () => {
         layers: rows,
         links: [link(child.id, other.id)],
       }),
-    ).toMatchObject({ ok: true, action: 'set-host', hostLayerId: host.id });
+    ).toEqual({ ok: false, reason: 'not-host' });
   });
 });

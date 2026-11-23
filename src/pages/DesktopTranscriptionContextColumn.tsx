@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { JieyuIcon } from '../components/ui/JieyuIcon';
 import { t, tf, type Locale } from '../i18n';
 import {
@@ -6,6 +6,7 @@ import {
   type ContextLayer,
   type ContextLink,
   type LayerHostsInput,
+  type LayerListRequest,
 } from './DesktopTranscriptionLayerList';
 import type { DesktopPlaybackUnit } from './useDesktopTranscriptionMediaController';
 import type { DesktopLayerDrag } from './useDesktopTranscriptionLayerDragController';
@@ -23,8 +24,6 @@ export function DesktopTranscriptionContextColumn(props: {
   layers: readonly ContextLayer[];
   links: readonly ContextLink[];
   layerError: string;
-  onCreateLayer: (kind: 'transcription' | 'translation', label: string) => void;
-  onCreatePair?: (kind: 'voice' | 'oral', audioName: string, textName: string) => void;
   onRenameLayer: (layerId: string, name: Record<string, string>) => void;
   onMoveLayer: (layerId: string, direction: 'up' | 'down') => void;
   onDeleteLayer: (
@@ -39,6 +38,7 @@ export function DesktopTranscriptionContextColumn(props: {
   onSetHosts?: (input: LayerHostsInput) => void;
   onClearLayerError?: () => void;
   drag?: DesktopLayerDrag;
+  layerRequest?: LayerListRequest | null;
   onSelectLayer: (layerId: string) => void;
   units: readonly DesktopPlaybackUnit[];
   durationLabel: string | null;
@@ -53,6 +53,10 @@ export function DesktopTranscriptionContextColumn(props: {
     segments: false,
     speakers: false,
   });
+  useEffect(() => {
+    if (props.layerRequest == null) return;
+    setOpen((state) => ({ ...state, layers: true }));
+  }, [props.layerRequest]);
   const currentTitle =
     props.manuscripts.find((item) => item.id === props.manuscriptId)?.title ?? null;
   const sections = [
@@ -177,10 +181,6 @@ export function DesktopTranscriptionContextColumn(props: {
                   currentId={props.layerId}
                   error={props.layerError}
                   onSelect={props.onSelectLayer}
-                  onCreate={props.onCreateLayer}
-                  {...(props.onCreatePair === undefined
-                    ? {}
-                    : { onCreatePair: props.onCreatePair })}
                   onRename={props.onRenameLayer}
                   onMove={props.onMoveLayer}
                   onDelete={props.onDeleteLayer}
@@ -192,6 +192,7 @@ export function DesktopTranscriptionContextColumn(props: {
                   {...(props.onClearLayerError === undefined
                     ? {}
                     : { onClearError: props.onClearLayerError })}
+                  {...(props.layerRequest === undefined ? {} : { request: props.layerRequest })}
                 />
               ) : expanded ? (
                 section.rows.length === 0 ? (

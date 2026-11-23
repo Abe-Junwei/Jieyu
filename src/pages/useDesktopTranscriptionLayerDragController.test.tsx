@@ -133,7 +133,7 @@ describe('layer drag controller', () => {
     expect(desktopCall).not.toHaveBeenCalled();
   });
 
-  it('writes the host link only when the pointer is released on a transcription header', async () => {
+  it('rejects a transcription host drop without writing', async () => {
     vi.useFakeTimers();
     const desktopCall = vi.fn(async () => null);
     const onLayerMoved = vi.fn();
@@ -169,14 +169,8 @@ describe('layer drag controller', () => {
     await act(async () => {
       window.dispatchEvent(new PointerEvent('pointerup', { clientX: 10, clientY: 10 }));
     });
-    expect(desktopCall).toHaveBeenCalledWith('session', 'layers.setHosts', {
-      layerId: 'child',
-      hostLayerIds: ['tx'],
-      preferredHostLayerId: 'tx',
-      linkType: 'direct',
-      append: true,
-    });
-    expect(onLayerMoved).toHaveBeenCalledWith('child', ['tx']);
+    expect(desktopCall).not.toHaveBeenCalled();
+    expect(onLayerMoved).not.toHaveBeenCalled();
   });
 
   it('returns a hosted transcription to the front and keeps it selected', async () => {
@@ -224,7 +218,7 @@ describe('layer drag controller', () => {
     expect(result.current.showReturn('tr')).toBe(false);
     expect(result.current.showReturn('child')).toBe(true);
     expect(result.current.returnReason('child')).toBeNull();
-    expect(result.current.attachReason('child')).toBeNull();
+    expect(result.current.attachReason('child')).toBe('app.desktopTranscription.layerDropNotHost');
   });
 
   it('cancels the hold when the pointer moves before it activates', () => {
@@ -327,8 +321,7 @@ describe('layer drag controller', () => {
     expect(desktopCall).toHaveBeenCalledTimes(1);
     await act(async () => finish());
     await act(async () => result.current.attachToCurrent('child'));
-    expect(desktopCall).toHaveBeenCalledTimes(2);
-    await act(async () => finish());
+    expect(desktopCall).toHaveBeenCalledTimes(1);
   });
   it('locates the revealed row on both surfaces after rendering and skips hidden rows', async () => {
     let frame!: FrameRequestCallback;

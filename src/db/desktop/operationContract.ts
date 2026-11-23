@@ -839,10 +839,28 @@ function unitCreate(input: Record<string, unknown>): UnitCreate & { operationId?
   };
 }
 
-function unitSplit(input: Record<string, unknown>): { unitId: string; time: number } {
+function unitSplit(input: Record<string, unknown>): {
+  unitId: string;
+  time: number;
+  operationId?: string;
+  textLayerId?: string;
+  cutIndex?: number;
+  rawInput?: string;
+} {
+  knownKeys(input, ['operationId', 'unitId', 'time', 'textLayerId', 'cutIndex', 'rawInput']);
   return {
     unitId: requiredString(input.unitId, 'unitId'),
     time: requiredNumber(input.time, 'time'),
+    ...editOperationId(input),
+    ...(input.textLayerId === undefined
+      ? {}
+      : { textLayerId: requiredString(input.textLayerId, 'textLayerId') }),
+    ...(input.cutIndex === undefined
+      ? {}
+      : { cutIndex: requiredNumber(input.cutIndex, 'cutIndex') }),
+    ...(input.rawInput === undefined
+      ? {}
+      : { rawInput: requiredString(input.rawInput, 'rawInput') }),
   };
 }
 
@@ -1256,6 +1274,49 @@ function speakerAssign(input: Record<string, unknown>): { speakerId: string; uni
   return {
     speakerId: requiredString(input.speakerId, 'speakerId'),
     unitIds: stringIds(input.unitIds, 'unitIds'),
+  };
+}
+
+function speakerClear(input: Record<string, unknown>): { unitIds: string[] } {
+  knownKeys(input, ['unitIds']);
+  return { unitIds: stringIds(input.unitIds, 'unitIds') };
+}
+
+function laneLockList(input: Record<string, unknown>): { manuscriptId: string } {
+  knownKeys(input, ['manuscriptId']);
+  return { manuscriptId: requiredString(input.manuscriptId, 'manuscriptId') };
+}
+
+function laneLockReplace(input: Record<string, unknown>): {
+  layerId: string;
+  locks: { speakerId: string; laneIndex: number }[];
+} {
+  knownKeys(input, ['layerId', 'locks']);
+  if (!Array.isArray(input.locks)) throw new Error('desktop call locks must be a list');
+  return {
+    layerId: requiredString(input.layerId, 'layerId'),
+    locks: input.locks.map((lock) => {
+      if (typeof lock !== 'object' || lock === null || Array.isArray(lock)) {
+        throw new Error('desktop call locks must be a list');
+      }
+      const row = lock as Record<string, unknown>;
+      knownKeys(row, ['speakerId', 'laneIndex']);
+      return {
+        speakerId: requiredString(row.speakerId, 'speakerId'),
+        laneIndex: requiredNumber(row.laneIndex, 'laneIndex'),
+      };
+    }),
+  };
+}
+
+function laneLockClear(input: Record<string, unknown>): {
+  layerId: string;
+  speakerIds: string[];
+} {
+  knownKeys(input, ['layerId', 'speakerIds']);
+  return {
+    layerId: requiredString(input.layerId, 'layerId'),
+    speakerIds: stringIds(input.speakerIds, 'speakerIds'),
   };
 }
 
@@ -2183,10 +2244,18 @@ export const desktopOperations = {
     { operationId: string; kind: EditReceiptKind; payload: Record<string, unknown> },
     EditInspection
   >('keep', editInspect),
-  'units.split': spec<'keep', { unitId: string; time: number }, { left: Unit; right: Unit }>(
+  'units.split': spec<
     'keep',
-    unitSplit,
-  ),
+    {
+      unitId: string;
+      time: number;
+      operationId?: string;
+      textLayerId?: string;
+      cutIndex?: number;
+      rawInput?: string;
+    },
+    { left: Unit; right: Unit }
+  >('keep', unitSplit),
   'units.merge': spec<'clear', { keepId: string; removeId: string }, Unit>('clear', unitMerge),
   'units.updateBoundary': spec<
     'keep',
@@ -2211,11 +2280,25 @@ export const desktopOperations = {
     knownKeys(input, ['unitId']);
     return { unitId: requiredString(input.unitId, 'unitId') };
   }),
+  'units.deleteManyPreview': spec<'keep', { unitIds: string[] }, UnitDeletePreview>(
+    'keep',
+    (input) => {
+      knownKeys(input, ['unitIds']);
+      return { unitIds: stringIds(input.unitIds, 'unitIds') };
+    },
+  ),
   'units.delete': spec<'keep', { unitId: string; operationId?: string }, { id: string }>(
     'keep',
     (input) => {
       knownKeys(input, ['unitId', 'operationId']);
       return { unitId: requiredString(input.unitId, 'unitId'), ...editOperationId(input) };
+    },
+  ),
+  'units.deleteMany': spec<'keep', { unitIds: string[]; operationId?: string }, { ids: string[] }>(
+    'keep',
+    (input) => {
+      knownKeys(input, ['unitIds', 'operationId']);
+      return { unitIds: stringIds(input.unitIds, 'unitIds'), ...editOperationId(input) };
     },
   ),
   'units.readTimeDraft': spec<
@@ -2414,6 +2497,22 @@ export const desktopOperations = {
     'keep',
     speakerAssign,
   ),
+  'speakers.clear': spec<'keep', { unitIds: string[] }, Unit[]>('keep', speakerClear),
+  'layers.listLaneLocks': spec<
+    'keep',
+    { manuscriptId: string },
+    { layerId: string; speakerId: string; laneIndex: number }[]
+  >('keep', laneLockList),
+  'layers.replaceLaneLocks': spec<
+    'keep',
+    { layerId: string; locks: { speakerId: string; laneIndex: number }[] },
+    { layerId: string; speakerId: string; laneIndex: number }[]
+  >('keep', laneLockReplace),
+  'layers.clearLaneLocks': spec<
+    'keep',
+    { layerId: string; speakerIds: string[] },
+    { layerId: string; speakerId: string; laneIndex: number }[]
+  >('keep', laneLockClear),
   'conversations.create': spec<'clear', ConversationCreate, Conversation>(
     'clear',
     conversationCreate,

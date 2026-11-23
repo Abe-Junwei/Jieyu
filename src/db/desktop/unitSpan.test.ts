@@ -17,7 +17,8 @@ import {
   removeUnitValue,
   setFieldValue,
 } from './customFields';
-import { mergeUnits, splitUnit, undoMerge, undoSplit } from './unitSpan';
+import { mergeUnits, undoMerge } from './unitSpan';
+import { splitUnit, undoSplit } from './unitSplit';
 import { getAnalysisRoot, updateUnitText, writeAnalysisRoot } from './units';
 
 const roots: string[] = [];
@@ -36,13 +37,10 @@ afterEach(() => {
 });
 
 describe('unit span', () => {
-  it('copies words, morphemes, notes, and links, then undo removes only the copy', () => {
+  it('cuts the text, keeps notes on the left, and undo restores the original unit', () => {
     const session = open();
-    const unitId = seed(session.sessionId, 0, 2, 'pre-fix');
+    const unitId = seed(session.sessionId, 0, 40, 'pre-fix');
     const words = callDesktopSession(session.sessionId, 'analysis.segmentWords', {
-      unitId,
-    }) as { id: string }[];
-    const morphemes = callDesktopSession(session.sessionId, 'analysis.segmentMorphemes', {
       unitId,
     }) as { id: string }[];
     callDesktopSession(session.sessionId, 'notes.create', {
@@ -59,52 +57,36 @@ describe('unit span', () => {
       translation: '前缀',
     });
     const db = requireDesktopSession(session.sessionId).db;
-    const split = splitUnit(db, { unitId, time: 1 });
-    expect(split.left.endMs).toBe(1);
-    expect(split.right.text).toBe('pre-fix');
-    expect(count(db, 'SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?', unitId)).toBe(1);
-    expect(count(db, 'SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?', split.right.id)).toBe(1);
-    expect(count(db, 'SELECT COUNT(*) AS n FROM notes WHERE unit_id = ?', unitId)).toBe(2);
-    expect(count(db, 'SELECT COUNT(*) AS n FROM notes WHERE unit_id = ?', split.right.id)).toBe(2);
-    expect(
-      ids(db, 'SELECT id FROM morphemes WHERE token_id = ?', words[0]?.id ?? '').sort(),
-    ).toEqual(morphemes.map((row) => row.id).sort());
-    const copiedToken = ids(db, 'SELECT id FROM tokens WHERE unit_id = ?', split.right.id)[0] ?? '';
-    expect(ids(db, 'SELECT id FROM morphemes WHERE token_id = ?', copiedToken)).toHaveLength(2);
-    expect(
-      count(
-        db,
-        'SELECT COUNT(*) AS n FROM token_lexeme_links WHERE target_id = ?',
-        words[0]?.id ?? '',
-      ),
-    ).toBe(1);
-    expect(
-      count(db, 'SELECT COUNT(*) AS n FROM token_lexeme_links WHERE target_id = ?', copiedToken),
-    ).toBe(1);
-    expect(
-      callDesktopSession(session.sessionId, 'lexicon.listTokenLinks', { unitId: split.right.id }),
-    ).toHaveLength(1);
+    const split = splitUnit(db, { unitId, time: 20, cutIndex: 3, rawInput: 'pre-fix' });
+    expect(split.left.endMs).toBe(20);
+    expect(split.left.text).toBe('pre');
+    expect(split.right.text).toBe('-fix');
+    expect(count(db, 'SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?', unitId)).toBe(0);
+    expect(count(db, 'SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?', split.left.id)).toBe(0);
+    expect(count(db, 'SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?', split.right.id)).toBe(0);
+    expect(count(db, 'SELECT COUNT(*) AS n FROM notes WHERE unit_id = ?', split.left.id)).toBe(2);
+    expect(count(db, 'SELECT COUNT(*) AS n FROM notes WHERE unit_id = ?', split.right.id)).toBe(0);
 
     undoSplit(db, split.undo);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
-      endMs: 2,
+      endMs: 40,
       text: 'pre-fix',
     });
     expect(callDesktopSession(session.sessionId, 'units.get', { id: split.right.id })).toBeNull();
-    expect(count(db, 'SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?', split.right.id)).toBe(0);
     expect(count(db, 'SELECT COUNT(*) AS n FROM notes WHERE unit_id = ?', unitId)).toBe(2);
+    expect(count(db, 'SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?', unitId)).toBe(1);
     callDesktopSession(session.sessionId, 'reopen', {});
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
-      endMs: 2,
+      endMs: 40,
     });
   });
 
   it('rolls a failed split back and leaves both units when the row changed later', () => {
     const session = open();
-    const unitId = seed(session.sessionId, 0, 2, '原句');
+    const unitId = seed(session.sessionId, 0, 40, '原句');
     const db = requireDesktopSession(session.sessionId).db;
     expect(() =>
-      splitUnit(db, { unitId, time: 1 }, () => {
+      splitUnit(db, { unitId, time: 20 }, () => {
         throw new Error('injected');
       }),
     ).toThrow('injected');
@@ -114,21 +96,22 @@ describe('unit span', () => {
       }),
     ).toHaveLength(1);
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
-      endMs: 2,
+      endMs: 40,
     });
 
-    const split = splitUnit(db, { unitId, time: 1 });
-    updateUnitText(db, { unitId, text: '后来' });
+    const split = splitUnit(db, { unitId, time: 20 });
+    updateUnitText(db, { unitId: split.left.id, text: '后来' });
     expect(() => undoSplit(db, split.undo)).toThrow('unit split undo is stale');
     expect(
       callDesktopSession(session.sessionId, 'units.get', { id: split.right.id }),
-    ).toMatchObject({
-      text: '原句',
-    });
-    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
-      text: '后来',
-      endMs: 1,
-    });
+    ).toMatchObject({ text: '' });
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: split.left.id })).toMatchObject(
+      {
+        text: '后来',
+        endMs: 20,
+      },
+    );
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toBeNull();
   });
 
   it('keeps the chosen id and restores the removed id', () => {
@@ -203,7 +186,7 @@ describe('unit span', () => {
 
   it('copies a required field onto the new unit and rolls back when that field is missing', () => {
     const session = open();
-    const unitId = seed(session.sessionId, 0, 2, 'pre-fix');
+    const unitId = seed(session.sessionId, 0, 40, 'pre-fix');
     const field = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
       targetType: 'unit',
       name: { zh: '注' },
@@ -211,9 +194,9 @@ describe('unit span', () => {
       required: true,
     }) as { id: string };
     const db = requireDesktopSession(session.sessionId).db;
-    expect(() => splitUnit(db, { unitId, time: 1 })).toThrow('unit is missing a required field');
+    expect(() => splitUnit(db, { unitId, time: 20 })).toThrow('unit is missing a required field');
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
-      endMs: 2,
+      endMs: 40,
     });
     callDesktopSession(session.sessionId, 'customFields.setValue', {
       definitionId: field.id,
@@ -222,7 +205,7 @@ describe('unit span', () => {
       value: 'filled',
       expectedRevision: 1,
     });
-    const split = splitUnit(db, { unitId, time: 1 });
+    const split = splitUnit(db, { unitId, time: 20 });
     const dir = desktopSessionFolder(session.sessionId);
     closeDesktopSession(session.sessionId);
     const again = openDesktopSession(dir, [dir]);
@@ -233,10 +216,10 @@ describe('unit span', () => {
     ).toEqual([]);
   });
 
-  it('keeps custom reference identity and remaps graph structure onto the copy', () => {
+  it('keeps the analysis graph and custom references on the new left unit', () => {
     const session = open();
-    const unitId = seed(session.sessionId, 0, 2, 'ka');
-    const otherId = seedUnit(session.sessionId, layerOf(session.sessionId, unitId), 2, 3, '乙');
+    const unitId = seed(session.sessionId, 0, 40, 'ka');
+    const otherId = seedUnit(session.sessionId, layerOf(session.sessionId, unitId), 40, 50, '乙');
     const db = requireDesktopSession(session.sessionId).db;
     const select = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
       targetType: 'unit',
@@ -365,43 +348,37 @@ describe('unit span', () => {
     });
     const split = callDesktopSession(session.sessionId, 'units.split', {
       unitId,
-      time: 1,
+      time: 20,
     }) as { left: { id: string }; right: { id: string } };
-    const copiedNote = db
-      .prepare('SELECT id FROM notes WHERE unit_id = ? AND id != ?')
-      .get(split.right.id, 'unit-note') as { id: string };
-    const copied = getAnalysisRoot(db, split.right.id)?.graph;
-    const copiedNode = copied?.nodes.find((node) => node.customFields?.[nodeField.id] === 'kept');
-    const copiedRelation = copied?.relations[0];
-    expect(readFieldValue(db, select.id, 'unit', split.right.id)).toBe(optionId);
+    const kept = getAnalysisRoot(db, split.left.id)?.graph;
+    const keptNode = kept?.nodes.find((node) => node.customFields?.[nodeField.id] === 'kept');
+    const keptRelation = kept?.relations[0];
+    expect(readFieldValue(db, select.id, 'unit', split.left.id)).toBe(optionId);
     expect(readFieldValue(db, unitRef.id, 'unit', split.right.id)).toEqual(externalRef);
-    expect(readFieldValue(db, noteField.id, 'note', copiedNote.id)).toBe('记');
-    expect(copiedNode?.customFields?.[nodeRef.id]).toEqual(nodePointer);
-    expect(copiedNode?.customFields?.[danglingRef.id]).toEqual(danglingPointer);
-    expect(copiedNode?.id).not.toBe('n1');
-    expect(copiedRelation?.sourceId).not.toBe('n1');
-    expect(copiedRelation?.targetId).not.toBe('n2');
-    expect(copiedRelation?.customFields?.[relationField.id]).toBe('edge');
-    expect(copied?.nodes.find((node) => node.type === 'morpheme')?.surfaceParts?.[0]?.tokenId).toBe(
-      copiedNode?.id,
+    expect(readFieldValue(db, noteField.id, 'note', 'unit-note')).toBe('记');
+    expect(keptNode?.customFields?.[nodeRef.id]).toEqual(nodePointer);
+    expect(keptNode?.customFields?.[danglingRef.id]).toEqual(danglingPointer);
+    expect(keptNode?.id).toBe('n1');
+    expect(keptRelation?.sourceId).toBe('n1');
+    expect(keptRelation?.targetId).toBe('n2');
+    expect(keptRelation?.customFields?.[relationField.id]).toBe('edge');
+    expect(kept?.nodes.find((node) => node.type === 'morpheme')?.surfaceParts?.[0]?.tokenId).toBe(
+      'n1',
     );
-    expect(
-      getAnalysisRoot(db, unitId)
-        ?.graph?.nodes.map((node) => node.id)
-        .sort(),
-    ).toEqual(['m', 'n1', 'n2']);
+    expect(getAnalysisRoot(db, split.right.id)?.graph ?? null).toBeNull();
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toBeNull();
     const dir = desktopSessionFolder(session.sessionId);
     closeDesktopSession(session.sessionId);
     const again = openDesktopSession(dir, [dir]);
     const againDb = requireDesktopSession(again.sessionId).db;
-    expect(readFieldValue(againDb, unitRef.id, 'unit', split.right.id)).toEqual(externalRef);
+    expect(readFieldValue(againDb, unitRef.id, 'unit', split.left.id)).toEqual(externalRef);
     expect(
-      getAnalysisRoot(againDb, split.right.id)?.graph?.nodes.find(
+      getAnalysisRoot(againDb, split.left.id)?.graph?.nodes.find(
         (node) => node.customFields?.[nodeField.id] === 'kept',
       )?.customFields?.[danglingRef.id],
     ).toEqual(danglingPointer);
     expect(
-      getAnalysisRoot(againDb, split.right.id)?.graph?.nodes.find(
+      getAnalysisRoot(againDb, split.left.id)?.graph?.nodes.find(
         (node) => node.customFields?.[nodeField.id] === 'kept',
       )?.customFields?.[nodeRef.id],
     ).toEqual(nodePointer);
@@ -409,8 +386,8 @@ describe('unit span', () => {
 
   it('rolls back a split that would copy an invalid required reference and keeps the previous undo', () => {
     const session = open();
-    const unitId = seed(session.sessionId, 0, 4, 'ka');
-    const targetId = seedUnit(session.sessionId, layerOf(session.sessionId, unitId), 4, 5, '乙');
+    const unitId = seed(session.sessionId, 0, 40, 'ka');
+    const targetId = seedUnit(session.sessionId, layerOf(session.sessionId, unitId), 40, 50, '乙');
     const db = requireDesktopSession(session.sessionId).db;
     const field = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
       targetType: 'unit',
@@ -429,7 +406,7 @@ describe('unit span', () => {
     });
     const split = callDesktopSession(session.sessionId, 'units.split', {
       unitId,
-      time: 2,
+      time: 20,
     }) as { left: { id: string; endMs: number }; right: { id: string } };
     removeUnitValue(db, { definitionId: field.id, unitId: split.left.id });
     const optional = createDefinition(db, {
@@ -447,24 +424,29 @@ describe('unit span', () => {
     const generation = generationOf(db, split.left.id);
     const fingerprint = getAnalysisRoot(db, split.left.id)?.graphFingerprint ?? '';
     expect(() =>
-      callDesktopSession(session.sessionId, 'units.split', { unitId: split.left.id, time: 1 }),
+      callDesktopSession(session.sessionId, 'units.split', { unitId: split.left.id, time: 10 }),
     ).toThrow('unit is missing a required field');
     expect(callDesktopSession(session.sessionId, 'units.get', { id: split.left.id })).toMatchObject(
       { endMs: split.left.endMs },
     );
     expect(generationOf(db, split.left.id)).toBe(generation);
     expect(getAnalysisRoot(db, split.left.id)?.graphFingerprint ?? '').toBe(fingerprint);
-    expect(callDesktopSession(session.sessionId, 'units.undo', {})).toMatchObject({
-      id: unitId,
-      endMs: 4,
-    });
-    expect(callDesktopSession(session.sessionId, 'units.get', { id: split.right.id })).toBeNull();
+    expect(() => callDesktopSession(session.sessionId, 'units.undo', {})).toThrow(
+      'unit split undo is stale',
+    );
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toBeNull();
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: split.left.id })).toMatchObject(
+      {
+        endMs: split.left.endMs,
+      },
+    );
+    expect(readFieldValue(db, optional.id, 'unit', split.left.id)).toBe('still');
   });
 
   it('keeps a merged-away reference identity and revalidates only the same id', () => {
     const session = open();
-    const unitId = seed(session.sessionId, 0, 2, 'ka');
-    const targetId = seedUnit(session.sessionId, layerOf(session.sessionId, unitId), 2, 3, '乙');
+    const unitId = seed(session.sessionId, 0, 40, 'ka');
+    const targetId = seedUnit(session.sessionId, layerOf(session.sessionId, unitId), 40, 50, '乙');
     const db = requireDesktopSession(session.sessionId).db;
     const field = callDesktopSession(session.sessionId, 'customFields.createDefinition', {
       targetType: 'unit',
@@ -496,9 +478,9 @@ describe('unit span', () => {
       value: 'still',
       expectedRevision: 1,
     });
-    expect(() => splitUnit(db, { unitId, time: 1 })).toThrow('unit is missing a required field');
+    expect(() => splitUnit(db, { unitId, time: 20 })).toThrow('unit is missing a required field');
     expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
-      endMs: 3,
+      endMs: 50,
       text: 'ka',
     });
     expect(readFieldValue(db, optional.id, 'unit', unitId)).toBe('still');
@@ -507,8 +489,8 @@ describe('unit span', () => {
     const namesake = (
       callDesktopSession(session.sessionId, 'units.create', {
         layerId: layerOf(session.sessionId, unitId),
-        startMs: 3,
-        endMs: 4,
+        startMs: 50,
+        endMs: 60,
         text: '乙',
         fieldValues: { [field.id]: pointer },
       }) as { id: string }
@@ -582,9 +564,12 @@ describe('session unit span undo', () => {
       unitId: again,
       time: 500,
     }) as { left: { id: string } };
-    callDesktopSession(session.sessionId, 'units.split', { unitId: split.left.id, time: 200 });
-    callDesktopSession(session.sessionId, 'units.updateText', {
+    const later = callDesktopSession(session.sessionId, 'units.split', {
       unitId: split.left.id,
+      time: 200,
+    }) as { left: { id: string } };
+    callDesktopSession(session.sessionId, 'units.updateText', {
+      unitId: later.left.id,
       text: '改过',
     });
     expect(callDesktopSession(session.sessionId, 'units.undo', {})).toMatchObject({ text: '原句' });
@@ -621,26 +606,29 @@ describe('session unit span undo', () => {
     );
     expect(
       callDesktopSession(again.sessionId, 'units.list', {
-        layerId: layerOf(again.sessionId, unitId),
+        layerId: layerOf(again.sessionId, split.left.id),
       }),
     ).toHaveLength(3);
   });
 
   it('keeps a stale split on the stack until it is dropped, and does not delete the newer unit', () => {
     const session = open();
-    const unitId = seed(session.sessionId, 0, 2, '原句');
+    const unitId = seed(session.sessionId, 0, 40, '原句');
     const split = callDesktopSession(session.sessionId, 'units.split', {
       unitId,
-      time: 1,
-    }) as { right: { id: string } };
-    updateUnitText(requireDesktopSession(session.sessionId).db, { unitId, text: '后来' });
+      time: 20,
+    }) as { left: { id: string }; right: { id: string } };
+    updateUnitText(requireDesktopSession(session.sessionId).db, {
+      unitId: split.left.id,
+      text: '后来',
+    });
     expect(() => callDesktopSession(session.sessionId, 'units.undo', {})).toThrow(
       'unit split undo is stale',
     );
     expect(
       callDesktopSession(session.sessionId, 'units.get', { id: split.right.id }),
     ).toMatchObject({
-      text: '原句',
+      text: '',
     });
     expect(() => callDesktopSession(session.sessionId, 'units.undo', {})).toThrow(
       'unit split undo is stale',
@@ -656,27 +644,30 @@ describe('session unit span undo', () => {
     expect(callDesktopSession(session.sessionId, 'units.dropUndo', {})).toEqual({
       dropped: false,
     });
-    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toMatchObject({
-      text: '后来',
-    });
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: split.left.id })).toMatchObject(
+      {
+        text: '后来',
+      },
+    );
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: unitId })).toBeNull();
     expect(
       callDesktopSession(session.sessionId, 'units.get', { id: split.right.id }),
-    ).toMatchObject({ text: '原句' });
+    ).toMatchObject({ text: '' });
   });
 
   it('reads the copied unit after a split that moved morpheme surfaces', () => {
     const session = open();
-    const unitId = seed(session.sessionId, 0, 2, 'word');
+    const unitId = seed(session.sessionId, 0, 40, 'word');
     callDesktopSession(session.sessionId, 'units.updateText', { unitId, text: 'pre-fix' });
     callDesktopSession(session.sessionId, 'analysis.segmentWords', { unitId });
     callDesktopSession(session.sessionId, 'analysis.segmentMorphemes', { unitId });
     const result = callDesktopSession(session.sessionId, 'units.split', {
       unitId,
-      time: 1,
-    }) as { right: { id: string } };
+      time: 20,
+    }) as { left: { id: string } };
     callDesktopSession(session.sessionId, 'reopen', {});
     expect(() =>
-      callDesktopSession(session.sessionId, 'analysis.readState', { unitId: result.right.id }),
+      callDesktopSession(session.sessionId, 'analysis.readState', { unitId: result.left.id }),
     ).not.toThrow();
   });
 });
@@ -776,12 +767,4 @@ function count(
   id: string,
 ): number {
   return (db.prepare(sql).get(id) as { n: number }).n;
-}
-
-function ids(
-  db: ReturnType<typeof requireDesktopSession>['db'],
-  sql: string,
-  id: string,
-): string[] {
-  return (db.prepare(sql).all(id) as { id: string }[]).map((row) => row.id);
 }

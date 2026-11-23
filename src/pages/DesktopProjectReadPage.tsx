@@ -112,7 +112,6 @@ export function DesktopProjectReadPage() {
           host={host}
           sessionId={read.sessionId}
           units={read.model.units}
-          onAssigned={read.refresh}
         />
       )}
       {read.model === null ? null : (

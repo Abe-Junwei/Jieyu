@@ -1,5 +1,11 @@
-import type { LayerUnitDocType } from '../db/types';
 import type { TranscriptionTrackDisplayMode } from '../hooks/transcription/useTranscriptionUIState';
+
+type LayoutUnit = {
+  id: string;
+  startTime: number;
+  endTime: number;
+  speakerId?: string | null | undefined;
+};
 
 type SpeakerLayerPlacement = {
   unitId: string;
@@ -28,7 +34,7 @@ type SpeakerOverlapGroupSummary = {
 
 type OverlapGroup = {
   id: string;
-  items: LayerUnitDocType[];
+  items: LayoutUnit[];
 };
 
 export type SpeakerLaneLockMapInput = ReadonlyMap<string, number> | Record<string, number>;
@@ -40,7 +46,7 @@ export type SpeakerLayerLayoutOptions = {
   speakerSortKeyById?: SpeakerSortKeyMapInput;
 };
 
-function normalizeSpeakerId(value: string | undefined): string {
+function normalizeSpeakerId(value: string | null | undefined): string {
   const trimmed = (value ?? '').trim();
   return trimmed.length > 0 ? trimmed : 'unknown-speaker';
 }
@@ -118,7 +124,7 @@ export function buildStableSpeakerLaneMap(
   return Object.fromEntries(compacted);
 }
 
-function buildOverlapGroups(units: LayerUnitDocType[]): OverlapGroup[] {
+function buildOverlapGroups(units: LayoutUnit[]): OverlapGroup[] {
   if (units.length === 0) return [];
 
   const sorted = [...units].sort((a, b) => {
@@ -128,7 +134,7 @@ function buildOverlapGroups(units: LayerUnitDocType[]): OverlapGroup[] {
   });
 
   const groups: OverlapGroup[] = [];
-  let current: LayerUnitDocType[] = [];
+  let current: LayoutUnit[] = [];
   let currentMaxEnd = -Infinity;
   let groupIndex = 0;
 
@@ -153,10 +159,10 @@ function buildOverlapGroups(units: LayerUnitDocType[]): OverlapGroup[] {
 }
 
 function buildOverlapCycleItemsByUnitIdFromSorted(
-  sortedUnits: LayerUnitDocType[],
+  sortedUnits: LayoutUnit[],
 ): Map<string, Array<{ id: string; startTime: number }>> {
   const idsByUnitId = new Map<string, Set<string>>();
-  const active: LayerUnitDocType[] = [];
+  const active: LayoutUnit[] = [];
 
   for (const current of sortedUnits) {
     while (active.length > 0 && active[0] && active[0].endTime <= current.startTime) {
@@ -189,7 +195,7 @@ function buildOverlapCycleItemsByUnitIdFromSorted(
     const ids = idsByUnitId.get(base.id) ?? new Set<string>([base.id]);
     const overlaps = Array.from(ids)
       .map((id) => byId.get(id))
-      .filter((item): item is LayerUnitDocType => Boolean(item))
+      .filter((item): item is LayoutUnit => Boolean(item))
       .sort((a, b) => {
         if (a.startTime !== b.startTime) return a.startTime - b.startTime;
         if (a.endTime !== b.endTime) return a.endTime - b.endTime;
@@ -295,7 +301,7 @@ function assignSubTracksForGroup(
   };
 }
 
-function buildMaxConcurrentSpeakerCount(units: LayerUnitDocType[]): number {
+function buildMaxConcurrentSpeakerCount(units: LayoutUnit[]): number {
   const events = units
     .flatMap((utt) => {
       const speakerId = normalizeSpeakerId(utt.speakerId);
@@ -327,7 +333,7 @@ function buildMaxConcurrentSpeakerCount(units: LayerUnitDocType[]): number {
 }
 
 function buildGroupedSpeakerLayerLayout(
-  units: LayerUnitDocType[],
+  units: LayoutUnit[],
   laneLockMap: ReadonlyMap<string, number>,
   speakerSortKeyById: ReadonlyMap<string, number>,
 ): SpeakerLayerLayoutResult {
@@ -388,7 +394,7 @@ function buildGroupedSpeakerLayerLayout(
 }
 
 function buildSpeakerFixedLayout(
-  units: LayerUnitDocType[],
+  units: LayoutUnit[],
   laneLockMap: ReadonlyMap<string, number>,
   speakerSortKeyById: ReadonlyMap<string, number>,
 ): SpeakerLayerLayoutResult {
@@ -419,7 +425,7 @@ function buildSpeakerFixedLayout(
     return left.id.localeCompare(right.id);
   });
 
-  const unknownUnits: LayerUnitDocType[] = [];
+  const unknownUnits: LayoutUnit[] = [];
   for (const unit of sortedUnits) {
     const speakerId = normalizeSpeakerId(unit.speakerId);
     if (speakerId === 'unknown-speaker') {
@@ -504,12 +510,12 @@ function buildSpeakerFixedLayout(
   };
 }
 
-export function buildSpeakerLayerLayout(units: LayerUnitDocType[]): SpeakerLayerLayoutResult {
+export function buildSpeakerLayerLayout(units: LayoutUnit[]): SpeakerLayerLayoutResult {
   return buildSpeakerLayerLayoutWithOptions(units, {});
 }
 
 export function buildSpeakerLayerLayoutWithOptions(
-  units: LayerUnitDocType[],
+  units: LayoutUnit[],
   options: SpeakerLayerLayoutOptions,
 ): SpeakerLayerLayoutResult {
   const laneLockMap = toReadonlyMap(options.laneLockMap);

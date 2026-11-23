@@ -1,34 +1,8 @@
-import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
-import {
-  analysisGraphFingerprint,
-  type AnalysisGraphPayload,
-} from '../../annotation/analysisGraphDomain';
 import { queueUnreferencedAttachment, retainReferencedAttachment } from './attachments';
-import { assertStoredCustomFields, missingFields } from './customFields';
 import { assertUnitTextRoleFree, readStoredUnit, type Unit } from './units';
-import { resolveUnitTextContext } from './unitTextLayers';
 
 type SqliteDatabase = InstanceType<typeof Database>;
-
-const MIN_SPLIT_SPAN = 1;
-
-export interface UnitSplitUndo {
-  unitId: string;
-  createdId: string;
-  startMs: number;
-  splitTime: number;
-  restoredEnd: number;
-  text: string;
-  speakerId: string | null;
-  parentUnitId: string | null;
-  manuscriptId: string;
-  manuscriptGeneration: number;
-  noteIds: string[];
-  tokenIds: string[];
-  morphemeIds: string[];
-  linkIds: string[];
-}
 
 interface UnitRow {
   id: string;
@@ -39,6 +13,7 @@ interface UnitRow {
   end_ms: number | null;
   confidence: number | null;
   skip_processing: number;
+  self_certainty: string | null;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -202,143 +177,6 @@ export interface UnitMergeUndo {
   removed: RemovedUnit;
 }
 
-export function splitUnit(
-  db: SqliteDatabase,
-  input: { unitId: string; time: number },
-  afterWrite?: () => void,
-): { left: Unit; right: Unit; undo: UnitSplitUndo } {
-  if (!Number.isInteger(input.time)) throw new Error('split point is outside the unit');
-  const write = db.transaction(() => {
-    const existing = requireLiveUnit(db, input.unitId);
-    if (existing.startMs === null || existing.endMs === null) {
-      throw new Error('split point is outside the unit');
-    }
-    if (
-      input.time - existing.startMs < MIN_SPLIT_SPAN ||
-      existing.endMs - input.time < MIN_SPLIT_SPAN
-    ) {
-      throw new Error('split point is outside the unit');
-    }
-    const place = manuscriptOf(db, existing.id);
-    const createdId = randomUUID();
-    const now = new Date().toISOString();
-    db.prepare('UPDATE units SET end_ms = ?, updated_at = ? WHERE id = ?').run(
-      input.time,
-      now,
-      existing.id,
-    );
-    const sortRow = db
-      .prepare('SELECT sort_order AS sortOrder FROM units WHERE id = ?')
-      .get(existing.id) as { sortOrder: number };
-    const sortOrder = shiftSortOrdersAfter(db, existing.layerId, sortRow.sortOrder);
-    db.prepare(
-      `INSERT INTO units (
-        id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, sort_order, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      createdId,
-      existing.layerId,
-      existing.speakerId,
-      existing.parentUnitId,
-      input.time,
-      existing.endMs,
-      sortOrder,
-      now,
-      now,
-    );
-    if (existing.text !== '') {
-      const { role } = resolveUnitTextContext(db, existing.id, existing.textLayerId);
-      assertUnitTextRoleFree(db, createdId, role, existing.textLayerId);
-      const source = db
-        .prepare(
-          `SELECT audio_file_id FROM unit_texts
-           WHERE unit_id = ? AND layer_id = ? AND role = ?`,
-        )
-        .get(existing.id, existing.textLayerId, role) as
-        { audio_file_id: string | null } | undefined;
-      db.prepare(
-        `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, audio_file_id, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ).run(
-        randomUUID(),
-        createdId,
-        existing.textLayerId,
-        role,
-        existing.text,
-        source?.audio_file_id ?? null,
-        now,
-      );
-    }
-    const copied = copyAssociations(db, existing.id, createdId);
-    bumpGeneration(db, place.manuscriptId, now);
-    afterWrite?.();
-    const left = readStoredUnit(db, existing.id);
-    const right = readStoredUnit(db, createdId);
-    const generation = generationOf(db, place.manuscriptId);
-    if (
-      !left ||
-      !right ||
-      left.endMs !== input.time ||
-      left.text !== existing.text ||
-      right.startMs !== input.time ||
-      right.endMs !== existing.endMs ||
-      right.text !== existing.text ||
-      generation !== place.generation + 1 ||
-      countTokens(db, createdId) !== copied.tokenIds.length
-    ) {
-      throw new Error('unit split readback failed');
-    }
-    return {
-      left,
-      right,
-      undo: {
-        unitId: existing.id,
-        createdId,
-        startMs: existing.startMs,
-        splitTime: input.time,
-        restoredEnd: existing.endMs,
-        text: existing.text,
-        speakerId: existing.speakerId,
-        parentUnitId: existing.parentUnitId,
-        manuscriptId: place.manuscriptId,
-        manuscriptGeneration: generation,
-        ...copied,
-      },
-    };
-  });
-  return write();
-}
-
-export function undoSplit(db: SqliteDatabase, undo: UnitSplitUndo, afterWrite?: () => void): Unit {
-  const write = db.transaction(() => {
-    if (!splitStillAfter(db, undo)) throw new Error('unit split undo is stale');
-    const now = new Date().toISOString();
-    deleteUnitTree(db, undo.createdId);
-    db.prepare('UPDATE units SET end_ms = ?, updated_at = ? WHERE id = ?').run(
-      undo.restoredEnd,
-      now,
-      undo.unitId,
-    );
-    bumpGeneration(db, undo.manuscriptId, now);
-    afterWrite?.();
-    const unit = readStoredUnit(db, undo.unitId);
-    const created = readStoredUnit(db, undo.createdId);
-    if (
-      !unit ||
-      created !== null ||
-      unit.startMs !== undo.startMs ||
-      unit.endMs !== undo.restoredEnd ||
-      unit.text !== undo.text ||
-      generationOf(db, undo.manuscriptId) !== undo.manuscriptGeneration + 1 ||
-      countTokens(db, undo.createdId) !== 0
-    ) {
-      throw new Error('unit split undo readback failed');
-    }
-    return unit;
-  });
-  return write();
-}
-
 export function mergeUnits(
   db: SqliteDatabase,
   input: { keepId: string; removeId: string },
@@ -487,278 +325,6 @@ function fingerprintOf(db: SqliteDatabase, unitId: string): string {
   return row?.graph_fingerprint ?? '';
 }
 
-function countTokens(db: SqliteDatabase, unitId: string): number {
-  const row = db.prepare('SELECT COUNT(*) AS n FROM tokens WHERE unit_id = ?').get(unitId) as {
-    n: number;
-  };
-  return row.n;
-}
-
-function copyAssociations(
-  db: SqliteDatabase,
-  fromId: string,
-  toId: string,
-): Pick<UnitSplitUndo, 'noteIds' | 'tokenIds' | 'morphemeIds' | 'linkIds'> {
-  const tokenRows = db
-    .prepare(
-      `SELECT id, token_index, form_json, gloss_json, pos, provenance_json, created_at, updated_at
-       FROM tokens WHERE unit_id = ? ORDER BY token_index, id`,
-    )
-    .all(fromId) as TokenRow[];
-  const tokenMap = new Map<string, string>();
-  const insertToken = db.prepare(
-    `INSERT INTO tokens (
-      id, unit_id, token_index, form_json, gloss_json, pos, provenance_json, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  );
-  for (const row of tokenRows) {
-    const id = randomUUID();
-    tokenMap.set(row.id, id);
-    insertToken.run(
-      id,
-      toId,
-      row.token_index,
-      row.form_json,
-      row.gloss_json,
-      row.pos,
-      row.provenance_json,
-      row.created_at,
-      row.updated_at,
-    );
-  }
-  const morphemeMap = new Map<string, string>();
-  const morphemes =
-    tokenRows.length === 0
-      ? []
-      : morphemesOf(
-          db,
-          tokenRows.map((row) => row.id),
-        );
-  const insertMorpheme = db.prepare(
-    `INSERT INTO morphemes (
-      id, token_id, morpheme_index, form_json, gloss_json, pos, provenance_json,
-      surface_parts_json, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  );
-  for (const row of morphemes) {
-    const tokenId = tokenMap.get(row.token_id);
-    if (tokenId === undefined) continue;
-    const id = randomUUID();
-    morphemeMap.set(row.id, id);
-    insertMorpheme.run(
-      id,
-      tokenId,
-      row.morpheme_index,
-      row.form_json,
-      row.gloss_json,
-      row.pos,
-      row.provenance_json,
-      retargetSurface(row.surface_parts_json, tokenMap),
-      row.created_at,
-      row.updated_at,
-    );
-  }
-  const linkIds: string[] = [];
-  const insertLink = db.prepare(
-    `INSERT INTO token_lexeme_links (
-      id, target_type, target_id, lexeme_id, sense_id, role, confidence, provenance_json,
-      attachment, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  );
-  for (const [fromTarget, toTarget] of [...tokenMap, ...morphemeMap]) {
-    const links = db
-      .prepare(
-        `SELECT id, target_type, target_id, lexeme_id, sense_id, role, confidence, provenance_json,
-                attachment, created_at, updated_at
-         FROM token_lexeme_links WHERE target_id = ? AND attachment = 'active'`,
-      )
-      .all(fromTarget) as LinkRow[];
-    for (const link of links) {
-      const id = randomUUID();
-      linkIds.push(id);
-      insertLink.run(
-        id,
-        link.target_type,
-        toTarget,
-        link.lexeme_id,
-        link.sense_id,
-        link.role,
-        link.confidence,
-        link.provenance_json,
-        'active',
-        link.created_at,
-        link.updated_at,
-      );
-    }
-  }
-  const noteIds: string[] = [];
-  const insertNote = db.prepare(
-    `INSERT INTO notes (
-      id, anchor_kind, project_id, manuscript_id, layer_id, unit_id, unit_text_id,
-      token_id, morpheme_id, node_id, view, content_json, category, provenance_json,
-      attachment, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  );
-  for (const note of notesOf(db, fromId)) {
-    const tokenId = note.token_id === null ? null : (tokenMap.get(note.token_id) ?? null);
-    const morphemeId =
-      note.morpheme_id === null ? null : (morphemeMap.get(note.morpheme_id) ?? null);
-    if (note.anchor_kind === 'analysis_node' || note.anchor_kind === 'unit_text') continue;
-    if (note.anchor_kind === 'token' && tokenId === null) continue;
-    if (note.anchor_kind === 'morpheme' && (tokenId === null || morphemeId === null)) continue;
-    if (
-      note.anchor_kind !== 'unit' &&
-      note.anchor_kind !== 'token' &&
-      note.anchor_kind !== 'morpheme'
-    ) {
-      continue;
-    }
-    const id = randomUUID();
-    noteIds.push(id);
-    insertNote.run(
-      id,
-      note.anchor_kind,
-      note.project_id,
-      note.manuscript_id,
-      null,
-      toId,
-      null,
-      tokenId,
-      morphemeId,
-      null,
-      note.view,
-      note.content_json,
-      note.category,
-      note.provenance_json,
-      note.attachment,
-      note.created_at,
-      note.updated_at,
-    );
-    copyTableFields(db, 'note', note.id, id);
-    if (missingFields(db, 'note', id).length > 0) {
-      throw new Error('note is missing a required field');
-    }
-  }
-  copyGraph(db, fromId, toId, tokenMap, morphemeMap);
-  copyTableFields(db, 'unit', fromId, toId);
-  if (missingFields(db, 'unit', toId).length > 0) {
-    throw new Error('unit is missing a required field');
-  }
-  const copiedGraph = db.prepare('SELECT analysis_graph_json FROM units WHERE id = ?').get(toId) as
-    { analysis_graph_json: string | null } | undefined;
-  if (copiedGraph?.analysis_graph_json != null) {
-    assertStoredCustomFields(
-      db,
-      JSON.parse(copiedGraph.analysis_graph_json) as AnalysisGraphPayload,
-      toId,
-      { prior: null, preserveDangling: true },
-    );
-  }
-  return {
-    noteIds,
-    tokenIds: [...tokenMap.values()],
-    morphemeIds: [...morphemeMap.values()],
-    linkIds,
-  };
-}
-
-function copyTableFields(
-  db: SqliteDatabase,
-  targetType: string,
-  fromId: string,
-  toId: string,
-): void {
-  const rows = db
-    .prepare(
-      `SELECT definition_id, value_json, updated_at
-       FROM custom_field_values WHERE target_type = ? AND target_id = ?`,
-    )
-    .all(targetType, fromId) as Array<{
-    definition_id: string;
-    value_json: string;
-    updated_at: string;
-  }>;
-  const insert = db.prepare(
-    `INSERT INTO custom_field_values (definition_id, target_type, target_id, value_json, updated_at)
-     VALUES (?, ?, ?, ?, ?)`,
-  );
-  for (const row of rows) {
-    insert.run(row.definition_id, targetType, toId, row.value_json, row.updated_at);
-  }
-}
-
-function copyGraph(
-  db: SqliteDatabase,
-  fromId: string,
-  toId: string,
-  tokenMap: ReadonlyMap<string, string>,
-  morphemeMap: ReadonlyMap<string, string>,
-): void {
-  const row = db.prepare('SELECT analysis_graph_json FROM units WHERE id = ?').get(fromId) as
-    { analysis_graph_json: string | null } | undefined;
-  if (row?.analysis_graph_json == null) return;
-  const graph = JSON.parse(row.analysis_graph_json) as AnalysisGraphPayload;
-  const idMap = new Map<string, string>([...tokenMap, ...morphemeMap]);
-  for (const node of graph.nodes) {
-    if (!idMap.has(node.id)) idMap.set(node.id, randomUUID());
-  }
-  const remap = (id: string) => idMap.get(id) ?? id;
-  for (const node of graph.nodes) {
-    node.id = remap(node.id);
-    for (const part of node.surfaceParts ?? []) part.tokenId = remap(part.tokenId);
-  }
-  for (const relation of graph.relations) {
-    relation.id = randomUUID();
-    relation.sourceId = remap(relation.sourceId);
-    relation.targetId = remap(relation.targetId);
-  }
-  graph.id = randomUUID();
-  db.prepare(
-    `UPDATE units
-     SET analysis_graph_json = ?, analysis_generation = 1, graph_fingerprint = ?
-     WHERE id = ?`,
-  ).run(JSON.stringify(graph), analysisGraphFingerprint(graph), toId);
-}
-
-function retargetSurface(json: string, tokenMap: ReadonlyMap<string, string>): string {
-  const parts = JSON.parse(json) as { tokenId?: string }[];
-  return JSON.stringify(
-    parts.map((part) => {
-      if (typeof part.tokenId !== 'string') return part;
-      const tokenId = tokenMap.get(part.tokenId);
-      return tokenId === undefined ? part : { ...part, tokenId };
-    }),
-  );
-}
-
-function splitStillAfter(db: SqliteDatabase, undo: UnitSplitUndo): boolean {
-  const left = readStoredUnit(db, undo.unitId);
-  const right = readStoredUnit(db, undo.createdId);
-  if (
-    !left ||
-    !right ||
-    left.startMs !== undo.startMs ||
-    left.endMs !== undo.splitTime ||
-    left.text !== undo.text ||
-    left.speakerId !== undo.speakerId ||
-    left.parentUnitId !== undo.parentUnitId ||
-    right.startMs !== undo.splitTime ||
-    right.endMs !== undo.restoredEnd ||
-    right.text !== undo.text ||
-    right.speakerId !== undo.speakerId ||
-    right.parentUnitId !== undo.parentUnitId ||
-    generationOf(db, undo.manuscriptId) !== undo.manuscriptGeneration
-  ) {
-    return false;
-  }
-  return (
-    sameIds(idsOf(db, 'SELECT id FROM notes WHERE unit_id = ?', undo.createdId), undo.noteIds) &&
-    sameIds(idsOf(db, 'SELECT id FROM tokens WHERE unit_id = ?', undo.createdId), undo.tokenIds) &&
-    sameIds(morphemeIdsOf(db, undo.tokenIds), undo.morphemeIds) &&
-    sameIds(linkIdsOf(db, [...undo.tokenIds, ...undo.morphemeIds]), undo.linkIds)
-  );
-}
-
 function mergeStillAfter(db: SqliteDatabase, undo: UnitMergeUndo): boolean {
   const keep = readStoredUnit(db, undo.keepId);
   return (
@@ -776,8 +342,8 @@ export function readRemovedUnit(db: SqliteDatabase, unitId: string): RemovedUnit
   const unit = db
     .prepare(
       `SELECT id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, confidence, skip_processing,
-              sort_order, created_at, updated_at, analysis_graph_json, analysis_generation,
-              graph_fingerprint
+              self_certainty, sort_order, created_at, updated_at, analysis_graph_json,
+              analysis_generation, graph_fingerprint
        FROM units WHERE id = ?`,
     )
     .get(unitId) as UnitRow | undefined;
@@ -843,24 +409,14 @@ export function readRemovedUnit(db: SqliteDatabase, unitId: string): RemovedUnit
   };
 }
 
-function shiftSortOrdersAfter(db: SqliteDatabase, layerId: string, sortOrder: number): number {
-  // ponytail: two-step shift avoids a unique collision. Breaks if one layer exceeds 1000000 units.
-  db.prepare(
-    'UPDATE units SET sort_order = sort_order + 1000000 WHERE layer_id = ? AND sort_order > ?',
-  ).run(layerId, sortOrder);
-  db.prepare(
-    'UPDATE units SET sort_order = sort_order - 999999 WHERE layer_id = ? AND sort_order >= 1000000',
-  ).run(layerId);
-  return sortOrder + 1;
-}
-
 export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): void {
   const unit = removed.unit;
   db.prepare(
     `INSERT INTO units (
       id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, confidence, skip_processing,
-      sort_order, created_at, updated_at, analysis_graph_json, analysis_generation, graph_fingerprint
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      self_certainty, sort_order, created_at, updated_at, analysis_graph_json, analysis_generation,
+      graph_fingerprint
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     unit.id,
     unit.layer_id,
@@ -870,6 +426,7 @@ export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): voi
     unit.end_ms,
     unit.confidence ?? null,
     unit.skip_processing ?? 0,
+    unit.self_certainty ?? null,
     unit.sort_order,
     unit.created_at,
     unit.updated_at,
@@ -1152,20 +709,8 @@ function morphemeIdsOf(db: SqliteDatabase, tokenIds: readonly string[]): string[
   return (
     db
       .prepare(`SELECT id FROM morphemes WHERE token_id IN (${marks(tokenIds)})`)
-      .all(...tokenIds) as {
-      id: string;
-    }[]
+      .all(...tokenIds) as { id: string }[]
   ).map((row) => row.id);
-}
-
-function linkIdsOf(db: SqliteDatabase, targetIds: readonly string[]): string[] {
-  return linksOf(db, targetIds).map((row) => row.id);
-}
-
-function sameIds(actual: readonly string[], expected: readonly string[]): boolean {
-  if (actual.length !== expected.length) return false;
-  const wanted = [...expected].sort();
-  return [...actual].sort().every((id, index) => id === wanted[index]);
 }
 
 function marks(ids: readonly string[]): string {

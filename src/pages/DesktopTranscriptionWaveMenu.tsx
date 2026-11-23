@@ -39,6 +39,7 @@ export function DesktopTranscriptionWaveMenu(props: {
   onPlayFrom: (time: number) => void;
   onToggleSkip: (unitId: string) => void;
   onDelete: (unitId: string) => void;
+  onSplit: (unitId: string, time: number) => void;
 }) {
   const { locale, menu } = props;
   const unitId = menu.unitId;
@@ -80,6 +81,13 @@ export function DesktopTranscriptionWaveMenu(props: {
                   ? 'transcription.wave.unskipProcessing'
                   : 'transcription.wave.skipProcessing',
               )}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => run(() => props.onSplit(unitId, menu.time))}
+            >
+              {t(locale, 'app.desktopTranscription.splitSegment')}
             </button>
             <button type="button" role="menuitem" onClick={() => run(() => props.onDelete(unitId))}>
               {t(locale, 'app.desktopTranscription.deleteSegment')}

@@ -467,10 +467,14 @@ function swapRoot(db: SqliteDatabase, current: Layer, direction: LayerMove['dire
     current.id,
     direction,
   );
-  if (ordered === null) return;
+  if (ordered === null) throw endedMove(direction);
   const now = new Date().toISOString();
   const write = db.prepare('UPDATE layers SET sort_order = ?, updated_at = ? WHERE id = ?');
   ordered.forEach((id, index) => write.run(index, now, id));
+}
+
+function endedMove(direction: LayerMove['direction']): Error {
+  return new Error(direction === 'up' ? 'layer is already first' : 'layer is already last');
 }
 
 /** Siblings in their new order, or null at an end. Callers renumber all of them, so equal sort orders still move. */
@@ -504,7 +508,7 @@ function swapHosted(
     layerId,
     direction,
   );
-  if (ordered === null) return;
+  if (ordered === null) throw endedMove(direction);
   const linkOf = new Map(rows.map((row) => [row.layerId, row.id]));
   const write = db.prepare('UPDATE layer_links SET sort_order = ? WHERE id = ?');
   ordered.forEach((id, index) => write.run(index, linkOf.get(id)));

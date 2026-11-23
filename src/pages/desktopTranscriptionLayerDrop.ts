@@ -86,6 +86,7 @@ export function resolveDesktopLayerDrop(input: {
     return { ok: false, reason: 'descendant' };
   }
   if (target.contentType === 'transcription' && target.tierType !== 'time-subdivision') {
+    if (isTimeTranscription(drag)) return { ok: false, reason: 'not-host' };
     if (drag.contentType === 'translation' && hostIds(drag.id, input.links).length > 1) {
       return { ok: false, reason: 'multi-host' };
     }

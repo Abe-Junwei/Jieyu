@@ -65,7 +65,8 @@ import { migrateDefinition, previewMigration } from './customFieldMigration';
 import { readLexemeLinks } from './referenceState';
 import { patchBibliography, redeliverBibliography } from './bibliographyFields';
 import { patchConversation, redeliverConversation } from './conversationFields';
-import { assignSpeaker } from './speakerAssign';
+import { assignSpeaker, clearSpeaker } from './speakerAssign';
+import { clearLaneLocks, listManuscriptLaneLocks, replaceLaneLocks } from './layerLaneLocks';
 import { patchSpeaker, redeliverSpeaker } from './speakerFields';
 import { createSpeaker, listSpeakers } from './speakers';
 import { createSource, patchSource, redeliverSource } from './sourceFields';
@@ -179,15 +180,18 @@ import {
   textSaveDigest,
 } from './textSave';
 import { resolveUnitTextContext } from './unitTextLayers';
-import { mergeUnits, readRemovedUnit, splitUnit } from './unitSpan';
+import { mergeUnits, readRemovedUnit } from './unitSpan';
+import { splitUnit } from './unitSplit';
 import {
   manuscriptIdOf,
   moveSharedBoundary,
   moveUnitEdge,
   moveUnitSpan,
   previewUnitDeletion,
+  previewUnitsDeletion,
   timedDescendants,
   removeUnit,
+  removeUnits,
 } from './unitEdges';
 import { inspectEditReceipt, withEditReceipt, type EditReceiptKind } from './editReceipts';
 import { discardUnitTimeDraft, putUnitTimeDraft, readUnitTimeDrafts } from './unitTimeDrafts';
@@ -222,8 +226,10 @@ const EDIT_METHODS = {
   moveSharedBoundary: 'units.moveSharedBoundary',
   moveUnit: 'units.moveUnit',
   delete: 'units.delete',
+  deleteMany: 'units.deleteMany',
   undo: 'units.undo',
   redo: 'units.redo',
+  split: 'units.split',
 } as const satisfies Record<EditReceiptKind, keyof DesktopOperations>;
 
 const operationHandlers = {
@@ -551,9 +557,30 @@ const operationHandlers = {
   },
   'units.split': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.split']['check']>) => {
-      const split = splitUnit(ctx.db, input);
-      rememberSessionEdit(ctx.sessionId, { kind: 'split', undo: split.undo });
-      return { left: split.left, right: split.right };
+      const { operationId, ...splitInput } = input;
+      let manuscriptId: string | undefined;
+      try {
+        manuscriptId = manuscriptIdOf(ctx.db, splitInput.unitId);
+      } catch (error) {
+        if (!(error instanceof Error) || error.message !== 'unit is missing') throw error;
+      }
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'split',
+          payload: splitInput,
+          manuscriptId: () => {
+            if (manuscriptId === undefined) throw new Error('unit is missing');
+            return manuscriptId;
+          },
+        },
+        () => {
+          const split = splitUnit(ctx.db, input);
+          rememberSessionEdit(ctx.sessionId, { kind: 'split', undo: split.undo });
+          return { left: split.left, right: split.right };
+        },
+      );
     },
   },
   'units.merge': {
@@ -668,6 +695,12 @@ const operationHandlers = {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.deletePreview']['check']>) =>
       previewUnitDeletion(ctx.db, input.unitId),
   },
+  'units.deleteManyPreview': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['units.deleteManyPreview']['check']>,
+    ) => previewUnitsDeletion(ctx.db, input.unitIds),
+  },
   'units.delete': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.delete']['check']>) => {
       const { operationId, unitId } = input;
@@ -680,6 +713,29 @@ const operationHandlers = {
           const tree = removeUnit(ctx.db, unitId);
           rememberSessionEdit(ctx.sessionId, { kind: 'delete', undo: { manuscriptId, tree } });
           return { id: unitId };
+        },
+      );
+    },
+  },
+  'units.deleteMany': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.deleteMany']['check']>) => {
+      const { operationId, unitIds } = input;
+      const firstId = unitIds[0];
+      if (firstId === undefined) throw new Error('multiple units are required');
+      let manuscriptId = '';
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'deleteMany',
+          payload: { unitIds },
+          manuscriptId: () => manuscriptId,
+        },
+        () => {
+          manuscriptId = manuscriptIdOf(ctx.db, firstId);
+          const trees = removeUnits(ctx.db, unitIds);
+          rememberSessionEdit(ctx.sessionId, { kind: 'deleteMany', undo: { manuscriptId, trees } });
+          return { ids: [...unitIds] };
         },
       );
     },
@@ -877,6 +933,33 @@ const operationHandlers = {
       }
       return assigned.units;
     },
+  },
+  'speakers.clear': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['speakers.clear']['check']>) => {
+      const cleared = clearSpeaker(ctx.db, input);
+      if (cleared.undo !== null) {
+        rememberSessionEdit(ctx.sessionId, { kind: 'assign', undo: cleared.undo });
+      }
+      return cleared.units;
+    },
+  },
+  'layers.listLaneLocks': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['layers.listLaneLocks']['check']>,
+    ) => listManuscriptLaneLocks(ctx.db, input.manuscriptId),
+  },
+  'layers.replaceLaneLocks': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['layers.replaceLaneLocks']['check']>,
+    ) => replaceLaneLocks(ctx.db, input),
+  },
+  'layers.clearLaneLocks': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['layers.clearLaneLocks']['check']>,
+    ) => clearLaneLocks(ctx.db, input),
   },
   'conversations.create': {
     run: (
