@@ -4,9 +4,9 @@
  */
 
 /**
- * Silero VAD v5+ 的 ONNX 接口（v6.2.3 同）：输入 `input` [1, 64+512]（前 64 个采样是上一帧尾部的
+ * Silero VAD v5+ 的 ONNX 接口（v6.3 同）：输入 `input` [1, 64+512]（前 64 个采样是上一帧尾部的
  * 上下文）、`state` [2,1,128]、`sr`；输出 `output`（语音概率）和 `stateN`。v4 的 `h` / `c` 已不存在。
- * Silero VAD v5+ ONNX interface (same in v6.2.3): inputs `input` [1, 64+512] (the first 64
+ * Silero VAD v5+ ONNX interface (same in v6.3): inputs `input` [1, 64+512] (the first 64
  * samples are context from the previous frame), `state` [2,1,128] and `sr`; outputs `output`
  * (speech probability) and `stateN`. The v4 `h` / `c` inputs are gone.
  */
