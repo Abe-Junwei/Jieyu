@@ -177,11 +177,13 @@ describe('DesktopLayerHeaderMenu', () => {
     expect(screen.queryByRole('menuitem', { name: '新建转写层' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /^新建层$/ }));
     fireEvent.click(screen.getByRole('menuitem', { name: '新建转写层' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '添加正字法转写' }));
     fireEvent.click(screen.getByRole('menuitem', { name: '新建翻译层' }));
     fireEvent.click(screen.getByRole('menuitem', { name: '新建语音转写' }));
     fireEvent.click(screen.getByRole('menuitem', { name: '新建口译' }));
     expect(onCreate).toHaveBeenNthCalledWith(1, 'transcription', '转写 2');
-    expect(onCreate).toHaveBeenNthCalledWith(2, 'translation', '译文');
+    expect(onCreate).toHaveBeenNthCalledWith(2, 'orthography', '正字法转写');
+    expect(onCreate).toHaveBeenNthCalledWith(3, 'translation', '译文');
     expect(onCreatePair).toHaveBeenNthCalledWith(1, 'voice', '语音转写', '语音转写文本');
     expect(onCreatePair).toHaveBeenNthCalledWith(2, 'oral', '口译', '口译文');
   });

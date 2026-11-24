@@ -1,3 +1,4 @@
+import { checkFormalCuts, type FormalCut } from './unitSplitTextPlan';
 import { createHash, randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import {
@@ -8,8 +9,15 @@ import {
   readAnalysisMaterial,
 } from './analysisCandidates';
 import { missingFields } from './customFields';
+import { textAudioCount } from './unitTextAudios';
 import { assertUnitTextRoleFree, readStoredUnit, type Unit } from './units';
-import { deleteUnitTree, insertRemovedUnit, readRemovedUnit, type RemovedUnit } from './unitSpan';
+import {
+  deleteUnitTree,
+  insertRemovedUnit,
+  readRemovedUnit,
+  shiftSortOrders,
+  type RemovedUnit,
+} from './unitSpan';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -29,6 +37,7 @@ export interface UnitSplitUndo {
   leftId: string;
   rightId: string;
   time: number;
+  formalCuts?: FormalCut[];
   textLayerId: string;
   cutIndex: number;
   rawInput: string;
@@ -80,11 +89,12 @@ interface TextRow {
   layer_id: string;
   role: string;
   body: string;
-  audio_file_id: string | null;
   provenance_json: string | null;
 }
 
 export interface UnitSplitInput {
+  baseline?: string;
+  formalCuts?: FormalCut[];
   unitId: string;
   time: number;
   operationId?: string;
@@ -106,6 +116,7 @@ interface SplitAccum {
   requested: UnitSplitPreset[];
   textDrafts: TextDraftRow[];
   saveReceipts: SaveReceiptRow[];
+  formalCuts?: FormalCut[];
 }
 
 export function splitUnit(
@@ -116,14 +127,32 @@ export function splitUnit(
   if (!Number.isInteger(input.time)) throw new Error('split point is outside the unit');
   const write = db.transaction(() => {
     const root = liveUnit(db, input.unitId);
+    const sharedOrthography = db
+      .prepare(
+        `SELECT 1 FROM layer_links JOIN layers ON layers.id = layer_links.layer_id
+      WHERE host_layer_id = ? AND layers.deleted_at IS NULL AND layers.content_type = 'transcription'
+      AND layers.tier_type = 'symbolic-association' AND layers.modality = 'text' LIMIT 1`,
+      )
+      .get(root.layer_id);
+    if (sharedOrthography !== undefined && input.formalCuts === undefined) {
+      throw new Error('shared split requires confirmation');
+    }
     if (root.start_ms === null || root.end_ms === null) {
       throw new Error('split point is outside the unit');
     }
     assertMargins(root.start_ms, root.end_ms, input.time);
     assertDescendants(db, root.id, input.time);
     const textLayerId = input.textLayerId ?? root.layer_id;
-    const source = sourceText(db, root.id, textLayerId, input.rawInput);
-    const cutIndex = input.cutIndex ?? source.length;
+    const formal =
+      input.formalCuts === undefined
+        ? undefined
+        : checkFormalCuts(db, root.id, input.baseline ?? '', input.formalCuts);
+    const source =
+      formal === undefined
+        ? sourceText(db, root.id, textLayerId, input.rawInput)
+        : (formal.layers.find((row) => row.layerId === textLayerId)?.body ?? '');
+    const formalIndex = input.formalCuts?.find((row) => row.layerId === textLayerId)?.cutIndex;
+    const cutIndex = formalIndex ?? input.cutIndex ?? source.length;
     if (cutIndex < 0 || cutIndex > source.length)
       throw new Error('split text point is outside the text');
     const place = manuscriptOf(db, root.id);
@@ -144,6 +173,7 @@ export function splitUnit(
       createdIds: [],
       presets: [],
       requested,
+      ...(input.formalCuts === undefined ? {} : { formalCuts: input.formalCuts }),
       textDrafts: [],
       saveReceipts: [],
     };
@@ -151,6 +181,7 @@ export function splitUnit(
       textLayerId,
       cutIndex,
       source,
+      ...(formal === undefined ? {} : { consumeTextDraft: false }),
       parentLeft: root.parent_unit_id,
       parentRight: root.parent_unit_id,
     });
@@ -183,6 +214,7 @@ export function splitUnit(
         leftId: split.leftId,
         rightId: split.rightId,
         time: input.time,
+        ...(input.formalCuts === undefined ? {} : { formalCuts: input.formalCuts }),
         textLayerId,
         cutIndex,
         rawInput: source,
@@ -211,7 +243,7 @@ export function undoSplit(db: SqliteDatabase, undo: UnitSplitUndo, afterWrite?: 
     for (const id of [...undo.createdIds].reverse()) deleteUnitTree(db, id);
     for (const removed of undo.removed) insertRemovedContents(db, removed);
     for (const removed of [...undo.removed].sort((a, b) => b.unit.sort_order - a.unit.sort_order)) {
-      closeSortGap(db, removed.unit.layer_id, removed.unit.sort_order);
+      shiftSortOrders(db, removed.unit.layer_id, removed.unit.sort_order, 'down', [], 'gt');
     }
     restoreDrafts(db, undo);
     db.prepare('DELETE FROM unit_span_maps WHERE operation_id = ?').run(undo.operationId);
@@ -255,8 +287,18 @@ function splitOne(
     (row) => row.layer_id === unit.layer_id && row.role === 'transcription',
   );
   const ownLayer = cut.textLayerId === unit.layer_id;
-  const leftBody = ownLayer ? cut.source.slice(0, cut.cutIndex) : (transcription?.body ?? '');
-  const rightBody = ownLayer ? cut.source.slice(cut.cutIndex) : '';
+  const ownCut = accum.formalCuts?.find((row) => row.layerId === unit.layer_id);
+  const ownBody = transcription?.body ?? '';
+  const leftBody = ownCut
+    ? ownBody.slice(0, ownCut.cutIndex)
+    : ownLayer
+      ? cut.source.slice(0, cut.cutIndex)
+      : ownBody;
+  const rightBody = ownCut
+    ? ownBody.slice(ownCut.cutIndex)
+    : ownLayer
+      ? cut.source.slice(cut.cutIndex)
+      : '';
   const graphText = readGraphText(unit.analysis_graph_json);
   const keepGraph = graphText !== null && leftBody === graphText && rightBody === '';
   const material = capturedMaterial(db, unit.id, keepGraph, graphText);
@@ -271,7 +313,7 @@ function splitOne(
   db.prepare(
     'UPDATE units SET start_ms = NULL, end_ms = NULL, sort_order = ?, updated_at = ? WHERE id = ?',
   ).run(parked, now, unit.id);
-  shiftSortAfter(db, unit.layer_id, unit.sort_order, unit.id);
+  shiftSortOrders(db, unit.layer_id, unit.sort_order, 'up', [unit.id], 'gt');
   insertHalf(db, {
     id: leftId,
     unit,
@@ -293,7 +335,20 @@ function splitOne(
     now,
   });
   writeMaps(db, accum.operationId, unit.id, leftId, rightId, now);
-  moveTexts(db, leftId, rightId, texts, cut, now);
+  if (accum.formalCuts !== undefined && accum.removed.length === 1) {
+    for (const row of texts) {
+      const index =
+        accum.formalCuts.find((item) => item.layerId === row.layer_id)?.cutIndex ?? row.body.length;
+      moveTexts(
+        db,
+        leftId,
+        rightId,
+        [row],
+        { textLayerId: row.layer_id, cutIndex: index, source: row.body },
+        now,
+      );
+    }
+  } else moveTexts(db, leftId, rightId, texts, cut, now);
   moveDrafts(
     db,
     unit.id,
@@ -415,6 +470,17 @@ function moveTexts(
     const leftBody = cut.source.slice(0, cut.cutIndex);
     const rightBody = cut.source.slice(cut.cutIndex);
     if (leftBody === '' && rightBody !== '') {
+      if (textAudioCount(db, row.id) > 0) {
+        const carrierId = randomUUID();
+        db.prepare(
+          `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at)
+           VALUES (?, ?, ?, ?, '', ?)`,
+        ).run(carrierId, leftId, row.layer_id, row.role, now);
+        db.prepare('UPDATE unit_text_audios SET unit_text_id = ? WHERE unit_text_id = ?').run(
+          carrierId,
+          row.id,
+        );
+      }
       db.prepare('UPDATE unit_texts SET unit_id = ?, body = ?, updated_at = ? WHERE id = ?').run(
         rightId,
         rightBody,
@@ -438,8 +504,8 @@ function moveTexts(
     ).run(leftId, leftBody, now, row.id);
     assertUnitTextRoleFree(db, rightId, row.role, row.layer_id);
     db.prepare(
-      `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, audio_file_id, updated_at)
-       VALUES (?, ?, ?, ?, ?, NULL, ?)`,
+      `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
     ).run(randomUUID(), rightId, row.layer_id, row.role, rightBody, now);
   }
   if (sawCut) return;
@@ -639,6 +705,16 @@ function fingerprintOf(db: SqliteDatabase, ids: readonly string[]): string {
          WHERE target_type = 'unit' AND target_id = ? ORDER BY definition_id`,
       )
       .all(id),
+    clips: db
+      .prepare(
+        `SELECT unit_text_audios.id AS id, unit_text_audios.unit_text_id AS textId,
+                unit_text_audios.file_id AS fileId, unit_text_audios.position AS position
+         FROM unit_text_audios
+         JOIN unit_texts ON unit_texts.id = unit_text_audios.unit_text_id
+         WHERE unit_texts.unit_id = ?
+         ORDER BY unit_text_audios.position, unit_text_audios.id`,
+      )
+      .all(id),
   }));
   return createHash('sha256').update(JSON.stringify(parts)).digest('hex');
 }
@@ -659,7 +735,7 @@ function liveUnit(db: SqliteDatabase, id: string): LiveUnit {
 function textsOf(db: SqliteDatabase, unitId: string): TextRow[] {
   return db
     .prepare(
-      `SELECT id, layer_id, role, body, audio_file_id, provenance_json
+      `SELECT id, layer_id, role, body, provenance_json
        FROM unit_texts WHERE unit_id = ?`,
     )
     .all(unitId) as TextRow[];
@@ -753,8 +829,8 @@ function insertText(
 ): void {
   assertUnitTextRoleFree(db, unitId, role, layerId);
   db.prepare(
-    `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, audio_file_id, updated_at)
-     VALUES (?, ?, ?, ?, ?, NULL, ?)`,
+    `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
   ).run(randomUUID(), unitId, layerId, role, body, now);
 }
 
@@ -828,33 +904,6 @@ function restoreDrafts(db: SqliteDatabase, undo: UnitSplitUndo): void {
   for (const row of undo.saveReceipts) {
     receipt.run(row.operation_id, row.digest, row.unit_id, row.layer_id, row.committed_at);
   }
-}
-
-function closeSortGap(db: SqliteDatabase, layerId: string, sortOrder: number): void {
-  db.prepare(
-    `UPDATE units SET sort_order = sort_order + 1000000
-     WHERE layer_id = ? AND sort_order > ?`,
-  ).run(layerId, sortOrder);
-  db.prepare(
-    `UPDATE units SET sort_order = sort_order - 1000001
-     WHERE layer_id = ? AND sort_order >= 1000000`,
-  ).run(layerId);
-}
-
-function shiftSortAfter(
-  db: SqliteDatabase,
-  layerId: string,
-  sortOrder: number,
-  parkedId: string,
-): void {
-  db.prepare(
-    `UPDATE units SET sort_order = sort_order + 1000000
-     WHERE layer_id = ? AND sort_order > ? AND id <> ?`,
-  ).run(layerId, sortOrder, parkedId);
-  db.prepare(
-    `UPDATE units SET sort_order = sort_order - 999999
-     WHERE layer_id = ? AND sort_order >= 1000000 AND id <> ?`,
-  ).run(layerId, parkedId);
 }
 
 function nextSort(db: SqliteDatabase, layerId: string): number {

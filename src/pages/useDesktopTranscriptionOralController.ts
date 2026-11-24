@@ -19,13 +19,16 @@ export function useDesktopTranscriptionOralController(input: {
   sessionId: string | null;
   desktopCall: OralPinned['call'] | undefined;
   audioLayerIds: readonly string[];
+  /** Unit ids. A merge, undo, or redo changes them and the clip cache must follow. */
+  structureKey?: string;
   refresh: () => Promise<unknown>;
 }) {
   const locale = useLocale();
   const toast = useToast();
-  const [clips, setClips] = useState<Record<string, string>>({});
-  const urls = useRef<Record<string, string>>({});
-  urls.current = clips;
+  const [takes, setTakes] = useState<Record<string, { id: string | null; url: string }[]>>({});
+  const [picked, setPicked] = useState<Record<string, string>>({});
+  const urls = useRef(takes);
+  urls.current = takes;
   const [stamp, setStamp] = useState(0);
   const [ui, setUi] = useState<OralUi>(empty);
   const [ask, setAsk] = useState(false);
@@ -59,7 +62,7 @@ export function useDesktopTranscriptionOralController(input: {
     const current = bag.current.latest;
     let dropped = false;
     if (current.sessionId === null || current.desktopCall === undefined) {
-      setClips((previous) => {
+      setTakes((previous) => {
         releaseClipUrls(previous);
         return {};
       });
@@ -81,17 +84,19 @@ export function useDesktopTranscriptionOralController(input: {
           'error',
         );
       }
-      setClips((previous) => {
-        for (const url of Object.values(previous)) {
-          if (!loaded.urls.includes(url)) URL.revokeObjectURL(url);
+      setTakes((previous) => {
+        for (const list of Object.values(previous)) {
+          for (const take of list) {
+            if (!loaded.urls.includes(take.url)) URL.revokeObjectURL(take.url);
+          }
         }
-        return loaded.clips;
+        return loaded.takes;
       });
     });
     return () => {
       dropped = true;
     };
-  }, [input.sessionId, audioKey, stamp, canCall, locale, toast]);
+  }, [input.sessionId, input.structureKey, audioKey, stamp, canCall, locale, toast]);
 
   useEffect(() => {
     const state = bag.current;
@@ -122,5 +127,17 @@ export function useDesktopTranscriptionOralController(input: {
     };
   }, []);
 
-  return oralControllerApi({ locale, toast, clips, ui, setUi, setAsk, setStamp, ask, bag });
+  return oralControllerApi({
+    locale,
+    toast,
+    takes,
+    picked,
+    setPicked,
+    ui,
+    setUi,
+    setAsk,
+    setStamp,
+    ask,
+    bag,
+  });
 }

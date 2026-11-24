@@ -20,6 +20,12 @@
   initial-value: 148px;
 }
 
+@property --tx-text-fade {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
 /* 层头折叠：层名列收成 16px 竖条，只放展开钮；波形、时间尺与各层轨道一起从竖条右侧起。 */
 .desktop-tx-workspace.is-header-folded {
   --lane-label-width: 16px;
@@ -39,44 +45,8 @@
   background: var(--surface-panel);
 }
 
-.desktop-tx-context-strip {
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  height: 100%;
-  padding: 12px 0;
-  box-sizing: border-box;
-}
-
 .app-shell-side-pane-collapsed .desktop-tx-context {
   display: none;
-}
-
-.app-shell-side-pane-collapsed .desktop-tx-context-strip {
-  display: flex;
-}
-
-.desktop-tx-context-strip__open,
-.desktop-tx-context__collapse {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  flex: none;
-  padding: 0;
-  border: 0;
-  appearance: none;
-  background: transparent;
-  color: var(--text-primary);
-}
-
-.desktop-tx-context-strip__label {
-  writing-mode: vertical-rl;
-  color: var(--gray-8);
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 14px;
 }
 
 .desktop-tx-context {
@@ -392,19 +362,6 @@
   opacity: 0.4;
 }
 
-.desktop-tx-segment {
-  height: 28px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 4px;
-  color: var(--text-primary);
-  background: transparent;
-}
-
-.desktop-tx-segment:disabled {
-  opacity: 0.4;
-}
-
 .desktop-tx-icon {
   width: 28px;
   height: 28px;
@@ -637,17 +594,6 @@
   position: relative;
 }
 
-.desktop-tx-compact .desktop-tx-zoom-tip {
-  top: calc(100% + 4px);
-  bottom: auto;
-}
-
-.desktop-tx-compact:hover .desktop-tx-zoom-tip,
-.desktop-tx-compact:focus-visible .desktop-tx-zoom-tip {
-  opacity: 1;
-  transition-delay: 0.15s;
-}
-
 .desktop-tx-view-trigger {
   display: flex;
   align-items: center;
@@ -718,6 +664,61 @@
   color: var(--state-danger-solid);
 }
 
+.desktop-tx-menu button:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.desktop-tx-menu button:disabled:hover {
+  background: transparent;
+}
+
+.desktop-tx-playlist__title {
+  margin: 0;
+  padding: 4px 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.desktop-tx-menu__key {
+  margin-left: auto;
+  padding-left: 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.desktop-tx-merge {
+  width: 400px;
+}
+
+.desktop-tx-merge__region-title {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.desktop-tx-merge__region {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--gray-3);
+}
+
+.desktop-tx-merge__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.desktop-tx-merge__time {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .desktop-tx-menu__rule {
   height: 1px;
   margin: 4px 0;
@@ -726,15 +727,6 @@
 
 .desktop-tx-view[open] {
   z-index: var(--z-popover);
-}
-
-.desktop-tx-view[open] .desktop-tx-zoom-tip {
-  display: none;
-}
-
-.desktop-tx-view .desktop-tx-zoom-tip {
-  top: calc(100% + 4px);
-  bottom: auto;
 }
 
 .desktop-tx-ruler .time-ruler-lane-toggle {
@@ -858,23 +850,21 @@
   background: var(--tree-line);
 }
 
-.tree-guide.is-own {
+.tree-guide.is-first {
   top: 50%;
 }
 
-.tree-elbow {
-  left: var(--x);
-  top: 0;
-  bottom: 0;
-  width: var(--w);
-  border-left: 1px solid var(--tree-line);
-  background: linear-gradient(var(--tree-line), var(--tree-line)) no-repeat 0 50% / 100% 1px;
+.tree-guide.is-last {
+  bottom: 50%;
 }
 
-.tree-elbow.is-last {
-  bottom: 50%;
-  border-bottom: 1px solid var(--tree-line);
-  background: none;
+.tree-guide.is-node-gap {
+  background: linear-gradient(
+    to bottom,
+    var(--tree-line) calc(50% - 4px),
+    transparent calc(50% - 4px) calc(50% + 4px),
+    var(--tree-line) calc(50% + 4px)
+  );
 }
 
 .lane-run,
@@ -1258,34 +1248,6 @@
     border-color 0.14s;
 }
 
-.desktop-tx-zoom-tip {
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 50%;
-  z-index: var(--z-toast);
-  padding: 5px 8px;
-  border: 1px solid var(--toast-border);
-  border-radius: var(--radius-lg);
-  background: var(--toast-bg);
-  box-shadow: var(--shadow-popover);
-  color: var(--toast-fg);
-  font-size: 12px;
-  line-height: 18px;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  translate: -50% 0;
-  transition: opacity 0.14s;
-}
-
-.desktop-tx-zoom .desktop-tx-icon:hover .desktop-tx-zoom-tip,
-.desktop-tx-zoom .desktop-tx-icon:focus-visible .desktop-tx-zoom-tip,
-.desktop-tx-view-trigger:hover .desktop-tx-zoom-tip,
-.desktop-tx-view-trigger:focus-visible .desktop-tx-zoom-tip {
-  opacity: 1;
-  transition-delay: 0.15s;
-}
-
 .desktop-tx-zoom .desktop-tx-icon:hover:not(:disabled) {
   border-color: var(--text-secondary);
   color: var(--text-primary);
@@ -1411,6 +1373,12 @@
 .desktop-tx-lane-resize:hover::after,
 .desktop-tx-lane-resize:active::after {
   background: color-mix(in srgb, var(--brand-solid) 65%, transparent);
+}
+
+.desktop-tx-lane > .jieyu-icon-tip-host,
+.desktop-tx-ruler > .jieyu-icon-tip-host,
+.desktop-tx-layer-label .jieyu-icon-tip-host {
+  display: contents;
 }
 
 .desktop-tx-layer-delete__footer {
@@ -1604,6 +1572,8 @@
   box-sizing: border-box;
   margin-inline: 0;
   border-radius: 0;
+  container-name: tx-card;
+  container-type: inline-size;
 }
 
 .desktop-tx-lane .timeline-annotation-speaker-name {
@@ -1641,6 +1611,219 @@
   padding: 0;
 }
 
+/* Added pause/resume must not push the recording status behind the layer column. */
+.desktop-tx-lane .timeline-translation-audio-controls-recording {
+  justify-content: safe center;
+}
+
+/* 口译条按卡片宽度收起。容器是铺满卡片的控件本身，缩放和侧栏开合跟着走。 */
+.desktop-tx-lane .timeline-translation-audio-controls-clip {
+  container-name: oral-clip;
+  container-type: inline-size;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 4px;
+  overflow: visible;
+}
+
+.desktop-tx-lane .oral-clip-bar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: max-content;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.desktop-tx-lane .oral-clip-copy,
+.desktop-tx-lane .oral-clip-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+}
+
+.desktop-tx-lane .oral-clip-index,
+.desktop-tx-lane .oral-clip-time {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.desktop-tx-lane .oral-clip-index-short,
+.desktop-tx-lane .oral-clip-more,
+.desktop-tx-lane .oral-clip-mark {
+  display: none;
+}
+
+.desktop-tx-lane .timeline-translation-audio-controls-clip .timeline-translation-audio-level {
+  display: none;
+}
+
+.desktop-tx-lane .oral-clip-mark {
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+}
+
+.desktop-tx-lane .timeline-translation-audio-controls-recording .oral-clip-mark,
+.desktop-tx-lane .timeline-translation-audio-controls-arming .oral-clip-mark,
+.desktop-tx-lane .timeline-translation-audio-controls-failed .oral-clip-mark {
+  background: var(--state-danger-text);
+}
+
+.desktop-tx-lane .oral-clip-failed .timeline-translation-audio-btn {
+  width: auto;
+  height: 24px;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.desktop-tx-lane .timeline-annotation:has(.timeline-translation-audio-controls-recording),
+.desktop-tx-lane .timeline-annotation:has(.timeline-translation-audio-controls-arming),
+.desktop-tx-lane .timeline-annotation:has(.timeline-translation-audio-controls-failed) {
+  z-index: 4;
+}
+
+@container oral-clip (min-width: 264px) {
+  .desktop-tx-lane
+    .timeline-translation-audio-controls-recording
+    .timeline-translation-audio-level {
+    display: inline-flex;
+  }
+}
+
+@container oral-clip (max-width: 263px) {
+  .desktop-tx-lane .oral-clip-more {
+    display: inline-flex;
+  }
+
+  .oral-clip-record,
+  .oral-clip-transcribe,
+  .oral-clip-delete,
+  .oral-clip-index-long {
+    display: none;
+  }
+
+  .desktop-tx-lane .oral-clip-index-short {
+    display: inline;
+  }
+}
+
+@container oral-clip (max-width: 175px) {
+  .desktop-tx-lane .oral-clip-index-short,
+  .oral-clip-list {
+    display: none;
+  }
+
+  .timeline-translation-audio-controls-failed .oral-clip-bar {
+    position: absolute;
+    top: 0;
+    left: calc(100% + 4px);
+    width: max-content;
+    max-width: none;
+    pointer-events: none;
+  }
+
+  .timeline-translation-audio-controls-failed .oral-clip-bar > * {
+    pointer-events: auto;
+  }
+
+  .desktop-tx-lane .timeline-translation-audio-controls-failed .oral-clip-mark {
+    display: inline-flex;
+  }
+}
+
+@container oral-clip (max-width: 111px) {
+  .oral-clip-time,
+  .desktop-tx-lane .oral-clip-copy {
+    display: none;
+  }
+
+  .desktop-tx-lane .timeline-translation-audio-controls-recording .oral-clip-copy,
+  .desktop-tx-lane .timeline-translation-audio-controls-arming .oral-clip-copy {
+    display: flex;
+  }
+
+  .timeline-translation-audio-controls-recording .oral-clip-bar,
+  .timeline-translation-audio-controls-arming .oral-clip-bar {
+    position: absolute;
+    top: 0;
+    left: calc(100% + 4px);
+    display: flex;
+    width: max-content;
+    max-width: none;
+    pointer-events: none;
+  }
+
+  .timeline-translation-audio-controls-recording .oral-clip-bar > *,
+  .timeline-translation-audio-controls-arming .oral-clip-bar > * {
+    pointer-events: auto;
+  }
+
+  .desktop-tx-lane .timeline-translation-audio-controls-recording .oral-clip-time,
+  .desktop-tx-lane .timeline-translation-audio-controls-arming .oral-clip-time,
+  .desktop-tx-lane .timeline-translation-audio-controls-recording .oral-clip-mark,
+  .desktop-tx-lane .timeline-translation-audio-controls-arming .oral-clip-mark {
+    display: inline-flex;
+  }
+}
+
+@container oral-clip (max-width: 55px) {
+  .desktop-tx-lane .oral-clip-bar {
+    display: none;
+  }
+
+  .desktop-tx-lane .oral-clip-mark {
+    display: inline-flex;
+  }
+
+  .timeline-annotation-selected .oral-clip-bar,
+  .timeline-annotation-active .oral-clip-bar,
+  .timeline-annotation:focus-within .oral-clip-bar,
+  .timeline-translation-audio-controls-recording .oral-clip-bar,
+  .timeline-translation-audio-controls-arming .oral-clip-bar,
+  .timeline-translation-audio-controls-failed .oral-clip-bar {
+    position: absolute;
+    top: 0;
+    left: calc(100% + 4px);
+    display: flex;
+    width: max-content;
+    max-width: none;
+    pointer-events: none;
+  }
+
+  .timeline-annotation-selected .oral-clip-bar > *,
+  .timeline-annotation-active .oral-clip-bar > *,
+  .timeline-annotation:focus-within .oral-clip-bar > *,
+  .timeline-translation-audio-controls-recording .oral-clip-bar > *,
+  .timeline-translation-audio-controls-arming .oral-clip-bar > *,
+  .timeline-translation-audio-controls-failed .oral-clip-bar > * {
+    pointer-events: auto;
+  }
+
+  .timeline-annotation-selected .oral-clip-time,
+  .timeline-annotation-active .oral-clip-time,
+  .timeline-annotation:focus-within .oral-clip-time,
+  .timeline-translation-audio-controls-recording .oral-clip-time,
+  .timeline-translation-audio-controls-arming .oral-clip-time {
+    display: inline;
+  }
+
+  .timeline-annotation-selected .oral-clip-copy,
+  .timeline-annotation-active .oral-clip-copy,
+  .timeline-annotation:focus-within .oral-clip-copy {
+    display: flex;
+  }
+}
+
 .desktop-tx-lane .timeline-translation-audio-controls-recording .timeline-translation-audio-btn {
   z-index: calc(var(--z-timeline-seg-resize-handle) + 2);
 }
@@ -1649,6 +1832,25 @@
   position: relative;
   z-index: calc(var(--z-timeline-seg-resize-handle) + 1);
   flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  transition:
+    background 0.14s,
+    color 0.14s;
+}
+
+.desktop-tx-lane .timeline-translation-audio-btn:hover:not(:disabled),
+.desktop-tx-lane .timeline-translation-audio-btn:focus-visible:not(:disabled) {
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+}
+
+.desktop-tx-lane .timeline-translation-audio-btn:active:not(:disabled) {
+  background: color-mix(in srgb, var(--text-primary) 14%, transparent);
+}
+
+.desktop-tx-lane .timeline-translation-audio-btn-delete:hover:not(:disabled),
+.desktop-tx-lane .timeline-translation-audio-btn-delete:focus-visible:not(:disabled),
+.desktop-tx-lane .timeline-translation-audio-btn-delete:active:not(:disabled) {
+  background: color-mix(in srgb, var(--state-danger-text) 12%, transparent);
 }
 
 /* A blank card stays under a card that already has a recording, so its record
@@ -1822,8 +2024,33 @@
 }
 
 .desktop-tx-lane .timeline-annotation:focus-visible {
-  outline: 1.5px solid var(--text-secondary);
+  outline: 1.5px solid var(--focus-color);
   outline-offset: 2px;
+}
+
+/* 按下时卡片已获焦点，选中类还没加上，不能先闪输入焦点晕。 */
+.desktop-tx-lane .timeline-annotation:active:focus-visible {
+  outline: none;
+}
+
+.desktop-tx-lane
+  .timeline-annotation:focus-within:not(
+    .timeline-annotation-selected,
+    .timeline-annotation-active,
+    .timeline-annotation-skipped
+  ) {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.desktop-tx-lane
+  .timeline-annotation-empty:focus-within:not(
+    .timeline-annotation-selected,
+    .timeline-annotation-active,
+    .timeline-annotation-skipped
+  ) {
+  background: var(--timeline-neutral-empty-bg);
 }
 
 /* 拖动提示（吸附、子段跟随）：外观同设计系统「提示 / Tooltip」。 */
@@ -1890,6 +2117,101 @@
   box-shadow: none;
 }
 
+/* 语段文字按文字区宽度收。208 / 84 是去掉左右各 6px 内边距后的宽度，约等于卡片 220 / 96。
+   淡出只在真的溢出时出现：没有滚动溢出，--tx-text-fade 停在 0。 */
+.desktop-tx-lane .timeline-annotation > span.timeline-annotation-text {
+  /* width:0 让伸缩项按卡片收，溢出落在文字自己的边上，淡出才盖得住被切的字。 */
+  flex: 1 1 auto;
+  width: 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden auto;
+  scrollbar-width: none;
+  text-overflow: clip;
+  white-space: nowrap;
+  --tx-text-fade: 0;
+  mask-image: linear-gradient(to right, black calc(100% - 2em * var(--tx-text-fade)), transparent);
+  animation: tx-text-fade linear both;
+  animation-timeline: scroll(self inline);
+}
+
+.desktop-tx-lane .timeline-annotation > span.timeline-annotation-text::-webkit-scrollbar {
+  display: none;
+  height: 0;
+}
+
+.desktop-tx-lane .timeline-annotation[dir='rtl'] > span.timeline-annotation-text {
+  mask-image: linear-gradient(to left, black calc(100% - 2em * var(--tx-text-fade)), transparent);
+}
+
+.desktop-tx-lane .timeline-annotation:hover:not(:has(.timeline-translation-audio-controls)),
+.desktop-tx-lane
+  .timeline-annotation:focus-visible:not(:has(.timeline-translation-audio-controls)) {
+  z-index: 5;
+}
+
+@container tx-card (min-width: 208px) {
+  .desktop-tx-lane .timeline-annotation > span.timeline-annotation-text {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    max-height: calc(1.4em * 2);
+    overflow: hidden auto;
+    animation-name: tx-text-fade, tx-text-fade;
+    animation-timeline: scroll(self inline), scroll(self block);
+    mask-image:
+      linear-gradient(black, black),
+      linear-gradient(to right, black calc(100% - 2em * var(--tx-text-fade)), transparent);
+    mask-size:
+      100% calc(1.4em + 1px),
+      100% 100%;
+    mask-repeat: no-repeat;
+    mask-composite: add;
+  }
+
+  .desktop-tx-lane .timeline-annotation[dir='rtl'] > span.timeline-annotation-text {
+    mask-image:
+      linear-gradient(black, black),
+      linear-gradient(to left, black calc(100% - 2em * var(--tx-text-fade)), transparent);
+  }
+}
+
+@container tx-card (max-width: 83px) {
+  .desktop-tx-lane .timeline-annotation > span.timeline-annotation-text {
+    position: absolute;
+    inset-inline-start: calc(100% + 4px);
+    top: 50%;
+    width: max-content;
+    max-height: none;
+    transform: translateY(-50%);
+    padding: 5px 8px;
+    border: 1px solid var(--desktop-tx-card-edge);
+    border-radius: var(--radius-md);
+    background: var(--surface-panel);
+    box-shadow: var(--desktop-tx-card-lift);
+    opacity: 0;
+    pointer-events: none;
+    animation: none;
+    mask-image: none;
+  }
+
+  .desktop-tx-lane .timeline-annotation:hover > .timeline-annotation-text,
+  .desktop-tx-lane .timeline-annotation:focus-visible > .timeline-annotation-text {
+    opacity: 1;
+  }
+
+  .desktop-tx-lane .timeline-annotation-empty:hover > .timeline-annotation-text,
+  .desktop-tx-lane .timeline-annotation-empty:focus-visible > .timeline-annotation-text {
+    opacity: 0;
+  }
+}
+
+@keyframes tx-text-fade {
+  from,
+  to {
+    --tx-text-fade: 1;
+  }
+}
+
 .desktop-tx-no-audio {
   flex: 1;
   display: flex;
@@ -1944,6 +2266,11 @@
 .desktop-tx-no-layers p {
   margin: 0 0 8px;
   color: var(--text-secondary);
+}
+
+/* Controls stay above the drag portal regardless of which one mounts last. */
+.desktop-tx-wave-stage > .region-action-overlay {
+  z-index: calc(var(--z-header-float) + 1);
 }
 
 /* Waveform segment handles: edges resize, the top grip moves the whole segment. */
@@ -2200,4 +2527,65 @@
   .desktop-tx-layer-strip.is-drag-shift {
     transition: none;
   }
+}
+
+/* Parallel spellings keep their timing owner visible below the layer name. */
+.desktop-tx-layer-timing {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  white-space: normal;
+}
+
+.desktop-tx-orthography-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.desktop-tx-orthography-form {
+  font-size: var(--type-body-reg-size);
+  line-height: var(--type-body-reg-line);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.desktop-tx-orthography-form section,
+.desktop-tx-orthography-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.desktop-tx-orthography-form h3 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.desktop-tx-orthography-form input {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  font: inherit;
+  min-width: 0;
+  width: 100%;
+}
+
+.desktop-tx-orthography-form input[readonly] {
+  background: var(--chrome-context-bg);
+}
+
+.desktop-tx-context__writing {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.desktop-tx-context__row:has(.desktop-tx-layer-timing) {
+  min-height: 48px;
 }

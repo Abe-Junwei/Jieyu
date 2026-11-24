@@ -1,3 +1,5 @@
+import { splitTextPreview } from './unitSplitTextPlan';
+import { undoTextClear, redoTextClear, type TextClearUndo } from './unitTextClear';
 import type Database from 'better-sqlite3';
 import { undoUnitText } from './analysisRestore';
 import {
@@ -17,19 +19,21 @@ import {
   type UnitSpanMove,
 } from './unitEdges';
 import { splitUnit, undoSplit, type UnitSplitUndo } from './unitSplit';
+import { mergeUnits, undoMerge, type UnitMergeUndo } from './unitMerge';
 import {
   deleteUnitTree,
-  mergeUnits,
-  undoMerge,
+  readRemovedUnit,
+  readRemovedTextDrafts,
   type RemovedUnit,
-  type UnitMergeUndo,
 } from './unitSpan';
 import { retimeManuscript, undoRetime, type RetimeUndo } from './manuscripts';
 import { readStoredUnit, updateUnitText, type Unit, type UnitTextUndo } from './units';
+import { bindHeldAttachmentIds } from './attachments';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
 export type SessionEdit =
+  | { kind: 'clearText'; undo: TextClearUndo }
   | { kind: 'text'; undo: UnitTextUndo }
   | { kind: 'split'; undo: UnitSplitUndo }
   | { kind: 'merge'; undo: UnitMergeUndo }
@@ -49,6 +53,78 @@ type Book = { undo: Frame[]; redo: Frame[] };
 let activeSessionId: string | undefined;
 const books = new Map<string, Map<string, Book>>();
 const lastManuscript = new Map<string, string>();
+let redoSweepDue = false;
+
+export function sessionHeldFileIds(): ReadonlySet<string> {
+  const ids = new Set<string>();
+  for (const session of books.values()) {
+    for (const book of session.values()) {
+      for (const frame of [...book.undo, ...book.redo]) {
+        for (const id of fileIdsOf(frame.edit)) ids.add(id);
+      }
+    }
+  }
+  return ids;
+}
+
+bindHeldAttachmentIds(sessionHeldFileIds);
+
+/** Attach and detach keep this stack. Fold the live clips into snapshots that redo would restore. */
+export function noteLiveUnitAudios(db: SqliteDatabase, unitId: string): void {
+  if (activeSessionId === undefined || readStoredUnit(db, unitId) === null) return;
+  const session = books.get(activeSessionId);
+  if (session === undefined) return;
+  const live = readRemovedUnit(db, unitId);
+  for (const book of session.values()) {
+    for (const frame of [...book.undo, ...book.redo]) {
+      for (const tree of snapshotTrees(frame.edit)) patchLiveAudios(tree, live);
+    }
+  }
+}
+
+function snapshotTrees(edit: SessionEdit): RemovedUnit[] {
+  switch (edit.kind) {
+    case 'create':
+      return [edit.undo.tree];
+    case 'clearText':
+    case 'text':
+    case 'split':
+    case 'merge':
+    case 'assign':
+    case 'edge':
+    case 'boundary':
+    case 'span':
+    case 'delete':
+    case 'deleteMany':
+    case 'retime':
+      return [];
+    default: {
+      const unreachable: never = edit;
+      return unreachable;
+    }
+  }
+}
+
+function patchLiveAudios(tree: RemovedUnit, live: RemovedUnit): void {
+  if (tree.unit.id !== live.unit.id) return;
+  const needed = new Set(live.audios.map((row) => row.unit_text_id));
+  const have = new Set(tree.texts.map((row) => row.id));
+  for (const row of live.texts) {
+    if (needed.has(row.id) && !have.has(row.id)) tree.texts.push({ ...row });
+  }
+  const still = new Set(live.texts.map((row) => row.id));
+  tree.texts = tree.texts.filter((row) => {
+    const carried = tree.audios.some((audio) => audio.unit_text_id === row.id);
+    return !carried || still.has(row.id);
+  });
+  tree.audios = live.audios.map((row) => ({ ...row }));
+}
+
+export function consumeRedoSweep(): boolean {
+  const due = redoSweepDue;
+  redoSweepDue = false;
+  return due;
+}
 
 export function bindSessionEdit(sessionId: string): void {
   activeSessionId = sessionId;
@@ -58,10 +134,45 @@ export function expireSessionEdit(): void {
   activeSessionId = undefined;
   books.clear();
   lastManuscript.clear();
+  redoSweepDue = false;
+}
+
+function fileIdsOf(edit: SessionEdit): string[] {
+  switch (edit.kind) {
+    case 'create':
+    case 'delete':
+      return edit.undo.tree.audios.map((row) => row.file_id);
+    case 'deleteMany':
+      return edit.undo.trees.flatMap((tree) => tree.audios.map((row) => row.file_id));
+    case 'split':
+      return edit.undo.removed.flatMap((tree) => tree.audios.map((row) => row.file_id));
+    case 'merge':
+      return [...edit.undo.earlier.audios, ...edit.undo.later.audios].map((row) => row.file_id);
+    case 'clearText':
+    case 'text':
+    case 'assign':
+    case 'edge':
+    case 'boundary':
+    case 'span':
+    case 'retime':
+      return [];
+    default: {
+      const unreachable: never = edit;
+      return unreachable;
+    }
+  }
+}
+
+function redoFrames(sessionId?: string): Frame[] {
+  const sessions =
+    sessionId === undefined ? [...books.values()] : [books.get(sessionId) ?? new Map()];
+  return sessions.flatMap((session) => [...session.values()].flatMap((book) => book.redo));
 }
 
 function manuscriptOf(edit: SessionEdit): string {
   switch (edit.kind) {
+    case 'clearText':
+      return edit.undo.manuscriptId;
     case 'text':
       return edit.undo.prior.manuscriptId;
     case 'split':
@@ -102,11 +213,13 @@ export function rememberSessionEdit(sessionId: string, edit: SessionEdit): void 
   const manuscriptId = manuscriptOf(edit);
   const book = bookOf(sessionId, manuscriptId);
   book.undo.push({ edit });
+  if (book.redo.length > 0) redoSweepDue = true;
   book.redo = [];
   lastManuscript.set(sessionId, manuscriptId);
 }
 
 export function clearSessionEdit(sessionId?: string): void {
+  if (redoFrames(sessionId).length > 0) redoSweepDue = true;
   if (sessionId === undefined) {
     books.clear();
     lastManuscript.clear();
@@ -201,6 +314,8 @@ function retargetGeneration(db: SqliteDatabase, sessionId: string, manuscriptId:
 
 function stampGeneration(db: SqliteDatabase, edit: SessionEdit, generation: number): void {
   switch (edit.kind) {
+    case 'clearText':
+      return;
     case 'text': {
       edit.undo.after.manuscriptGeneration = generation;
       const row = db
@@ -233,6 +348,8 @@ function stampGeneration(db: SqliteDatabase, edit: SessionEdit, generation: numb
 
 function applyUndo(db: SqliteDatabase, edit: SessionEdit): Unit | Unit[] {
   switch (edit.kind) {
+    case 'clearText':
+      return undoTextClear(db, edit.undo);
     case 'text':
       return undoUnitText(db, edit.undo);
     case 'split':
@@ -268,6 +385,13 @@ function applyRedo(
   edit: SessionEdit,
 ): { value: Unit | Unit[]; edit: SessionEdit } {
   switch (edit.kind) {
+    case 'clearText': {
+      const undo = redoTextClear(db, edit.undo);
+      return {
+        value: undo.before.map((row) => readStoredUnit(db, row.unitId, undo.textLayerId)!),
+        edit: { kind: 'clearText', undo },
+      };
+    }
     case 'text':
       return redoText(db, edit.undo);
     case 'split':
@@ -417,7 +541,13 @@ function redoSpan(db: SqliteDatabase, undo: UnitSpanMove): { value: Unit; edit: 
 }
 
 function undoCreate(db: SqliteDatabase, tree: RemovedUnit): Unit {
-  if (!treeStillMatches(db, tree)) throw new Error('unit create undo is stale');
+  if (
+    !treeStillMatches(db, tree) ||
+    (tree.textDrafts !== undefined &&
+      JSON.stringify(readRemovedTextDrafts(db, tree.unit.id)) !== JSON.stringify(tree.textDrafts))
+  ) {
+    throw new Error('unit create undo is stale');
+  }
   const unit = readStoredUnit(db, tree.unit.id);
   if (!unit) throw new Error('unit create undo is stale');
   deleteUnitTree(db, tree.unit.id);
@@ -432,6 +562,15 @@ function redoText(db: SqliteDatabase, undo: UnitTextUndo): { value: Unit; edit: 
       unitId: undo.unitId,
       textLayerId: undo.textLayerId,
       text: undo.after.text,
+      ...(undo.prior.resolvedDraft === undefined
+        ? {}
+        : {
+            resolveDraft: {
+              rawInput: undo.prior.resolvedDraft.rawInput,
+              baseBody: undo.prior.resolvedDraft.baseBody,
+              currentBody: undo.prior.text,
+            },
+          }),
       provenanceJson: undo.after.provenanceJson,
     },
     undefined,
@@ -453,6 +592,9 @@ function redoSplit(db: SqliteDatabase, undo: UnitSplitUndo): { value: Unit; edit
       cutIndex: undo.cutIndex,
       rawInput: undo.rawInput,
       presets: undo.presets,
+      ...(undo.formalCuts === undefined
+        ? {}
+        : { formalCuts: undo.formalCuts, baseline: splitTextPreview(db, undo.rootId).baseline }),
     });
     return { value: split.left, edit: { kind: 'split', undo: split.undo } };
   } catch (error) {
@@ -463,7 +605,22 @@ function redoSplit(db: SqliteDatabase, undo: UnitSplitUndo): { value: Unit; edit
 
 function redoMerge(db: SqliteDatabase, undo: UnitMergeUndo): { value: Unit; edit: SessionEdit } {
   try {
-    const merged = mergeUnits(db, { keepId: undo.keepId, removeId: undo.removeId });
+    const merged = mergeUnits(db, {
+      keepId: undo.earlier.unit.id,
+      removeId: undo.later.unit.id,
+      operationId: undo.operationId,
+      separator: undo.separator,
+      discardAudioIds: undo.discardAudioIds,
+      newId: undo.newId,
+      ...(undo.textOverrides === undefined ? {} : { textOverrides: undo.textOverrides }),
+      ...(undo.textLayerId === undefined
+        ? {}
+        : {
+            textLayerId: undo.textLayerId,
+            keepText: undo.keepText ?? '',
+            removeText: undo.removeText ?? '',
+          }),
+    });
     return { value: merged.unit, edit: { kind: 'merge', undo: merged.undo } };
   } catch (error) {
     if (error instanceof Error && error.message.endsWith('redo is stale')) throw error;
@@ -503,6 +660,7 @@ function unitFromTree(tree: RemovedUnit): Unit {
     endMs: tree.unit.end_ms,
     text,
     textId: tree.texts.find((row) => row.role === 'transcription')?.id ?? null,
+    draftText: null,
     createdAt: tree.unit.created_at,
     updatedAt: tree.unit.updated_at,
     confidence: tree.unit.confidence ?? null,

@@ -84,6 +84,40 @@ function seedLegacyTranscriptionLink(
 }
 
 describe('layer hosts', () => {
+  it('keeps orthography hosts time-aligned and unique at create and replace', () => {
+    const { sessionId, manuscriptId } = openManuscript();
+    const host = layer(sessionId, manuscriptId, 'ipa', 'transcription');
+    const other = layer(sessionId, manuscriptId, 'other', 'transcription');
+    const spelling = layer(sessionId, manuscriptId, 'spelling', 'transcription', {
+      tierType: 'symbolic-association',
+      hosts: [{ hostLayerId: host.id }],
+    });
+    expect(() =>
+      layer(sessionId, manuscriptId, 'bad', 'translation', {
+        hosts: [{ hostLayerId: spelling.id }],
+      }),
+    ).toThrow('layer host is not a transcription layer');
+    expect(() =>
+      layer(sessionId, manuscriptId, 'multi', 'transcription', {
+        tierType: 'symbolic-association',
+        hosts: [{ hostLayerId: host.id }, { hostLayerId: other.id }],
+      }),
+    ).toThrow('orthography layer requires one host');
+    expect(() =>
+      callDesktopSession(
+        sessionId,
+        'layers.setHosts',
+        hosts(spelling.id, [host.id, other.id], host.id),
+      ),
+    ).toThrow('orthography layer requires one host');
+    expect(linksOf(sessionId, manuscriptId, spelling.id).map((row) => row.hostLayerId)).toEqual([
+      host.id,
+    ]);
+    expect(
+      callDesktopSession(sessionId, 'layers.list', { manuscriptId }) as { id: string }[],
+    ).toHaveLength(3);
+  });
+
   it('rejects host links when creating a time-aligned transcription', () => {
     const { sessionId, manuscriptId } = openManuscript();
     const host = layer(sessionId, manuscriptId, 'tx', 'transcription');

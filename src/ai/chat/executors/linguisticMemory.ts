@@ -15,6 +15,7 @@ import {
   loadScopedSegmentMetaRows,
   normalizedUnitRowsFromContext,
   filterRowsByScope,
+  resolveContextTextId,
 } from './timelineExecutors';
 
 export async function getUnitDetail(
@@ -180,6 +181,15 @@ export async function getUnitLinguisticMemory(
 
   const includeNotes = normalizeBoolean(args.includeNotes, true);
   const includeMorphemes = normalizeBoolean(args.includeMorphemes, true);
+  const projectTextId = scope === 'project' ? (resolveContextTextId(context) ?? '') : '';
+  if (scope === 'project' && projectTextId.length === 0) {
+    return {
+      ok: false,
+      name: 'get_unit_linguistic_memory',
+      result: null,
+      error: `unit not found: ${unitId}`,
+    };
+  }
   const localRows = normalizedUnitRowsFromContext(context);
   const scopedRows = localRows ? filterRowsByScope(context, localRows, scope) : null;
   if (
@@ -204,6 +214,14 @@ export async function getUnitLinguisticMemory(
       name: 'get_unit_linguistic_memory',
       result: null,
       error: 'database_unavailable',
+    };
+  }
+  if (scope === 'project' && loaded.layerUnit?.textId !== projectTextId) {
+    return {
+      ok: false,
+      name: 'get_unit_linguistic_memory',
+      result: null,
+      error: `unit not found: ${unitId}`,
     };
   }
 

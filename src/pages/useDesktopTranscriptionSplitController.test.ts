@@ -92,7 +92,7 @@ describe('split ask', () => {
     await act(async () => {
       await result.current.ask('u', 'playhead');
     });
-    expect(desktopCall).toHaveBeenCalledTimes(1);
+    expect(desktopCall).toHaveBeenCalledTimes(2);
     expect(desktopCall).toHaveBeenCalledWith(
       's',
       'units.split',
@@ -100,6 +100,15 @@ describe('split ask', () => {
     );
     expect(reload).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByText(/录音已完整保留/)).toBeNull();
+  });
+
+  it('reports retained recordings only when the split carries them', async () => {
+    const { result } = mount({ desktopCall: vi.fn(async () => ({ recordingCount: 5 })) });
+    await act(async () => {
+      await result.current.ask('u', 'playhead');
+    });
+    expect(screen.getByText('5 条录音已完整保留在左段。')).toBeTruthy();
   });
 
   it('splits an empty segment at a valid time', async () => {
@@ -123,17 +132,18 @@ describe('split ask', () => {
       await result.current.ask('u', 'playhead');
     });
     expect(desktopCall.mock.calls.map((call) => call[1])).toEqual([
+      'units.splitPreview',
       'units.putTextDraft',
       'units.split',
     ]);
     expect(desktopCall).toHaveBeenNthCalledWith(
-      1,
+      2,
       's',
       'units.putTextDraft',
       expect.objectContaining({ rawInput: '新的句子', baseBody: '', textLayerId: 'tx' }),
     );
     expect(desktopCall).toHaveBeenNthCalledWith(
-      2,
+      3,
       's',
       'units.split',
       expect.objectContaining({ rawInput: '新的句子', cutIndex: 4 }),

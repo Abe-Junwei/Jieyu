@@ -41,8 +41,15 @@ export function projectFolderForNewImport(
   headerMatches: (sqliteFile: string) => boolean,
 ): string {
   const trimmed = baseName.replace(/[/:]/g, '').trim();
-  const safe = trimmed.length > 0 ? trimmed : zhCNDictionary['app.desktopRead.audio'];
-  const base = path.resolve(root, safe);
+  const safe =
+    trimmed.length > 0 && trimmed !== '.' && trimmed !== '..'
+      ? trimmed
+      : zhCNDictionary['app.desktopRead.audio'];
+  const rootResolved = path.resolve(root);
+  const base = path.resolve(rootResolved, safe);
+  if (base !== rootResolved && !base.startsWith(`${rootResolved}${path.sep}`)) {
+    throw new Error('project folder escapes the workspace');
+  }
   for (let n = 0; n < 100; n += 1) {
     const folder = n === 0 ? base : `${base} ${n + 1}`;
     const sqlite = path.join(folder, 'project.sqlite');

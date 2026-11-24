@@ -315,6 +315,38 @@ export function removeAttachmentLink(db: SqliteDatabase, linkId: string): Attach
   return removed();
 }
 
+let heldAttachmentIds: () => ReadonlySet<string> = () => new Set();
+let sweepTail: Promise<void> = Promise.resolve();
+
+/** The undo book is in memory, so the SQL reference count cannot see it. */
+export function bindHeldAttachmentIds(read: () => ReadonlySet<string>): void {
+  heldAttachmentIds = read;
+}
+
+export function queueAttachmentSweep(work: Promise<void>): void {
+  sweepTail = sweepTail.catch(() => undefined).then(() => work);
+}
+
+export async function attachmentSweepSettled(): Promise<void> {
+  let pending = sweepTail;
+  for (;;) {
+    await pending;
+    if (sweepTail === pending) return;
+    pending = sweepTail;
+  }
+}
+
+export async function sweepUnheldAttachments(
+  db: SqliteDatabase,
+  folder: string,
+  trash: AttachmentTrash,
+): Promise<void> {
+  const rows = db
+    .prepare(`SELECT id FROM attachment_files WHERE state = 'cleanup_pending'`)
+    .all() as { id: string }[];
+  for (const row of rows) await finishAttachmentCleanup(db, folder, row.id, trash);
+}
+
 export async function finishAttachmentCleanup(
   db: SqliteDatabase,
   folder: string,
@@ -328,6 +360,7 @@ export async function finishAttachmentCleanup(
     markState(db, fileId, 'ready');
     return { fileId, state: 'ready' };
   }
+  if (heldAttachmentIds().has(fileId)) return { fileId, state: 'cleanup_pending' };
   const absolute = objectFile(folder, row);
   if (absolute === undefined || sha256(readFileSync(absolute)) !== row.sha256) {
     markState(db, fileId, 'cleanup_unknown');
@@ -421,7 +454,7 @@ function attachmentReferenced(db: SqliteDatabase, fileId: string): boolean {
     .get(fileId) as { n: number };
   if (links.n > 0) return true;
   const texts = db
-    .prepare('SELECT COUNT(*) AS n FROM unit_texts WHERE audio_file_id = ?')
+    .prepare('SELECT COUNT(*) AS n FROM unit_text_audios WHERE file_id = ?')
     .get(fileId) as { n: number };
   return texts.n > 0;
 }

@@ -164,6 +164,7 @@ describe('unit text save receipt and draft', () => {
       unitId,
       text: 'ta',
       operationId: 'op-3',
+      resolveDraft: { baseBody: 'ka', currentBody: 'ta', rawInput: 'ta' },
     });
     expect(readUnitTextDraft(requireDesktopSession(again.sessionId).db, unitId)).toBeNull();
   });

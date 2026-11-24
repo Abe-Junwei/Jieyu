@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { JieyuIcon } from '../components/ui/JieyuIcon';
-import { t, tf, type Locale } from '../i18n';
+import { t, type Locale } from '../i18n';
 import {
   DesktopTranscriptionLayerList,
   type ContextLayer,
@@ -57,8 +57,6 @@ export function DesktopTranscriptionContextColumn(props: {
     if (props.layerRequest == null) return;
     setOpen((state) => ({ ...state, layers: true }));
   }, [props.layerRequest]);
-  const currentTitle =
-    props.manuscripts.find((item) => item.id === props.manuscriptId)?.title ?? null;
   const sections = [
     {
       id: 'manuscripts' as const,
@@ -108,128 +106,86 @@ export function DesktopTranscriptionContextColumn(props: {
     },
   ];
 
-  const title = currentTitle ? (Object.values(currentTitle)[0] ?? '') : '';
-  const segmentOrdinal =
-    props.selectedUnitId === null
-      ? ''
-      : tf(props.locale, 'app.desktopTranscription.contextSegmentOrdinal', {
-          index:
-            Math.max(
-              props.units.findIndex((unit) => unit.id === props.selectedUnitId),
-              0,
-            ) + 1,
-        });
-  const summary = [title, segmentOrdinal].filter((part) => part.length > 0).join(' · ');
-
   return (
-    <>
-      <div className="desktop-tx-context-strip">
-        <button
-          type="button"
-          className="desktop-tx-context-strip__open"
-          aria-label={t(props.locale, 'app.sidePane.expand')}
-          onClick={toggleContextPane}
-        >
-          <JieyuIcon name="PanelLeftOpen" aria-hidden />
-        </button>
-        <span className="desktop-tx-context-strip__label">{summary}</span>
-      </div>
-      <div className="desktop-tx-context">
-        {sections.map((section) => {
-          const expanded = open[section.id];
-          return (
-            <section
-              key={section.id}
-              className="desktop-tx-context__section"
-              data-open={expanded ? 'true' : 'false'}
-              data-section={section.id}
-            >
-              <div className="desktop-tx-context__head">
-                <button
-                  type="button"
-                  className="desktop-tx-context__toggle"
-                  aria-expanded={expanded}
-                  onClick={() =>
-                    setOpen((state) => ({ ...state, [section.id]: !state[section.id] }))
-                  }
-                >
-                  <span className="desktop-tx-context__chevron" aria-hidden>
-                    <JieyuIcon name="ChevronRight" />
-                  </span>
-                  <span className="desktop-tx-context__mark" aria-hidden>
-                    <JieyuIcon name={section.icon} />
-                  </span>
-                  <span className="desktop-tx-context__label">{section.label}</span>
-                  <span className="desktop-tx-context__meta">{section.meta}</span>
-                </button>
-                {section.id === 'manuscripts' ? (
-                  <button
-                    type="button"
-                    className="desktop-tx-context__collapse"
-                    aria-label={t(props.locale, 'app.sidePane.collapse')}
-                    onClick={toggleContextPane}
-                  >
-                    <JieyuIcon name="PanelLeftClose" aria-hidden />
-                  </button>
-                ) : null}
-              </div>
-              {expanded && section.id === 'layers' ? (
-                <DesktopTranscriptionLayerList
-                  locale={props.locale}
-                  layers={props.layers}
-                  links={props.links}
-                  currentId={props.layerId}
-                  error={props.layerError}
-                  onSelect={props.onSelectLayer}
-                  onRename={props.onRenameLayer}
-                  onMove={props.onMoveLayer}
-                  onDelete={props.onDeleteLayer}
-                  {...(props.onPreviewHosts === undefined
-                    ? {}
-                    : { onPreviewHosts: props.onPreviewHosts })}
-                  {...(props.onSetHosts === undefined ? {} : { onSetHosts: props.onSetHosts })}
-                  {...(props.drag === undefined ? {} : { drag: props.drag })}
-                  {...(props.onClearLayerError === undefined
-                    ? {}
-                    : { onClearError: props.onClearLayerError })}
-                  {...(props.layerRequest === undefined ? {} : { request: props.layerRequest })}
-                />
-              ) : expanded ? (
-                section.rows.length === 0 ? (
-                  section.empty.length > 0 ? (
-                    <p className="desktop-tx-context__empty">{section.empty}</p>
-                  ) : null
-                ) : (
-                  <ul className="desktop-tx-context__rows">
-                    {section.rows.map((row) => (
-                      <li key={row.id}>
-                        <button
-                          type="button"
-                          className="desktop-tx-context__row"
-                          aria-current={row.current ? 'true' : undefined}
-                          onClick={row.onSelect}
-                        >
-                          {row.time.length > 0 ? (
-                            <span className="desktop-tx-context__time">{row.time}</span>
-                          ) : null}
-                          <span className="desktop-tx-context__name">{row.primary}</span>
-                          <span className="desktop-tx-context__aside">{row.secondary}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )
-              ) : null}
-            </section>
-          );
-        })}
-      </div>
-    </>
+    <div className="desktop-tx-context">
+      {sections.map((section) => {
+        const expanded = open[section.id];
+        return (
+          <section
+            key={section.id}
+            className="desktop-tx-context__section"
+            data-open={expanded ? 'true' : 'false'}
+            data-section={section.id}
+          >
+            <div className="desktop-tx-context__head">
+              <button
+                type="button"
+                className="desktop-tx-context__toggle"
+                aria-expanded={expanded}
+                onClick={() => setOpen((state) => ({ ...state, [section.id]: !state[section.id] }))}
+              >
+                <span className="desktop-tx-context__chevron" aria-hidden>
+                  <JieyuIcon name="ChevronRight" />
+                </span>
+                <span className="desktop-tx-context__mark" aria-hidden>
+                  <JieyuIcon name={section.icon} />
+                </span>
+                <span className="desktop-tx-context__label">{section.label}</span>
+                <span className="desktop-tx-context__meta">{section.meta}</span>
+              </button>
+            </div>
+            {expanded && section.id === 'layers' ? (
+              <DesktopTranscriptionLayerList
+                locale={props.locale}
+                layers={props.layers}
+                links={props.links}
+                currentId={props.layerId}
+                error={props.layerError}
+                onSelect={props.onSelectLayer}
+                onRename={props.onRenameLayer}
+                onMove={props.onMoveLayer}
+                onDelete={props.onDeleteLayer}
+                {...(props.onPreviewHosts === undefined
+                  ? {}
+                  : { onPreviewHosts: props.onPreviewHosts })}
+                {...(props.onSetHosts === undefined ? {} : { onSetHosts: props.onSetHosts })}
+                {...(props.drag === undefined ? {} : { drag: props.drag })}
+                {...(props.onClearLayerError === undefined
+                  ? {}
+                  : { onClearError: props.onClearLayerError })}
+                {...(props.layerRequest === undefined ? {} : { request: props.layerRequest })}
+              />
+            ) : expanded ? (
+              section.rows.length === 0 ? (
+                section.empty.length > 0 ? (
+                  <p className="desktop-tx-context__empty">{section.empty}</p>
+                ) : null
+              ) : (
+                <ul className="desktop-tx-context__rows">
+                  {section.rows.map((row) => (
+                    <li key={row.id}>
+                      <button
+                        type="button"
+                        className="desktop-tx-context__row"
+                        aria-current={row.current ? 'true' : undefined}
+                        onClick={row.onSelect}
+                      >
+                        {row.time.length > 0 ? (
+                          <span className="desktop-tx-context__time">{row.time}</span>
+                        ) : null}
+                        <span className="desktop-tx-context__name">{row.primary}</span>
+                        <span className="desktop-tx-context__aside">{row.secondary}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )
+            ) : null}
+          </section>
+        );
+      })}
+    </div>
   );
-}
-
-function toggleContextPane(): void {
-  document.querySelector<HTMLButtonElement>('.app-side-pane-collapse-toggle')?.click();
 }
 
 function formatCue(seconds: number): string {

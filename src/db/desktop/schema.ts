@@ -2,8 +2,8 @@
 
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
-/** SQLite header offset 60. ADR-0138 moved this to 34. A later table change needs a new decision and a new freeze record. */
-export const DESKTOP_PROJECT_USER_VERSION = 34;
+/** SQLite header offset 60. ADR-0140 moved this to 35. A later table change needs a new decision and a new freeze record. */
+export const DESKTOP_PROJECT_USER_VERSION = 35;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -536,7 +536,6 @@ CREATE TABLE unit_texts (
   layer_id TEXT NOT NULL REFERENCES layers(id),
   role TEXT NOT NULL,
   body TEXT NOT NULL,
-  audio_file_id TEXT CHECK (audio_file_id IS NULL OR length(audio_file_id) > 0),
   provenance_json TEXT CHECK (
     provenance_json IS NULL OR (
       json_valid(provenance_json) AND json_type(provenance_json) = 'object'
@@ -627,20 +626,26 @@ CREATE TABLE attachment_files (
   created_at TEXT NOT NULL
 );
 
-CREATE TRIGGER unit_texts_audio_file_insert
-BEFORE INSERT ON unit_texts
-WHEN NEW.audio_file_id IS NOT NULL
-BEGIN
-  SELECT RAISE(ABORT, 'audio file is missing')
-  WHERE NOT EXISTS (SELECT 1 FROM attachment_files WHERE id = NEW.audio_file_id);
-END;
+CREATE TABLE unit_text_audios (
+  id TEXT PRIMARY KEY,
+  unit_text_id TEXT NOT NULL REFERENCES unit_texts(id) ON DELETE CASCADE,
+  file_id TEXT NOT NULL REFERENCES attachment_files(id),
+  position INTEGER NOT NULL CHECK (
+    position >= 1 AND position <= 5 AND position = CAST(position AS INTEGER)
+  ),
+  UNIQUE (unit_text_id, position),
+  UNIQUE (unit_text_id, file_id)
+);
 
-CREATE TRIGGER unit_texts_audio_file_update
-BEFORE UPDATE OF audio_file_id ON unit_texts
-WHEN NEW.audio_file_id IS NOT NULL
+CREATE TRIGGER unit_text_audios_file_insert
+BEFORE INSERT ON unit_text_audios
 BEGIN
   SELECT RAISE(ABORT, 'audio file is missing')
-  WHERE NOT EXISTS (SELECT 1 FROM attachment_files WHERE id = NEW.audio_file_id);
+  WHERE NOT EXISTS (SELECT 1 FROM attachment_files WHERE id = NEW.file_id);
+  SELECT RAISE(ABORT, 'too many recordings')
+  WHERE (
+    SELECT COUNT(*) FROM unit_text_audios WHERE unit_text_id = NEW.unit_text_id
+  ) >= 5;
 END;
 
 CREATE TABLE attachment_links (

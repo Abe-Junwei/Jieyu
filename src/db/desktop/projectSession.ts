@@ -5,6 +5,12 @@ import { isAllowedProjectFolder } from '../../desktop/skeleton/desktopSecurity';
 import { saveDailyProjectBackup } from './dailyBackup';
 import { openProject, type DesktopProject } from './openProject';
 import { ensureProjectIdentity } from './projectIdentity';
+import {
+  attachmentSweepSettled,
+  sweepUnheldAttachments,
+  type AttachmentTrash,
+} from './attachments';
+import { detachRecordingTextParents } from './recordingTarget';
 import { bindSessionEdit, expireSessionEdit } from './sessionEdit';
 
 type Session = {
@@ -37,6 +43,7 @@ export function openDesktopSession(
   const project = openProject(folder);
   try {
     ensureProjectIdentity(project.db, folder, fieldValues);
+    detachRecordingTextParents(project.db);
   } catch (error) {
     project.close();
     throw error;
@@ -58,6 +65,7 @@ export function openPreparedDesktopSession(
   const prepared = openProject(folder);
   try {
     ensureProjectIdentity(prepared.db, folder);
+    detachRecordingTextParents(prepared.db);
   } catch (error) {
     prepared.close();
     throw error;
@@ -134,12 +142,34 @@ export function reopenDesktopSession(sessionId: string): void {
   requireDesktopSession(sessionId).close();
   current = undefined;
   try {
-    current = { id: sessionId, folder, project: openProject(folder) };
+    const project = openProject(folder);
+    try {
+      detachRecordingTextParents(project.db);
+    } catch (error) {
+      project.close();
+      throw error;
+    }
+    current = { id: sessionId, folder, project };
   } catch (error) {
     expireSessionEdit();
     resetRestoredProjectGrant();
     throw error;
   }
+}
+
+/** Book is already empty. Pending files that undo no longer cites can leave. */
+export async function expireAndSweepAttachments(trash: AttachmentTrash): Promise<void> {
+  await attachmentSweepSettled();
+  const live = current;
+  expireSessionEdit();
+  if (live === undefined) return;
+  await sweepUnheldAttachments(live.project.db, live.folder, trash);
+}
+
+/** Crash recovery: the new process has no undo book, so pending files are unheld. */
+export async function sweepCurrentAttachments(trash: AttachmentTrash): Promise<void> {
+  if (current === undefined) return;
+  await sweepUnheldAttachments(current.project.db, current.folder, trash);
 }
 
 export function resetDesktopSessions(): void {

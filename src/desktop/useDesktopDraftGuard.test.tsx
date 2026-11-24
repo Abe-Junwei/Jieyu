@@ -1051,3 +1051,19 @@ describe('useDesktopDraftGuard', () => {
     expect(unload()).toBe(false);
   });
 });
+
+it('keeps a restored split draft blocked until explicit resolution', async () => {
+  const save = vi.fn(async () => true);
+  const view = mount(save);
+  act(() => view.guard().restore({ unitId: 'left', rawInput: 'ka laa', baseBody: 'ka la' }, 'ka'));
+  expect(view.guard().conflict).toMatchObject({ currentBody: 'ka', rawInput: 'ka laa' });
+  expect(await act(() => view.guard().commit())).toBe(false);
+  expect(save).not.toHaveBeenCalled();
+  expect(await act(() => view.guard().resolveConflict())).toBe(true);
+  expect(save).toHaveBeenCalledWith(
+    expect.objectContaining({
+      resolveDraft: { unitId: 'left', baseBody: 'ka la', currentBody: 'ka', rawInput: 'ka laa' },
+    }),
+    expect.any(String),
+  );
+});

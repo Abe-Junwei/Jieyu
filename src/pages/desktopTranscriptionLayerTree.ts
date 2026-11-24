@@ -5,6 +5,9 @@
 
 export interface TreeLayer {
   id: string;
+  contentType?: string;
+  tierType?: string | undefined;
+  modality?: string | undefined;
   sortOrder?: number;
   /** Structural parent. A recording layer's text child sits under that recording layer. */
   parentId?: string | null;
@@ -38,6 +41,8 @@ export interface SideLane {
 export interface LayerTreeRow {
   layerId: string;
   depth: number;
+  /** Continuous trunks grouped by host and child indentation, including flat writing peers. */
+  branches?: { depth: number; span: 'first' | 'mid' | 'last'; host: boolean; child: boolean }[];
   hostId: string | null;
   childCount: number;
   lastChild: boolean;
@@ -117,15 +122,19 @@ export function buildLayerTree(
     placed.add(layer.id);
     const children = childrenOf(layer.id).filter((child) => !placed.has(child.id));
     const groupCollapsed = children.length > 0 && fold.groups.includes(layer.id);
+    const parallel =
+      layer.contentType === 'transcription' &&
+      layer.tierType === 'symbolic-association' &&
+      layer.modality !== 'audio';
     rows.push({
       layerId: layer.id,
-      depth,
+      depth: parallel ? Math.max(0, depth - 1) : depth,
       hostId,
       childCount: countSubtree(layer.id),
       lastChild,
       groupCollapsed,
       folded: fold.rows.includes(layer.id),
-      guides: lasts.map((last) => !last),
+      guides: parallel ? [] : lasts.map((last) => !last),
       lanes: [],
       moreHosts: 0,
       otherHostIds: hostLinks(layer.id)
@@ -151,6 +160,27 @@ export function buildLayerTree(
   // Members of a host cycle are unreachable from any root; keep them as plain roots.
   for (const layer of sorted) if (!placed.has(layer.id)) push(layer, 0, null, false, []);
 
+  rows.forEach((host, start) => {
+    const groups = new Map<number, number[]>();
+    rows.forEach((child, index) => {
+      if (child.hostId !== host.layerId) return;
+      const members = groups.get(child.depth) ?? [];
+      members.push(index);
+      groups.set(child.depth, members);
+    });
+    groups.forEach((members, depth) => {
+      const end = members[members.length - 1]!;
+      for (let index = start; index <= end; index += 1) {
+        const row = rows[index]!;
+        (row.branches ??= []).push({
+          depth,
+          span: index === start ? 'first' : index === end ? 'last' : 'mid',
+          host: index === start,
+          child: members.includes(index),
+        });
+      }
+    });
+  });
   assignSideLanes(rows, links, parentOf);
   return rows;
 }

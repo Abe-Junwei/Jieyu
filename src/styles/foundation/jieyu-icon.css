@@ -53,4 +53,30 @@
       animation: none;
     }
   }
+
+  .jieyu-icon-tip-host {
+    display: inline-flex;
+    max-width: 100%;
+  }
+
+  .jieyu-icon-tip {
+    position: fixed;
+    z-index: var(--z-toast);
+    padding: 5px 8px;
+    border: 1px solid var(--toast-border);
+    border-radius: var(--radius-lg);
+    background: var(--toast-bg);
+    box-shadow: var(--shadow-popover);
+    color: var(--toast-fg);
+    font-size: 12px;
+    line-height: 18px;
+    white-space: nowrap;
+    animation: jieyu-icon-tip-in 0.14s ease-out;
+  }
+
+  @keyframes jieyu-icon-tip-in {
+    from {
+      opacity: 0;
+    }
+  }
 }

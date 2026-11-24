@@ -119,6 +119,34 @@
   gap: 8px;
 }
 
+.app-left-rail-pane-toggle {
+  width: 28px;
+  height: 28px;
+  /* 与 .desktop-tx-bar（61px）里的 28px 按钮同一中线。左栏自身顶留白 4px。 */
+  margin-top: calc((61px - 28px) / 2 - 4px);
+  margin-bottom: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  appearance: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.app-left-rail-pane-toggle:hover {
+  color: var(--text-secondary);
+  background: var(--overlay-hover-soft);
+}
+
+.app-left-rail-pane-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring-soft);
+}
+
 .app-left-rail-primary {
   flex-shrink: 0;
 }

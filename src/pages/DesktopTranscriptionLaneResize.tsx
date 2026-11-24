@@ -1,4 +1,5 @@
 import type { PointerEvent as ReactPointerEvent } from 'react';
+import { IconTipButton } from '../components/ui/IconTip';
 
 const MIN_LANE_HEIGHT = 28;
 
@@ -10,7 +11,7 @@ export function DesktopTranscriptionLaneResize(props: {
   const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    const lane = event.currentTarget.parentElement;
+    const lane = event.currentTarget.closest('.desktop-tx-lane');
     if (!(lane instanceof HTMLElement)) return;
     const startY = event.clientY;
     const start = lane.getBoundingClientRect().height;
@@ -31,10 +32,9 @@ export function DesktopTranscriptionLaneResize(props: {
     window.addEventListener('pointerup', up);
   };
   return (
-    <button
-      type="button"
+    <IconTipButton
       className="desktop-tx-lane-resize"
-      aria-label={props.label}
+      label={props.label}
       onPointerDown={onPointerDown}
     />
   );

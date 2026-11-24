@@ -40,6 +40,8 @@ export function DesktopTranscriptionWaveMenu(props: {
   onToggleSkip: (unitId: string) => void;
   onDelete: (unitId: string) => void;
   onSplit: (unitId: string, time: number) => void;
+  canMerge: (unitId: string) => boolean;
+  onMerge: (unitId: string) => void;
 }) {
   const { locale, menu } = props;
   const unitId = menu.unitId;
@@ -88,6 +90,15 @@ export function DesktopTranscriptionWaveMenu(props: {
               onClick={() => run(() => props.onSplit(unitId, menu.time))}
             >
               {t(locale, 'app.desktopTranscription.splitSegment')}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!props.canMerge(unitId)}
+              onClick={() => run(() => props.onMerge(unitId))}
+            >
+              {t(locale, 'app.desktopTranscription.mergeNext')}
+              <span className="desktop-tx-menu__key">⌘M</span>
             </button>
             <button type="button" role="menuitem" onClick={() => run(() => props.onDelete(unitId))}>
               {t(locale, 'app.desktopTranscription.deleteSegment')}

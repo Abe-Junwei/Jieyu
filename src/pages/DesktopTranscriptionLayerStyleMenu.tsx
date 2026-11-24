@@ -322,7 +322,11 @@ function LayerCommandMenu(props: {
 
 export interface LayerCreateActions {
   layers: readonly { id: string; name: Record<string, string> }[];
-  onCreate: (kind: 'transcription' | 'translation', label: string) => void;
+  onCreate: (
+    kind: 'transcription' | 'translation' | 'orthography',
+    label: string,
+    sourceLayerId?: string,
+  ) => void;
   onCreatePair: (kind: 'voice' | 'oral', audioName: string, textName: string) => void;
 }
 
@@ -351,6 +355,15 @@ function LayerCreateMenu(props: {
         }
       >
         {t(props.locale, 'transcription.laneHeader.layer.createTranscription')}
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() =>
+          props.create.onCreate('orthography', name('app.desktopTranscription.orthographyName'))
+        }
+      >
+        {t(props.locale, 'app.desktopTranscription.orthographyAdd')}
       </button>
       <button
         type="button"

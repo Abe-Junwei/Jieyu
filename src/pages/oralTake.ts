@@ -45,12 +45,24 @@ export function micKey(error: unknown): DictKey {
 export function oralFailure(error: unknown): DictKey {
   const message = error instanceof Error ? error.message : '';
   if (message.includes('oral draft exists')) return 'app.desktopTranscription.oralDraftExists';
+  if (message.includes('speaker time overlaps'))
+    return 'app.desktopTranscription.oralSpeakerOverlap';
+  if (message.includes('transcription host overwrite')) {
+    return 'app.desktopTranscription.oralTargetHost';
+  }
+  if (message.includes('transcription target is longer')) {
+    return 'app.desktopTranscription.oralTargetLonger';
+  }
+  if (message.includes('transcription target needs a segment')) {
+    return 'app.desktopTranscription.oralTargetCreate';
+  }
   if (message.includes('local whisper is not granted')) {
     return 'app.desktopTranscription.oralWhisperMissing';
   }
   if (message.includes('oral transcription is empty')) {
     return 'app.desktopTranscription.oralTranscribeEmpty';
   }
+  if (message.includes('oral text changed')) return 'app.desktopTranscription.oralTextChanged';
   if (message.includes('oral source changed')) return 'app.desktopTranscription.oralSourceChanged';
   return 'app.desktopTranscription.oralTranscribeFailed';
 }
@@ -60,7 +72,7 @@ export function formatElapsed(seconds: number): string {
   return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
 }
 
-export type ParkedTake = { id: number; pinned: OralPinned; bytes: Uint8Array };
+export type ParkedTake = { id: number; operationId: string; pinned: OralPinned; bytes: Uint8Array };
 
 let parked: ParkedTake | null = null;
 let nextTake = 1;
@@ -116,12 +128,14 @@ export function dropFailedTake(id?: number): void {
   publishFailedTake();
 }
 
+export type OralTake = { id: string | null; url: string };
+
 export async function loadOralClips(
   sessionId: string,
   call: OralCall,
   layerIds: readonly string[],
-): Promise<{ clips: Record<string, string>; broken: string[]; urls: string[] }> {
-  const clips: Record<string, string> = {};
+): Promise<{ takes: Record<string, OralTake[]>; broken: string[]; urls: string[] }> {
+  const takes: Record<string, OralTake[]> = {};
   const broken: string[] = [];
   const urls: string[] = [];
   for (const layerId of layerIds) {
@@ -136,12 +150,15 @@ export async function loadOralClips(
     for (const row of rows) {
       if (typeof row !== 'object' || row === null) continue;
       const unitId = (row as { unitId?: unknown }).unitId;
+      const audioId = (row as { id?: unknown }).id;
       if (typeof unitId !== 'string') continue;
+      const id = typeof audioId === 'string' ? audioId : null;
       try {
-        const read = (await call(sessionId, 'recordings.read', { unitId, layerId })) as {
-          mimeType?: unknown;
-          bytes?: unknown;
-        };
+        const read = (await call(
+          sessionId,
+          'recordings.read',
+          id === null ? { unitId, layerId } : { unitId, layerId, audioId: id },
+        )) as { mimeType?: unknown; bytes?: unknown };
         if (!(read.bytes instanceof Uint8Array) || typeof read.mimeType !== 'string') {
           broken.push(unitId);
           continue;
@@ -150,13 +167,14 @@ export async function loadOralClips(
           new Blob([new Uint8Array(read.bytes)], { type: read.mimeType }),
         );
         urls.push(url);
-        clips[clipKey(layerId, unitId)] = url;
+        const key = clipKey(layerId, unitId);
+        takes[key] = [...(takes[key] ?? []), { id, url }];
       } catch {
         broken.push(unitId);
       }
     }
   }
-  return { clips, broken, urls };
+  return { takes, broken, urls };
 }
 
 export function openOralRecorder(options: {
@@ -215,23 +233,27 @@ export function openOralRecorder(options: {
 export async function persistTake(
   pinned: OralPinned,
   bytes: Uint8Array,
-): Promise<'saved' | 'refresh'> {
+  operationId: string,
+): Promise<{ status: 'saved' | 'refresh'; audioId: string | null }> {
   const wav = await clipBytesToWav(bytes);
-  await pinned.call(pinned.sessionId, 'recordings.attach', {
+  const stored = (await pinned.call(pinned.sessionId, 'recordings.attach', {
     unitId: pinned.unitId,
     layerId: pinned.layerId,
     mimeType: 'audio/wav',
     bytes: wav,
-    operationId: crypto.randomUUID(),
-  });
+    operationId,
+  })) as { audioId?: string };
+  const audioId = typeof stored.audioId === 'string' ? stored.audioId : null;
   try {
     await pinned.refresh();
-    return 'saved';
+    return { status: 'saved', audioId };
   } catch {
-    return 'refresh';
+    return { status: 'refresh', audioId };
   }
 }
 
-export function releaseClipUrls(clips: Record<string, string>): void {
-  for (const url of Object.values(clips)) URL.revokeObjectURL(url);
+export function releaseClipUrls(takes: Record<string, readonly { url: string }[]>): void {
+  for (const list of Object.values(takes)) {
+    for (const take of list) URL.revokeObjectURL(take.url);
+  }
 }

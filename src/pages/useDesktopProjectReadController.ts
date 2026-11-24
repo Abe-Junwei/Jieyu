@@ -1,3 +1,4 @@
+import type { DraftResolution } from '../desktop/useDesktopDraftConflict';
 import { useRef, useState } from 'react';
 import { createDesktopClient } from '../app/desktopProjectReadPageAccess';
 import { emitAfterWrite } from '../desktop/desktopDomainEvents';
@@ -98,6 +99,7 @@ export function useDesktopProjectReadController(
     text: string,
     operationId?: string,
     textLayerId?: string,
+    resolveDraft?: DraftResolution,
   ): Promise<'saved' | 'failed' | 'refresh-failed' | 'unknown'> => {
     if (host === null || sessionId === null) return Promise.resolve('failed');
     const seen = sessionId;
@@ -110,6 +112,7 @@ export function useDesktopProjectReadController(
         unitId,
         ...layer,
         text,
+        ...(resolveDraft === undefined ? {} : { resolveDraft }),
         ...(operationId === undefined ? {} : { operationId }),
       }),
       () => ({ type: 'unit.textSaved', sessionId: seen, manuscriptId, unitId }),
@@ -200,18 +203,6 @@ export function useDesktopProjectReadController(
       });
   };
 
-  const mergeUnits = (keepId: string, removeId: string) => {
-    if (host === null || sessionId === null) return;
-    setError('');
-    void createDesktopClient({ desktopCall: host.desktopCall })
-      .mergeUnits(sessionId, { keepId, removeId })
-      .then(() => reload())
-      .catch(() => {
-        if (shownSession.current !== sessionId) return;
-        setError(t(locale, 'app.desktopRead.loadFailed'));
-      });
-  };
-
   const moveBoundary = (leftId: string, rightId: string, time: number) => {
     if (host === null || sessionId === null) return;
     setError('');
@@ -264,7 +255,6 @@ export function useDesktopProjectReadController(
     refresh: reload,
     adoptOpenedSession,
     splitUnit,
-    mergeUnits,
     moveBoundary,
     ...noteActions,
   };

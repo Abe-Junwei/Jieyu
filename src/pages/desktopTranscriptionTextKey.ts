@@ -1,3 +1,4 @@
+import type { DraftResolution } from '../desktop/useDesktopDraftConflict';
 /**
  * The text draft guard tracks one opaque draft id. On the transcription page one unit shows a body
  * per text layer (ADR-0132), so the id carries both and the store adapters split it again.
@@ -23,6 +24,7 @@ export function layerTextStore(read: {
     text: string,
     operationId?: string,
     textLayerId?: string,
+    resolveDraft?: DraftResolution,
   ) => Promise<TextSave>;
   persistTextDraft: (
     unitId: string,
@@ -37,8 +39,13 @@ export function layerTextStore(read: {
   ) => Promise<'committed' | 'not-submitted' | 'conflict'>;
 }) {
   return {
-    save: (draft: { unitId: string; text: string }, operationId: string) => {
+    save: (
+      draft: { unitId: string; text: string; resolveDraft?: DraftResolution },
+      operationId: string,
+    ) => {
       const { unitId, textLayerId } = splitTextKey(draft.unitId);
+      if (draft.resolveDraft !== undefined)
+        return read.saveText(unitId, draft.text, operationId, textLayerId, draft.resolveDraft);
       return textLayerId === undefined
         ? read.saveText(unitId, draft.text, operationId)
         : read.saveText(unitId, draft.text, operationId, textLayerId);

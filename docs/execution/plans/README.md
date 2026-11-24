@@ -3,7 +3,7 @@ title: execution/plans 文档索引（自动生成）
 doc_type: execution-plans-index
 status: active
 owner: repo
-last_reviewed: 2026-11-23
+last_reviewed: 2026-11-24
 source_of_truth: execution-plan-index
 ---
 
@@ -12,10 +12,11 @@ source_of_truth: execution-plan-index
 > 本文件由 `npm run generate:plans-readme` 自动生成，**请勿手改**。新增/收口 plan 后重跑该命令。
 > SSoT：每份 plan 的 YAML frontmatter `status` 字段（守卫：`npm run check:plans-frontmatter`）。
 
-## 进行中（11）
+## 进行中（12）
 
 | status | title | last_reviewed |
 | --- | --- | --- |
+| draft | [并行正字法层调研（2026-11-24）](./parallel-orthography-tiers-research-2026-11-24.md) | 2026-11-24 |
 | active | [解语四页工作区 · 实施清单](./jieyu-4ws-impl-checklist-2026-10-31.md) | 2026-11-23 |
 | active | [解语主路线图（master plan · 切片执行）](./解语-主路线图-master-roadmap-2026-06-01.md) | 2026-11-23 |
 | proposed | [波形顶栏与克制阴影：官方设计系统调研](./波形顶栏与克制阴影-业内调研-2026-11-20.md) | 2026-11-20 |

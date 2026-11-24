@@ -9,6 +9,7 @@ import {
 import { projectAnalysisGraph } from '../../annotation/analysisGraphDomainProjection';
 import { assertTokenLanguages, replaceProjection, syncProjectedLinks } from './analysis';
 import { unitBelongsToDeletedManuscript } from './manuscripts';
+import { textAudioCount } from './unitTextAudios';
 import {
   detachAnalysisAssociations,
   getAnalysisCandidate,
@@ -279,6 +280,24 @@ export function undoUnitText(db: SqliteDatabase, undo: UnitTextUndo, afterText?:
     const now = new Date().toISOString();
     const context = resolveUnitTextContext(db, undo.unitId, undo.textLayerId);
     const currentText = readUnitTextBody(db, context);
+    if (undo.prior.resolvedDraft) {
+      const draft = undo.prior.resolvedDraft;
+      const currentDraft = db
+        .prepare('SELECT 1 FROM unit_text_drafts WHERE unit_id = ? AND layer_id = ?')
+        .get(undo.unitId, undo.textLayerId);
+      if (currentDraft !== undefined) throw new Error('unit text undo is stale');
+      db.prepare(
+        `INSERT INTO unit_text_drafts (unit_id, layer_id, raw_input, base_body, provenance_json, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run(
+        undo.unitId,
+        undo.textLayerId,
+        draft.rawInput,
+        draft.baseBody,
+        draft.provenanceJson,
+        draft.updatedAt,
+      );
+    }
+
     if (undo.prior.textExists) {
       if (currentText.id === null) {
         db.prepare(
@@ -298,6 +317,10 @@ export function undoUnitText(db: SqliteDatabase, undo: UnitTextUndo, afterText?:
           'UPDATE unit_texts SET body = ?, provenance_json = ?, updated_at = ? WHERE id = ?',
         ).run(undo.prior.text, undo.prior.provenanceJson, now, currentText.id);
       }
+    } else if (currentText.id !== null && textAudioCount(db, currentText.id) > 0) {
+      db.prepare(
+        'UPDATE unit_texts SET body = ?, provenance_json = NULL, updated_at = ? WHERE id = ?',
+      ).run('', now, currentText.id);
     } else {
       db.prepare('DELETE FROM unit_texts WHERE unit_id = ? AND layer_id = ?').run(
         undo.unitId,

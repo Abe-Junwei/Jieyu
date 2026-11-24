@@ -1,8 +1,10 @@
+import { DesktopTranscriptionDraftConflictDialog } from './DesktopTranscriptionDraftConflictDialog';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { TimeRuler } from '../components/TimeRuler';
-import { TimelineTranslationAudioControls } from '../components/TimelineTranslationAudioControls';
+import { DesktopTranscriptionOralTools } from './DesktopTranscriptionOralTools';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
+import { IconTipButton } from '../components/ui/IconTip';
 import { JieyuIcon } from '../components/ui/JieyuIcon';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { ToastProvider } from '../contexts/ToastContext';
@@ -27,6 +29,8 @@ import {
   type WaveMenuState,
 } from './DesktopTranscriptionWaveMenu';
 import { useDesktopTranscriptionSplitController } from './useDesktopTranscriptionSplitController';
+import { mergeBody } from './desktopTranscriptionMerge';
+import { useDesktopTranscriptionMergeController } from './useDesktopTranscriptionMergeController';
 import { readDesktopCorpusLocate } from './desktopCorpusLocate';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';
 import { useDesktopTranscriptionSelectionController } from './useDesktopTranscriptionSelectionController';
@@ -41,7 +45,6 @@ import type { LayerListRequest } from './DesktopTranscriptionLayerList';
 import type { LayerCommandId } from './desktopTranscriptionLayerCommands';
 import { DesktopLayerDragReason } from './useDesktopTranscriptionLayerDragController';
 import { useDesktopTranscriptionOralController } from './useDesktopTranscriptionOralController';
-import { pauseOralAudios } from './oralPlayback';
 import { DesktopOralLeaveDialog } from './DesktopOralLeaveDialog';
 import { useOralNavigationGuard } from './oralNavigationGuard';
 import {
@@ -207,6 +210,18 @@ function DesktopTranscriptionWorkspace() {
     read: read.readTextDraft,
   };
   const textLayerId = read.model?.layerId ?? null;
+  const merge = useDesktopTranscriptionMergeController({
+    locale,
+    sessionId: read.sessionId,
+    units: sourceUnits ?? [],
+    selectedUnitId: selection.selectedUnitId,
+    textLayerId,
+    textOf: (id) => mergeBody(textLayerId, id, draft.draft, sourceUnits, textKey),
+    prepareText: draft.persistForStructure,
+    onCommitted: draft.structureCommitted,
+    desktopCall: host?.desktopCall,
+    reload: () => read.refresh(),
+  });
   const split = useDesktopTranscriptionSplitController({
     locale,
     sessionId: read.sessionId,
@@ -215,6 +230,8 @@ function DesktopTranscriptionWorkspace() {
     draft: draft.draft,
     desktopCall: host?.desktopCall,
     playheadSec: getTranscriptionPlaybackClockSnapshot,
+    prepareText: draft.persistForStructure,
+    onCommitted: draft.structureCommitted,
     reload: () => read.refresh(),
   });
   useEffect(() => {
@@ -260,6 +277,7 @@ function DesktopTranscriptionWorkspace() {
     audioLayerIds: (read.model?.layers ?? []).flatMap((layer) =>
       layer.modality === 'audio' ? [layer.id] : [],
     ),
+    structureKey: (sourceUnits ?? []).map((unit) => unit.id).join('\n'),
     refresh: () => read.refresh(),
   });
   oralGate.current = { holding: oral.holding, leave: oral.leave };
@@ -346,11 +364,10 @@ function DesktopTranscriptionWorkspace() {
           {read.error.length > 0 ? <p role="alert">{read.error}</p> : null}
           {hasAudio ? (
             <div className="desktop-tx-bar" data-testid="desktop-playback-bar">
-              <button
-                type="button"
+              <IconTipButton
                 className="desktop-tx-play"
                 disabled={!playback.isReady}
-                aria-label={t(
+                label={t(
                   locale,
                   playback.isPlaying
                     ? 'transcription.wave.toolbar.pause'
@@ -363,41 +380,30 @@ function DesktopTranscriptionWorkspace() {
                   aria-hidden
                   className={JIEYU_ICON_WAVE_PLAY}
                 />
-              </button>
-              <button
-                type="button"
-                className="desktop-tx-segment"
-                disabled={!playback.isReady || selection.selectedUnitId === null}
-                onClick={playback.playSegment}
-              >
-                {t(locale, 'app.desktopTranscription.playSegment')}
-              </button>
-              <button
-                type="button"
+              </IconTipButton>
+              <IconTipButton
                 className="desktop-tx-icon"
-                aria-label={t(locale, 'transcription.wave.toolbar.rewind10')}
+                label={t(locale, 'transcription.wave.toolbar.rewind10')}
                 onClick={() => playback.seekBySeconds(-10)}
               >
                 <JieyuIcon name="SkipBack" aria-hidden className={JIEYU_ICON_WAVE} />
-              </button>
-              <button
-                type="button"
+              </IconTipButton>
+              <IconTipButton
                 className="desktop-tx-icon"
-                aria-label={t(locale, 'transcription.wave.toolbar.forward10')}
+                label={t(locale, 'transcription.wave.toolbar.forward10')}
                 onClick={() => playback.seekBySeconds(10)}
               >
                 <JieyuIcon name="SkipForward" aria-hidden className={JIEYU_ICON_WAVE} />
-              </button>
+              </IconTipButton>
               <DesktopRateControl
                 locale={locale}
                 rate={playback.playbackRate}
                 onChange={playback.setPlaybackRate}
               />
-              <button
-                type="button"
+              <IconTipButton
                 className="desktop-tx-icon"
                 aria-pressed={playback.loop}
-                aria-label={t(
+                label={t(
                   locale,
                   playback.loop
                     ? 'transcription.wave.toolbar.globalLoopOff'
@@ -406,7 +412,7 @@ function DesktopTranscriptionWorkspace() {
                 onClick={() => playback.setLoop(!playback.loop)}
               >
                 <JieyuIcon name="Repeat" aria-hidden className={JIEYU_ICON_WAVE} />
-              </button>
+              </IconTipButton>
               <label className="desktop-tx-volume">
                 <JieyuIcon name="Volume2" aria-hidden className={JIEYU_ICON_WAVE} />
                 <input
@@ -428,11 +434,10 @@ function DesktopTranscriptionWorkspace() {
                 mode={playback.waveformDisplayMode}
                 onChange={playback.setWaveformDisplayMode}
               />
-              <button
-                type="button"
+              <IconTipButton
                 className="desktop-tx-icon desktop-tx-compact"
                 aria-pressed={layerView.compact}
-                aria-label={t(
+                label={t(
                   locale,
                   layerView.compact
                     ? 'app.desktopTranscription.compactOff'
@@ -441,15 +446,7 @@ function DesktopTranscriptionWorkspace() {
                 onClick={layerView.toggleCompact}
               >
                 <JieyuIcon name="Rows3" aria-hidden className={JIEYU_ICON_INLINE} />
-                <span className="desktop-tx-zoom-tip" aria-hidden>
-                  {t(
-                    locale,
-                    layerView.compact
-                      ? 'app.desktopTranscription.compactOff'
-                      : 'app.desktopTranscription.compactOn',
-                  )}
-                </span>
-              </button>
+              </IconTipButton>
             </div>
           ) : null}
           <div className="desktop-tx-stage">
@@ -596,16 +593,9 @@ function DesktopTranscriptionWorkspace() {
                 </div>
                 {playback.duration > 0 ? (
                   <div className="desktop-tx-ruler">
-                    <button
-                      type="button"
+                    <IconTipButton
                       className="desktop-tx-header-fold"
-                      aria-label={t(
-                        locale,
-                        layerView.headerFolded
-                          ? 'app.desktopTranscription.layerHeaderExpand'
-                          : 'app.desktopTranscription.layerHeaderCollapse',
-                      )}
-                      title={t(
+                      label={t(
                         locale,
                         layerView.headerFolded
                           ? 'app.desktopTranscription.layerHeaderExpand'
@@ -615,7 +605,7 @@ function DesktopTranscriptionWorkspace() {
                       onClick={layerView.toggleHeader}
                     >
                       <span aria-hidden className="desktop-tx-header-fold__mark" />
-                    </button>
+                    </IconTipButton>
                     <TimeRuler
                       duration={playback.duration}
                       rulerView={
@@ -678,6 +668,8 @@ function DesktopTranscriptionWorkspace() {
                 waveSkipRef={waveSkipRef}
                 waveDeleteRef={waveDeleteRef}
                 onSplit={(unitId) => split.ask(unitId, 'playhead')}
+                canMerge={merge.canMerge}
+                onMerge={(unitId) => void merge.ask(unitId)}
                 waveStage={waveStage}
                 onWaveSegmentMenu={(unitId, x, y) => openWaveRegionMenu.current(unitId, x, y)}
                 onLaneHeight={(layerId, height) => layerActions.setHeight(layerId, height)}
@@ -707,33 +699,12 @@ function DesktopTranscriptionWorkspace() {
                 }
                 lanes={laneChrome}
                 audioTools={(layerId, unitId) => (
-                  <TimelineTranslationAudioControls
-                    compact
-                    audioSrc={oral.src(layerId, unitId)}
-                    isRecording={oral.isRecording(layerId, unitId)}
-                    isArming={oral.isArming(layerId, unitId)}
-                    isSaving={oral.isSaving(layerId, unitId)}
-                    isFailed={oral.isFailed(layerId, unitId)}
-                    elapsed={oral.elapsed}
-                    takePaused={oral.paused}
-                    level={oral.level}
-                    disabled={
-                      (oral.micBusy || oral.saveLocked) &&
-                      !oral.isRecording(layerId, unitId) &&
-                      !oral.isArming(layerId, unitId) &&
-                      !oral.isSaving(layerId, unitId) &&
-                      !oral.isFailed(layerId, unitId)
-                    }
-                    onStartRecording={() => {
-                      if (playback.isPlaying) playback.togglePlayback();
-                      pauseOralAudios();
-                      void oral.start(layerId, unitId);
-                    }}
-                    onRetrySave={() => oral.retry()}
-                    onDiscardSave={() => oral.discardSave()}
-                    onStopRecording={oral.stop}
-                    onDeleteRecording={() => void oral.remove(layerId, unitId)}
-                    onTranscribeRecording={() => oral.transcribe(layerId, unitId)}
+                  <DesktopTranscriptionOralTools
+                    oral={oral}
+                    layerId={layerId}
+                    unitId={unitId}
+                    playing={playback.isPlaying}
+                    togglePlayback={playback.togglePlayback}
                   />
                 )}
                 openAudioLayerId={oral.openLayerId}
@@ -751,6 +722,14 @@ function DesktopTranscriptionWorkspace() {
         </div>
       </div>
 
+      <DesktopTranscriptionDraftConflictDialog
+        locale={locale}
+        conflict={draft.conflict}
+        onDiscard={draft.discard}
+        onResolve={draft.resolveConflict}
+      />
+      {split.dialog}
+      {merge.dialog}
       {waveMenu === null ? null : (
         <DesktopTranscriptionWaveMenu
           locale={locale}
@@ -764,6 +743,8 @@ function DesktopTranscriptionWorkspace() {
           onToggleSkip={(unitId) => waveSkipRef.current?.(unitId)}
           onDelete={(unitId) => waveDeleteRef.current?.(unitId)}
           onSplit={(unitId, time) => split.ask(unitId, time)}
+          canMerge={merge.canMerge}
+          onMerge={(unitId) => void merge.ask(unitId)}
         />
       )}
       {oral.ask ? (

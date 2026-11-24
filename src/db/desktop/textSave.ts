@@ -54,6 +54,18 @@ export function finishTextSave(
   ).run(input.unitId, input.textLayerId, input.text);
 }
 
+/** Unreceipted internal saves consume only the exact draft that was just saved, too. */
+export function consumeMatchingTextDraft(
+  db: SqliteDatabase,
+  unitId: string,
+  textLayerId: string,
+  text: string,
+): void {
+  db.prepare(
+    'DELETE FROM unit_text_drafts WHERE unit_id = ? AND layer_id = ? AND raw_input = ?',
+  ).run(unitId, textLayerId, text);
+}
+
 export function inspectUnitTextSave(
   db: SqliteDatabase,
   operationId: string,
@@ -78,6 +90,12 @@ export function putUnitTextDraft(
 ): UnitTextDraft | null {
   const context = resolveUnitTextContext(db, input.unitId, input.textLayerId);
   const write = db.transaction(() => {
+    const prior = readUnitTextDraft(db, input.unitId, context.textLayerId);
+    const saved = db
+      .prepare('SELECT body FROM unit_texts WHERE unit_id = ? AND layer_id = ?')
+      .get(input.unitId, context.textLayerId) as { body: string } | undefined;
+    if (prior && prior.baseBody !== (saved?.body ?? '') && input.baseBody !== prior.baseBody)
+      throw new Error('text draft conflicts');
     if (input.rawInput === input.baseBody) {
       db.prepare('DELETE FROM unit_text_drafts WHERE unit_id = ? AND layer_id = ?').run(
         input.unitId,

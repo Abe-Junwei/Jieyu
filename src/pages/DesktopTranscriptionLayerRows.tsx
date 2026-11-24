@@ -14,7 +14,7 @@ import {
   type LayerCreateActions,
   type LayerStyleChange,
 } from './DesktopTranscriptionLayerStyleMenu';
-import { t, type Locale } from '../i18n';
+import { t, tf, type Locale } from '../i18n';
 import { DesktopTranscriptionCreatePreview } from './DesktopTranscriptionCreatePreview';
 import { DesktopTranscriptionLaneResize } from './DesktopTranscriptionLaneResize';
 import type { LayerCommandId, LayerCommandItem } from './desktopTranscriptionLayerCommands';
@@ -45,6 +45,8 @@ import {
 } from './desktopSpeakerLanes';
 
 export interface LayerRowLayer {
+  contentType?: string;
+  tierType?: string;
   id: string;
   name: Record<string, string>;
   sortOrder?: number;
@@ -152,7 +154,8 @@ export function DesktopTranscriptionLayerRows(props: {
     return layer ? [{ row, layer }] : [];
   });
   const body = rows.map(({ row, layer }, index) => {
-    const groupContinues = (rows[index + 1]?.row.depth ?? 0) > 0;
+    const next = rows[index + 1]?.row;
+    const groupContinues = next !== undefined && (next.depth > 0 || next.hostId !== null);
     if (layer.id === props.mainLayerId)
       return <Fragment key={layer.id}>{props.renderMain(row, groupContinues)}</Fragment>;
     const units = layer.units.flatMap((unit) =>
@@ -175,7 +178,19 @@ export function DesktopTranscriptionLayerRows(props: {
       startMs: Math.round(unit.startTime * 1000),
       endMs: Math.round(unit.endTime * 1000),
     }));
-    const name = layerLabel(layer.name, props.locale, '');
+    const label = layerLabel(layer.name, props.locale, '');
+    const timeHost = props.layers.find((item) => item.id === row.hostId);
+    const timeLabel =
+      layer.contentType !== 'transcription'
+        ? ''
+        : layer.tierType === 'time-aligned'
+          ? t(props.locale, 'app.desktopTranscription.timeOwner')
+          : timeHost
+            ? tf(props.locale, 'app.desktopTranscription.timeFrom', {
+                name: layerLabel(timeHost.name, props.locale, timeHost.id),
+              })
+            : '';
+    const name = label;
     const dragBits = timelineDragProps(props.drag, layer.id, row.folded);
     if (row.folded) {
       return (
@@ -212,6 +227,7 @@ export function DesktopTranscriptionLayerRows(props: {
         <DesktopTranscriptionLayerLabel
           locale={props.locale}
           name={name}
+          timingLabel={timeLabel}
           row={row}
           focused={false}
           onToggleGroup={() => props.onToggleGroup(layer.id)}
@@ -382,7 +398,7 @@ export function laneHeightStyle(height: number | null | undefined): CSSPropertie
   return { '--lane-height': `${height}px` } as CSSProperties;
 }
 
-function annotationStyle(layer: LayerRowLayer): CSSProperties | undefined {
+export function annotationStyle(layer: LayerRowLayer): CSSProperties | undefined {
   const style = desktopAnnotationStyle({
     ...(layer.displayFont === undefined ? {} : { displayFont: layer.displayFont }),
     ...(layer.displayFontSize === undefined ? {} : { displayFontSize: layer.displayFontSize }),

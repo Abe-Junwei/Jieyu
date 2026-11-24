@@ -1,6 +1,8 @@
+import { useDesktopDraftConflict } from './useDesktopDraftConflict';
 import { useRef, useState } from 'react';
 import { useDesktopDraftLeaveGuard } from '../hooks/desktop/useDesktopDraftLeaveGuard';
 import {
+  persistStructuralDraft,
   claimTextSave,
   isSameTextDraft,
   normalizeSave,
@@ -12,16 +14,12 @@ import {
 
 import { useDesktopDraftTimers } from './useDesktopDraftTimers';
 
-/**
- * One unsaved text draft. Leaving saves it first when it can be submitted. A failed save, an unfinished
- * IME composition stops the leave until retry or discard. A committed save whose list
- * refresh failed stays on that unit and is not written again until that text changes. A stale query
- * baseline is not the committed text. The draft stays out of the query cache.
- */
+/** One unsaved text draft. Leave saves first when submittable; failed save / IME blocks leave. */
 export function useDesktopDraftGuard(
   save: (draft: DesktopTextDraft, operationId: string) => Promise<boolean | TextSaveResult>,
   store?: DraftStore,
 ) {
+  const conflict = useDesktopDraftConflict();
   const [draft, setDraft] = useState<DesktopTextDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const composing = useRef(false);
@@ -59,11 +57,12 @@ export function useDesktopDraftGuard(
     used.current = null;
     if (unitId === null || heldDraft.current?.unitId === unitId) markHeld(null);
     clearTimers();
+    conflict.clear();
     show(null);
   };
 
-  const submittable = (_current: DesktopTextDraft) => !composing.current;
-
+  const submittable = (_current: DesktopTextDraft) =>
+    !composing.current && conflict.current.current === null;
   const persist = (current: DesktopTextDraft) => {
     const inflight = sent.current;
     const base =
@@ -173,6 +172,18 @@ export function useDesktopDraftGuard(
 
   return {
     draft,
+    conflict: conflict.value,
+    resolveConflict: () => conflict.resolve(draftRef, show, trySave),
+    persistForStructure: () => {
+      clearTimers();
+      return persistStructuralDraft(
+        draftRef.current,
+        flying.current || unresolved.current !== null,
+        baseText.current,
+        storeRef.current,
+      );
+    },
+    structureCommitted: () => reset(null),
     saving,
     prompt: leaving.prompt,
     unknown: unresolved.current !== null,
@@ -180,12 +191,23 @@ export function useDesktopDraftGuard(
     edit: (unitId: string, text: string, savedText: string) => {
       const committed = heldDraft.current?.unitId === unitId ? heldDraft.current.text : null;
       const queryStale = committed !== null && committed !== savedText;
-      baseText.current = queryStale && committed !== null ? committed : savedText;
+      baseText.current =
+        conflict.current.current?.unitId === unitId
+          ? conflict.current.current.baseBody
+          : queryStale && committed !== null
+            ? committed
+            : savedText;
       const inflight = sent.current;
       const unitChanged = draftRef.current !== null && draftRef.current.unitId !== unitId;
       const awaitingDifferent =
         inflight !== null && (inflight.unitId !== unitId || inflight.text !== text);
-      if (text === savedText && !queryStale && !awaitingDifferent && unresolved.current === null) {
+      if (
+        text === savedText &&
+        conflict.current.current === null &&
+        !queryStale &&
+        !awaitingDifferent &&
+        unresolved.current === null
+      ) {
         reset(unitId);
         void storeRef.current?.discard(unitId);
         return;
@@ -204,6 +226,8 @@ export function useDesktopDraftGuard(
         }
         if (heldMoved) markHeld(null);
       }
+      if (conflict.current.current?.unitId === unitId)
+        conflict.show({ ...conflict.current.current, rawInput: text });
       const next = { unitId, text };
       show(next);
       persist(next);
@@ -211,6 +235,7 @@ export function useDesktopDraftGuard(
     },
     restore: (row: StoredTextDraft, savedText: string) => {
       if (draftRef.current !== null || row.rawInput === savedText) return;
+      conflict.restore(row, savedText);
       baseText.current = row.baseBody;
       operationId.current = crypto.randomUUID();
       if (heldDraft.current?.unitId === row.unitId && heldDraft.current.text !== row.rawInput) {

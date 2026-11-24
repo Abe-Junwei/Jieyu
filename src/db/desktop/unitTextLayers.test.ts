@@ -126,6 +126,14 @@ describe('layer-scoped unit text', () => {
     expect(
       callDesktopSession(sessionId, 'units.readTextDraft', { unitId: s.unitId }),
     ).toMatchObject({ rawInput: 'kax', textLayerId: s.tx });
+    expect(listUnits(requireDesktopSession(sessionId).db, s.tx)[0]).toMatchObject({
+      text: 'ka',
+      draftText: 'kax',
+    });
+    expect(listUnits(requireDesktopSession(sessionId).db, s.tr)[0]).toMatchObject({
+      text: 'hello',
+      draftText: null,
+    });
     expect(
       callDesktopSession(sessionId, 'units.inspectTextSave', {
         operationId: 'op-tr',

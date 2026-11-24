@@ -243,6 +243,7 @@ export function moveSharedBoundary(
 }
 
 export interface UnitDeletePreview {
+  fingerprint?: string;
   linkedTexts: number;
   tokens: number;
   morphemes: number;
@@ -324,7 +325,7 @@ export function previewUnitsDeletion(
       (total, id) => {
         const next = previewUnitDeletion(db, id);
         for (const key of Object.keys(total) as (keyof UnitDeletePreview)[])
-          total[key] += next[key];
+          if (key !== 'fingerprint') total[key] += next[key];
         return total;
       },
       {

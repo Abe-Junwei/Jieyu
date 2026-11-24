@@ -42,7 +42,6 @@ function renderView(
       undoTextLabel="Undo text"
       splitLabel="Split"
       splitTimeLabel="Split time"
-      mergeNextLabel="Merge next"
       boundaryLabel="Boundary"
       moveBoundaryLabel="Move boundary"
       noteLabel="Note"
@@ -57,7 +56,6 @@ function renderView(
       onSaveText={() => undefined}
       onUndoText={() => undefined}
       onSplit={() => undefined}
-      onMerge={() => undefined}
       onMoveBoundary={() => undefined}
       onSaveNote={onSaveNote}
       onSaveTierNote={onSaveTierNote}

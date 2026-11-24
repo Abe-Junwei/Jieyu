@@ -1,3 +1,4 @@
+import { orthographyDeletionBlocked } from './desktopTranscriptionLayerCommands';
 import { useEffect, useRef, useState } from 'react';
 import { ModalPanel } from '../components/ui/ModalPanel';
 import { t, tf, type Locale } from '../i18n';
@@ -10,6 +11,7 @@ export interface ContextLayer {
   id: string;
   name: Record<string, string>;
   contentType: string;
+  modality?: string | undefined;
   tierType: string | undefined;
   parentId?: string | null;
   sortOrder?: number;
@@ -65,6 +67,7 @@ export function DesktopTranscriptionLayerList(props: {
   const [migrating, setMigrating] = useState<ContextLayer | null>(null);
   const [targetId, setTargetId] = useState('');
   const [hostsLayer, setHostsLayer] = useState<ContextLayer | null>(null);
+  const deletionBlocked = (id: string) => orthographyDeletionBlocked(id, props.layers, props.links);
   const [targetOpen, setTargetOpen] = useState(false);
   const renameOpen = useRef(false);
   const seenRequest = useRef<number | null>(null);
@@ -128,6 +131,10 @@ export function DesktopTranscriptionLayerList(props: {
       }
       return;
     }
+    if (request.action === 'migrate' && deletionBlocked(layer.id)) {
+      setDeleting(layer);
+      return;
+    }
     if (request.action === 'migrate') {
       if (!canMigrate(layer.id)) return;
       setMigrating(layer);
@@ -173,7 +180,20 @@ export function DesktopTranscriptionLayerList(props: {
             const dropLine =
               here && props.drag?.dropLayerId === layer.id && props.drag.dropKind === 'line';
             const dropAfter = dropLine && props.drag?.dropEdge === 'after';
-            const name = layerLabel(layer.name, props.locale, layer.id);
+            const baseName = layerLabel(layer.name, props.locale, layer.id);
+            const hostId = hostOf(layer.id);
+            const host = props.layers.find((item) => item.id === hostId);
+            const timeLabel =
+              layer.contentType !== 'transcription'
+                ? ''
+                : layer.tierType === 'time-aligned'
+                  ? t(props.locale, 'app.desktopTranscription.timeOwner')
+                  : host
+                    ? tf(props.locale, 'app.desktopTranscription.timeFrom', {
+                        name: layerLabel(host.name, props.locale, host.id),
+                      })
+                    : '';
+            const name = baseName;
             const kind =
               layer.contentType === 'translation'
                 ? 'app.desktopTranscription.contextLayerTranslation'
@@ -236,7 +256,12 @@ export function DesktopTranscriptionLayerList(props: {
                       : {})}
                   >
                     <span className="desktop-tx-context__kind">{t(props.locale, kind)}</span>
-                    <span className="desktop-tx-context__name">{name}</span>
+                    <span className="desktop-tx-context__writing">
+                      <span className="desktop-tx-context__name">{name}</span>
+                      {timeLabel ? (
+                        <small className="desktop-tx-layer-timing">{timeLabel}</small>
+                      ) : null}
+                    </span>
                   </button>
                 )}
               </li>
@@ -289,6 +314,7 @@ export function DesktopTranscriptionLayerList(props: {
               <button
                 type="button"
                 className="btn btn-secondary"
+                disabled={deletionBlocked(deleting.id)}
                 onClick={() => {
                   props.onDelete(deleting.id, 'soft');
                   setDeleting(null);
@@ -299,6 +325,7 @@ export function DesktopTranscriptionLayerList(props: {
               <button
                 type="button"
                 className="btn btn-danger"
+                disabled={deletionBlocked(deleting.id)}
                 onClick={() => {
                   props.onDelete(deleting.id, 'purge');
                   setDeleting(null);
@@ -310,6 +337,9 @@ export function DesktopTranscriptionLayerList(props: {
           )
         }
       >
+        {deleting !== null && deletionBlocked(deleting.id) ? (
+          <p role="alert">{t(props.locale, 'app.desktopTranscription.orthographyDeleteBlocked')}</p>
+        ) : null}
         {deleting === null ? null : (
           <p className="desktop-tx-layer-delete__note">
             {tf(props.locale, 'app.desktopTranscription.layerDeleteIntro', {

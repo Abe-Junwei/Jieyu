@@ -73,7 +73,18 @@ export function buildEafAdditionalTierXml(input: {
   };
   // Process non-default transcription first so host annotation maps exist (#433).
   const additionalLayers = [
-    ...layers.filter((l) => l.layerType === 'transcription' && l.id !== defaultTrcId),
+    ...layers.filter(
+      (l) =>
+        l.layerType === 'transcription' &&
+        l.id !== defaultTrcId &&
+        l.constraint !== 'symbolic_association',
+    ),
+    ...layers.filter(
+      (l) =>
+        l.layerType === 'transcription' &&
+        l.id !== defaultTrcId &&
+        l.constraint === 'symbolic_association',
+    ),
     ...layers.filter((l) => l.layerType === 'translation'),
   ];
   const translationTierXml: string[] = [];
@@ -94,6 +105,37 @@ export function buildEafAdditionalTierXml(input: {
     const tierName = layerMeta.tierId ?? readEnglishFallbackMultiLangLabel(layer.name) ?? layer.key;
     const isTranslation = layer.layerType === 'translation';
 
+    if (layer.layerType === 'transcription' && layer.constraint === 'symbolic_association') {
+      const links = hostLinksByTranslationLayerId.get(layer.id) ?? [];
+      if (links.length !== 1) throw new Error('orthography export requires one host');
+      const link = links[0]!;
+      const hostId =
+        link.hostTranscriptionLayerId ??
+        transcriptionLayerIdByKey.get(link.transcriptionLayerKey ?? '');
+      const host = layers.find((row) => row.id === hostId);
+      if (!hostId || !host || host.constraint === 'symbolic_association')
+        throw new Error('orthography export host is missing');
+      const hostUnits =
+        layerSegments?.get(hostId) ?? (hostId === defaultTrcId ? sorted : undefined);
+      if (!hostUnits) throw new Error('orthography export host units are missing');
+      usedConstraintTypes.add('symbolic_association');
+      const annotations = hostUnits.map((unit) => {
+        const unitId = unit.unitId ?? unit.id;
+        const parentId = uttAnnotationIdByLayerId.get(hostId)?.get(unitId);
+        if (!parentId) throw new Error('orthography export parent annotation is missing');
+        const content = layerTranslationsByUnit.get(unitId)?.[0];
+        const id = takeEafAnnId(scratch, { externalRef: content?.externalRef });
+        registerLayerAnnotation(layer.id, unitId, id);
+        return `        <ANNOTATION><REF_ANNOTATION ANNOTATION_ID="${escapeXml(id)}" ANNOTATION_REF="${escapeXml(parentId)}"><ANNOTATION_VALUE>${escapeXml(content?.text ?? '')}</ANNOTATION_VALUE></REF_ANNOTATION></ANNOTATION>`;
+      });
+      const parentTier = tierNameByLayerId.get(hostId);
+      if (!parentTier) throw new Error('orthography export parent tier is missing');
+      translationTierXml.push(
+        `    <TIER TIER_ID="${escapeXml(tierName)}" LINGUISTIC_TYPE_REF="translation-lt" PARENT_REF="${escapeXml(parentTier)}" DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}">\n${annotations.join('\n')}\n    </TIER>`,
+      );
+      annCounter = scratch.annCounter;
+      continue;
+    }
     if (isTranslation) {
       // 翻译层：使用 REF_ANNOTATION + PARENT_REF | Translation: REF_ANNOTATION + PARENT_REF
 
@@ -172,7 +214,7 @@ export function buildEafAdditionalTierXml(input: {
                   timeSlots.push({ id: tsStart, ms: Math.round(seg.startTime * 1000) });
                   timeSlots.push({ id: tsEnd, ms: Math.round(seg.endTime * 1000) });
                   const annotationId = takeEafAnnId(scratch, { externalRef: tr.externalRef });
-            annCounter = scratch.annCounter;
+                  annCounter = scratch.annCounter;
                   return `        <ANNOTATION>
             <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${tsStart}" TIME_SLOT_REF2="${tsEnd}">
                 <ANNOTATION_VALUE>${escapeXml(tr.text)}</ANNOTATION_VALUE>
@@ -200,7 +242,10 @@ export function buildEafAdditionalTierXml(input: {
             if (!tr?.text) return null;
             const annotationId = takeEafAnnId(scratch, { externalRef: tr.externalRef });
             annCounter = scratch.annCounter;
-            const parentAnnId = parentAnnotationIdForHost(effectivePreferredHostTranscriptionLayerId, utt.id);
+            const parentAnnId = parentAnnotationIdForHost(
+              effectivePreferredHostTranscriptionLayerId,
+              utt.id,
+            );
             if (!parentAnnId) return null;
             return `        <ANNOTATION>
             <REF_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" ANNOTATION_REF="${escapeXml(parentAnnId)}">
@@ -263,7 +308,15 @@ ${annotations.join('\n')}
           .map((seg) => {
             const content = contentMap?.get(seg.id);
             const text = content?.text ?? '';
-            if (!text) return null;
+            const referenced = layers.some(
+              (row) =>
+                row.layerType === 'transcription' &&
+                row.constraint === 'symbolic_association' &&
+                (hostLinksByTranslationLayerId.get(row.id) ?? []).some(
+                  (link) => link.hostTranscriptionLayerId === layer.id,
+                ),
+            );
+            if (!text && !referenced) return null;
             const startMs = Math.round(seg.startTime * 1000);
             const endMs = Math.round(seg.endTime * 1000);
             const tsStartId = `ts${tsCounter++}`;
@@ -271,6 +324,7 @@ ${annotations.join('\n')}
             timeSlots.push({ id: tsStartId, ms: startMs }, { id: tsEndId, ms: endMs });
             const annotationId = takeEafAnnId(scratch);
             annCounter = scratch.annCounter;
+            registerLayerAnnotation(layer.id, seg.unitId ?? seg.id, annotationId);
             return `        <ANNOTATION>
             <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${tsStartId}" TIME_SLOT_REF2="${tsEndId}">
                 <ANNOTATION_VALUE>${escapeXml(text)}</ANNOTATION_VALUE>

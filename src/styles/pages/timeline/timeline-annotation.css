@@ -336,6 +336,9 @@
 
 .timeline-annotation-input {
   width: 100%;
+  /* 默认 min-width:auto 按文字宽度撑开，窄语段会把开头裁出卡片。 */
+  min-width: 0;
+  max-width: 100%;
   height: 100%;
   border: 0;
   border-bottom: 1px solid transparent;

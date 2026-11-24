@@ -1,4 +1,6 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { IconTipButton } from './ui/IconTip';
 import { JieyuIcon } from './ui/JieyuIcon';
 import { JIEYU_ICON_WAVE, JIEYU_ICON_WAVE_MD } from '../utils/jieyuIcon';
 import type { MediaItemDocType } from '../db/types';
@@ -23,12 +25,29 @@ export interface TimelineTranslationAudioControlsProps {
   compact?: boolean;
   onStartRecording?: () => void;
   onStopRecording?: () => void;
+  onPauseRecording?: () => void;
+  onResumeRecording?: () => void;
   /** 0..1 live input level while recording. */
   level?: number;
   takePaused?: boolean;
   onDeleteRecording?: () => void;
   /** 混合翻译层：将当前录音转写为文本（由父级按 `layer.modality === 'mixed'` 决定是否传入） */
   onTranscribeRecording?: () => void | Promise<void>;
+  /** A saved clip hides the microphone. Recording and arming still show the stop button. */
+  showRecord?: boolean;
+  /** Desktop oral row: play, record, playlist, transcribe, delete. Status sits beside `leading`. */
+  clipRow?: boolean;
+  /** 1-based index of the clip currently shown. Hidden when there is only one. */
+  clipCount?: number;
+  clipNumber?: number;
+  /** Five clips already: keep「再录一条」visible and disabled. */
+  recordCapped?: boolean;
+  clips?: readonly { id: string | null }[];
+  onPickClip?: (id: string) => void;
+  /** Whole seconds, once metadata has loaded. */
+  wholeSeconds?: boolean;
+  leading?: ReactNode;
+  trailing?: ReactNode;
 }
 
 const log = createLogger('TimelineTranslationAudioControls');
@@ -51,17 +70,32 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
   compact = false,
   onStartRecording,
   onStopRecording,
+  onPauseRecording,
+  onResumeRecording,
   level = 0,
   takePaused = false,
   onDeleteRecording,
   onTranscribeRecording,
+  showRecord = true,
+  clipRow = false,
+  clipCount = 0,
+  clipNumber = 0,
+  recordCapped = false,
+  clips = [],
+  onPickClip,
+  wholeSeconds = false,
+  leading = null,
+  trailing = null,
 }: TimelineTranslationAudioControlsProps) {
   const locale = useLocale();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const moreRef = useRef<HTMLButtonElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playSeconds, setPlaySeconds] = useState(0);
   const [transcribing, setTranscribing] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   const [clipSeconds, setClipSeconds] = useState<number | null>(null);
+  const [menuAt, setMenuAt] = useState<{ top: number; left: number } | null>(null);
   const ownedSrc = useMemo(() => {
     if (givenSrc) return null;
     if (!mediaItem?.id) {
@@ -89,17 +123,19 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
     const audio = audioRef.current;
     if (!audio) return undefined;
 
-    const handlePause = () => setIsPlaying(false);
-    const handlePlay = () => setIsPlaying(true);
-    const handleEnded = () => setIsPlaying(false);
+    const syncPlaying = () => setIsPlaying(!audio.paused && !audio.ended);
+    syncPlaying();
+    const handleTime = () => setPlaySeconds(audio.currentTime || 0);
 
-    audio.addEventListener('pause', handlePause);
-    audio.addEventListener('play', handlePlay);
-    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('pause', syncPlaying);
+    audio.addEventListener('play', syncPlaying);
+    audio.addEventListener('ended', syncPlaying);
+    audio.addEventListener('timeupdate', handleTime);
     return () => {
-      audio.removeEventListener('pause', handlePause);
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('pause', syncPlaying);
+      audio.removeEventListener('play', syncPlaying);
+      audio.removeEventListener('ended', syncPlaying);
+      audio.removeEventListener('timeupdate', handleTime);
     };
   }, [audioSrc]);
 
@@ -111,6 +147,19 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
   );
 
   useEffect(() => watchOralAudio(audioRef.current), [audioSrc]);
+
+  useEffect(() => {
+    if (menuAt === null) return;
+    const menu = document.getElementById('oral-clip-more-menu');
+    menu?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setMenuAt(null);
+      moreRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [menuAt]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -170,6 +219,16 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
 
   const hasAudio = Boolean(audioSrc);
   const showSaved = hasAudio && !isRecording && !isArming && !isSaving && !isFailed;
+  const recordLabel =
+    isRecording || (clipRow && isArming)
+      ? t(locale, 'transcription.timeline.audio.stopRecording')
+      : isArming
+        ? t(locale, 'transcription.timeline.audio.starting')
+        : clipRow && hasAudio
+          ? t(locale, 'transcription.timeline.audio.recordAnother')
+          : t(locale, 'transcription.timeline.audio.startRecording');
+  const capReason = t(locale, 'app.desktopTranscription.clipCap');
+  const recordHeld = recordCapped && !isRecording && !isArming;
 
   const handleRecordClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -178,6 +237,7 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
       onStopRecording?.();
       return;
     }
+    if (recordHeld) return;
     void onStartRecording?.();
   };
 
@@ -197,7 +257,7 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
       if (result !== undefined && typeof result.then === 'function') {
         await result;
       }
-      setIsPlaying(true);
+      setIsPlaying(!audio.paused && !audio.ended);
     } catch (e) {
       log.warn('translation audio play failed', { err: e });
       setIsPlaying(false);
@@ -223,12 +283,400 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
     }
   };
 
+  const recordButton = showRecord ? (
+    <IconTipButton
+      className={[
+        'timeline-translation-audio-btn',
+        'timeline-translation-audio-btn-record',
+        isRecording ? 'timeline-translation-audio-btn-recording' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      label={recordHeld ? capReason : recordLabel}
+      disabled={disabled || recordHeld}
+      onClick={handleRecordClick}
+    >
+      {isRecording || (clipRow && isArming) ? (
+        <span className="timeline-translation-audio-stop-glyph" aria-hidden="true" />
+      ) : (
+        <JieyuIcon name="Mic" className={JIEYU_ICON_WAVE} />
+      )}
+    </IconTipButton>
+  ) : null;
+  const pauseButton =
+    isRecording && onPauseRecording && onResumeRecording ? (
+      <IconTipButton
+        className="timeline-translation-audio-btn"
+        label={t(
+          locale,
+          takePaused
+            ? 'transcription.timeline.audio.resumeRecording'
+            : 'transcription.timeline.audio.pauseTake',
+        )}
+        disabled={disabled}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (takePaused) onResumeRecording?.();
+          else onPauseRecording?.();
+        }}
+      >
+        <JieyuIcon name={takePaused ? 'Play' : 'Pause'} className={JIEYU_ICON_WAVE_MD} />
+      </IconTipButton>
+    ) : null;
+  const armingStatus = isArming ? (
+    <span className="timeline-translation-audio-status">
+      {t(locale, 'transcription.timeline.audio.starting')}
+    </span>
+  ) : null;
+  const phaseStatus =
+    isRecording || isSaving || isFailed ? (
+      <span className="timeline-translation-audio-status">
+        {isFailed
+          ? t(locale, 'transcription.timeline.audio.status.saveFailed')
+          : isSaving
+            ? t(locale, 'transcription.timeline.audio.status.saving')
+            : takePaused
+              ? t(locale, 'transcription.timeline.audio.status.paused')
+              : t(locale, 'transcription.timeline.audio.status.recording')}
+        {isRecording ? ` ${formatElapsed(elapsed)}` : ''}
+      </span>
+    ) : null;
+  const liveStatus = (
+    <span className="timeline-translation-audio-live" role="status" aria-live="polite">
+      {announcement}
+    </span>
+  );
+  const failedActions = isFailed ? (
+    <>
+      <button
+        type="button"
+        className="timeline-translation-audio-btn"
+        aria-label={t(locale, 'transcription.timeline.audio.retrySave')}
+        onClick={(event) => {
+          event.stopPropagation();
+          onRetrySave?.();
+        }}
+      >
+        {t(locale, 'transcription.timeline.audio.retrySave')}
+      </button>
+      <button
+        type="button"
+        className="timeline-translation-audio-btn timeline-translation-audio-btn-delete"
+        aria-label={t(locale, 'transcription.timeline.audio.discardTake')}
+        onClick={(event) => {
+          event.stopPropagation();
+          onDiscardSave?.();
+        }}
+      >
+        {t(locale, 'transcription.timeline.audio.discardTake')}
+      </button>
+    </>
+  ) : null;
+  const levelMeter = isRecording ? (
+    <span
+      className="timeline-translation-audio-level"
+      role="img"
+      aria-label={t(locale, 'transcription.timeline.audio.level')}
+    >
+      {[0.12, 0.28, 0.5, 0.75].map((step) => (
+        <i
+          key={step}
+          style={{ height: level >= step ? `${Math.round(4 + step * 12)}px` : '2px' }}
+        />
+      ))}
+    </span>
+  ) : null;
+  const duration =
+    showSaved && clipSeconds !== null && !clipRow ? (
+      <span className="timeline-translation-audio-status">
+        {wholeSeconds
+          ? tf(locale, 'app.desktopTranscription.mergeSeconds', {
+              seconds: String(Math.round(clipSeconds)),
+            })
+          : formatElapsed(clipSeconds)}
+      </span>
+    ) : null;
+  const playLabel = isPlaying
+    ? t(locale, 'transcription.timeline.audio.pauseRecording')
+    : t(locale, 'transcription.timeline.audio.playRecording');
+  const playButton = showSaved ? (
+    <IconTipButton
+      className="timeline-translation-audio-btn"
+      label={playLabel}
+      disabled={disabled || isRecording || isArming || isSaving || isFailed}
+      onClick={(event) => {
+        void handlePlaybackClick(event);
+      }}
+    >
+      {isPlaying ? (
+        <JieyuIcon name="Pause" className={JIEYU_ICON_WAVE_MD} />
+      ) : (
+        <JieyuIcon name="Play" className={JIEYU_ICON_WAVE_MD} />
+      )}
+    </IconTipButton>
+  ) : null;
+  const transcribeLabel = transcribing
+    ? t(locale, 'transcription.timeline.audio.transcribing')
+    : t(locale, 'transcription.timeline.audio.transcribeRecording');
+  const transcribeButton =
+    showSaved && onTranscribeRecording ? (
+      <IconTipButton
+        className={[
+          'timeline-translation-audio-btn',
+          'timeline-translation-audio-btn-transcribe',
+          transcribing ? 'timeline-translation-audio-btn-transcribing' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        label={transcribeLabel}
+        disabled={disabled || isRecording || transcribing}
+        onClick={(event) => {
+          void handleTranscribeClick(event);
+        }}
+      >
+        <JieyuIcon
+          name={transcribing ? 'LoaderCircle' : 'Captions'}
+          className={[
+            JIEYU_ICON_WAVE_MD,
+            transcribing ? 'timeline-translation-audio-transcribe-spin' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        />
+      </IconTipButton>
+    ) : null;
+  const deleteButton =
+    showSaved && onDeleteRecording ? (
+      <IconTipButton
+        className="timeline-translation-audio-btn timeline-translation-audio-btn-delete"
+        label={t(locale, 'transcription.timeline.audio.deleteRecording')}
+        disabled={disabled || isRecording}
+        onClick={handleDeleteClick}
+      >
+        <JieyuIcon name="Trash" className={JIEYU_ICON_WAVE_MD} />
+      </IconTipButton>
+    ) : null;
+  const recordedLabel = !compact ? (
+    <span className="timeline-translation-audio-status">
+      {transcribing
+        ? t(locale, 'transcription.timeline.audio.transcribing')
+        : isRecording
+          ? t(locale, 'transcription.timeline.audio.status.recording')
+          : hasAudio
+            ? t(locale, 'transcription.timeline.audio.status.recorded')
+            : t(locale, 'transcription.timeline.audio.status.empty')}
+    </span>
+  ) : null;
+  const indexed = clipRow && showSaved && clipCount >= 2 && clipNumber >= 1;
+  const unknownTime = t(locale, 'app.desktopTranscription.clipTimeUnknown');
+  const totalText =
+    clipRow && (isRecording || isArming)
+      ? formatElapsed(elapsed)
+      : clipRow && showSaved
+        ? clipSeconds === null
+          ? unknownTime
+          : wholeSeconds
+            ? tf(locale, 'app.desktopTranscription.mergeSeconds', {
+                seconds: String(Math.round(clipSeconds)),
+              })
+            : formatElapsed(clipSeconds)
+        : null;
+  const progressText =
+    showSaved && isPlaying && clipSeconds !== null && totalText !== null
+      ? `${formatElapsed(playSeconds)} / ${formatElapsed(clipSeconds)}`
+      : null;
+  const timeNode =
+    totalText === null ? null : (
+      <span className="timeline-translation-audio-status oral-clip-time">
+        {isPlaying && clipSeconds !== null && !wholeSeconds
+          ? formatElapsed(playSeconds)
+          : totalText}
+      </span>
+    );
+  const closeMenu = () => {
+    setMenuAt(null);
+    moreRef.current?.focus();
+  };
+  const moreButton =
+    clipRow && showSaved ? (
+      <IconTipButton
+        ref={moreRef}
+        className="timeline-translation-audio-btn oral-clip-more"
+        label={t(locale, 'app.desktopTranscription.clipMore')}
+        aria-expanded={menuAt !== null}
+        aria-haspopup="menu"
+        onClick={(event) => {
+          event.stopPropagation();
+          const rect = moreRef.current?.getBoundingClientRect();
+          setMenuAt(menuAt === null && rect ? { top: rect.bottom + 4, left: rect.left } : null);
+        }}
+      >
+        <JieyuIcon name="MoreVertical" className={JIEYU_ICON_WAVE_MD} />
+      </IconTipButton>
+    ) : null;
+  const moreMenu =
+    menuAt === null
+      ? null
+      : createPortal(
+          <>
+            <button
+              type="button"
+              className="desktop-tx-menu-backdrop"
+              aria-label={t(locale, 'app.desktopTranscription.cancel')}
+              onClick={closeMenu}
+            />
+            <div
+              id="oral-clip-more-menu"
+              className="desktop-tx-menu desktop-tx-menu-fixed"
+              style={{ top: menuAt.top, left: menuAt.left }}
+              role="menu"
+            >
+              {progressText !== null || totalText !== null ? (
+                <p className="desktop-tx-playlist__title">{progressText ?? totalText}</p>
+              ) : null}
+              {clips.map((clip, item) =>
+                clip.id === null || clips.length < 2 ? null : (
+                  <button
+                    key={clip.id}
+                    type="button"
+                    role="menuitem"
+                    className={item + 1 === clipNumber ? 'is-on' : undefined}
+                    onClick={() => {
+                      if (clip.id === null) return;
+                      onPickClip?.(clip.id);
+                      closeMenu();
+                    }}
+                  >
+                    {tf(locale, 'app.desktopTranscription.clipIndex', { index: String(item + 1) })}
+                  </button>
+                ),
+              )}
+              {showRecord && !isRecording && !isArming ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={recordHeld}
+                  onClick={(event) => {
+                    handleRecordClick(event);
+                    if (!recordHeld) closeMenu();
+                  }}
+                >
+                  {recordLabel}
+                </button>
+              ) : null}
+              {recordHeld ? <p className="desktop-tx-playlist__title">{capReason}</p> : null}
+              {transcribeButton === null ? null : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={disabled || transcribing}
+                  onClick={(event) => {
+                    void handleTranscribeClick(event);
+                    closeMenu();
+                  }}
+                >
+                  {transcribeLabel}
+                </button>
+              )}
+              {deleteButton === null ? null : <div className="desktop-tx-menu__rule" />}
+              {deleteButton === null ? null : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="is-danger"
+                  onClick={(event) => {
+                    handleDeleteClick(event);
+                    closeMenu();
+                  }}
+                >
+                  {t(locale, 'transcription.timeline.audio.deleteRecording')}
+                </button>
+              )}
+            </div>
+          </>,
+          document.body,
+        );
+  const row = clipRow ? (
+    <>
+      <div className="oral-clip-bar">
+        {indexed || leading || armingStatus || isSaving || timeNode ? (
+          <span className="oral-clip-copy">
+            {indexed ? (
+              <>
+                <span className="timeline-translation-audio-status oral-clip-index oral-clip-index-long">
+                  {tf(locale, 'app.desktopTranscription.clipIndex', { index: String(clipNumber) })}
+                  {' ·'}
+                </span>
+                <span className="timeline-translation-audio-status oral-clip-index oral-clip-index-short">
+                  {tf(locale, 'app.desktopTranscription.clipShort', {
+                    index: String(clipNumber),
+                    count: String(clipCount),
+                  })}
+                  {' ·'}
+                </span>
+              </>
+            ) : (
+              leading
+            )}
+            {armingStatus}
+            {isSaving ? phaseStatus : null}
+            {timeNode}
+          </span>
+        ) : null}
+        <span className="oral-clip-actions">
+          {playButton}
+          {recordButton ? (
+            <span className={showSaved ? 'oral-clip-record' : undefined}>{recordButton}</span>
+          ) : null}
+          {pauseButton}
+          {levelMeter}
+          {trailing ? <span className="oral-clip-list">{trailing}</span> : null}
+          {transcribeButton ? (
+            <span className="oral-clip-transcribe">{transcribeButton}</span>
+          ) : null}
+          {deleteButton ? <span className="oral-clip-delete">{deleteButton}</span> : null}
+          {failedActions ? <span className="oral-clip-failed">{failedActions}</span> : null}
+          {moreButton}
+        </span>
+      </div>
+      <button
+        type="button"
+        className="oral-clip-mark"
+        aria-label={totalText ?? t(locale, 'transcription.timeline.audio.startRecording')}
+        onClick={(event) => event.stopPropagation()}
+      />
+      {moreMenu}
+      {liveStatus}
+      {recordedLabel}
+    </>
+  ) : (
+    <>
+      {recordButton}
+      {pauseButton}
+      {armingStatus}
+      {phaseStatus}
+      {liveStatus}
+      {failedActions}
+      {levelMeter}
+      {leading}
+      {duration}
+      {playButton}
+      {transcribeButton}
+      {deleteButton}
+      {trailing}
+      {recordedLabel}
+    </>
+  );
+
   return (
     <div
       className={[
         'timeline-translation-audio-controls',
         compact ? 'timeline-translation-audio-controls-compact' : '',
+        clipRow ? 'timeline-translation-audio-controls-clip' : '',
         isRecording ? 'timeline-translation-audio-controls-recording' : '',
+        isArming ? 'timeline-translation-audio-controls-arming' : '',
+        isFailed ? 'timeline-translation-audio-controls-failed' : '',
         transcribing ? 'timeline-translation-audio-controls-transcribing' : '',
       ]
         .filter(Boolean)
@@ -238,190 +686,11 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
         event.stopPropagation();
         if (disabled || (event.target instanceof Element && event.target.closest('button'))) return;
         if (isRecording || isArming) onStopRecording?.();
-        else if (!hasAudio) onStartRecording?.();
+        else if (!hasAudio && showRecord) onStartRecording?.();
       }}
     >
       <audio ref={audioRef} src={audioSrc ?? undefined} preload="metadata" />
-      <button
-        type="button"
-        className={[
-          'timeline-translation-audio-btn',
-          'timeline-translation-audio-btn-record',
-          isRecording ? 'timeline-translation-audio-btn-recording' : '',
-        ]
-          .filter(Boolean)
-          .join(' ')}
-        aria-label={
-          isArming
-            ? t(locale, 'transcription.timeline.audio.starting')
-            : isRecording
-              ? t(locale, 'transcription.timeline.audio.stopRecording')
-              : t(locale, 'transcription.timeline.audio.startRecording')
-        }
-        title={
-          isArming
-            ? t(locale, 'transcription.timeline.audio.starting')
-            : isRecording
-              ? t(locale, 'transcription.timeline.audio.stopRecording')
-              : t(locale, 'transcription.timeline.audio.startRecording')
-        }
-        disabled={disabled}
-        onClick={handleRecordClick}
-      >
-        {isRecording ? (
-          <span className="timeline-translation-audio-stop-glyph" aria-hidden="true" />
-        ) : (
-          <JieyuIcon name="Mic" className={JIEYU_ICON_WAVE} />
-        )}
-      </button>
-      {isArming ? (
-        <span className="timeline-translation-audio-status">
-          {t(locale, 'transcription.timeline.audio.starting')}
-        </span>
-      ) : null}
-      {isRecording || isSaving || isFailed ? (
-        <span className="timeline-translation-audio-status">
-          {isFailed
-            ? t(locale, 'transcription.timeline.audio.status.saveFailed')
-            : isSaving
-              ? t(locale, 'transcription.timeline.audio.status.saving')
-              : takePaused
-                ? t(locale, 'transcription.timeline.audio.status.paused')
-                : t(locale, 'transcription.timeline.audio.status.recording')}
-          {isRecording ? ` ${formatElapsed(elapsed)}` : ''}
-        </span>
-      ) : null}
-      <span className="timeline-translation-audio-live" role="status" aria-live="polite">
-        {announcement}
-      </span>
-      {isFailed ? (
-        <>
-          <button
-            type="button"
-            className="timeline-translation-audio-btn"
-            aria-label={t(locale, 'transcription.timeline.audio.retrySave')}
-            onClick={(event) => {
-              event.stopPropagation();
-              onRetrySave?.();
-            }}
-          >
-            {t(locale, 'transcription.timeline.audio.retrySave')}
-          </button>
-          <button
-            type="button"
-            className="timeline-translation-audio-btn timeline-translation-audio-btn-delete"
-            aria-label={t(locale, 'transcription.timeline.audio.discardTake')}
-            onClick={(event) => {
-              event.stopPropagation();
-              onDiscardSave?.();
-            }}
-          >
-            {t(locale, 'transcription.timeline.audio.discardTake')}
-          </button>
-        </>
-      ) : null}
-      {isRecording ? (
-        <span
-          className="timeline-translation-audio-level"
-          role="img"
-          aria-label={t(locale, 'transcription.timeline.audio.level')}
-        >
-          {[0.12, 0.28, 0.5, 0.75].map((step) => (
-            <i
-              key={step}
-              style={{ height: level >= step ? `${Math.round(4 + step * 12)}px` : '2px' }}
-            />
-          ))}
-        </span>
-      ) : null}
-      {showSaved && clipSeconds !== null ? (
-        <span className="timeline-translation-audio-status">{formatElapsed(clipSeconds)}</span>
-      ) : null}
-      {showSaved ? (
-        <button
-          type="button"
-          className="timeline-translation-audio-btn"
-          aria-label={
-            isPlaying
-              ? t(locale, 'transcription.timeline.audio.pauseRecording')
-              : t(locale, 'transcription.timeline.audio.playRecording')
-          }
-          title={
-            isPlaying
-              ? t(locale, 'transcription.timeline.audio.pauseRecording')
-              : t(locale, 'transcription.timeline.audio.playRecording')
-          }
-          disabled={disabled || isRecording || isArming || isSaving || isFailed}
-          onClick={(event) => {
-            void handlePlaybackClick(event);
-          }}
-        >
-          {isPlaying ? (
-            <JieyuIcon name="Pause" className={JIEYU_ICON_WAVE_MD} />
-          ) : (
-            <JieyuIcon name="Play" className={JIEYU_ICON_WAVE_MD} />
-          )}
-        </button>
-      ) : null}
-      {showSaved && onTranscribeRecording ? (
-        <button
-          type="button"
-          className={[
-            'timeline-translation-audio-btn',
-            'timeline-translation-audio-btn-transcribe',
-            transcribing ? 'timeline-translation-audio-btn-transcribing' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          aria-label={
-            transcribing
-              ? t(locale, 'transcription.timeline.audio.transcribing')
-              : t(locale, 'transcription.timeline.audio.transcribeRecording')
-          }
-          title={
-            transcribing
-              ? t(locale, 'transcription.timeline.audio.transcribing')
-              : t(locale, 'transcription.timeline.audio.transcribeRecording')
-          }
-          disabled={disabled || isRecording || transcribing}
-          onClick={(event) => {
-            void handleTranscribeClick(event);
-          }}
-        >
-          <JieyuIcon
-            name={transcribing ? 'Loader2' : 'Subtitles'}
-            className={[
-              JIEYU_ICON_WAVE_MD,
-              transcribing ? 'timeline-translation-audio-transcribe-spin' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          />
-        </button>
-      ) : null}
-      {showSaved && onDeleteRecording ? (
-        <button
-          type="button"
-          className="timeline-translation-audio-btn timeline-translation-audio-btn-delete"
-          aria-label={t(locale, 'transcription.timeline.audio.deleteRecording')}
-          title={t(locale, 'transcription.timeline.audio.deleteRecording')}
-          disabled={disabled || isRecording}
-          onClick={handleDeleteClick}
-        >
-          <JieyuIcon name="Trash" className={JIEYU_ICON_WAVE_MD} />
-        </button>
-      ) : null}
-      {!compact ? (
-        <span className="timeline-translation-audio-status">
-          {transcribing
-            ? t(locale, 'transcription.timeline.audio.transcribing')
-            : isRecording
-              ? t(locale, 'transcription.timeline.audio.status.recording')
-              : hasAudio
-                ? t(locale, 'transcription.timeline.audio.status.recorded')
-                : t(locale, 'transcription.timeline.audio.status.empty')}
-        </span>
-      ) : null}
+      {row}
     </div>
   );
 });

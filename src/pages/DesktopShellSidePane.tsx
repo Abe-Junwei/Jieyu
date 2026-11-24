@@ -1,5 +1,6 @@
 import type { PointerEvent, KeyboardEvent, SyntheticEvent } from 'react';
 import { useAppSidePaneRegistrationSnapshot } from '../contexts/AppSidePaneContext';
+import { IconTipTrigger } from '../components/ui/IconTip';
 import { t, type Locale } from '../i18n';
 import type { DesktopNavItem } from './desktopShellNav';
 
@@ -87,23 +88,26 @@ export function DesktopShellSidePane({
           aria-valuenow={sidePaneWidth}
           aria-label={t(locale, 'app.sidePane.aria.resize')}
         />
-        <button
-          type="button"
-          className="app-side-pane-collapse-toggle sidebar-handle-toggle is-left"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={handleSidePaneToggle}
-          aria-expanded={!isSidePaneCollapsed}
-          aria-label={
+        <IconTipTrigger
+          label={
             isSidePaneCollapsed
               ? t(locale, 'app.sidePane.expand')
               : t(locale, 'app.sidePane.collapse')
           }
-          title={
-            isSidePaneCollapsed
-              ? t(locale, 'app.sidePane.expand')
-              : t(locale, 'app.sidePane.collapse')
-          }
-        />
+        >
+          <button
+            type="button"
+            className="app-side-pane-collapse-toggle sidebar-handle-toggle is-left"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={handleSidePaneToggle}
+            aria-expanded={!isSidePaneCollapsed}
+            aria-label={
+              isSidePaneCollapsed
+                ? t(locale, 'app.sidePane.expand')
+                : t(locale, 'app.sidePane.collapse')
+            }
+          />
+        </IconTipTrigger>
       </div>
     </>
   );

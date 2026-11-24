@@ -113,7 +113,7 @@ export interface EdgeUi {
     canLink: boolean;
     skipped: boolean;
   } | null;
-  deletePrompt: { unitIds: string[]; counts: UnitDeletePreview } | null;
+  deletePrompt: { unitIds: string[]; counts: UnitDeletePreview; textLayerId?: string } | null;
   raw: { unitId: string } & StoredTimes;
   /** An undo/redo step that later edits made stale; it stays until dropped (ADR-0129 E04). */
   stale: { action: 'undo' | 'redo' } | null;
@@ -228,7 +228,7 @@ export function createEdgeActions(ctx: {
     }
   }
 
-  async function askDelete(unitId: string) {
+  async function askDelete(unitId: string, explicitTextLayerId?: string) {
     const current = call();
     if (!current) return;
     try {
@@ -236,11 +236,21 @@ export function createEdgeActions(ctx: {
         live.current.units.some((unit) => unit.id === id),
       );
       const unitIds = selected.length > 1 && selected.includes(unitId) ? selected : [unitId];
+      const active = live.current.createRoute?.layers.find(
+        (layer) => layer.id === live.current.layerId,
+      );
+      const textLayerId =
+        explicitTextLayerId ??
+        (active?.tierType === 'symbolic-association' ? active.id : undefined);
       const counts =
         unitIds.length > 1
-          ? await current.api.previewUnitsDelete(current.sessionId, unitIds)
-          : await current.api.previewUnitDelete(current.sessionId, unitId);
-      setUi((state) => ({ ...state, menu: null, deletePrompt: { unitIds, counts } }));
+          ? await current.api.previewUnitsDelete(current.sessionId, unitIds, textLayerId)
+          : await current.api.previewUnitDelete(current.sessionId, unitId, textLayerId);
+      setUi((state) => ({
+        ...state,
+        menu: null,
+        deletePrompt: { unitIds, counts, ...(textLayerId === undefined ? {} : { textLayerId }) },
+      }));
     } catch {
       failed();
     }
@@ -492,18 +502,7 @@ export function createEdgeActions(ctx: {
     toggleSkipUnit,
     clearLayerText() {
       const menu = uiRef.current.menu;
-      const session = call();
-      setUi((current) => ({ ...current, menu: null }));
-      if (!menu?.layerId || !session) return;
-      void session.api
-        .updateUnitText(session.sessionId, {
-          unitId: menu.unitId,
-          textLayerId: menu.layerId,
-          text: '',
-          operationId: globalThis.crypto.randomUUID(),
-        })
-        .then(() => live.current.reload())
-        .catch(() => failed());
+      if (menu?.layerId) void askDelete(menu.unitId, menu.layerId);
     },
     closeMenu() {
       setUi((current) => ({ ...current, menu: null }));
@@ -529,10 +528,17 @@ export function createEdgeActions(ctx: {
       const session = call();
       const firstId = prompt?.unitIds[0];
       if (!prompt || !session || firstId === undefined) return;
+      const clear =
+        prompt.textLayerId === undefined
+          ? undefined
+          : {
+              textLayerId: prompt.textLayerId,
+              fingerprint: prompt.counts.fingerprint ?? '',
+            };
       const deleting =
         prompt.unitIds.length > 1
-          ? session.api.deleteUnits(session.sessionId, prompt.unitIds)
-          : session.api.deleteUnit(session.sessionId, firstId);
+          ? session.api.deleteUnits(session.sessionId, prompt.unitIds, clear)
+          : session.api.deleteUnit(session.sessionId, firstId, clear);
       void deleting
         .then(() => {
           closeDelete(firstId, true);

@@ -9,6 +9,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
 import { DesktopRoute } from './components/DesktopRoute';
 import { JieyuIcon } from './components/ui/JieyuIcon';
+import { IconTipTrigger } from './components/ui/IconTip';
 import { AiPanelProvider } from './contexts/AiPanelContext';
 import { AppSidePaneProvider } from './contexts/AppSidePaneContext';
 import { AssetPanelProvider, type AssetPanelContextValue } from './contexts/AssetPanelContext';
@@ -94,39 +95,70 @@ export function DesktopApp() {
                   className="app-left-rail"
                   aria-label={t(prefs.locale, 'app.leftRail.aria.navigation')}
                 >
+                  {pane.desktopContextPane ? (
+                    <IconTipTrigger
+                      label={t(
+                        prefs.locale,
+                        pane.isSidePaneCollapsed ? 'app.sidePane.expand' : 'app.sidePane.collapse',
+                      )}
+                      corner
+                    >
+                      <button
+                        type="button"
+                        className="app-left-rail-pane-toggle"
+                        aria-expanded={!pane.isSidePaneCollapsed}
+                        aria-label={t(
+                          prefs.locale,
+                          pane.isSidePaneCollapsed
+                            ? 'app.sidePane.expand'
+                            : 'app.sidePane.collapse',
+                        )}
+                        onClick={handleSidePaneToggle}
+                      >
+                        <JieyuIcon
+                          name={pane.isSidePaneCollapsed ? 'PanelLeftOpen' : 'PanelLeftClose'}
+                          aria-hidden
+                        />
+                      </button>
+                    </IconTipTrigger>
+                  ) : null}
                   <nav
                     className="app-left-rail-group app-left-rail-primary"
                     aria-label={t(prefs.locale, 'app.navGroup.core')}
                   >
                     {primaryNav.map((item) => (
-                      <NavLink
-                        key={item.to}
-                        to={resolveDesktopNavTo(item.to)}
-                        end={item.to === '/'}
-                        className={({ isActive }) =>
-                          isActive ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'
-                        }
-                        title={item.label}
-                        aria-label={item.label}
-                      >
-                        <JieyuIcon name={item.icon} aria-hidden className={JIEYU_ICON_NAV} />
-                        <span>{item.label}</span>
-                      </NavLink>
+                      <IconTipTrigger key={item.to} label={item.label} corner>
+                        <NavLink
+                          to={resolveDesktopNavTo(item.to)}
+                          end={item.to === '/'}
+                          className={({ isActive }) =>
+                            isActive ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'
+                          }
+                          aria-label={item.label}
+                        >
+                          <JieyuIcon name={item.icon} aria-hidden className={JIEYU_ICON_NAV} />
+                          <span>{item.label}</span>
+                        </NavLink>
+                      </IconTipTrigger>
                     ))}
                   </nav>
                   <div
                     className="app-left-rail-footer"
                     aria-label={t(prefs.locale, 'app.leftRail.aria.footer')}
                   >
-                    <button
-                      type="button"
-                      className="left-rail-btn left-rail-btn-utility"
-                      aria-label={t(prefs.locale, 'transcription.voiceWidget.settings.button')}
-                      title={t(prefs.locale, 'transcription.voiceWidget.settings.button')}
-                      onClick={prefs.openSettings}
+                    <IconTipTrigger
+                      label={t(prefs.locale, 'transcription.voiceWidget.settings.button')}
+                      corner
                     >
-                      <JieyuIcon name="Settings" aria-hidden className={JIEYU_ICON_NAV} />
-                    </button>
+                      <button
+                        type="button"
+                        className="left-rail-btn left-rail-btn-utility"
+                        aria-label={t(prefs.locale, 'transcription.voiceWidget.settings.button')}
+                        onClick={prefs.openSettings}
+                      >
+                        <JieyuIcon name="Settings" aria-hidden className={JIEYU_ICON_NAV} />
+                      </button>
+                    </IconTipTrigger>
                   </div>
                 </aside>
                 {pane.hideSidePane ? null : (

@@ -7,7 +7,7 @@ import {
   expect,
   test,
   type ElectronApplication,
-  type Page,
+  type Page, type Locator,
 } from '@playwright/test';
 import {
   chmodSync,
@@ -288,6 +288,10 @@ test('oral clip records, plays, transcribes, reopens, then delete drops the file
     const stop = page.locator('.timeline-translation-audio-btn-recording');
     await expect(stop).toBeVisible();
     await expect(stop).toHaveCSS('width', '24px');
+    const recordingStatus = page.locator('.timeline-translation-audio-controls-recording .timeline-translation-audio-status').first();
+    const visibleStatus = await recordingStatus.boundingBox();
+    const recordingCard = await recordingStatus.locator('xpath=ancestor::*[contains(concat(" ",normalize-space(@class)," ")," timeline-annotation ")]').boundingBox();
+    expect(visibleStatus?.x).toBeGreaterThanOrEqual(recordingCard?.x ?? Infinity);
     await page.screenshot({ path: test.info().outputPath('oral-recording-controls.png') });
     await page.waitForTimeout(1200);
     // The stop glyph sits on the layer chevron. A locator box waits out the
@@ -320,10 +324,8 @@ test('oral clip records, plays, transcribes, reopens, then delete drops the file
       .toBe(false);
     await stubFolderDialog(app, model.file);
     await grantOralModel(page, sessionId);
-    await page
-      .getByRole('button', { name: /^(语音转文字（STT）|Transcribe recording \(STT\))$/ })
-      .first()
-      .click({ timeout: 15_000 });
+    await oralCardAction(page, page.locator('.timeline-annotation').filter({has: page.locator('.timeline-translation-audio-controls')}).first(), /^(语音转文字（STT）|Transcribe recording \(STT\))$/);
+    await chooseOralTarget(page, sessionId);
     await expect(page.getByText(/转写已放进文字层|transcript is in the text layer/)).toBeVisible();
     const pair = await findOralPair(page, sessionId);
     const clips = await desktopCall<{ unitId: string }[]>(page, sessionId, 'recordings.list', {
@@ -370,10 +372,7 @@ test('oral clip records, plays, transcribes, reopens, then delete drops the file
       { unitId: clips[0]?.unitId, textLayerId: pair.textLayerId },
     );
     expect(kept?.rawInput).toBe('口译一句');
-    await reopened
-      .locator('.timeline-translation-audio-controls')
-      .getByRole('button', { name: /^(删除录音翻译|Delete recorded translation)$/ })
-      .click({ timeout: 15_000 });
+    await oralCardAction(reopened, reopened.locator('.timeline-annotation').filter({has: reopened.locator('.timeline-translation-audio-controls')}).first(), /^(删除录音翻译|Delete recorded translation)$/);
     await expect(
       reopened.getByRole('button', { name: /^(播放录音翻译|Play recorded translation)$/ }),
     ).toHaveCount(0);
@@ -754,7 +753,11 @@ test('drags create on the waveform and on a linked layer row, and texts stay per
     expect((await listed()).map((unit) => unit.text)).not.toContain('gloss one');
 
     await first.click({ button: 'right' });
-    await page.getByRole('menuitem', { name: /Gloss/ }).click();
+    await page.getByRole('menuitem', { name: /^(清空「|Clear “)/ }).click();
+    await page
+      .getByRole('dialog', { name: /^(清空当前写法？|Clear this writing\?)$/ })
+      .getByRole('button', { name: /^(清空本层正文与草稿|Clear this layer’s text and drafts)$/ })
+      .click();
     await expect
       .poll(async () =>
         (await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId: tl.id })).map(
@@ -1965,19 +1968,49 @@ async function findOralPair(
     const audio = layers.find(
       (layer) => layer.modality === 'audio' && layer.contentType === 'translation',
     );
-    const text = layers.find((layer) => layer.modality === 'text' && layer.parentId === audio?.id);
-    if (audio !== undefined && text !== undefined) {
-      return { audioLayerId: audio.id, textLayerId: text.id };
+    if (audio !== undefined) {
+      const list = await desktopCall<{targets: {id: string}[]}>(page, sessionId,
+        'recordings.listTargets', {layerId: audio.id});
+      const text = list.targets[0];
+      if (text !== undefined) return {audioLayerId: audio.id, textLayerId: text.id};
     }
   }
   throw new Error('oral pair missing');
+}
+
+async function oralCardAction(page: Page, card: Locator, label: RegExp): Promise<void> {
+  const direct = card.getByRole('button', {name: label});
+  if (await direct.isVisible()) await direct.click();
+  else {
+    await card.getByRole('button', {name: /^(更多|More)$/}).click();
+    await page.getByRole('menuitem', {name: label}).click();
+  }
+}
+
+async function chooseOralTarget(page: Page, sessionId: string): Promise<void> {
+  const dialog = page.getByRole('dialog', {name: /文字写到哪一层|Where should the text go/});
+  await expect(dialog).toBeVisible();
+  const manuscripts = await desktopCall<{id: string}[]>(page, sessionId, 'manuscripts.list', {});
+  const layers = await desktopCall<{id: string; modality: string; contentType: string}[]>(page,
+    sessionId, 'layers.list', {manuscriptId: manuscripts[0]!.id});
+  const audio = layers.find(layer => layer.modality === 'audio' && layer.contentType === 'translation');
+  if (!audio) throw new Error('oral audio missing');
+  const list = await desktopCall<{targets: {id: string; name: Record<string,string>}[]}>(page,
+    sessionId, 'recordings.listTargets', {layerId: audio.id});
+  if (list.targets.length === 0) {
+    await dialog.getByRole('textbox').fill('Oral target');
+    await dialog.getByRole('button', {name: /^(写入|Write)$/}).click();
+  } else {
+    const name = list.targets[0]!.name;
+    await dialog.getByRole('button', {name: name.zh ?? name.en ?? Object.values(name)[0] ?? '', exact: true}).click();
+  }
 }
 
 function oralAttachmentCounts(projectFolder: string): { clips: number; files: number } {
   const db = new Database(join(projectFolder, 'project.sqlite'), { readonly: true });
   try {
     const clips = db
-      .prepare('SELECT COUNT(*) AS n FROM unit_texts WHERE audio_file_id IS NOT NULL')
+      .prepare('SELECT COUNT(*) AS n FROM unit_text_audios')
       .get() as { n: number };
     const files = db.prepare('SELECT COUNT(*) AS n FROM attachment_files').get() as { n: number };
     return { clips: clips.n, files: files.n };
@@ -1986,7 +2019,7 @@ function oralAttachmentCounts(projectFolder: string): { clips: number; files: nu
   }
 }
 
-async function startOralModel(): Promise<{ file: string; close: () => Promise<void> }> {
+async function startOralModel(onTranscribe?: () => Promise<void>): Promise<{ file: string; close: () => Promise<void> }> {
   const dir = mkdtempSync(join(tmpdir(), 'jieyu-oral-model-'));
   const server = createServer(async (req, res) => {
     if (req.url === '/health') {
@@ -2008,6 +2041,7 @@ async function startOralModel(): Promise<{ file: string; close: () => Promise<vo
       requestId: string;
       range: { end: number };
     };
+    await onTranscribe?.();
     res.end(
       JSON.stringify({
         jieyu: '1',
@@ -2713,6 +2747,576 @@ test('clearing inline text saves an empty body without blocking a segment change
     expect((await desktopCall<ListedUnit>(page, nextSession, 'units.get', { id: target.id })).text).toBe('');
   } finally {
     await app?.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
+
+test('merge unit keeps both texts and command m does not minimize', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-merge-unit-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  const app = await launch('merge-unit');
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const clip = await clipLayer(page, sessionId);
+    const left = await desktopCall<{ id: string }>(page, sessionId, 'units.create', {
+      layerId: clip.layerId,
+      startMs: 1000,
+      endMs: 1200,
+      text: '甲',
+      operationId: 'e2e-merge-left',
+    });
+    const right = await desktopCall<{ id: string }>(page, sessionId, 'units.create', {
+      layerId: clip.layerId,
+      startMs: 1400,
+      endMs: 1800,
+      text: '乙',
+      operationId: 'e2e-merge-right',
+    });
+    const merged = await desktopCall<{ id: string; text: string }>(page, sessionId, 'units.merge', {
+      keepId: left.id,
+      removeId: right.id,
+      separator: ' ',
+      operationId: 'e2e-merge',
+    });
+    expect(merged.text).toBe('甲 乙');
+    await page.keyboard.press('Meta+m');
+    const win = await app.browserWindow(page);
+    expect(await win.evaluate((browserWindow) => browserWindow.isMinimized())).toBe(false);
+  } finally {
+    await app.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
+
+async function run1b4Window(name: string, run: (ctx: { app: ElectronApplication; page: Page; session: string; layerId: string }) => Promise<void>, extraArgs: string[] = []) {
+  if (!flowReady(folder)) throw new Error('desktop flow fixture missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-1b4-runtime-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  let app = await launch(name, undefined, { JIEYU_DESKTOP_HIDE_WINDOW: '0' }, extraArgs);
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const session = await chosenSessionId(app);
+    const { layerId } = await clipLayer(page, session);
+    await run({ app, page, session, layerId });
+    const before = await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId });
+    const manuscripts = await desktopCall<{ id: string }[]>(page, session, 'manuscripts.list', {});
+    if (!manuscripts[0]) throw new Error('manuscript missing');
+    const layers = await desktopCall<{ id: string; modality: string }[]>(page, session, 'layers.list', { manuscriptId: manuscripts[0].id });
+    const audioLayers = layers.filter(layer => layer.modality === 'audio');
+    const recordings = await Promise.all(audioLayers.map(layer => desktopCall(page, session, 'recordings.list', { layerId: layer.id })));
+    await app.close();
+    app = await launch(`${name}-reopen`, undefined, { JIEYU_DESKTOP_HIDE_WINDOW: '0' });
+    await stubFolderDialog(app, copy);
+    const reopened = await app.firstWindow();
+    await rememberChosenSession(app);
+    await reopened.getByRole('button', { name: openFolder }).click();
+    await expect(reopened.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const nextSession = await chosenSessionId(app);
+    expect(await desktopCall(reopened, nextSession, 'units.list', { layerId })).toEqual(before);
+    expect(await Promise.all(audioLayers.map(layer => desktopCall(reopened, nextSession, 'recordings.list', { layerId: layer.id })))).toEqual(recordings);
+  } finally {
+    // A failed assertion can leave a live recording; discard only this isolated test window.
+    await app.evaluate((main) => {
+      const host = main as unknown as {BrowserWindow: {getAllWindows: () => {destroy: () => void}[]}};
+      for (const window of host.BrowserWindow.getAllWindows()) window.destroy();
+    }).catch(() => {});
+    await app.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+}
+
+async function open1b4(page: Page) {
+  await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+  await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^(Play|播放)$/ })).toBeEnabled();
+}
+
+async function offer1b4(page: Page, layerId: string, unitId: string) {
+  const card = page.locator(`.desktop-tx-lane__track[data-layer-id="${layerId}"] .timeline-annotation[data-unit-id="${unitId}"]`);
+  await card.click();
+  await card.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: /向后合并|Merge with the next/ }).click();
+  const dialog = page.getByRole('dialog', { name: /合并下一段|Merge with the next segment/ });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+async function finish1b4(page: Page, session: string, layerId: string) {
+  const prior = new Set((await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).map(u => u.id));
+  await page.getByRole('dialog').locator('button.btn-primary').click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  let made: ListedUnit | undefined;
+  await expect.poll(async () => {
+    made = (await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).find(u => !prior.has(u.id));
+    return made?.id;
+  }).toBeTruthy();
+  if (!made) throw new Error('merged unit missing');
+  return made;
+}
+
+test('1b4 runtime menu cancel shortcut merge undo redo and no next', async () => {
+  await run1b4Window('1b4-basic', async ({ app, page, session, layerId }) => {
+    const left = await desktopCall<{ id: string }>(page, session, 'units.create', { layerId, startMs: 1000, endMs: 1200, text: '甲' });
+    const right = await desktopCall<{ id: string }>(page, session, 'units.create', { layerId, startMs: 1400, endMs: 1800, text: '乙' });
+    await open1b4(page);
+    await page.locator(`.timeline-annotation[data-unit-id="${right.id}"]`).first().click();
+    await waitForAudio(page);
+    const wave = page.locator(`[data-wave-unit="${left.id}"]`).first();
+    const box = await wave.boundingBox();
+    if (!box) throw new Error('wave merge target missing');
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: 'right' });
+    await page.getByTestId('desktop-wave-menu').getByRole('menuitem', { name: /向后合并|Merge with/ }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('0.200');
+    await expect(dialog).not.toContainText('备注');
+    await expect(dialog.getByRole('textbox')).toHaveCount(0);
+    await dialog.getByRole('button', { name: /^(取消|Cancel)$/ }).last().click();
+    expect((await desktopCall<ListedUnit>(page, session, 'units.get', { id: left.id })).text).toBe('甲');
+    expect((await desktopCall<ListedUnit>(page, session, 'units.get', { id: right.id })).text).toBe('乙');
+    await page.locator(`.timeline-annotation[data-unit-id="${left.id}"]`).first().click();
+    await page.keyboard.press('Meta+m');
+    await expect(page.getByRole('dialog')).toBeVisible();
+    const merged = await finish1b4(page, session, layerId);
+    expect(merged).toMatchObject({ text: '甲 乙', startMs: 1000, endMs: 1800 });
+    expect(await desktopCall(page, session, 'units.get', { id: left.id })).toBeNull();
+    expect(await desktopCall(page, session, 'units.get', { id: right.id })).toBeNull();
+    await page.keyboard.press('Meta+z');
+    await expect.poll(() => desktopCall(page, session, 'units.get', { id: left.id })).not.toBeNull();
+    expect((await desktopCall<ListedUnit>(page, session, 'units.get', { id: right.id })).text).toBe('乙');
+    await page.keyboard.press('Meta+Shift+z');
+    await expect.poll(async () => (await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).some(u => u.text === '甲 乙')).toBe(true);
+    const last = (await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).find(u => u.text === '甲 乙');
+    if (!last) throw new Error('redo result missing');
+    const card = page.locator(`.timeline-annotation[data-unit-id="${last.id}"]`).first();
+    await card.click();
+    await page.keyboard.press('Meta+m');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    const win = await app.browserWindow(page);
+    expect(await win.evaluate(w => w.isMinimized())).toBe(false);
+    await card.click({ button: 'right' });
+    await expect(page.getByRole('menuitem', { name: /向后合并|Merge with the next/ })).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await page.screenshot({ path: test.info().outputPath('1b4-basic.png') });
+  });
+});
+
+test('1b4 runtime merges current editor text exactly once', async () => {
+  await run1b4Window('1b4-editor', async ({ page, session, layerId }) => {
+    const units = await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId });
+    const left = units.find(u => u.text === 'one');
+    if (!left) throw new Error('left missing');
+    await open1b4(page);
+    const card = page.locator(`.timeline-annotation[data-unit-id="${left.id}"]`).first();
+    await card.click();
+    await card.click();
+    const input = card.locator('.timeline-annotation-input');
+    await input.fill('新输入');
+    await input.evaluate((element) => (element as HTMLInputElement).blur());
+    await expect.poll(async () => (await desktopCall<ListedUnit>(page, session, 'units.get', { id: left.id })).text).toBe('新输入');
+    await card.click();
+    await page.keyboard.press('Meta+m');
+    await expect(page.getByRole('dialog')).toBeVisible();
+    const oldIds = new Set((await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).map(u => u.id));
+    await expect(page.getByRole('dialog').locator('button.btn-primary')).toBeEnabled();
+    await page.getByRole('dialog').locator('button.btn-primary').click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    const merged = (await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).find(u => !oldIds.has(u.id));
+    if (!merged) throw new Error('editor merge result missing');
+    expect(merged.text).toBe('新输入 two');
+    await page.screenshot({ path: test.info().outputPath('1b4-editor.png') });
+  });
+});
+
+test('1b4 runtime six recordings discard preview playlist play and delete', async () => {
+  await run1b4Window('1b4-recordings', async ({ app, page, session, layerId }) => {
+    const pair = await desktopCall<{ audioLayerId: string }>(page, session, 'recordings.createPair', { hostLayerId: layerId, kind: 'oral', audioName: { und: 'Runtime oral' }, textName: { und: 'Runtime translation' } });
+    const ids: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const unit = await desktopCall<{ id: string }>(page, session, 'units.create', { layerId, startMs: 900 + i * 130, endMs: 1000 + i * 130, text: String.fromCharCode(65 + i) });
+      ids.push(unit.id);
+      await page.evaluate(async ({ session, unitId, audioLayerId, index }) => {
+        const bytes = new Uint8Array(32044), v = new DataView(bytes.buffer);
+        const word = (at: number, s: string) => [...s].forEach((c, j) => v.setUint8(at + j, c.charCodeAt(0)));
+        word(0, 'RIFF'); v.setUint32(4, 32036, true); word(8, 'WAVE'); word(12, 'fmt '); v.setUint32(16, 16, true);
+        v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 16000, true); v.setUint32(28, 32000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); word(36, 'data'); v.setUint32(40, 32000, true);
+        for (let n = 0; n < 16000; n++) v.setInt16(44 + n * 2, Math.round(Math.sin(n * 2 * Math.PI * (220 + index * 40) / 16000) * 6000), true);
+        await (window as unknown as FlowWindow).jieyuDesktop.desktopCall(session, 'recordings.attach', { unitId, layerId: audioLayerId, mimeType: 'audio/wav', bytes, operationId: `runtime-audio-${index}` });
+      }, { session, unitId: unit.id, audioLayerId: pair.audioLayerId, index: i });
+    }
+    await open1b4(page);
+    const merge = async (id: string) => { await offer1b4(page, layerId, id); return finish1b4(page, session, layerId); };
+    const ab = await merge(ids[0]!);
+    const abc = await merge(ab.id);
+    const de = await merge(ids[3]!);
+    await merge(de.id);
+    const dialog = await offer1b4(page, layerId, abc.id);
+    await expect(dialog.locator('.desktop-tx-merge__row')).toHaveCount(6);
+    await expect(dialog.locator('button.btn-primary')).toBeDisabled();
+    await expect(dialog.locator('.desktop-tx-merge__time')).toHaveCount(6);
+    await expect(dialog.locator('.desktop-tx-merge__time').first()).toHaveText(/1\s*(秒|s)/);
+    await dialog.getByRole('button', { name: /^(试听|Play)$/ }).first().click();
+    const audibleWindow = await app.browserWindow(page);
+    await expect.poll(() => audibleWindow.evaluate(w => (w as unknown as { webContents: { isCurrentlyAudible(): boolean } }).webContents.isCurrentlyAudible()), { timeout: 3000, intervals: [50] }).toBe(true);
+    await dialog.getByRole('checkbox').last().check();
+    await expect(dialog.locator('button.btn-primary')).toBeEnabled();
+    const joined = await finish1b4(page, session, layerId);
+    const beforeSplit = await desktopCall<{id: string; unitId: string; fileId: string}[]>(page, session, 'recordings.list', {layerId: pair.audioLayerId});
+    expect(beforeSplit).toHaveLength(5);
+    const wave = page.locator(`[data-wave-unit="${joined.id}"]`).first();
+    const waveBox = await wave.boundingBox();
+    if (!waveBox) throw new Error('recorded split target missing');
+    await page.mouse.click(waveBox.x + waveBox.width / 2, waveBox.y + waveBox.height / 2, {button: 'right'});
+    await page.getByTestId('desktop-wave-menu').getByRole('menuitem', {name: /^(拆分句段|Split segment)$/}).click();
+    await expect(page.getByText(/5 条录音已完整保留在左段|5 recordings were kept intact in the left segment/)).toBeVisible();
+    const splitClips = await desktopCall<{id: string; unitId: string; fileId: string}[]>(page, session, 'recordings.list', {layerId: pair.audioLayerId});
+    expect(splitClips.map(clip => [clip.id, clip.fileId])).toEqual(beforeSplit.map(clip => [clip.id, clip.fileId]));
+    const halves = (await desktopCall<ListedUnit[]>(page, session, 'units.list', {layerId})).filter(u => u.startMs !== null && u.endMs !== null && u.startMs >= joined.startMs! && u.endMs <= joined.endMs!);
+    expect(halves).toHaveLength(2);
+    const leftHalf = halves.sort((a,b) => a.startMs! - b.startMs!)[0]!;
+    expect(splitClips.every(clip => clip.unitId === leftHalf.id)).toBe(true);
+    await page.keyboard.press('Meta+z');
+    await expect.poll(() => desktopCall(page, session, 'units.get', {id: joined.id})).not.toBeNull();
+    expect(await desktopCall(page, session, 'recordings.list', {layerId: pair.audioLayerId})).toEqual(beforeSplit);
+
+    const audioCard = page.locator(`[data-layer-id="${pair.audioLayerId}"] .timeline-annotation[data-unit-id="${joined.id}"]`);
+    const listButton = audioCard.getByRole('button', { name: /^(播放清单|Playlist)$/ });
+    await expect(listButton).toBeVisible();
+    const audio = audioCard.locator('audio');
+    await listButton.click();
+    const menu = page.getByRole('menu').filter({
+      has: page.getByText(/^(第 1 条，还剩 4 条|Clip 1, 4 left)$/),
+    });
+    await expect(menu).toBeVisible();
+    const buttonBox = await listButton.boundingBox(), menuBox = await menu.boundingBox();
+    if (!buttonBox || !menuBox) throw new Error('playlist geometry missing');
+    expect(menuBox.x).toBeGreaterThanOrEqual(buttonBox.x + buttonBox.width);
+    await menu.getByRole('menuitem', { name: /^(第 3 条|Clip 3)$/ }).click();
+    await expect.poll(() => audio.evaluate(el => (el as HTMLAudioElement).paused)).toBe(true);
+    await audioCard.getByRole('button', { name: /^(播放录音翻译|Play recorded translation)$/ }).click();
+    await expect.poll(() => audio.evaluate(el => (el as HTMLAudioElement).paused)).toBe(false);
+    await audioCard.getByRole('button', { name: /^(删除录音翻译|Delete recorded translation)$/ }).click();
+    await listButton.click();
+    await expect(page.getByText(/^(第 3 条，还剩 1 条|Clip 3, 1 left)$/)).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: /^(第 \d 条|Clip \d)$/ })).toHaveCount(4);
+    await page.getByRole('menuitem', { name: /^(第 4 条|Clip 4)$/ }).click();
+    await audioCard.getByRole('button', { name: /^(删除录音翻译|Delete recorded translation)$/ }).click();
+    await listButton.click();
+    await expect(page.getByText(/^(第 3 条，还剩 0 条|Clip 3, 0 left)$/)).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: /^(第 \d 条|Clip \d)$/ })).toHaveCount(3);
+    await page.screenshot({ path: test.info().outputPath('1b4-playlist.png') });
+  });
+});
+
+
+test('oral recording safety pauses resumes retries lost receipts and protects concurrent text', async () => {
+  let requests = 0;
+  let release = () => {};
+  let pending = Promise.resolve();
+  const holdModel = () => { pending = new Promise<void>(resolve => {release = resolve;}); };
+  const model = await startOralModel(async () => { requests++; await pending; });
+  try {
+    await run1b4Window('oral-safety', async ({app, page, session, layerId}) => {
+      const unit = (await desktopCall<ListedUnit[]>(page,session,'units.list',{layerId})).find(u => u.text === 'one');
+      if (!unit) throw new Error('oral safety unit missing');
+      const pair = await desktopCall<{audioLayerId:string}>(page,session,'recordings.createPair',{hostLayerId:layerId,kind:'oral',audioName:{und:'Safety audio'},textName:{und:'Safety text'}});
+      const manuscript = await desktopCall<{id:string}[]>(page,session,'manuscripts.list',{});
+      const target = await desktopCall<{id:string}>(page,session,'layers.create',{
+        manuscriptId:manuscript[0]!.id,key:'oral-safety-target',name:{en:'Safety text',zh:'Safety text'},
+        tierType:'symbolic-association',contentType:'translation',
+        hosts:[{hostLayerId:layerId,preferred:true}],
+      });
+      await open1b4(page);
+      await page.evaluate(() => {
+        const state = window as unknown as {oralRecorders: MediaRecorder[]};
+        state.oralRecorders = [];
+        const start = MediaRecorder.prototype.start;
+        MediaRecorder.prototype.start = function (...args) { state.oralRecorders.push(this); return start.apply(this,args); };
+        const stop = Object.getOwnPropertyDescriptor(MediaRecorder.prototype, 'onstop');
+        if (!stop?.set || !stop.get) throw new Error('native stop descriptor missing');
+        Object.defineProperty(MediaRecorder.prototype,'onstop',{
+          configurable:true,
+          get:stop.get,
+          set(handler: ((event: Event) => void) | null) {
+            stop.set!.call(this, handler === null ? null : (event: Event) => setTimeout(() => handler.call(this,event), 250));
+          },
+        });
+      });
+      await app.evaluate(main => {
+        const host = main as unknown as {ipcMain:{_invokeHandlers:Map<string,(...args:unknown[]) => unknown>}};
+        const original = host.ipcMain._invokeHandlers.get('desktop:call');
+        if (!original) throw new Error('desktop handler missing');
+        const fault = {writes: [] as string[], failed:false};
+        (globalThis as unknown as {oralFault:typeof fault}).oralFault = fault;
+        host.ipcMain._invokeHandlers.set('desktop:call',async (...args) => {
+          if (args[2] !== 'recordings.attach') return original(...args);
+          fault.writes.push((args[3] as {operationId:string}).operationId);
+          const result = await original(...args);
+          if (!fault.failed) {fault.failed=true; throw new Error('injected lost attachment response');}
+          return result;
+        });
+      });
+      const card = page.locator(`[data-layer-id="${pair.audioLayerId}"] .timeline-annotation[data-unit-id="${unit.id}"]`);
+      await card.getByRole('button',{name:/^(开始录音翻译|Start recording translation)$/}).click();
+      await expect(card.getByRole('button',{name:/^(暂停录音|Pause recording)$/})).toBeVisible();
+      await page.waitForTimeout(1100);
+      await card.getByRole('button',{name:/^(暂停录音|Pause recording)$/}).click();
+      const status = card.locator('.oral-clip-time');
+      const pausedAt = await status.textContent();
+      await page.waitForTimeout(1100);
+      await expect(status).toHaveText(pausedAt ?? '');
+      expect(await page.evaluate(() => (window as unknown as {oralRecorders:MediaRecorder[]}).oralRecorders[0]?.state)).toBe('paused');
+      await card.getByRole('button',{name:/^(继续录音|Resume recording)$/}).click();
+      expect(await page.evaluate(() => (window as unknown as {oralRecorders:MediaRecorder[]}).oralRecorders.length)).toBe(1);
+      await page.waitForTimeout(400);
+      const stopAt = await card.getByRole('button',{name:/^(停止录音翻译|Stop recording translation)$/}).boundingBox();
+      if (!stopAt) throw new Error('stop button missing');
+      await page.mouse.click(stopAt.x+stopAt.width/2,stopAt.y+stopAt.height/2);
+      await page.mouse.click(stopAt.x+stopAt.width/2,stopAt.y+stopAt.height/2);
+      await expect(card.getByRole('button',{name:/^(重试保存|Retry save)$/})).toBeVisible();
+      const clips = () => desktopCall<{id:string;unitId:string;fileId:string}[]>(page,session,'recordings.list',{layerId:pair.audioLayerId});
+      expect(await clips()).toHaveLength(1);
+      await card.getByRole('button',{name:/^(重试保存|Retry save)$/}).click();
+      await expect(card.getByRole('button',{name:/^(播放录音翻译|Play recorded translation)$/})).toBeVisible();
+      expect(await clips()).toHaveLength(1);
+      const retryIds = await app.evaluate(() => (globalThis as unknown as {oralFault:{writes:string[]}}).oralFault.writes);
+      expect(retryIds).toHaveLength(2);
+      expect(retryIds[0]).toBe(retryIds[1]);
+      await oralCardAction(page,card,/^(再录一条|Record another)$/);
+      await expect(card.getByRole('button',{name:/^(暂停录音|Pause recording)$/})).toBeVisible();
+      await page.waitForTimeout(450);
+      await card.getByRole('button',{name:/^(停止录音翻译|Stop recording translation)$/}).click();
+      await expect.poll(async () => (await clips()).length).toBe(2);
+      await expect(card.getByRole('button',{name:/^(播放清单|Playlist)$/})).toBeVisible();
+      const second = (await clips())[1]!;
+      await card.getByRole('button',{name:/^(播放录音翻译|Play recorded translation)$/}).click();
+      await expect.poll(() => card.locator('audio').evaluate(audio => (audio as HTMLAudioElement).paused)).toBe(false);
+      await stubFolderDialog(app,model.file);
+      await grantOralModel(page,session);
+      const transcribe = () => oralCardAction(page,card,/^(语音转文字（STT）|Transcribe recording \(STT\))$/);
+      const readDraft = () => desktopCall<{rawInput:string;provenanceJson:string|null}|null>(page,session,'units.readTextDraft',{unitId:unit.id,textLayerId:target.id});
+      holdModel();
+      await transcribe();
+      await chooseOralTarget(page,session);
+      await expect.poll(() => requests).toBe(1);
+      await desktopCall(page,session,'units.putTextDraft',{unitId:unit.id,textLayerId:target.id,rawInput:'manual draft',baseBody:''});
+      release();
+      await expect(page.getByText(/这段已有未保存的文字|This line already has unsaved text/)).toBeVisible();
+      expect(await readDraft()).toMatchObject({rawInput:'manual draft',provenanceJson:null});
+      await desktopCall(page,session,'units.discardTextDraft',{unitId:unit.id,textLayerId:target.id});
+      holdModel();
+      await transcribe();
+      await chooseOralTarget(page,session);
+      await expect.poll(() => requests).toBe(2);
+      await desktopCall(page,session,'units.updateText',{unitId:unit.id,textLayerId:target.id,text:'manual body'});
+      release();
+      await expect(page.getByText(/文字已变化，未写入转写结果|The text changed; the transcript was not written/)).toBeVisible();
+      expect(await readDraft()).toBeNull();
+      pending=Promise.resolve();
+      await transcribe();
+      await chooseOralTarget(page,session);
+      await expect.poll(async () => (await readDraft())?.rawInput).toBe('口译一句');
+      const draft = await readDraft();
+      expect(JSON.parse(draft?.provenanceJson ?? '')).toMatchObject({model:'app.jieyu.oral-mock',params:{audioFileId:second.fileId,audioId:second.id,audioLayerId:pair.audioLayerId}});
+      await page.screenshot({path:test.info().outputPath('oral-safety.png')});
+    }, ['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream']);
+  } finally {
+    release();
+    await model.close();
+  }
+});
+
+test('wave segment controls receive pointer actions above drag handles', async () => {
+  await run1b4Window('wave-controls', async ({page}) => {
+    await open1b4(page);
+    await waitForAudio(page);
+    await page.locator('.timeline-annotation',{hasText:'one'}).first().click();
+    const overlay=page.locator('.region-action-overlay');
+    await expect(overlay).toBeVisible();
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      // A portalled drag layer may mount after the selected segment controls.
+      const handles=document.querySelector('.desktop-tx-wave-edges');
+      if(!handles?.parentElement) throw new Error('drag layer missing');
+      handles.parentElement.appendChild(handles);
+    });
+    const loop=overlay.locator('.region-action-btn').first();
+    await loop.click({timeout:3000});
+    await expect(loop).toHaveClass(/region-action-btn-active/);
+    await loop.click();
+    await expect(loop).not.toHaveClass(/region-action-btn-active/);
+    const slider=overlay.locator('.segment-speed-slider');
+    const sliderBox=await slider.boundingBox();
+    if(!sliderBox) throw new Error('speed slider missing');
+    await page.mouse.click(sliderBox.x+sliderBox.width-2,sliderBox.y+sliderBox.height/2);
+    await expect(overlay.locator('.segment-speed-label')).toHaveText('2.0x');
+    await expect.poll(()=>page.locator('audio').evaluate(el=>(el as HTMLAudioElement).playbackRate)).toBe(2);
+    await overlay.locator('.segment-speed-label').click();
+    await expect(overlay.locator('.segment-speed-label')).toHaveText('1x');
+    const play=overlay.locator('.region-action-btn').last();
+    await play.click();
+    await expect.poll(()=>page.locator('audio').evaluate(el=>(el as HTMLAudioElement).paused),{intervals:[10]}).toBe(false);
+    await play.click();
+    await expect.poll(()=>page.locator('audio').evaluate(el=>(el as HTMLAudioElement).paused)).toBe(true);
+    expect(await overlay.evaluate(node=>{
+      const speed=node.querySelector('.segment-speed-control')!.getBoundingClientRect();
+      const button=node.querySelector('button')!.getBoundingClientRect();
+      const hit=document.elementFromPoint((speed.right+button.left)/2,button.top+button.height/2);
+      return hit?.closest('.region-action-overlay')===null;
+    })).toBe(true);
+    await page.screenshot({path:test.info().outputPath('wave-controls.png')});
+  });
+});
+
+test('正字法转写：添加、合并取消和按层清空保留宿主', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-orthography-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  const app = await launch('orthography');
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const { layerId } = await clipLayer(page, sessionId);
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    await page.locator('.desktop-tx-layer-label').first().click({ button: 'right' });
+    await page.getByRole('button', { name: /^(新建层|New layer)$/ }).click();
+    await page.getByRole('menuitem', { name: /^(添加正字法转写|Add orthographic transcription)$/ }).click();
+    const manuscripts = await desktopCall<{ id: string; title: Record<string, string> }[]>(page, sessionId, 'manuscripts.list', {});
+    const manuscriptId = manuscripts.find(row => Object.values(row.title).includes('Clip'))?.id;
+    if (!manuscriptId) throw new Error('Clip manuscript missing');
+    const listLayers = () => desktopCall<{ id: string; tierType: string; contentType: string; modality: string }[]>(page, sessionId, 'layers.list', { manuscriptId });
+    await expect.poll(async () => (await listLayers()).filter(row => row.tierType === 'symbolic-association' && row.contentType === 'transcription' && row.modality === 'text').length).toBe(1);
+    const spelling = (await listLayers()).find(row => row.tierType === 'symbolic-association' && row.contentType === 'transcription' && row.modality === 'text')!;
+    const originals = await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId });
+    const first = originals[0];
+    if (!first) throw new Error('fixture segment missing');
+    await desktopCall(page, sessionId, 'units.updateText', { unitId: first.id, textLayerId: layerId, text: '' });
+    await page.getByRole('link', { name: /^(Home|首页)$/ }).click();
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    const emptyOwner = page.locator(`.desktop-tx-lane[data-layer-id="${layerId}"] .timeline-annotation`).first();
+    await expect(emptyOwner).toBeVisible();
+    await expect(emptyOwner).toHaveClass(/timeline-annotation-empty/);
+    expect(await emptyOwner.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+    await waitForAudio(page);
+    for (const surface of ['spelling', 'waveform']) {
+      await page.locator(`.desktop-tx-lane[data-layer-id="${spelling.id}"] .desktop-tx-layer-name`).click();
+      const target = surface === 'spelling'
+        ? page.locator(`.desktop-tx-lane[data-layer-id="${spelling.id}"] .desktop-tx-lane__track`)
+        : page.getByTestId('desktop-waveform');
+      const box = await target.boundingBox();
+      if (!box) throw new Error(`${surface} missing`);
+      await page.mouse.move(box.x + box.width * 0.55, box.y + 10);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width * 0.7, box.y + 10, { steps: 8 });
+      await page.mouse.up();
+      const listed = () => desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId });
+      await expect.poll(async () => (await listed()).length).toBe(originals.length + 1);
+      const added = (await listed()).find(unit => !originals.some(original => original.id === unit.id));
+      if (!added) throw new Error('shared segment missing');
+      for (const id of [layerId, spelling.id]) {
+        const card = page.locator(`.desktop-tx-lane[data-layer-id="${id}"] [data-unit-id="${added.id}"]`);
+        await expect(card).toBeVisible();
+        expect(await card.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+      }
+      await page.screenshot({ path: test.info().outputPath(`orthography-${surface}-create.png`) });
+      await desktopCall(page, sessionId, 'units.undo', { manuscriptId });
+      await page.getByRole('link', { name: /^(Home|首页)$/ }).click();
+      await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+      await waitForAudio(page);
+    }
+    const connection = await page.evaluate(({ owner, spelling }) => {
+      const guide = document.querySelector(`.desktop-tx-lane[data-layer-id="${owner}"] .tree-guide.is-own`)?.getBoundingClientRect();
+      const elbow = document.querySelector(`.desktop-tx-lane[data-layer-id="${spelling}"] .tree-elbow`)?.getBoundingClientRect();
+      return guide && elbow ? { dx: elbow.x - guide.x, gap: elbow.y - guide.bottom } : null;
+    }, { owner: layerId, spelling: spelling.id });
+    expect(connection?.dx).toBe(0);
+    expect(connection?.gap).toBeCloseTo(0, 0);
+    await desktopCall(page, sessionId, 'units.updateText', { unitId: first.id, textLayerId: layerId, text: first.text });
+    await desktopCall(page, sessionId, 'units.updateText', { unitId: first.id, textLayerId: spelling.id, text: 'ka' });
+    await desktopCall(page, sessionId, 'units.putTextDraft', { unitId: first.id, textLayerId: spelling.id, rawInput: 'kaa', baseBody: 'ka' });
+    await page.getByRole('link', { name: /^(Home|首页)$/ }).click();
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    const rootCard = page.locator(`.desktop-tx-lane[data-layer-id="${layerId}"] .timeline-annotation`).first();
+    await rootCard.click();
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+m' : 'Control+m');
+    const merge = page.getByRole('dialog', { name: /^(合并下一段|Merge with the next segment)$/ });
+    await expect(merge).toBeVisible();
+    await expect(merge.locator('input').filter({ visible: true }).first()).toBeVisible();
+    await expect(merge.getByText(/未保存草稿|Unsaved draft/, { exact: true })).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath('orthography-merge.png') });
+    await merge.locator('.btn-secondary').getByText(/^(取消|Cancel)$/).click();
+    expect((await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId })).length).toBe(originals.length);
+    const row = page.locator(`.desktop-tx-lane[data-layer-id="${spelling.id}"]`);
+    await row.locator('.timeline-annotation').first().click({ button: 'right' });
+    await page.getByRole('menuitem', { name: /^(清空「|Clear “)/ }).click();
+    const clear = page.getByRole('dialog', { name: /^(清空当前写法？|Clear this writing\?)$/ });
+    await clear.getByRole('button', { name: /^(清空本层正文与草稿|Clear this layer’s text and drafts)$/ }).click();
+    await expect.poll(async () => (await desktopCall<{ text: string; draftText: string | null }[]>(page, sessionId, 'units.list', { layerId: spelling.id }))[0]).toMatchObject({ text: '', draftText: null });
+    expect((await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId }))[0]?.text).toBe(first.text);
+    await desktopCall(page, sessionId, 'units.undo', { manuscriptId });
+    const splitPreview = await desktopCall<{ baseline: string }>(page, sessionId, 'units.splitPreview', { unitId: first.id });
+    await desktopCall(page, sessionId, 'units.split', {
+      unitId: first.id, time: 200, textLayerId: layerId, baseline: splitPreview.baseline,
+      formalCuts: [{ layerId, cutIndex: first.text.length }, { layerId: spelling.id, cutIndex: 1 }],
+    });
+    await page.getByRole('link', { name: /^(Home|首页)$/ }).click();
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    const leftCard = page.locator(`.desktop-tx-lane[data-layer-id="${spelling.id}"] .timeline-annotation`).first();
+    await leftCard.click();
+    await leftCard.click();
+    const conflict = page.getByRole('dialog', { name: /^(未保存草稿|Unsaved draft)$/ });
+    await expect(conflict).toBeVisible();
+    await expect(conflict.getByRole('button', { name: /^(保留草稿|Keep draft)$/ }).last()).toBeFocused();
+    await page.screenshot({ path: test.info().outputPath('orthography-conflict.png') });
+    await conflict.getByRole('button', { name: /^(用草稿覆盖左段|Overwrite left segment with draft)$/ }).click();
+    await expect(conflict).toHaveCount(0);
+    await expect.poll(async () => (await desktopCall<{ text: string; draftText: string | null }[]>(page, sessionId, 'units.list', { layerId: spelling.id }))[0]).toMatchObject({ text: 'kaa', draftText: null });
+    expect((await desktopCall<{ text: string }[]>(page, sessionId, 'units.list', { layerId: spelling.id }))[1]?.text).toBe('a');
+    await page.locator(`.desktop-tx-lane[data-layer-id="${layerId}"] .desktop-tx-layer-label`).click({ button: 'right' });
+    await page.getByRole('button', { name: /^(新建层|New layer)$/ }).click();
+    await page.getByRole('menuitem', { name: /^(新建翻译层|New translation layer)$/ }).click();
+    await expect.poll(async () => (await listLayers()).filter(layer => layer.contentType === 'translation').length).toBe(1);
+    const translation = (await listLayers()).find(layer => layer.contentType === 'translation')!;
+    await expect(page.locator(`.desktop-tx-lane[data-layer-id="${translation.id}"] .desktop-tx-layer-name`)).toBeVisible();
+    const offsets = await page.evaluate(({ owner, translation, spelling }) => {
+      const x = (id: string) => document.querySelector(`.desktop-tx-lane[data-layer-id="${id}"] .tree-elbow, .desktop-tx-lane[data-layer-id="${id}"] .tree-guide.is-own`)!.getBoundingClientRect().x;
+      return { translation: x(translation) - x(owner), spelling: x(spelling) - x(owner) };
+    }, { owner: layerId, translation: translation.id, spelling: spelling.id });
+    expect(offsets.translation).toBeGreaterThan(0);
+    expect(offsets.spelling).toBe(0);
+    await page.screenshot({ path: test.info().outputPath('orthography-translation-indent.png') });
+    const addVoice = async () => {
+      await page.locator(`.desktop-tx-lane[data-layer-id="${layerId}"] .desktop-tx-layer-label`).click({ button: 'right' });
+      await page.getByRole('button', { name: /^(新建层|New layer)$/ }).click();
+      await page.getByRole('menuitem', { name: /^(新建语音转写|New careful speech)$/ }).click();
+    };
+    await addVoice();
+    await expect.poll(async () => (await listLayers()).filter(layer => layer.modality === 'audio' && layer.contentType === 'transcription').length).toBe(1);
+    await addVoice();
+    await expect(page.getByText(/当前时间主人已有语音转写或口译层|This timing owner already has a voice transcription or oral translation layer/).first()).toBeVisible();
+  } finally {
+    await app.close();
     rmSync(copy, { recursive: true, force: true });
   }
 });

@@ -481,3 +481,34 @@ describe('layer structure', () => {
     ).toThrow('color is not supported');
   });
 });
+
+describe('orthography anchor deletion', () => {
+  it.each(['soft', 'purge', 'migrate'])('rejects %s even when the spelling has no text', (mode) => {
+    const { sessionId, manuscriptId } = openManuscript();
+    const host = layer(sessionId, manuscriptId, 'ipa', 'transcription');
+    const target = layer(sessionId, manuscriptId, 'other', 'transcription');
+    const spelling = layer(sessionId, manuscriptId, 'spelling', 'transcription', {
+      tierType: 'symbolic-association',
+      hosts: [{ hostLayerId: host.id }],
+    });
+    expect(() =>
+      callDesktopSession(sessionId, 'layers.delete', {
+        id: host.id,
+        mode,
+        targetLayerId: target.id,
+      }),
+    ).toThrow('layer has orthography dependents');
+    expect(
+      (callDesktopSession(sessionId, 'layers.list', { manuscriptId }) as { id: string }[]).map(
+        (row) => row.id,
+      ),
+    ).toContain(spelling.id);
+    callDesktopSession(sessionId, 'layers.delete', { id: spelling.id, mode: 'soft' });
+    callDesktopSession(sessionId, 'layers.delete', { id: host.id, mode: 'soft' });
+    expect(
+      (callDesktopSession(sessionId, 'layers.list', { manuscriptId }) as { id: string }[]).map(
+        (row) => row.id,
+      ),
+    ).toEqual([target.id]);
+  });
+});

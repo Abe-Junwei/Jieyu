@@ -1,6 +1,29 @@
 import type { DictKey } from '../dictKeys';
 
 export const enUSDictionary = {
+  'app.desktopTranscription.orthographyAdd': 'Add orthographic transcription',
+  'app.desktopTranscription.orthographyName': 'Orthographic transcription',
+  'app.desktopTranscription.orthographyDeleteBlocked':
+    'Delete the orthography layers sharing these segments first. Text and drafts are unchanged.',
+  'app.desktopTranscription.timeOwner': 'Time owner',
+  'app.desktopTranscription.timeFrom': 'Timing: {name}',
+  'app.desktopTranscription.clearConfirm': 'Clear this writing?',
+  'app.desktopTranscription.clearExplain':
+    'Clear text and drafts in the selected cells of this layer. Keep segments, other layers, recordings and notes.',
+  'app.desktopTranscription.clearAction': 'Clear this layer’s text and drafts',
+  'app.desktopTranscription.splitTitle': 'Split shared segment',
+  'app.desktopTranscription.splitPoint': 'Cut position (leave blank to keep all text on the left)',
+  'app.desktopTranscription.officialText': 'Saved text',
+  'app.desktopTranscription.unsavedDraft': 'Unsaved draft',
+  'app.desktopTranscription.splitDraftKept':
+    'Keep the whole draft on the left without saving it. Pause autosave if its baseline conflicts.',
+  'app.desktopTranscription.draftConflict':
+    'This draft conflicts with saved text. Autosave is paused. Overwriting writes the whole draft into the left segment and keeps the right segment.',
+  'app.desktopTranscription.draftKeep': 'Keep draft',
+  'app.desktopTranscription.draftDiscard': 'Discard draft',
+  'app.desktopTranscription.draftOverwrite': 'Overwrite left segment with draft',
+  'app.desktopTranscription.mergeResult': 'Saved text after merge',
+  'app.desktopTranscription.mergeDraftConfirm': 'Merge and save drafts',
   'app.title': 'Jieyu',
   'app.subtitle': 'Endangered Language Research Platform',
   'app.nav.transcription': 'Transcription',
@@ -64,10 +87,23 @@ export const enUSDictionary = {
     'The transcript is in the text layer. It is saved only when you open and keep it.',
   'app.desktopTranscription.oralDraftExists':
     'This line already has unsaved text. Save or discard it before transcribing.',
+  'app.desktopTranscription.oralSpeakerOverlap':
+    'That speaker already occupies this time, so no segment was created.',
+  'app.desktopTranscription.oralTargetTitle': 'Where should the text go?',
+  'app.desktopTranscription.oralTargetHost':
+    'Writing on the host layer replaces the transcription already on this segment.',
+  'app.desktopTranscription.oralTargetLonger':
+    'The target segment is longer than this recording. The text will land on that longer segment.',
+  'app.desktopTranscription.oralTargetCreate':
+    'No segment on this layer contains the recording. Create one with the recording’s time?',
+  'app.desktopTranscription.oralTargetLayer':
+    'There is no interpretation layer yet. Name one and it will be created before writing.',
+  'app.desktopTranscription.oralTargetWrite': 'Write',
   'app.desktopTranscription.oralWhisperMissing':
     'No local speech model is selected, so nothing was sent to a cloud service.',
   'app.desktopTranscription.oralTranscribeEmpty': 'The transcript was empty.',
   'app.desktopTranscription.oralTranscribeFailed': 'Speech to text failed.',
+  'app.desktopTranscription.oralTextChanged': 'The text changed; the transcript was not written',
   'app.desktopTranscription.oralSourceChanged':
     'The recording changed, so the transcript was not written',
   'app.desktopTranscription.oralSaveFailed': 'This recording was not saved',
@@ -145,6 +181,8 @@ export const enUSDictionary = {
   'app.desktopTranscription.layerStyleReset': 'Reset',
   'app.desktopTranscription.layerStyleLocalFonts': 'Fonts on this computer',
   'app.desktopTranscription.layerStyleLocalFontsUnavailable': 'Local fonts are unavailable',
+  'app.desktopTranscription.recordingPairExists':
+    'This timing owner already has a voice transcription or oral translation layer. Use the existing layer of that type.',
   'app.desktopTranscription.layerActionFailed': 'The layer change did not finish',
   'app.desktopTranscription.layerTextConflict': 'The target layer already has this text',
   'app.desktopTranscription.layerUnitsConflict':
@@ -179,7 +217,6 @@ export const enUSDictionary = {
   'app.desktopTranscription.layerSegmentCount': '{count} segments',
   'app.desktopTranscription.layerHeaderCollapse': 'Collapse layer header',
   'app.desktopTranscription.layerHeaderExpand': 'Expand layer header',
-  'app.desktopTranscription.contextSegmentOrdinal': 'Segment {index}',
   'app.desktopTranscription.waveformPlaceholder':
     'Waveform and timeline reuse follows later slice-1 tasks',
   'app.desktopTranscription.noAudioTitle': 'No recording yet',
@@ -218,8 +255,31 @@ export const enUSDictionary = {
   'app.desktopTranscription.clearLayerText': 'Clear “{layer}” text',
   'app.desktopTranscription.deleteSegment': 'Delete segment',
   'app.desktopTranscription.splitSegment': 'Split segment',
+  'app.desktopTranscription.mergeNext': 'Merge with the next',
+  'app.desktopTranscription.mergeTitle': 'Merge with the next segment',
+  'app.desktopTranscription.mergeGap': 'The merged segment will include a {gap} s gap.',
+  'app.desktopTranscription.mergeNotes': '{notes} notes will be kept.',
+  'app.desktopTranscription.mergeConfirm': 'Merge',
+  'app.desktopTranscription.mergeTooMany':
+    '{count} recordings. At most 5 can stay. Check the ones to drop; merge stays off until 5 or fewer remain.',
+  'app.desktopTranscription.mergeEarlier': 'Earlier segment',
+  'app.desktopTranscription.mergeLater': 'Later segment',
+  'app.desktopTranscription.mergeClip': 'Clip {index}',
+  'app.desktopTranscription.clipIndex': 'Clip {index}',
+  'app.desktopTranscription.clipShort': '{index}/{count}',
+  'app.desktopTranscription.clipCap': 'This segment already has five recordings',
+  'app.desktopTranscription.clipMore': 'More',
+  'app.desktopTranscription.clipTimeUnknown': '—:—',
+  'app.desktopTranscription.mergeSeconds': '{seconds} s',
+  'app.desktopTranscription.mergeListen': 'Play',
+  'app.desktopTranscription.mergeFailed': 'Could not merge',
+  'app.desktopTranscription.mergeStale': 'The text changed, so this merge was not submitted',
+  'app.desktopTranscription.playlist': 'Playlist',
+  'app.desktopTranscription.playlistTitle': 'Clip {index}, {remain} left',
   'app.desktopTranscription.splitTooClose': 'The cut is under 10 milliseconds from an edge',
   'app.desktopTranscription.splitOutside': 'The playhead is outside this segment',
+  'app.desktopTranscription.splitRecordingsLeft':
+    '{count} recordings were kept intact in the left segment.',
   'app.desktopTranscription.splitFailed': 'Could not split',
   'app.desktopTranscription.deleteFailed': 'Could not delete the segment',
   'app.desktopTranscription.deleteRefreshFailed':
@@ -1790,9 +1850,11 @@ export const enUSDictionary = {
   'transcription.timeline.save.saving': 'Saving…',
   'transcription.timeline.save.unsaved': 'Unsaved',
   'transcription.timeline.audio.startRecording': 'Start recording translation',
+  'transcription.timeline.audio.recordAnother': 'Record another',
   'transcription.timeline.audio.stopRecording': 'Stop recording translation',
   'transcription.timeline.audio.playRecording': 'Play recorded translation',
   'transcription.timeline.audio.pauseRecording': 'Pause recorded translation',
+  'transcription.timeline.audio.pauseTake': 'Pause recording',
   'transcription.timeline.audio.resumeRecording': 'Resume recording',
   'transcription.timeline.audio.level': 'Input level',
   'transcription.timeline.audio.deleteRecording': 'Delete recorded translation',

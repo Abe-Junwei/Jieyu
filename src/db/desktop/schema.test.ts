@@ -169,6 +169,7 @@ describe('desktop project schema', () => {
       { name: 'tokens' },
       { name: 'transcription_acceptances' },
       { name: 'unit_span_maps' },
+      { name: 'unit_text_audios' },
       { name: 'unit_text_drafts' },
       { name: 'unit_texts' },
       { name: 'unit_time_drafts' },

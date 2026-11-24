@@ -167,3 +167,21 @@ describe('buildLayerTree', () => {
     expect(parseFold('{"groups":["a",1],"rows":"x"}')).toEqual({ groups: ['a'], rows: [] });
   });
 });
+
+it('keeps orthography names at the owner depth while translation stays indented', () => {
+  const layers = [
+    { id: 'ipa', contentType: 'transcription', tierType: 'time-aligned' },
+    { id: 'spelling', contentType: 'transcription', tierType: 'symbolic-association' },
+    { id: 'translation', contentType: 'translation', tierType: 'symbolic-association' },
+  ];
+  const rows = buildLayerTree(
+    layers,
+    [link('spelling', 'ipa', true), link('translation', 'ipa', true, 1)],
+    emptyFold(),
+  );
+  expect(rows.map((row) => [row.layerId, row.depth])).toEqual([
+    ['ipa', 0],
+    ['spelling', 0],
+    ['translation', 1],
+  ]);
+});

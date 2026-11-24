@@ -1,5 +1,7 @@
-import { useEffect, useRef } from 'react';
-import { t, type Locale } from '../i18n';
+import { DesktopTranscriptionSplitDialog } from './DesktopTranscriptionSplitDialog';
+import type { SplitTextPreview, FormalCut } from '../app/desktopProjectReadPageAccess';
+import { useEffect, useRef, useState } from 'react';
+import { t, tf, type Locale } from '../i18n';
 import { useToast } from '../contexts/ToastContext';
 import { textKey } from './desktopTranscriptionTextKey';
 
@@ -77,8 +79,18 @@ export function useDesktopTranscriptionSplitController(input: {
   draft: { unitId: string; text: string } | null;
   desktopCall: ((sessionId: string, method: string, args: unknown) => Promise<unknown>) | undefined;
   playheadSec: () => number;
+  prepareText?: () => Promise<boolean>;
+  onCommitted?: () => void;
   reload: () => Promise<unknown>;
 }) {
+  const [offer, setOffer] = useState<{
+    unitId: string;
+    time: number;
+    preview: SplitTextPreview;
+    activeLayerId: string;
+    cutIndex: number;
+    sessionId: string;
+  } | null>(null);
   const toast = useToast();
   const live = useRef(input);
   live.current = input;
@@ -125,6 +137,29 @@ export function useDesktopTranscriptionSplitController(input: {
       );
       return;
     }
+    try {
+      if (current.prepareText && !(await current.prepareText()))
+        throw new Error('text save incomplete');
+      const preview = (await desktopCall(sessionId, 'units.splitPreview', {
+        unitId,
+      })) as SplitTextPreview | null;
+      if (preview?.layers && preview.layers.length > 1) {
+        if (live.current.sessionId !== sessionId) return;
+        const source = preview.layers.find((row) => row.layerId === plan.textLayerId)?.body ?? '';
+        setOffer({
+          unitId,
+          time: timeMs,
+          sessionId,
+          preview,
+          activeLayerId: plan.textLayerId,
+          cutIndex: plan.source === source ? Math.min(plan.cutIndex, source.length) : source.length,
+        });
+        return;
+      }
+    } catch {
+      toast.showToast(t(current.locale, 'app.desktopTranscription.splitFailed'), 'error');
+      return;
+    }
     const operationId = globalThis.crypto.randomUUID();
     const args = {
       unitId,
@@ -143,7 +178,17 @@ export function useDesktopTranscriptionSplitController(input: {
           baseBody: unit.text,
         });
       }
-      await desktopCall(sessionId, 'units.split', args);
+      const split = (await desktopCall(sessionId, 'units.split', args)) as {
+        recordingCount?: number;
+      };
+      if ((split.recordingCount ?? 0) > 0) {
+        toast.showToast(
+          tf(current.locale, 'app.desktopTranscription.splitRecordingsLeft', {
+            count: split.recordingCount!,
+          }),
+          'info',
+        );
+      }
     } catch (error) {
       try {
         const found = (await desktopCall(sessionId, 'units.inspectEdit', {
@@ -214,5 +259,37 @@ export function useDesktopTranscriptionSplitController(input: {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  return { ask };
+  async function confirm(cuts: FormalCut[]) {
+    const current = live.current;
+    if (!offer || current.sessionId !== offer.sessionId || !current.desktopCall) return;
+    const { createDesktopClient } = await import('../app/desktopProjectReadPageAccess');
+    try {
+      await createDesktopClient({ desktopCall: current.desktopCall }).splitUnit(offer.sessionId, {
+        unitId: offer.unitId,
+        time: offer.time,
+        textLayerId: offer.activeLayerId,
+        baseline: offer.preview.baseline,
+        formalCuts: cuts,
+      });
+      setOffer(null);
+      current.onCommitted?.();
+      await current.reload();
+    } catch {
+      toast.showToast(t(current.locale, 'app.desktopTranscription.splitFailed'), 'error');
+    }
+  }
+  return {
+    ask,
+    dialog:
+      offer === null ? null : (
+        <DesktopTranscriptionSplitDialog
+          locale={input.locale}
+          preview={offer.preview}
+          activeLayerId={offer.activeLayerId}
+          cutIndex={offer.cutIndex}
+          onCancel={() => setOffer(null)}
+          onConfirm={(cuts) => void confirm(cuts)}
+        />
+      ),
+  };
 }

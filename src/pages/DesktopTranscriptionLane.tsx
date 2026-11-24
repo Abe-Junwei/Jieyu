@@ -21,7 +21,6 @@ import { DesktopTranscriptionCreatePreview } from './DesktopTranscriptionCreateP
 import { DesktopTranscriptionLaneResize } from './DesktopTranscriptionLaneResize';
 import { DesktopWaveformEdges } from './DesktopWaveformEdges';
 import { TimelineAnnotationItem } from '../components/TimelineAnnotationItem';
-import { desktopAnnotationStyle } from '../utils/layerDisplayStyle';
 import {
   layerStyleFields,
   styleMenuProps,
@@ -33,6 +32,7 @@ import { t, tf, type Locale } from '../i18n';
 import { getTranscriptionPlaybackClockSnapshot } from '../hooks/transcription/transcriptionPlaybackClock';
 import { useToast } from '../contexts/ToastContext';
 import { DesktopTranscriptionEdgeChrome } from './DesktopTranscriptionEdgeChrome';
+import { segmentMenuActions } from './desktopTranscriptionSegmentMenu';
 import {
   desktopSegmentFrame,
   edgeNotice,
@@ -47,6 +47,7 @@ import { NO_CONFLICTS } from './desktopTranscriptionEdgeSession';
 import type { RouteLayer, RouteLink } from './desktopTranscriptionCreateRoute';
 import { textKey } from './desktopTranscriptionTextKey';
 import {
+  annotationStyle,
   DesktopTranscriptionJoins,
   DesktopTranscriptionLayerRows,
   laneHeightStyle,
@@ -116,6 +117,8 @@ export function DesktopTranscriptionLane(props: {
   /** Right-click on a waveform segment overlay (the highlighted body sits above the region). */
   onWaveSegmentMenu: (unitId: string, x: number, y: number) => void;
   onSplit?: (unitId: string) => void;
+  canMerge?: (unitId: string) => boolean;
+  onMerge?: (unitId: string) => void;
   /** Runs `go` once the open body draft is saved or dropped (the leave guard). */
   onLeave: (go: () => void) => void;
   /** Layer id of an open recording. Folding it away must ask first. */
@@ -397,6 +400,7 @@ export function DesktopTranscriptionLane(props: {
             id: layer.id,
             name: layer.name,
             contentType: layer.contentType,
+            modality: layer.modality,
             tierType: layer.tierType,
           })),
           links: props.links ?? [],
@@ -448,6 +452,14 @@ export function DesktopTranscriptionLane(props: {
           <DesktopTranscriptionLayerLabel
             locale={props.locale}
             name={mainName}
+            timingLabel={
+              props.layers?.find((layer) => layer.id === row.layerId)?.tierType ===
+                'time-aligned' &&
+              props.layers?.find((layer) => layer.id === row.layerId)?.contentType ===
+                'transcription'
+                ? t(props.locale, 'app.desktopTranscription.timeOwner')
+                : ''
+            }
             row={row}
             focused
             onToggleGroup={() => toggleGroup(row.layerId)}
@@ -717,15 +729,7 @@ export function DesktopTranscriptionLane(props: {
           const unitId = edges.ui.menu?.unitId;
           if (unitId) void edges.askDelete(unitId);
         }}
-        {...(props.onSplit === undefined
-          ? {}
-          : {
-              onAskSplit: () => {
-                const unitId = edges.ui.menu?.unitId;
-                edges.closeMenu();
-                if (unitId) props.onSplit?.(unitId);
-              },
-            })}
+        {...segmentMenuActions(edges.ui.menu, edges.closeMenu, props)}
         onCancelDelete={edges.cancelDelete}
         onConfirmDelete={edges.confirmDelete}
       />
@@ -738,25 +742,7 @@ function mainAnnotationStyle(
   layerId: string | null,
 ): CSSProperties | undefined {
   const layer = layers?.find((item) => item.id === layerId);
-  if (layer === undefined) return undefined;
-  const style = desktopAnnotationStyle({
-    ...(layer.displayFont === undefined ? {} : { displayFont: layer.displayFont }),
-    ...(layer.displayFontSize === undefined ? {} : { displayFontSize: layer.displayFontSize }),
-    ...(layer.displayBold === undefined ? {} : { displayBold: layer.displayBold }),
-    ...(layer.displayItalic === undefined ? {} : { displayItalic: layer.displayItalic }),
-    ...(layer.orthographyScriptTag === undefined ? {} : { scriptTag: layer.orthographyScriptTag }),
-    ...(layer.languageId === undefined ? {} : { languageId: layer.languageId }),
-  });
-  if (
-    style.fontFamily === undefined &&
-    style.fontSize === undefined &&
-    style.fontWeight === undefined &&
-    style.fontStyle === undefined &&
-    style.direction === undefined
-  ) {
-    return undefined;
-  }
-  return style;
+  return layer === undefined ? undefined : annotationStyle(layer);
 }
 
 function timedOf(unit: { id: string; startMs: number | null; endMs: number | null }) {

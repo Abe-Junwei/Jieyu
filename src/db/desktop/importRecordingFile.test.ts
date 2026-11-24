@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, extname, join, sep } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   bindDesktopMediaSession,
@@ -85,6 +85,16 @@ describe('copyRecordingIntoProject', () => {
     expect(projectFolderForNewImport(root, 'take', () => false)).toBe(join(root, 'take 2'));
     expect(readFileSync(join(older, 'project.sqlite')).toString()).toBe('old');
     expect(projectFolderForNewImport(root, 'take', () => true)).toBe(older);
+  });
+
+  it('keeps a dot-dot audio stem inside the workspace root', () => {
+    const root = folder();
+    for (const file of ['...wav', '.. .wav', '..wav']) {
+      const created = projectFolderForNewImport(root, basename(file, extname(file)), () => true);
+      expect(created === root || created.startsWith(`${root}${sep}`)).toBe(true);
+      expect(basename(created)).not.toBe('..');
+      expect(basename(created)).not.toBe('.');
+    }
   });
 
   it('refuses a file that is not audio', async () => {
