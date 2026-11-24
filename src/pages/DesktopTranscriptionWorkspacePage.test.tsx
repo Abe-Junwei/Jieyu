@@ -230,6 +230,15 @@ describe('DesktopTranscriptionWorkspacePage', () => {
     );
     expect(css).not.toMatch(/\.desktop-tx-lane[^{]*timeline-annotation-selected[^{]*\{[^}]*rgb\(/);
     expect(css).toMatch(
+      /\.desktop-tx-lane\s+\.timeline-annotation:focus-within:not\([\s\S]*?\)\s*\{[^}]*box-shadow:\s*none/,
+    );
+    expect(css).toMatch(
+      /\.desktop-tx-lane \.timeline-annotation:focus-visible\s*\{[^}]*outline:\s*1\.5px solid var\(--focus-color\)/,
+    );
+    expect(css).toMatch(
+      /\.desktop-tx-lane \.timeline-annotation:active:focus-visible\s*\{[^}]*outline:\s*none/,
+    );
+    expect(css).toMatch(
       /\.desktop-tx-lane \.timeline-annotation-resize-handle[\s\S]*display:\s*none/,
     );
     expect(css).toMatch(

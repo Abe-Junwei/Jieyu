@@ -1,3 +1,5 @@
+import { splitTextPreview } from './unitSplitTextPlan';
+import { textClearPreview, clearUnitTexts } from './unitTextClear';
 import {
   finishAttachmentCleanup,
   listAttachmentLinks,
@@ -104,9 +106,16 @@ import {
   oralProvenanceJson,
   peekOralEngine,
   commitOralTranscript,
+  oralTextBaseline,
   readRecording,
   recordingFileId,
 } from './recordingClips';
+import {
+  assertTranscriptionWrite,
+  listTranscriptionTargets,
+  planTranscription,
+  recordTranscriptionUnit,
+} from './recordingTarget';
 import { transcribeWavClip } from '../../desktop/projectTranscription';
 import { finishMediaCleanup, type MediaTrash } from './mediaCleanup';
 import { reregisterMedia, restoreRegisteredMedia } from './mediaReregister';
@@ -561,6 +570,9 @@ const operationHandlers = {
       return inspectEditReceipt(ctx.db, { ...input, payload });
     },
   },
+  'units.splitPreview': {
+    run: (ctx: ContractCtx, input: { unitId: string }) => splitTextPreview(ctx.db, input.unitId),
+  },
   'units.split': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.split']['check']>) => {
       const { operationId, ...splitInput } = input;
@@ -584,7 +596,11 @@ const operationHandlers = {
         () => {
           const split = splitUnit(ctx.db, input);
           rememberSessionEdit(ctx.sessionId, { kind: 'split', undo: split.undo });
-          return { left: split.left, right: split.right };
+          return {
+            left: split.left,
+            right: split.right,
+            recordingCount: split.undo.removed.reduce((count, row) => count + row.audios.length, 0),
+          };
         },
       );
     },
@@ -723,14 +739,22 @@ const operationHandlers = {
     },
   },
   'units.deletePreview': {
-    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.deletePreview']['check']>) =>
-      previewUnitDeletion(ctx.db, input.unitId),
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['units.deletePreview']['check']>,
+    ) =>
+      input.textLayerId === undefined
+        ? previewUnitDeletion(ctx.db, input.unitId)
+        : textClearPreview(ctx.db, [input.unitId], input.textLayerId),
   },
   'units.deleteManyPreview': {
     run: (
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['units.deleteManyPreview']['check']>,
-    ) => previewUnitsDeletion(ctx.db, input.unitIds),
+    ) =>
+      input.textLayerId === undefined
+        ? previewUnitsDeletion(ctx.db, input.unitIds)
+        : textClearPreview(ctx.db, input.unitIds, input.textLayerId),
   },
   'units.delete': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.delete']['check']>) => {
@@ -738,9 +762,24 @@ const operationHandlers = {
       let manuscriptId = '';
       return withEditReceipt(
         ctx.db,
-        { operationId, kind: 'delete', payload: { unitId }, manuscriptId: () => manuscriptId },
+        {
+          operationId,
+          kind: 'delete',
+          payload: {
+            unitId,
+            ...(input.textLayerId === undefined
+              ? {}
+              : { textLayerId: input.textLayerId, fingerprint: input.fingerprint }),
+          },
+          manuscriptId: () => manuscriptId,
+        },
         () => {
           manuscriptId = manuscriptIdOf(ctx.db, unitId);
+          if (input.textLayerId !== undefined) {
+            const undo = clearUnitTexts(ctx.db, [unitId], input.textLayerId, input.fingerprint!);
+            rememberSessionEdit(ctx.sessionId, { kind: 'clearText', undo });
+            return { id: unitId };
+          }
           const tree = removeUnit(ctx.db, unitId);
           rememberSessionEdit(ctx.sessionId, { kind: 'delete', undo: { manuscriptId, tree } });
           return { id: unitId };
@@ -759,11 +798,21 @@ const operationHandlers = {
         {
           operationId,
           kind: 'deleteMany',
-          payload: { unitIds },
+          payload: {
+            unitIds,
+            ...(input.textLayerId === undefined
+              ? {}
+              : { textLayerId: input.textLayerId, fingerprint: input.fingerprint }),
+          },
           manuscriptId: () => manuscriptId,
         },
         () => {
           manuscriptId = manuscriptIdOf(ctx.db, firstId);
+          if (input.textLayerId !== undefined) {
+            const undo = clearUnitTexts(ctx.db, unitIds, input.textLayerId, input.fingerprint!);
+            rememberSessionEdit(ctx.sessionId, { kind: 'clearText', undo });
+            return { ids: [...unitIds] };
+          }
           const trees = removeUnits(ctx.db, unitIds);
           rememberSessionEdit(ctx.sessionId, { kind: 'deleteMany', undo: { manuscriptId, trees } });
           return { ids: [...unitIds] };
@@ -1167,7 +1216,7 @@ const operationHandlers = {
           : undefined;
       const provenanceJson = matching
         ? draft.provenanceJson
-        : engine === undefined
+        : engine === undefined || engine.text !== input.text
           ? undefined
           : oralProvenanceJson(engine);
       const box: { undo: UnitTextUndo | null } = { undo: null };
@@ -1250,7 +1299,7 @@ const operationHandlers = {
       if (ctx.trash !== undefined && stored.replacedFileId !== null) {
         await finishAttachmentCleanup(ctx.db, ctx.folder, stored.replacedFileId, ctx.trash);
       }
-      return { fileId: stored.fileId };
+      return { fileId: stored.fileId, audioId: stored.audioId };
     },
   },
   'recordings.detach': {
@@ -1274,26 +1323,97 @@ const operationHandlers = {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['recordings.list']['check']>) =>
       listRecordings(ctx.db, input.layerId),
   },
+  'recordings.listTargets': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['recordings.listTargets']['check']>,
+    ) => listTranscriptionTargets(ctx.db, input.layerId),
+  },
+  'recordings.planTranscription': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['recordings.planTranscription']['check']>,
+    ) =>
+      planTranscription(ctx.db, {
+        unitId: input.unitId,
+        audioLayerId: input.layerId,
+        targetLayerId: input.targetLayerId,
+      }),
+  },
   'recordings.transcribe': {
     run: async (
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['recordings.transcribe']['check']>,
     ) => {
-      const fileId = recordingFileId(ctx.db, input.unitId, input.layerId);
+      const fileId = recordingFileId(ctx.db, input.unitId, input.layerId, input.audioId);
       if (fileId === null) throw new Error('recording is missing');
+      const choice = {
+        ...(input.targetUnitId === undefined ? {} : { targetUnitId: input.targetUnitId }),
+        ...(input.createUnit === true ? { createUnit: true as const } : {}),
+        ...(input.confirmHost === true ? { confirmHost: true as const } : {}),
+        ...(input.confirmLonger === true ? { confirmLonger: true as const } : {}),
+      };
+      const plan = assertTranscriptionWrite(ctx.db, {
+        unitId: input.unitId,
+        audioLayerId: input.layerId,
+        targetLayerId: input.targetLayerId,
+        ...choice,
+      });
       const clip = readRecording(ctx.db, ctx.folder, {
         unitId: input.unitId,
         layerId: input.layerId,
+        ...(input.audioId === undefined ? {} : { audioId: input.audioId }),
       });
+      const baseline =
+        plan.kind === 'write'
+          ? oralTextBaseline(ctx.db, { unitId: plan.unitId, textLayerId: plan.textLayerId })
+          : JSON.stringify([plan.textLayerId, null]);
+      const audioId =
+        input.audioId ??
+        listRecordings(ctx.db, input.layerId).find(
+          (row) => row.unitId === input.unitId && row.fileId === fileId,
+        )?.id;
       const heard = await transcribeWavClip(ctx.sessionId, clip.bytes);
-      return commitOralTranscript(ctx.db, {
+      const again = assertTranscriptionWrite(ctx.db, {
         unitId: input.unitId,
         audioLayerId: input.layerId,
-        fileId,
-        text: heard.text,
-        model: heard.model,
-        modelVersion: heard.modelVersion,
+        targetLayerId: input.targetLayerId,
+        ...choice,
       });
+      if (again.kind !== plan.kind || again.textLayerId !== plan.textLayerId) {
+        throw new Error('oral text changed');
+      }
+      const commit = (destUnitId: string) =>
+        commitOralTranscript(ctx.db, {
+          unitId: input.unitId,
+          destUnitId,
+          audioLayerId: input.layerId,
+          textLayerId: again.textLayerId,
+          fileId,
+          ...(audioId === undefined ? {} : { audioId }),
+          baseline,
+          text: heard.text,
+          model: heard.model,
+          modelVersion: heard.modelVersion,
+        });
+      if (again.kind === 'create') {
+        recordTranscriptionUnit(
+          ctx.db,
+          ctx.sessionId,
+          {
+            layerId: again.textLayerId,
+            startMs: again.startMs,
+            endMs: again.endMs,
+            speakerId: again.speakerId,
+            ...(input.operationId === undefined ? {} : { operationId: input.operationId }),
+          },
+          commit,
+        );
+        return { textLayerId: again.textLayerId };
+      }
+      if (plan.kind === 'write' && again.unitId !== plan.unitId)
+        throw new Error('oral text changed');
+      return commit(again.unitId);
     },
   },
   'media.delete': {

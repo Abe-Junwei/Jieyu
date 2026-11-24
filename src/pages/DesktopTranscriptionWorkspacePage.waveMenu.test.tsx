@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '../i18n';
@@ -158,6 +158,49 @@ describe('DesktopTranscriptionWorkspacePage waveform menu (#602)', () => {
     expect(playback.seekTo).toHaveBeenCalledWith(2.5);
     expect(playback.togglePlayback).toHaveBeenCalledOnce();
     expect(screen.queryByTestId('desktop-wave-menu')).toBeNull();
+  });
+
+  it('merges the waveform target even when another segment is selected', async () => {
+    desktopCall.mockImplementation(async (_session: string, method: string) =>
+      method === 'units.mergePreview'
+        ? {
+            keepId: 'u-a',
+            removeId: 'u-b',
+            gapMs: 0,
+            noteCount: 0,
+            separator: ' ',
+            baseline: 'hash',
+            earlier: [],
+            later: [],
+          }
+        : null,
+    );
+    renderWorkspace();
+    fireEvent.click(screen.getByText('beta'));
+    act(() => {
+      mediaInput.onRegionContextMenu?.('u-a', 50, 40);
+    });
+    fireEvent.click(screen.getByRole('menuitem', { name: /向后合并/ }));
+    expect(await screen.findByRole('dialog')).toHaveTextContent('合并下一段');
+    expect(screen.queryByTestId('desktop-wave-menu')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '合并' }));
+    await waitFor(() =>
+      expect(desktopCall).toHaveBeenCalledWith(
+        'session-1',
+        'units.merge',
+        expect.objectContaining({ keepId: 'u-a', removeId: 'u-b', separator: ' ' }),
+      ),
+    );
+  });
+
+  it('disables merge on the last waveform segment and hides it on empty space', () => {
+    renderWorkspace();
+    act(() => {
+      mediaInput.onRegionContextMenu?.('u-b', 120, 40);
+    });
+    expect(screen.getByRole('menuitem', { name: /向后合并/ })).toBeDisabled();
+    fireEvent.contextMenu(screen.getByTestId('desktop-waveform'), { clientX: 250, clientY: 40 });
+    expect(screen.queryByRole('menuitem', { name: /向后合并/ })).toBeNull();
   });
 
   it('asks to delete the segment under the waveform menu', async () => {

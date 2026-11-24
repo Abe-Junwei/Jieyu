@@ -16,7 +16,7 @@ export function JieyuIcon({ name, className, 'aria-hidden': ariaHidden, ...rest 
     <Icon
       {...rest}
       aria-hidden={ariaHidden ?? true}
-      data-jieyu-spin={name === 'Loader2' ? '1' : undefined}
+      data-jieyu-spin={name === 'Loader2' || name === 'LoaderCircle' ? '1' : undefined}
       className={['jieyu-icon', className].filter(Boolean).join(' ')}
     />
   );

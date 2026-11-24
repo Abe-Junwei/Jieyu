@@ -63,16 +63,6 @@
   transition: padding-left var(--shell-motion-base) ease;
 }
 
-.app-shell-desktop-transcription.app-shell-side-pane-collapsed .app-side-pane {
-  pointer-events: auto;
-}
-
-.app-shell-desktop-transcription.app-shell-side-pane-collapsed .app-side-pane-body {
-  padding: 0;
-  opacity: 1;
-  pointer-events: auto;
-}
-
 @media (max-width: 1024px) {
   .app-shell-transcription .app-main-transcription {
     padding-left: 0;

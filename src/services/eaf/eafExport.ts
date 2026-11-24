@@ -165,8 +165,13 @@ export function exportToEaf(input: EafExportInput): string {
   let annCounter = 1;
 
   // Determine default transcription layer
-  const transcriptionLayers = layers.filter((l) => l.layerType === 'transcription');
-  const defaultTrcLayer = transcriptionLayers.find((l) => l.isDefault) ?? transcriptionLayers[0];
+  const transcriptionLayers = layers.filter(
+    (l) => l.layerType === 'transcription' && l.constraint !== 'symbolic_association',
+  );
+  const defaultTrcLayer =
+    transcriptionLayers.find((l) => l.id === input.defaultTranscriptionLayerId) ??
+    transcriptionLayers.find((l) => l.isDefault) ??
+    transcriptionLayers[0];
   const defaultTrcId = defaultTrcLayer?.id;
   const defaultTrcLocale = defaultTrcLayer?.languageId ?? 'en';
   const defaultTrcMeta = defaultTrcLayer ? parseEafMetaFromLayerKey(defaultTrcLayer.key) : {};
@@ -228,22 +233,29 @@ export function exportToEaf(input: EafExportInput): string {
     timeSlots,
     usedConstraintTypes: new Set<string>(),
   };
-  const transcriptionAnnotations = sorted.map((utt) => {
-    const slots = uttSlotMap.get(utt.id)!;
-    const tr = defaultTrcId
-      ? translations.find(
-          (t) => t.unitId === utt.id && t.layerId === defaultTrcId && t.modality === 'text',
-        )
-      : undefined;
-    const text = tr?.text ?? utt.transcription?.default ?? '';
-    const annotationId = takeEafAnnId(scratch, { externalRef: tr?.externalRef });
-    uttAnnotationIdMap.set(utt.id, annotationId);
-    return `        <ANNOTATION>
+  const defaultMembers = defaultTrcId === undefined ? undefined : layerSegments?.get(defaultTrcId);
+  const defaultIds =
+    defaultMembers === undefined
+      ? undefined
+      : new Set(defaultMembers.map((unit) => unit.unitId ?? unit.id));
+  const transcriptionAnnotations = sorted
+    .filter((unit) => defaultIds === undefined || defaultIds.has(unit.id))
+    .map((utt) => {
+      const slots = uttSlotMap.get(utt.id)!;
+      const tr = defaultTrcId
+        ? translations.find(
+            (t) => t.unitId === utt.id && t.layerId === defaultTrcId && t.modality === 'text',
+          )
+        : undefined;
+      const text = tr?.text ?? utt.transcription?.default ?? '';
+      const annotationId = takeEafAnnId(scratch, { externalRef: tr?.externalRef });
+      uttAnnotationIdMap.set(utt.id, annotationId);
+      return `        <ANNOTATION>
             <ALIGNABLE_ANNOTATION ANNOTATION_ID="${escapeXml(annotationId)}" TIME_SLOT_REF1="${slots.tsStart}" TIME_SLOT_REF2="${slots.tsEnd}">
                 <ANNOTATION_VALUE>${escapeXml(text)}</ANNOTATION_VALUE>
             </ALIGNABLE_ANNOTATION>
         </ANNOTATION>`;
-  });
+    });
   annCounter = scratch.annCounter;
   const translationTierXml = buildEafAdditionalTierXml({
     layers,

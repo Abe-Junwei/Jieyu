@@ -119,8 +119,11 @@ describe('desktop operation contract', () => {
       'recordings.detach',
       'recordings.read',
       'recordings.list',
+      'recordings.listTargets',
+      'recordings.planTranscription',
       'recordings.transcribe',
       'units.mergePreview',
+      'units.splitPreview',
     ];
     for (const key of addedAfterSnapshot) {
       expect(DESKTOP_METHODS_AT_5fbc66f8).not.toContain(key);

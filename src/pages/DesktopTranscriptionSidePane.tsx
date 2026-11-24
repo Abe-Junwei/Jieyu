@@ -8,6 +8,7 @@ interface SideLayer {
   id: string;
   name: Record<string, string>;
   contentType: string;
+  modality?: string | undefined;
   tierType?: string;
   parentId: string | null;
   sortOrder?: number;
@@ -52,6 +53,7 @@ export function DesktopTranscriptionSidePane(props: {
         id: layer.id,
         name: layer.name,
         contentType: layer.contentType,
+        modality: layer.modality,
         tierType: layer.tierType,
         parentId: layer.parentId,
         ...(layer.sortOrder === undefined ? {} : { sortOrder: layer.sortOrder }),

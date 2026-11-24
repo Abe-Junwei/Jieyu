@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { Link } from 'react-router-dom';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { readOpenProjectSession } from '../desktop/openProjectSession';
 import { t, useLocale } from '../i18n';
@@ -12,7 +13,13 @@ export function DesktopCatalogPage(props: {
 }) {
   const locale = useLocale();
   const sessionId = readOpenProjectSession();
-  if (sessionId === null) return null;
+  if (sessionId === null) {
+    return (
+      <section className="desktop-project-read" data-testid="desktop-catalog-page">
+        <Link to="/desktop-project">{t(locale, 'app.desktopRead.openFolder')}</Link>
+      </section>
+    );
+  }
   if (props.section === 'structure') {
     return (
       <section className="desktop-project-read" data-testid="desktop-catalog-page">

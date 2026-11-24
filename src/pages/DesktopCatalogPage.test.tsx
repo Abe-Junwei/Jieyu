@@ -74,6 +74,26 @@ function seedLanguage(sessionId: string): { id: string } {
 }
 
 describe('DesktopCatalogPage', () => {
+  it.each(['language', 'orthography', 'bridge', 'structure'] as const)(
+    'asks to open a project on %s when no session is open',
+    (section) => {
+      (globalThis as { jieyuDesktop?: DesktopReadHost }).jieyuDesktop = hostFor([]);
+      render(
+        <LocaleProvider locale="en-US">
+          <MemoryRouter>
+            <DesktopCatalogPage
+              host={(globalThis as unknown as { jieyuDesktop: DesktopReadHost }).jieyuDesktop}
+              section={section}
+            />
+          </MemoryRouter>
+        </LocaleProvider>,
+      );
+      expect(screen.getByRole('link', { name: 'Open folder' }).getAttribute('href')).toBe(
+        '/desktop-project',
+      );
+    },
+  );
+
   it('does not open the old lexicon or structural workspace', () => {
     const page = readFileSync(join(process.cwd(), 'src/pages/DesktopCatalogPage.tsx'), 'utf8');
     expect(page.includes("from '../db")).toBe(false);

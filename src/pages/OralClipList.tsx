@@ -1,6 +1,6 @@
 import { useRef, useState, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { JieyuIcon } from '../components/ui/JieyuIcon';
+import { IconTipButton } from '../components/ui/IconTip';
 import { t, tf, type Locale } from '../i18n';
 import { JIEYU_ICON_WAVE } from '../utils/jieyuIcon';
 
@@ -33,16 +33,28 @@ export function OralClipList(props: {
   };
   return (
     <>
-      <button
+      <IconTipButton
         ref={button}
-        type="button"
         className="timeline-translation-audio-btn"
-        aria-label={t(locale, 'app.desktopTranscription.playlist')}
+        label={t(locale, 'app.desktopTranscription.playlist')}
         aria-expanded={at !== null}
         onClick={open}
       >
-        <JieyuIcon name="ListMusic" className={JIEYU_ICON_WAVE} />
-      </button>
+        <svg
+          className={['jieyu-icon', JIEYU_ICON_WAVE, 'lucide', 'lucide-list'].join(' ')}
+          viewBox="0 0 24 24"
+          width="24"
+          height="24"
+          aria-hidden="true"
+        >
+          <circle cx="4" cy="6" r="1.5" fill="currentColor" stroke="none" />
+          <circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none" />
+          <circle cx="4" cy="18" r="1.5" fill="currentColor" stroke="none" />
+          <path d="M9 6h12" />
+          <path d="M9 12h12" />
+          <path d="M9 18h12" />
+        </svg>
+      </IconTipButton>
       {at === null
         ? null
         : createPortal(

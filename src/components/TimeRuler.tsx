@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import { useTranscriptionPlaybackClock } from '../hooks/transcription/transcriptionPlaybackClock';
 import { t, useLocale } from '../i18n';
+import { IconTipTrigger } from './ui/IconTip';
 import { TimeRulerOverview } from './TimeRulerOverview';
 import { applyTimelineViewportScroll } from '../utils/applyTimelineViewportScroll';
 import { isExtendedDocumentTimeline } from '../utils/waveformTierScrollSync';
@@ -302,19 +303,20 @@ export function TimeRuler({
         />
       </div>
       {onWaveformResizeStart ? (
-        <div
-          className={`waveform-overview-resize-handle${isResizingWaveform ? ' waveform-overview-resize-handle-resizing' : ''}`}
-          onPointerDown={(event) => {
-            event.stopPropagation();
-            onWaveformResizeStart(event);
-          }}
-          role="separator"
-          aria-orientation="horizontal"
-          title={t(locale, 'transcription.wave.resizeHeight')}
-          aria-label={t(locale, 'transcription.wave.resizeHeight')}
-        >
-          <div className="waveform-overview-resize-handle-dots" />
-        </div>
+        <IconTipTrigger label={t(locale, 'transcription.wave.resizeHeight')}>
+          <div
+            className={`waveform-overview-resize-handle${isResizingWaveform ? ' waveform-overview-resize-handle-resizing' : ''}`}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              onWaveformResizeStart(event);
+            }}
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label={t(locale, 'transcription.wave.resizeHeight')}
+          >
+            <div className="waveform-overview-resize-handle-dots" />
+          </div>
+        </IconTipTrigger>
       ) : null}
     </div>
   );

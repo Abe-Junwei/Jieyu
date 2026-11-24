@@ -280,6 +280,24 @@ export function undoUnitText(db: SqliteDatabase, undo: UnitTextUndo, afterText?:
     const now = new Date().toISOString();
     const context = resolveUnitTextContext(db, undo.unitId, undo.textLayerId);
     const currentText = readUnitTextBody(db, context);
+    if (undo.prior.resolvedDraft) {
+      const draft = undo.prior.resolvedDraft;
+      const currentDraft = db
+        .prepare('SELECT 1 FROM unit_text_drafts WHERE unit_id = ? AND layer_id = ?')
+        .get(undo.unitId, undo.textLayerId);
+      if (currentDraft !== undefined) throw new Error('unit text undo is stale');
+      db.prepare(
+        `INSERT INTO unit_text_drafts (unit_id, layer_id, raw_input, base_body, provenance_json, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run(
+        undo.unitId,
+        undo.textLayerId,
+        draft.rawInput,
+        draft.baseBody,
+        draft.provenanceJson,
+        draft.updatedAt,
+      );
+    }
+
     if (undo.prior.textExists) {
       if (currentText.id === null) {
         db.prepare(

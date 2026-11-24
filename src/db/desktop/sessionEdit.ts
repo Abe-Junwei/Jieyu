@@ -1,3 +1,5 @@
+import { splitTextPreview } from './unitSplitTextPlan';
+import { undoTextClear, redoTextClear, type TextClearUndo } from './unitTextClear';
 import type Database from 'better-sqlite3';
 import { undoUnitText } from './analysisRestore';
 import {
@@ -18,7 +20,12 @@ import {
 } from './unitEdges';
 import { splitUnit, undoSplit, type UnitSplitUndo } from './unitSplit';
 import { mergeUnits, undoMerge, type UnitMergeUndo } from './unitMerge';
-import { deleteUnitTree, readRemovedUnit, type RemovedUnit } from './unitSpan';
+import {
+  deleteUnitTree,
+  readRemovedUnit,
+  readRemovedTextDrafts,
+  type RemovedUnit,
+} from './unitSpan';
 import { retimeManuscript, undoRetime, type RetimeUndo } from './manuscripts';
 import { readStoredUnit, updateUnitText, type Unit, type UnitTextUndo } from './units';
 import { bindHeldAttachmentIds } from './attachments';
@@ -26,6 +33,7 @@ import { bindHeldAttachmentIds } from './attachments';
 type SqliteDatabase = InstanceType<typeof Database>;
 
 export type SessionEdit =
+  | { kind: 'clearText'; undo: TextClearUndo }
   | { kind: 'text'; undo: UnitTextUndo }
   | { kind: 'split'; undo: UnitSplitUndo }
   | { kind: 'merge'; undo: UnitMergeUndo }
@@ -78,6 +86,7 @@ function snapshotTrees(edit: SessionEdit): RemovedUnit[] {
   switch (edit.kind) {
     case 'create':
       return [edit.undo.tree];
+    case 'clearText':
     case 'text':
     case 'split':
     case 'merge':
@@ -139,6 +148,7 @@ function fileIdsOf(edit: SessionEdit): string[] {
       return edit.undo.removed.flatMap((tree) => tree.audios.map((row) => row.file_id));
     case 'merge':
       return [...edit.undo.earlier.audios, ...edit.undo.later.audios].map((row) => row.file_id);
+    case 'clearText':
     case 'text':
     case 'assign':
     case 'edge':
@@ -161,6 +171,8 @@ function redoFrames(sessionId?: string): Frame[] {
 
 function manuscriptOf(edit: SessionEdit): string {
   switch (edit.kind) {
+    case 'clearText':
+      return edit.undo.manuscriptId;
     case 'text':
       return edit.undo.prior.manuscriptId;
     case 'split':
@@ -302,6 +314,8 @@ function retargetGeneration(db: SqliteDatabase, sessionId: string, manuscriptId:
 
 function stampGeneration(db: SqliteDatabase, edit: SessionEdit, generation: number): void {
   switch (edit.kind) {
+    case 'clearText':
+      return;
     case 'text': {
       edit.undo.after.manuscriptGeneration = generation;
       const row = db
@@ -334,6 +348,8 @@ function stampGeneration(db: SqliteDatabase, edit: SessionEdit, generation: numb
 
 function applyUndo(db: SqliteDatabase, edit: SessionEdit): Unit | Unit[] {
   switch (edit.kind) {
+    case 'clearText':
+      return undoTextClear(db, edit.undo);
     case 'text':
       return undoUnitText(db, edit.undo);
     case 'split':
@@ -369,6 +385,13 @@ function applyRedo(
   edit: SessionEdit,
 ): { value: Unit | Unit[]; edit: SessionEdit } {
   switch (edit.kind) {
+    case 'clearText': {
+      const undo = redoTextClear(db, edit.undo);
+      return {
+        value: undo.before.map((row) => readStoredUnit(db, row.unitId, undo.textLayerId)!),
+        edit: { kind: 'clearText', undo },
+      };
+    }
     case 'text':
       return redoText(db, edit.undo);
     case 'split':
@@ -518,7 +541,13 @@ function redoSpan(db: SqliteDatabase, undo: UnitSpanMove): { value: Unit; edit: 
 }
 
 function undoCreate(db: SqliteDatabase, tree: RemovedUnit): Unit {
-  if (!treeStillMatches(db, tree)) throw new Error('unit create undo is stale');
+  if (
+    !treeStillMatches(db, tree) ||
+    (tree.textDrafts !== undefined &&
+      JSON.stringify(readRemovedTextDrafts(db, tree.unit.id)) !== JSON.stringify(tree.textDrafts))
+  ) {
+    throw new Error('unit create undo is stale');
+  }
   const unit = readStoredUnit(db, tree.unit.id);
   if (!unit) throw new Error('unit create undo is stale');
   deleteUnitTree(db, tree.unit.id);
@@ -533,6 +562,15 @@ function redoText(db: SqliteDatabase, undo: UnitTextUndo): { value: Unit; edit: 
       unitId: undo.unitId,
       textLayerId: undo.textLayerId,
       text: undo.after.text,
+      ...(undo.prior.resolvedDraft === undefined
+        ? {}
+        : {
+            resolveDraft: {
+              rawInput: undo.prior.resolvedDraft.rawInput,
+              baseBody: undo.prior.resolvedDraft.baseBody,
+              currentBody: undo.prior.text,
+            },
+          }),
       provenanceJson: undo.after.provenanceJson,
     },
     undefined,
@@ -554,6 +592,9 @@ function redoSplit(db: SqliteDatabase, undo: UnitSplitUndo): { value: Unit; edit
       cutIndex: undo.cutIndex,
       rawInput: undo.rawInput,
       presets: undo.presets,
+      ...(undo.formalCuts === undefined
+        ? {}
+        : { formalCuts: undo.formalCuts, baseline: splitTextPreview(db, undo.rootId).baseline }),
     });
     return { value: split.left, edit: { kind: 'split', undo: split.undo } };
   } catch (error) {
@@ -571,6 +612,7 @@ function redoMerge(db: SqliteDatabase, undo: UnitMergeUndo): { value: Unit; edit
       separator: undo.separator,
       discardAudioIds: undo.discardAudioIds,
       newId: undo.newId,
+      ...(undo.textOverrides === undefined ? {} : { textOverrides: undo.textOverrides }),
       ...(undo.textLayerId === undefined
         ? {}
         : {

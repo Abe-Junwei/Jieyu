@@ -1,3 +1,4 @@
+import { layerLabel } from './DesktopTranscriptionLayerRows';
 import { useEffect, useRef, useState } from 'react';
 import { ModalPanel } from '../components/ui/ModalPanel';
 import { JieyuIcon } from '../components/ui/JieyuIcon';
@@ -32,6 +33,13 @@ export function keptOnFullestRow(
 }
 
 export interface MergePreviewView {
+  texts?: {
+    layerId: string;
+    name: Record<string, string>;
+    official: string;
+    draft: string | null;
+    result: string;
+  }[];
   keepId: string;
   removeId: string;
   gapMs: number;
@@ -51,10 +59,13 @@ export function DesktopTranscriptionMergeDialog(props: {
   stale: boolean;
   desktopCall: (sessionId: string, method: string, args: unknown) => Promise<unknown>;
   onCancel: () => void;
-  onConfirm: (separator: string, discardAudioIds: string[]) => void;
+  onConfirm: (
+    discardAudioIds: string[],
+    textOverrides: { layerId: string; text: string }[],
+  ) => void;
 }) {
   const { locale, preview } = props;
-  const [separator, setSeparator] = useState(preview.separator);
+  const [texts, setTexts] = useState<Record<string, string>>({});
   const [discard, setDiscard] = useState<string[]>([]);
   const [seconds, setSeconds] = useState<Record<string, number>>({});
   const playing = useRef<{ audio: HTMLAudioElement; url: string } | null>(null);
@@ -121,43 +132,69 @@ export function DesktopTranscriptionMergeDialog(props: {
     <ModalPanel
       isOpen
       compact
-      className="desktop-tx-merge"
+      className="desktop-tx-merge desktop-tx-orthography-dialog"
+      bodyClassName="desktop-tx-orthography-form"
       closeLabel={t(locale, 'app.desktopTranscription.cancel')}
       onClose={props.onCancel}
       title={t(locale, 'app.desktopTranscription.mergeTitle')}
       footer={
         <>
-          <button type="button" className="btn btn-secondary" onClick={props.onCancel}>
+          <button autoFocus type="button" className="btn btn-secondary" onClick={props.onCancel}>
             {t(locale, 'app.desktopTranscription.cancel')}
           </button>
           <button
             type="button"
             className="btn btn-primary"
             disabled={blocked}
-            onClick={() => props.onConfirm(separator, discard)}
+            onClick={() =>
+              props.onConfirm(
+                discard,
+                Object.entries(texts).map(([layerId, text]) => ({ layerId, text })),
+              )
+            }
           >
-            {t(locale, 'app.desktopTranscription.mergeConfirm')}
+            {t(
+              locale,
+              preview.texts?.some((row) => row.draft !== null)
+                ? 'app.desktopTranscription.mergeDraftConfirm'
+                : 'app.desktopTranscription.mergeConfirm',
+            )}
           </button>
         </>
       }
     >
-      <p>
-        {tf(
-          locale,
-          tooMany ? 'app.desktopTranscription.mergeTooMany' : 'app.desktopTranscription.mergeBody',
-          tooMany ? { count: fullest } : { gap, notes: preview.noteCount },
-        )}
-      </p>
-      <input
-        className="desktop-tx-merge__separator"
-        aria-label={t(locale, 'app.desktopTranscription.mergeSeparator')}
-        value={separator}
-        onChange={(event) => setSeparator(event.target.value)}
-      />
-      <p className="desktop-tx-merge__hint">
-        {t(locale, 'app.desktopTranscription.mergeSeparator')}
-      </p>
+      {preview.gapMs > 0 ? <p>{tf(locale, 'app.desktopTranscription.mergeGap', { gap })}</p> : null}
+      {preview.noteCount > 0 ? (
+        <p>{tf(locale, 'app.desktopTranscription.mergeNotes', { notes: preview.noteCount })}</p>
+      ) : null}
+      {tooMany ? (
+        <p>{tf(locale, 'app.desktopTranscription.mergeTooMany', { count: fullest })}</p>
+      ) : null}
       {props.stale ? <p>{t(locale, 'app.desktopTranscription.mergeStale')}</p> : null}
+      {preview.texts?.map((row) => (
+        <section key={row.layerId}>
+          <h3>{layerLabel(row.name, locale, row.layerId)}</h3>
+          <label>
+            {t(locale, 'app.desktopTranscription.officialText')}
+            <input readOnly value={row.official} />
+          </label>
+          {row.draft === null ? null : (
+            <label>
+              {t(locale, 'app.desktopTranscription.unsavedDraft')}
+              <input readOnly value={row.draft} />
+            </label>
+          )}
+          <label>
+            {t(locale, 'app.desktopTranscription.mergeResult')}
+            <input
+              value={texts[row.layerId] ?? row.result}
+              onChange={(event) =>
+                setTexts((current) => ({ ...current, [row.layerId]: event.target.value }))
+              }
+            />
+          </label>
+        </section>
+      ))}
       {tooMany ? (
         <>
           <ClipGroup

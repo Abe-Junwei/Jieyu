@@ -69,8 +69,8 @@ describe('RegionActionOverlay', () => {
     expect(overlay.style.left).toBe('0px');
     expect(container.querySelector('.segment-speed-control')).toBeTruthy();
     expect(slider.value).toBe('1');
-    expect(within(overlay).getByTitle('播放')).toBeTruthy();
-    expect(within(overlay).getByTitle('关闭循环')).toBeTruthy();
+    expect(within(overlay).getByRole('button', { name: '播放' })).toBeTruthy();
+    expect(within(overlay).getByRole('button', { name: '关闭循环' })).toBeTruthy();
     expect(within(overlay).getByTitle(/播放速度 1\.00/)).toBeTruthy();
   });
 
@@ -144,8 +144,8 @@ describe('RegionActionOverlay', () => {
     };
     const { container } = render(<RegionActionOverlay {...props} />);
     const overlay = container.querySelector('.region-action-overlay') as HTMLElement;
-    expect(within(overlay).getByTitle('播放')).toBeTruthy();
-    expect(within(overlay).queryByTitle('关闭循环')).toBeNull();
+    expect(within(overlay).getByRole('button', { name: '播放' })).toBeTruthy();
+    expect(within(overlay).queryByRole('button', { name: '关闭循环' })).toBeNull();
   });
 
   it('calls onToggleLoop when loop button is clicked', () => {
@@ -157,7 +157,7 @@ describe('RegionActionOverlay', () => {
     };
     const { container } = render(<RegionActionOverlay {...props} />);
     const overlay = container.querySelector('.region-action-overlay') as HTMLElement;
-    const loopBtn = within(overlay).getByTitle('关闭循环');
+    const loopBtn = within(overlay).getByRole('button', { name: '关闭循环' });
     fireEvent.click(loopBtn);
     expect(onToggleLoop).toHaveBeenCalledTimes(1);
   });
@@ -169,7 +169,7 @@ describe('RegionActionOverlay', () => {
       onTogglePlay,
     };
     const { container } = render(<RegionActionOverlay {...props} />);
-    const playBtn = container.querySelector('.region-action-btn:last-child');
+    const playBtn = container.querySelectorAll('.region-action-btn')[1];
     fireEvent.click(playBtn!);
     expect(onTogglePlay).toHaveBeenCalledTimes(1);
   });

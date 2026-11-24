@@ -10,6 +10,7 @@ import {
   sweepUnheldAttachments,
   type AttachmentTrash,
 } from './attachments';
+import { detachRecordingTextParents } from './recordingTarget';
 import { bindSessionEdit, expireSessionEdit } from './sessionEdit';
 
 type Session = {
@@ -42,6 +43,7 @@ export function openDesktopSession(
   const project = openProject(folder);
   try {
     ensureProjectIdentity(project.db, folder, fieldValues);
+    detachRecordingTextParents(project.db);
   } catch (error) {
     project.close();
     throw error;
@@ -63,6 +65,7 @@ export function openPreparedDesktopSession(
   const prepared = openProject(folder);
   try {
     ensureProjectIdentity(prepared.db, folder);
+    detachRecordingTextParents(prepared.db);
   } catch (error) {
     prepared.close();
     throw error;
@@ -139,7 +142,14 @@ export function reopenDesktopSession(sessionId: string): void {
   requireDesktopSession(sessionId).close();
   current = undefined;
   try {
-    current = { id: sessionId, folder, project: openProject(folder) };
+    const project = openProject(folder);
+    try {
+      detachRecordingTextParents(project.db);
+    } catch (error) {
+      project.close();
+      throw error;
+    }
+    current = { id: sessionId, folder, project };
   } catch (error) {
     expireSessionEdit();
     resetRestoredProjectGrant();

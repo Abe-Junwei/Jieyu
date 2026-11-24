@@ -210,7 +210,6 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     expect(screen.queryByText('Project')).toBeNull();
     expect(screen.getByTestId('desktop-playback-bar')).toBeTruthy();
     expect(document.querySelector('.transcription-wave-toolbar')).toBeNull();
-    expect(screen.getByRole('button', { name: '只播本段' }).hasAttribute('disabled')).toBe(true);
 
     fireEvent.click(screen.getByText('alpha'));
     expect(annotation('alpha')?.classList.contains('timeline-annotation-selected')).toBe(true);
@@ -531,6 +530,49 @@ describe('DesktopTranscriptionWorkspacePage selection (#550)', () => {
     expect(annotation('alpha')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /展开/ }));
     expect(screen.getByText('gloss-a')).toBeTruthy();
+  });
+
+  it('explains why a duplicate voice layer cannot be created', async () => {
+    renderWorkspace('/transcription', async (_session, method) => {
+      if (method === 'recordings.createPair') throw new Error('recording pair already exists');
+      return null;
+    });
+    fireEvent.contextMenu(document.querySelector('.desktop-tx-layer-label')!);
+    fireEvent.click(screen.getByRole('button', { name: '新建层' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '新建语音转写' }));
+    await waitFor(() =>
+      expect(
+        screen.getAllByText('当前时间主人已有语音转写或口译层，请使用对应的已有层。').length,
+      ).toBeGreaterThan(0),
+    );
+  });
+
+  it('connects a flat orthography row to its owner without indenting its name', () => {
+    window.localStorage.clear();
+    const base = readState.base();
+    readState.model = {
+      ...base,
+      layers: [
+        { ...base.layers[0]!, units: base.units },
+        {
+          id: 'spelling',
+          name: { zh: '正字法' },
+          contentType: 'transcription',
+          tierType: 'symbolic-association',
+          units: base.units.map((unit) => ({ ...unit, text: '' })),
+        },
+      ],
+      links: [{ layerId: 'spelling', hostLayerId: 'layer-1', isPreferred: true, sortOrder: 0 }],
+    };
+    renderWorkspace();
+    const row = document.querySelector('.desktop-tx-lane[data-layer-id="spelling"]');
+    const elbow = row?.querySelector<HTMLElement>('.tree-elbow');
+    expect(elbow).toBeTruthy();
+    expect(elbow?.style.getPropertyValue('--x')).toBe('14px');
+    expect(elbow?.style.getPropertyValue('--w')).toBe('12px');
+    expect(
+      row?.querySelector<HTMLElement>('.desktop-tx-layer-label')?.style.getPropertyValue('--dot-x'),
+    ).toBe('30px');
   });
 
   it('draws a tree line only for a linked layer and folds the host’s group', async () => {

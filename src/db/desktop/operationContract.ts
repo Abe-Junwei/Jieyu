@@ -1,3 +1,4 @@
+import type { SplitTextPreview, FormalCut } from './unitSplitTextPlan';
 // Renderer-safe: type imports and pure checks only. Handlers stay in the main process.
 import type {
   AttachmentKind,
@@ -75,6 +76,7 @@ import type {
   RecordingPair,
   RecordingPairInput,
 } from './recordingClips';
+import type { TranscriptionPlan, TranscriptionTargetList } from './recordingTarget';
 import type { MediaCleanup } from './mediaCleanup';
 import type { MediaReregistration } from './mediaReregister';
 import type { ProjectIdentity } from './projectIdentity';
@@ -132,6 +134,11 @@ function requiredString(value: unknown, name: string): string {
   if (typeof value !== 'string' || value.length === 0) {
     throw new Error(`desktop call ${name} must be a string`);
   }
+  return value;
+}
+
+function requiredFlag(value: unknown, name: string): boolean {
+  if (typeof value !== 'boolean') throw new Error(`desktop call ${name} must be a boolean`);
   return value;
 }
 
@@ -840,6 +847,8 @@ function unitCreate(input: Record<string, unknown>): UnitCreate & { operationId?
 }
 
 function unitSplit(input: Record<string, unknown>): {
+  baseline?: string;
+  formalCuts?: FormalCut[];
   unitId: string;
   time: number;
   operationId?: string;
@@ -847,11 +856,37 @@ function unitSplit(input: Record<string, unknown>): {
   cutIndex?: number;
   rawInput?: string;
 } {
-  knownKeys(input, ['operationId', 'unitId', 'time', 'textLayerId', 'cutIndex', 'rawInput']);
+  knownKeys(input, [
+    'operationId',
+    'unitId',
+    'time',
+    'textLayerId',
+    'cutIndex',
+    'rawInput',
+    'baseline',
+    'formalCuts',
+  ]);
   if (input.rawInput !== undefined && typeof input.rawInput !== 'string') {
     throw new Error('desktop call rawInput must be a string');
   }
+  const formalCuts =
+    input.formalCuts === undefined
+      ? undefined
+      : (() => {
+          if (!Array.isArray(input.formalCuts)) throw new Error('formalCuts must be an array');
+          return input.formalCuts.map((value) => {
+            const row = objectArg(value);
+            knownKeys(row, ['layerId', 'cutIndex']);
+            return {
+              layerId: requiredString(row.layerId, 'layerId'),
+              cutIndex: requiredNumber(row.cutIndex, 'cutIndex'),
+            };
+          });
+        })();
   return {
+    ...(formalCuts === undefined
+      ? {}
+      : { formalCuts, baseline: requiredString(input.baseline, 'baseline') }),
     unitId: requiredString(input.unitId, 'unitId'),
     time: requiredNumber(input.time, 'time'),
     ...editOperationId(input),
@@ -891,6 +926,7 @@ function unitMergeText(value: unknown, name: string): string {
 }
 
 function unitMerge(input: Record<string, unknown>): {
+  textOverrides?: { layerId: string; text: string }[];
   keepId: string;
   removeId: string;
   operationId?: string;
@@ -905,7 +941,22 @@ function unitMerge(input: Record<string, unknown>): {
     (value) => value !== undefined,
   ).length;
   if (textCount !== 0 && textCount !== 3) throw new Error('desktop call merge text is incomplete');
+  const textOverrides =
+    input.textOverrides === undefined
+      ? undefined
+      : (() => {
+          if (!Array.isArray(input.textOverrides))
+            throw new Error('textOverrides must be an array');
+          return input.textOverrides.map((value) => {
+            const row = objectArg(value);
+            return {
+              layerId: requiredString(row.layerId, 'layerId'),
+              text: unitMergeText(row.text, 'text'),
+            };
+          });
+        })();
   return {
+    ...(textOverrides === undefined ? {} : { textOverrides }),
     keepId: requiredString(input.keepId, 'keepId'),
     removeId: requiredString(input.removeId, 'removeId'),
     ...(input.operationId === undefined
@@ -1749,6 +1800,20 @@ function exchangeImport(input: Record<string, unknown>): {
   };
 }
 
+function clearTextInput(
+  input: Record<string, unknown>,
+  writing = false,
+): { textLayerId?: string; fingerprint?: string } {
+  if (input.textLayerId === undefined) {
+    if (input.fingerprint !== undefined) throw new Error('textLayerId is required');
+    return {};
+  }
+  return {
+    textLayerId: requiredString(input.textLayerId, 'textLayerId'),
+    ...(writing ? { fingerprint: requiredString(input.fingerprint, 'fingerprint') } : {}),
+  };
+}
+
 export const desktopOperations = {
   'project.get': spec<'keep', Record<string, never>, ProjectIdentity | null>('keep', (input) => {
     knownKeys(input, []);
@@ -1792,11 +1857,34 @@ export const desktopOperations = {
   ),
   'units.updateText': spec<
     'replace-on-success',
-    { unitId: string; textLayerId?: string; text: string; operationId?: string },
+    {
+      unitId: string;
+      textLayerId?: string;
+      text: string;
+      operationId?: string;
+      resolveDraft?: { baseBody: string; currentBody: string; rawInput: string };
+    },
     Unit
   >('replace-on-success', (input) => {
     if (typeof input.text !== 'string') throw new Error('desktop call text must be a string');
+    const resolution = input.resolveDraft === undefined ? undefined : objectArg(input.resolveDraft);
+    if (
+      resolution &&
+      [resolution.baseBody, resolution.currentBody, resolution.rawInput].some(
+        (value) => typeof value !== 'string',
+      )
+    )
+      throw new Error('invalid draft resolution');
     const checked = {
+      ...(resolution === undefined
+        ? {}
+        : {
+            resolveDraft: {
+              baseBody: resolution.baseBody as string,
+              currentBody: resolution.currentBody as string,
+              rawInput: resolution.rawInput as string,
+            },
+          }),
       unitId: requiredString(input.unitId, 'unitId'),
       ...(input.textLayerId === undefined
         ? {}
@@ -1939,16 +2027,19 @@ export const desktopOperations = {
       textName: stringMap(input.textName, 'textName'),
     };
   }),
-  'recordings.attach': spec<'keep', RecordingAttach, { fileId: string }>('keep', (input) => {
-    knownKeys(input, ['unitId', 'layerId', 'mimeType', 'bytes', 'operationId']);
-    return {
-      unitId: requiredString(input.unitId, 'unitId'),
-      layerId: requiredString(input.layerId, 'layerId'),
-      mimeType: requiredString(input.mimeType, 'mimeType'),
-      bytes: attachmentBytes(input.bytes),
-      operationId: requiredString(input.operationId, 'operationId'),
-    };
-  }),
+  'recordings.attach': spec<'keep', RecordingAttach, { fileId: string; audioId: string }>(
+    'keep',
+    (input) => {
+      knownKeys(input, ['unitId', 'layerId', 'mimeType', 'bytes', 'operationId']);
+      return {
+        unitId: requiredString(input.unitId, 'unitId'),
+        layerId: requiredString(input.layerId, 'layerId'),
+        mimeType: requiredString(input.mimeType, 'mimeType'),
+        bytes: attachmentBytes(input.bytes),
+        operationId: requiredString(input.operationId, 'operationId'),
+      };
+    },
+  ),
   'recordings.detach': spec<
     'keep',
     { unitId: string; layerId: string; audioId?: string },
@@ -1977,15 +2068,69 @@ export const desktopOperations = {
     knownKeys(input, ['layerId']);
     return { layerId: requiredString(input.layerId, 'layerId') };
   }),
-  'recordings.transcribe': spec<
+  'recordings.listTargets': spec<'keep', { layerId: string }, TranscriptionTargetList>(
     'keep',
-    { unitId: string; layerId: string },
-    { textLayerId: string }
+    (input) => {
+      knownKeys(input, ['layerId']);
+      return { layerId: requiredString(input.layerId, 'layerId') };
+    },
+  ),
+  'recordings.planTranscription': spec<
+    'keep',
+    { unitId: string; layerId: string; targetLayerId: string },
+    TranscriptionPlan
   >('keep', (input) => {
-    knownKeys(input, ['unitId', 'layerId']);
+    knownKeys(input, ['unitId', 'layerId', 'targetLayerId']);
     return {
       unitId: requiredString(input.unitId, 'unitId'),
       layerId: requiredString(input.layerId, 'layerId'),
+      targetLayerId: requiredString(input.targetLayerId, 'targetLayerId'),
+    };
+  }),
+  'recordings.transcribe': spec<
+    'keep',
+    {
+      unitId: string;
+      layerId: string;
+      audioId?: string;
+      targetLayerId: string;
+      targetUnitId?: string;
+      createUnit?: boolean;
+      confirmHost?: boolean;
+      confirmLonger?: boolean;
+      operationId?: string;
+    },
+    { textLayerId: string }
+  >('keep', (input) => {
+    knownKeys(input, [
+      'unitId',
+      'layerId',
+      'audioId',
+      'targetLayerId',
+      'targetUnitId',
+      'createUnit',
+      'confirmHost',
+      'confirmLonger',
+      'operationId',
+    ]);
+    return {
+      unitId: requiredString(input.unitId, 'unitId'),
+      layerId: requiredString(input.layerId, 'layerId'),
+      targetLayerId: requiredString(input.targetLayerId, 'targetLayerId'),
+      ...(input.audioId === undefined ? {} : { audioId: requiredString(input.audioId, 'audioId') }),
+      ...(input.targetUnitId === undefined
+        ? {}
+        : { targetUnitId: requiredString(input.targetUnitId, 'targetUnitId') }),
+      ...(input.createUnit === undefined
+        ? {}
+        : { createUnit: requiredFlag(input.createUnit, 'createUnit') }),
+      ...(input.confirmHost === undefined
+        ? {}
+        : { confirmHost: requiredFlag(input.confirmHost, 'confirmHost') }),
+      ...(input.confirmLonger === undefined
+        ? {}
+        : { confirmLonger: requiredFlag(input.confirmLonger, 'confirmLonger') }),
+      ...editOperationId(input),
     };
   }),
   'media.delete': spec<'clear', { id: string }, RecordingDeletion>('clear', (input) => {
@@ -2307,9 +2452,15 @@ export const desktopOperations = {
     { operationId: string; kind: EditReceiptKind; payload: Record<string, unknown> },
     EditInspection
   >('keep', editInspect),
+  'units.splitPreview': spec<'keep', { unitId: string }, SplitTextPreview>('keep', (input) => {
+    knownKeys(input, ['unitId']);
+    return { unitId: requiredString(input.unitId, 'unitId') };
+  }),
   'units.split': spec<
     'keep',
     {
+      baseline?: string;
+      formalCuts?: FormalCut[];
       unitId: string;
       time: number;
       operationId?: string;
@@ -2317,11 +2468,12 @@ export const desktopOperations = {
       cutIndex?: number;
       rawInput?: string;
     },
-    { left: Unit; right: Unit }
+    { left: Unit; right: Unit; recordingCount: number }
   >('keep', unitSplit),
   'units.merge': spec<
     'keep',
     {
+      textOverrides?: { layerId: string; text: string }[];
       keepId: string;
       removeId: string;
       operationId?: string;
@@ -2367,31 +2519,45 @@ export const desktopOperations = {
     'keep',
     unitMove,
   ),
-  'units.deletePreview': spec<'keep', { unitId: string }, UnitDeletePreview>('keep', (input) => {
-    knownKeys(input, ['unitId']);
-    return { unitId: requiredString(input.unitId, 'unitId') };
+  'units.deletePreview': spec<'keep', { unitId: string; textLayerId?: string }, UnitDeletePreview>(
+    'keep',
+    (input) => {
+      knownKeys(input, ['unitId', 'textLayerId']);
+      return { unitId: requiredString(input.unitId, 'unitId'), ...clearTextInput(input) };
+    },
+  ),
+  'units.deleteManyPreview': spec<
+    'keep',
+    { unitIds: string[]; textLayerId?: string },
+    UnitDeletePreview
+  >('keep', (input) => {
+    knownKeys(input, ['unitIds', 'textLayerId']);
+    return { unitIds: stringIds(input.unitIds, 'unitIds'), ...clearTextInput(input) };
   }),
-  'units.deleteManyPreview': spec<'keep', { unitIds: string[] }, UnitDeletePreview>(
+  'units.delete': spec<
     'keep',
-    (input) => {
-      knownKeys(input, ['unitIds']);
-      return { unitIds: stringIds(input.unitIds, 'unitIds') };
-    },
-  ),
-  'units.delete': spec<'keep', { unitId: string; operationId?: string }, { id: string }>(
+    { unitId: string; textLayerId?: string; fingerprint?: string; operationId?: string },
+    { id: string }
+  >('keep', (input) => {
+    knownKeys(input, ['unitId', 'textLayerId', 'fingerprint', 'operationId']);
+    return {
+      unitId: requiredString(input.unitId, 'unitId'),
+      ...editOperationId(input),
+      ...clearTextInput(input, true),
+    };
+  }),
+  'units.deleteMany': spec<
     'keep',
-    (input) => {
-      knownKeys(input, ['unitId', 'operationId']);
-      return { unitId: requiredString(input.unitId, 'unitId'), ...editOperationId(input) };
-    },
-  ),
-  'units.deleteMany': spec<'keep', { unitIds: string[]; operationId?: string }, { ids: string[] }>(
-    'keep',
-    (input) => {
-      knownKeys(input, ['unitIds', 'operationId']);
-      return { unitIds: stringIds(input.unitIds, 'unitIds'), ...editOperationId(input) };
-    },
-  ),
+    { unitIds: string[]; textLayerId?: string; fingerprint?: string; operationId?: string },
+    { ids: string[] }
+  >('keep', (input) => {
+    knownKeys(input, ['unitIds', 'textLayerId', 'fingerprint', 'operationId']);
+    return {
+      unitIds: stringIds(input.unitIds, 'unitIds'),
+      ...editOperationId(input),
+      ...clearTextInput(input, true),
+    };
+  }),
   'units.readTimeDraft': spec<
     'keep',
     { unitId: string },

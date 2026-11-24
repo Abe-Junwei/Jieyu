@@ -16,7 +16,14 @@ import {
   type AnalysisAssociationNote,
 } from './analysisCandidates';
 import { assertStoredCustomFields, writeUnitFieldValues } from './customFields';
-import { claimTextSave, finishTextSave, textSaveDigest } from './textSave';
+import {
+  claimTextSave,
+  finishTextSave,
+  textSaveDigest,
+  readUnitTextDraft,
+  consumeMatchingTextDraft,
+  type UnitTextDraft,
+} from './textSave';
 import { secToMs } from './timeMs';
 import { readUnitTextBody, resolveUnitTextContext } from './unitTextLayers';
 import { textAudioCount } from './unitTextAudios';
@@ -377,6 +384,7 @@ export interface UnitTextUndo {
   textLayerId: string;
   analysisAffected: boolean;
   prior: {
+    resolvedDraft?: UnitTextDraft;
     text: string;
     textExists: boolean;
     provenanceJson: string | null;
@@ -404,6 +412,7 @@ export function updateUnitText(
     text: string;
     operationId?: string;
     provenanceJson?: string | null;
+    resolveDraft?: { baseBody: string; currentBody: string; rawInput: string };
   },
   afterSnapshot?: () => void,
   remember?: (undo: UnitTextUndo) => void,
@@ -428,6 +437,19 @@ export function updateUnitText(
     if (!existing) throw new Error('unit is missing');
     assertManuscriptEditable(db, input.unitId);
     const currentText = readUnitTextBody(db, context);
+    const draft = readUnitTextDraft(db, input.unitId, context.textLayerId);
+    const conflict = draft !== null && draft.baseBody !== currentText.body;
+    if (conflict) {
+      const resolve = input.resolveDraft;
+      if (
+        !resolve ||
+        resolve.currentBody !== currentText.body ||
+        resolve.baseBody !== draft.baseBody ||
+        resolve.rawInput !== draft.rawInput ||
+        input.text !== draft.rawInput
+      )
+        throw new Error('text draft conflicts');
+    }
     if (currentText.body === input.text) {
       if (input.operationId !== undefined && digest !== null) {
         finishTextSave(db, {
@@ -438,6 +460,8 @@ export function updateUnitText(
           text: input.text,
         });
       }
+      if (input.operationId === undefined)
+        consumeMatchingTextDraft(db, input.unitId, context.textLayerId, input.text);
       return existing;
     }
     const material = readAnalysisMaterial(db, input.unitId);
@@ -524,11 +548,14 @@ export function updateUnitText(
         text: input.text,
       });
     }
+    if (input.operationId === undefined)
+      consumeMatchingTextDraft(db, input.unitId, context.textLayerId, input.text);
     remembered = {
       unitId: input.unitId,
       textLayerId: context.textLayerId,
       analysisAffected,
       prior: {
+        ...(conflict && draft !== null ? { resolvedDraft: draft } : {}),
         text: currentText.body,
         textExists: currentText.id !== null,
         provenanceJson: currentText.provenanceJson,

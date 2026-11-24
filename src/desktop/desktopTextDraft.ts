@@ -1,4 +1,6 @@
+import type { DraftResolution } from './useDesktopDraftConflict';
 export interface DesktopTextDraft {
+  resolveDraft?: DraftResolution;
   unitId: string;
   text: string;
 }
@@ -56,4 +58,20 @@ export function normalizeSave(result: boolean | TextSaveResult): TextSaveResult 
   if (result === 'unknown') return 'unknown';
   if (result === 'refresh-failed') return 'refresh-failed';
   return 'failed';
+}
+
+export async function persistStructuralDraft(
+  current: DesktopTextDraft | null,
+  blocked: boolean,
+  baseBody: string,
+  store?: DraftStore,
+): Promise<boolean> {
+  if (!current) return true;
+  if (blocked) return false;
+  try {
+    await store?.persist({ unitId: current.unitId, rawInput: current.text, baseBody });
+    return true;
+  } catch {
+    return false;
+  }
 }

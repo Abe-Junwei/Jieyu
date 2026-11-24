@@ -6,6 +6,7 @@ import {
   type MouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
+import { IconTipButton } from '../components/ui/IconTip';
 import { t, tf, type Locale } from '../i18n';
 import type { LayerTreeRow } from './desktopTranscriptionLayerTree';
 import type { LayerCommandId, LayerCommandItem } from './desktopTranscriptionLayerCommands';
@@ -28,42 +29,27 @@ const levelX = (depth: number) => INDENT_BASE + INDENT_STEP * Math.min(depth, IN
 const px = (value: number) => `${value}px`;
 const cssVars = (vars: Record<string, string>) => vars as CSSProperties;
 
-const JOG = 16;
-
 /** Tree guides and the side-lane runs; drawn only, hidden from assistive tech. */
-function TreeLines(props: { row: LayerTreeRow; jog?: boolean }) {
+function TreeLines(props: { row: LayerTreeRow }) {
   const { row } = props;
-  const shift = props.jog === true ? JOG : 0;
   const dotX = levelX(row.depth);
-  const parentX = levelX(row.depth - 1);
   return (
     <span aria-hidden className="desktop-tx-tree-lines">
-      {row.guides.map((through, level) =>
-        through ? (
-          <i
-            key={`g${level}`}
-            className="tree-guide"
-            style={cssVars({ '--x': px(levelX(level) - shift) })}
-          />
-        ) : null,
-      )}
-      {row.depth > 0 ? (
-        <i
-          className={`tree-elbow${row.lastChild ? ' is-last' : ''}`}
-          style={cssVars({
-            '--x': px(parentX - shift),
-            '--w': px(
-              props.jog === true ? dotX - (parentX - shift) : Math.max(dotX - 4 - parentX, 0),
-            ),
-          })}
-        />
-      ) : null}
-      {row.childCount > 0 && !row.groupCollapsed ? (
-        <i className="tree-guide is-own" style={cssVars({ '--x': px(dotX - shift) })} />
-      ) : null}
-      {props.jog === true && row.childCount > 0 && !row.groupCollapsed ? (
-        <i className="tree-jog" style={cssVars({ '--x': px(dotX - shift), '--w': px(shift) })} />
-      ) : null}
+      {row.branches?.map((branch, index) => {
+        const x = levelX(branch.depth) - INDENT_STEP;
+        const width = Math.max(0, dotX - 4 - x);
+        return (
+          <span key={index}>
+            <i
+              className={`tree-guide is-${branch.span}${branch.host ? ' is-own' : ''}${branch.child ? ' tree-elbow' : ''}${x === dotX && !branch.host && !branch.child ? ' is-node-gap' : ''}`}
+              style={cssVars({ '--x': px(x), '--w': px(width) })}
+            />
+            {(branch.child || branch.host) && width > 0 ? (
+              <i className="tree-jog" style={cssVars({ '--x': px(x), '--w': px(width) })} />
+            ) : null}
+          </span>
+        );
+      })}
       {row.lanes.map((lane) => {
         const x = LANE_BASE + LANE_STEP * lane.lane;
         return (
@@ -116,6 +102,7 @@ function LayerNode(props: { row: LayerTreeRow }) {
 export function DesktopTranscriptionLayerLabel(props: {
   locale: Locale;
   name: string;
+  timingLabel?: string;
   row: LayerTreeRow;
   focused: boolean;
   onToggleGroup: () => void;
@@ -199,7 +186,7 @@ export function DesktopTranscriptionLayerLabel(props: {
       onContextMenu={open}
       onKeyDown={onKeyDown}
     >
-      <TreeLines row={row} jog />
+      <TreeLines row={row} />
       <div className="desktop-tx-nameplate">
         <span
           aria-hidden
@@ -228,6 +215,9 @@ export function DesktopTranscriptionLayerLabel(props: {
           >
             {props.name}
           </span>
+          {props.timingLabel ? (
+            <span className="desktop-tx-layer-timing">{props.timingLabel}</span>
+          ) : null}
           {props.overlapCount !== undefined && props.overlapCount > 0 ? (
             <span className="desktop-tx-layer-more">
               {tf(locale, 'app.desktopTranscription.laneOverlaps', { count: props.overlapCount })}
@@ -248,16 +238,14 @@ export function DesktopTranscriptionLayerLabel(props: {
           </span>
         ) : null}
         {row.childCount > 0 ? (
-          <button
-            type="button"
+          <IconTipButton
             className="desktop-tx-layer-chevron"
             aria-expanded={!row.groupCollapsed}
-            aria-label={groupLabel}
-            title={groupLabel}
+            label={groupLabel}
             onClick={props.onToggleGroup}
           >
             <span aria-hidden className="desktop-tx-layer-chevron__mark" />
-          </button>
+          </IconTipButton>
         ) : null}
       </div>
       {menu === null ? null : (
@@ -283,9 +271,12 @@ export function DesktopTranscriptionLayerLabel(props: {
             : {
                 create: {
                   ...props.create,
-                  onCreate: (kind: 'transcription' | 'translation', label: string) => {
+                  onCreate: (
+                    kind: 'transcription' | 'translation' | 'orthography',
+                    label: string,
+                  ) => {
                     setMenu(null);
-                    props.create?.onCreate(kind, label);
+                    props.create?.onCreate(kind, label, props.row.layerId);
                   },
                   onCreatePair: (kind: 'voice' | 'oral', audioName: string, textName: string) => {
                     setMenu(null);

@@ -23,6 +23,7 @@ import { readStoredUnit, type Unit } from './units';
 type SqliteDatabase = InstanceType<typeof Database>;
 
 export interface UnitMergeInput {
+  textOverrides?: { layerId: string; text: string }[];
   keepId: string;
   removeId: string;
   operationId?: string;
@@ -56,6 +57,7 @@ interface ChildUnit {
 }
 
 export interface UnitMergeUndo {
+  textOverrides?: { layerId: string; text: string }[];
   operationId: string;
   newId: string;
   manuscriptId: string;
@@ -101,7 +103,16 @@ export interface MergeClip {
   fileId: string;
 }
 
+export interface MergeTextPreview {
+  layerId: string;
+  name: Record<string, string>;
+  official: string;
+  draft: string | null;
+  result: string;
+}
+
 export interface MergePreview {
+  texts: MergeTextPreview[];
   keepId: string;
   removeId: string;
   gapMs: number;
@@ -127,9 +138,36 @@ export function mergePreview(
     noteCount: noteCountOf(db, earlier.unit.id, later.unit.id),
     separator: readSeparator(db) ?? ' ',
     baseline: mergeBaseline(db, input),
+    texts: previewTexts(db, earlier, later),
     earlier: clipsOf(db, earlier.unit.id),
     later: clipsOf(db, later.unit.id),
   };
+}
+
+function previewTexts(db: SqliteDatabase, earlier: Side, later: Side): MergeTextPreview[] {
+  const drafts = draftsOf(db, earlier.unit.id, later.unit.id);
+  const layerIds = new Set(
+    [...earlier.texts, ...later.texts, ...drafts].map((row) => row.layer_id),
+  );
+  const separator = readSeparator(db) ?? ' ';
+  const join = (left: string, right: string) =>
+    left !== '' && right !== '' ? left + separator + right : left + right;
+  return [...layerIds].map((layerId) => {
+    const left = earlier.texts.find((row) => row.layer_id === layerId)?.body ?? '';
+    const right = later.texts.find((row) => row.layer_id === layerId)?.body ?? '';
+    const ld = drafts.find((row) => row.unit_id === earlier.unit.id && row.layer_id === layerId);
+    const rd = drafts.find((row) => row.unit_id === later.unit.id && row.layer_id === layerId);
+    const layer = db.prepare('SELECT name_json FROM layers WHERE id = ?').get(layerId) as {
+      name_json: string;
+    };
+    return {
+      layerId,
+      name: JSON.parse(layer.name_json) as Record<string, string>,
+      official: join(left, right),
+      draft: ld || rd ? join(ld?.raw_input ?? left, rd?.raw_input ?? right) : null,
+      result: join(ld?.raw_input ?? left, rd?.raw_input ?? right),
+    };
+  });
 }
 
 export function mergeBaseline(
@@ -200,6 +238,8 @@ export function mergeUnits(
     assertChildren(children, start, end);
     const separator = chosenSeparator(db, input.separator);
     const drafts = draftsOf(db, earlier.unit.id, later.unit.id);
+    if (drafts.length > 0 && input.baseline === undefined && input.newId === undefined)
+      throw new Error('merge drafts require confirmation');
     const saveReceipts = receiptsOf(db, earlier.unit.id, later.unit.id);
     const editor = editorText(input);
     const plan = textPlan(
@@ -210,6 +250,7 @@ export function mergeUnits(
       separator,
       input.discardAudioIds ?? [],
       editor,
+      input.textOverrides ?? [],
     );
     const body = plan.bodyOf(earlier.unit.layer_id);
     const keepGraph = keptGraph(earlier, later, body);
@@ -293,6 +334,7 @@ export function mergeUnits(
       unit,
       undo: {
         operationId,
+        ...(input.textOverrides === undefined ? {} : { textOverrides: input.textOverrides }),
         ...(editor === undefined
           ? {}
           : {
@@ -528,12 +570,19 @@ function textPlan(
   separator: string,
   discardAudioIds: string[],
   editor: EditorText | undefined,
+  overrides: { layerId: string; text: string }[],
 ): TextPlan {
   const discard = new Set(discardAudioIds);
   const keys = new Set<string>();
   for (const row of [...earlier.texts, ...later.texts]) keys.add(`${row.layer_id}\n${row.role}`);
   for (const draft of drafts) keys.add(`${draft.layer_id}\n${layerRole(db, draft.layer_id)}`);
   if (editor !== undefined) keys.add(`${editor.layerId}\n${layerRole(db, editor.layerId)}`);
+  if (new Set(overrides.map((row) => row.layerId)).size !== overrides.length)
+    throw new Error('duplicate merge layer');
+  for (const row of overrides) {
+    if (![...keys].some((key) => key.split('\n')[0] === row.layerId))
+      throw new Error('merge layer is missing');
+  }
   const rows: TextPlan['rows'] = [];
   const noteMoves: { from: string; to: string }[] = [];
   const bodies = new Map<string, string>();
@@ -572,21 +621,28 @@ function textPlan(
       left !== undefined && (leftKeep || leftBody !== '' || right === undefined)
         ? left
         : (right ?? null);
-    const joined =
+    const mergedBody =
       leftBody !== '' && rightBody !== ''
         ? `${leftBody}${separator}${rightBody}`
         : leftBody + rightBody;
+    const override = overrides.find((row) => row.layerId === layerId);
+    const joined = override?.text ?? mergedBody;
     const officialChanged =
-      overlay !== undefined &&
-      (leftBody !== (left?.body ?? '') || rightBody !== (right?.body ?? ''));
+      (override !== undefined && override.text !== mergedBody) ||
+      (overlay !== undefined &&
+        (leftBody !== (left?.body ?? '') || rightBody !== (right?.body ?? '')));
     const provenance = officialChanged
       ? null
       : leftBody !== '' && rightBody !== ''
         ? null
         : leftBody !== ''
-          ? (left?.provenance_json ?? leftDraft?.provenance_json ?? null)
+          ? leftDraft
+            ? leftDraft.provenance_json
+            : (left?.provenance_json ?? null)
           : rightBody !== ''
-            ? (right?.provenance_json ?? rightDraft?.provenance_json ?? null)
+            ? rightDraft
+              ? rightDraft.provenance_json
+              : (right?.provenance_json ?? null)
             : (surviving?.provenance_json ?? null);
     const seen = new Set<string>();
     const clips = [];

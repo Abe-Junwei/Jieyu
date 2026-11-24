@@ -19,3 +19,5 @@ export {
   type DesktopProjectRead,
   type DesktopProjectReadApi,
 } from '../db/desktop/projectRead';
+
+export type { SplitTextPreview, FormalCut } from '../db/desktop/unitSplitTextPlan';

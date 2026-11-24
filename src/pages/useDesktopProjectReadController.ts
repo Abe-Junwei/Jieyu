@@ -1,3 +1,4 @@
+import type { DraftResolution } from '../desktop/useDesktopDraftConflict';
 import { useRef, useState } from 'react';
 import { createDesktopClient } from '../app/desktopProjectReadPageAccess';
 import { emitAfterWrite } from '../desktop/desktopDomainEvents';
@@ -98,6 +99,7 @@ export function useDesktopProjectReadController(
     text: string,
     operationId?: string,
     textLayerId?: string,
+    resolveDraft?: DraftResolution,
   ): Promise<'saved' | 'failed' | 'refresh-failed' | 'unknown'> => {
     if (host === null || sessionId === null) return Promise.resolve('failed');
     const seen = sessionId;
@@ -110,6 +112,7 @@ export function useDesktopProjectReadController(
         unitId,
         ...layer,
         text,
+        ...(resolveDraft === undefined ? {} : { resolveDraft }),
         ...(operationId === undefined ? {} : { operationId }),
       }),
       () => ({ type: 'unit.textSaved', sessionId: seen, manuscriptId, unitId }),

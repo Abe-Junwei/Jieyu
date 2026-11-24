@@ -1,4 +1,5 @@
-import { useEffect, useRef, type CSSProperties, type RefObject } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
+import { IconTipButton, IconTipTrigger } from '../components/ui/IconTip';
 import { JieyuIcon } from '../components/ui/JieyuIcon';
 import { t, tf, useLocale } from '../i18n';
 import { JIEYU_ICON_INLINE } from '../utils/jieyuIcon';
@@ -108,16 +109,21 @@ export function DesktopViewControls(props: {
   const current = DESKTOP_VIEW_MODES[index] ?? DESKTOP_VIEW_MODES[0];
   const groupLabel = t(props.locale, 'transcription.wave.toolbar.displayMode');
   const currentLabel = t(props.locale, current.label);
+  const [menuOpen, setMenuOpen] = useState(false);
   useDismissDetails(rootRef);
   return (
-    <details ref={rootRef} className="desktop-tx-view" data-testid="desktop-view">
-      <summary className="desktop-tx-view-trigger" aria-label={`${groupLabel}：${currentLabel}`}>
-        <JieyuIcon name={current.icon} aria-hidden className={JIEYU_ICON_INLINE} />
-        <JieyuIcon name="ChevronDown" aria-hidden className={JIEYU_ICON_INLINE} />
-        <span className="desktop-tx-zoom-tip" aria-hidden>
-          {groupLabel}
-        </span>
-      </summary>
+    <details
+      ref={rootRef}
+      className="desktop-tx-view"
+      data-testid="desktop-view"
+      onToggle={(event) => setMenuOpen(event.currentTarget.open)}
+    >
+      <IconTipTrigger label={groupLabel} suspended={menuOpen}>
+        <summary className="desktop-tx-view-trigger" aria-label={`${groupLabel}：${currentLabel}`}>
+          <JieyuIcon name={current.icon} aria-hidden className={JIEYU_ICON_INLINE} />
+          <JieyuIcon name="ChevronDown" aria-hidden className={JIEYU_ICON_INLINE} />
+        </summary>
+      </IconTipTrigger>
       <div className="desktop-tx-menu" role="menu" aria-label={groupLabel}>
         {DESKTOP_VIEW_MODES.map((item) => {
           const label = t(props.locale, item.label);
@@ -158,31 +164,21 @@ export function DesktopZoomControls(props: {
   const sliderPos = timelineZoomSliderPosition(zoomPercent, fitPxPerSec, maxZoomPercent, 100);
   return (
     <div className="desktop-tx-zoom" data-testid="desktop-zoom">
-      <button
-        type="button"
+      <IconTipButton
         className="desktop-tx-icon"
-        title={t(locale, 'transcription.zoom.fitAll')}
-        aria-label={t(locale, 'transcription.zoom.fitAll')}
+        label={t(locale, 'transcription.zoom.fitAll')}
         onClick={props.onFitAll}
       >
         <JieyuIcon name="Expand" aria-hidden className={JIEYU_ICON_INLINE} />
-        <span className="desktop-tx-zoom-tip" aria-hidden>
-          {t(locale, 'transcription.zoom.fitAll')}
-        </span>
-      </button>
-      <button
-        type="button"
+      </IconTipButton>
+      <IconTipButton
         className="desktop-tx-icon"
-        title={t(locale, 'transcription.zoom.fitSelection')}
-        aria-label={t(locale, 'transcription.zoom.fitSelection')}
+        label={t(locale, 'transcription.zoom.fitSelection')}
         aria-disabled={!canFitSelection}
         onClick={props.onFitSelection}
       >
         <JieyuIcon name="Focus" aria-hidden className={JIEYU_ICON_INLINE} />
-        <span className="desktop-tx-zoom-tip" aria-hidden>
-          {t(locale, 'transcription.zoom.fitSelection')}
-        </span>
-      </button>
+      </IconTipButton>
       <input
         type="range"
         className="desktop-tx-zoom-slider"

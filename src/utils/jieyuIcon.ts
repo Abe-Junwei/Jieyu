@@ -4,7 +4,7 @@
  */
 
 import type { LucideIcon } from 'lucide-react';
-import { icons } from 'lucide-react';
+import { createLucideIcon, icons } from 'lucide-react';
 
 /** 左侧栏图标（Lucide 名） */
 export type LeftRailNavIconName =
@@ -38,9 +38,21 @@ const LUCIDE_NAME_ALIASES: Record<string, keyof typeof icons> = {
   Wand2: 'WandSparkles',
   CircleHelp: 'CircleQuestionMark',
   HelpCircle: 'CircleQuestionMark',
+  Subtitles: 'Captions',
+  Loader2: 'LoaderCircle',
 };
 
+// Explicit 2px bullets at 16px; Lucide's near-zero strokes shrink below a clear dot.
+const readableList = createLucideIcon('List', [
+  ['path', { d: 'M8 5h13M8 12h13M8 19h13', key: 'lines' }],
+  ...[5, 12, 19].map((cy): ['circle', Record<string, string | number>] => [
+    'circle',
+    { cx: 3, cy, r: 1.5, fill: 'currentColor', stroke: 'none', key: `dot-${cy}` },
+  ]),
+]);
+
 export function resolveJieyuIcon(name: string): LucideIcon {
+  if (name === 'List') return readableList;
   const canonical = (LUCIDE_NAME_ALIASES[name] ?? name) as string;
   const Icon =
     (icons as Record<string, LucideIcon | undefined>)[canonical] ??

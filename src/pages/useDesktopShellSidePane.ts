@@ -73,15 +73,10 @@ export function useDesktopShellSidePane() {
   const shellStyle = useMemo(
     () =>
       ({
-        ['--side-pane-width' as '--side-pane-width']: hideSidePane
-          ? '0px'
-          : isSidePaneCollapsed
-            ? desktopContextPane
-              ? '32px'
-              : '0px'
-            : `${shownPaneWidth}px`,
+        ['--side-pane-width' as '--side-pane-width']:
+          hideSidePane || isSidePaneCollapsed ? '0px' : `${shownPaneWidth}px`,
       }) as CSSProperties,
-    [desktopContextPane, hideSidePane, isSidePaneCollapsed, shownPaneWidth],
+    [hideSidePane, isSidePaneCollapsed, shownPaneWidth],
   );
 
   usePanelAutoCollapse({

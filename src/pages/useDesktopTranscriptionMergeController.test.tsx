@@ -143,6 +143,41 @@ describe('merge dialog', () => {
     expect(calls).not.toHaveBeenCalled();
   });
 
+  it('shows only relevant notices and always merges with a space', async () => {
+    calls.mockImplementation(async (sessionId: string, method: string) => {
+      if (method === 'units.mergePreview')
+        return { ...preview, gapMs: 0, noteCount: 0, separator: 'custom' };
+      return { sessionId, method };
+    });
+    render(
+      <ToastProvider>
+        <Host text="甲" />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'open' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.querySelector('input')).toBeNull();
+    expect(dialog.querySelector('p')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '合并' }));
+    await waitFor(() =>
+      expect(calls.mock.calls.some((call) => call[1] === 'units.merge')).toBe(true),
+    );
+    expect(
+      (calls.mock.calls.find((call) => call[1] === 'units.merge') as unknown[] | undefined)?.[2],
+    ).toMatchObject({ separator: ' ' });
+  });
+
+  it('shows a gap and notes only when present', async () => {
+    render(
+      <ToastProvider>
+        <Host text="甲" />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'open' }));
+    expect(await screen.findByText('合并后将包含 1.000 秒空隙。')).toBeTruthy();
+    expect(screen.getByText('2 条备注将保留。')).toBeTruthy();
+  });
+
   it('does not write when cancel is chosen', async () => {
     render(
       <ToastProvider>

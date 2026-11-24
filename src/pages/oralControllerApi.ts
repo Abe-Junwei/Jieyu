@@ -16,7 +16,13 @@ import {
 } from './oralTake';
 
 type Live = { attempt: number; pinned: OralPinned; phase: 'arming' | 'recording' | 'paused' };
-type Save = { id: number; pinned: OralPinned; phase: 'saving' | 'failed'; bytes: Uint8Array };
+type Save = {
+  id: number;
+  operationId: string;
+  pinned: OralPinned;
+  phase: 'saving' | 'failed';
+  bytes: Uint8Array;
+};
 export type OralUi = { live: Live | null; save: Save | null; level: number; elapsed: number };
 
 export type OralBag = {
@@ -62,8 +68,10 @@ export function oralControllerApi(ctx: {
 }) {
   const { locale, toast, takes, picked, setPicked, ui, setUi, setAsk, setStamp, ask, bag } = ctx;
   const elapsedNow = () =>
-    bag.current.accrued +
-    (bag.current.started === 0 ? 0 : Math.floor((Date.now() - bag.current.started) / 1000));
+    Math.floor(
+      (bag.current.accrued + (bag.current.started === 0 ? 0 : Date.now() - bag.current.started)) /
+        1000,
+    );
 
   const runClock = (on: boolean) => {
     window.clearInterval(bag.current.clock);
@@ -116,14 +124,18 @@ export function oralControllerApi(ctx: {
 
   const store = (save: Save) => {
     armSaveHold();
-    return persistTake(save.pinned, save.bytes).then(
+    return persistTake(save.pinned, save.bytes, save.operationId).then(
       (result) => {
         dropFailedTake(save.id);
         if (bag.current.saveKey === save.pinned.key) bag.current.saveKey = null;
         const still = peekFailedTake();
         const kept = still === null ? null : { ...still, phase: 'failed' as const };
         if (bag.current.alive) {
-          if (result === 'refresh') {
+          const audioId = result.audioId;
+          if (audioId !== null) {
+            setPicked((current) => ({ ...current, [save.pinned.key]: audioId }));
+          }
+          if (result.status === 'refresh') {
             toast.showToast(t(locale, 'app.desktopTranscription.oralRefreshFailed'), 'error');
           }
           if (bag.current.pendingSave?.id === save.id) remember(kept);
@@ -268,7 +280,13 @@ export function oralControllerApi(ctx: {
             }
             bag.current.saveKey = pinned.key;
             const id = nextTakeId();
-            const save: Save = { id, pinned, phase: fault ? 'failed' : 'saving', bytes };
+            const save: Save = {
+              id,
+              operationId: crypto.randomUUID(),
+              pinned,
+              phase: fault ? 'failed' : 'saving',
+              bytes,
+            };
             remember(save);
             if (bag.current.alive) setUi((current) => ({ ...current, save }));
             if (fault) {
@@ -306,7 +324,7 @@ export function oralControllerApi(ctx: {
       if (recorder && recorder.state !== 'inactive') {
         armSaveHold();
         recorder.stop();
-      } else {
+      } else if (!recorder) {
         bag.current.attempt += 1;
         bag.current.phase = 'idle';
         setUi((current) => ({ ...current, live: null }));
@@ -316,7 +334,7 @@ export function oralControllerApi(ctx: {
       const recorder = bag.current.recorder;
       if (!recorder || recorder.state !== 'recording') return;
       recorder.pause();
-      bag.current.accrued = elapsedNow();
+      bag.current.accrued += Date.now() - bag.current.started;
       bag.current.started = 0;
       bag.current.phase = 'paused';
       runClock(false);
@@ -326,7 +344,7 @@ export function oralControllerApi(ctx: {
           : {
               ...current,
               live: { ...current.live, phase: 'paused' },
-              elapsed: bag.current.accrued,
+              elapsed: elapsedNow(),
               level: 0,
             },
       );
@@ -389,11 +407,11 @@ export function oralControllerApi(ctx: {
         return;
       }
       if (ui.live?.phase === 'recording' || ui.live?.phase === 'paused') {
-        const pending = armWait();
+        const pending = bag.current.wait ?? armWait();
         bag.current.intent = 'save';
         const recorder = bag.current.recorder;
         if (recorder && recorder.state !== 'inactive') armSaveHold();
-        recorder?.stop();
+        if (recorder && recorder.state !== 'inactive') recorder.stop();
         void pending.then((ok) => {
           if (ok) finish(true);
         });
@@ -417,7 +435,7 @@ export function oralControllerApi(ctx: {
       bag.current.intent = 'discard';
       const recorder = bag.current.recorder;
       if (recorder && recorder.state !== 'inactive') recorder.stop();
-      else bag.current.attempt += 1;
+      else if (!recorder) bag.current.attempt += 1;
       bag.current.phase = 'idle';
       bag.current.saveKey = null;
       if (ui.save) dropFailedTake(ui.save.id);
@@ -426,14 +444,61 @@ export function oralControllerApi(ctx: {
       finish(true);
     },
     stay: () => finish(false),
-    transcribe: async (layerId: string, unitId: string) => {
+    listTargets: async (layerId: string) => {
+      const current = bag.current.latest;
+      if (current.sessionId === null || current.desktopCall === undefined) return null;
+      return current.desktopCall(current.sessionId, 'recordings.listTargets', { layerId });
+    },
+    planTranscription: async (layerId: string, unitId: string, targetLayerId: string) => {
+      const current = bag.current.latest;
+      if (current.sessionId === null || current.desktopCall === undefined) return null;
+      return current.desktopCall(current.sessionId, 'recordings.planTranscription', {
+        unitId,
+        layerId,
+        targetLayerId,
+      });
+    },
+    createTranslationLayer: async (manuscriptId: string, hostLayerId: string, name: string) => {
+      const current = bag.current.latest;
+      if (current.sessionId === null || current.desktopCall === undefined) return null;
+      const created = await current.desktopCall(current.sessionId, 'layers.create', {
+        manuscriptId,
+        key: `tl-${crypto.randomUUID().slice(0, 8)}`,
+        name: { zh: name },
+        tierType: 'symbolic-association',
+        contentType: 'translation',
+        hosts: [{ hostLayerId, preferred: true }],
+      });
+      await current.refresh();
+      return created;
+    },
+    transcribe: async (
+      layerId: string,
+      unitId: string,
+      target?: {
+        targetLayerId: string;
+        targetUnitId?: string;
+        createUnit?: boolean;
+        confirmHost?: boolean;
+        confirmLonger?: boolean;
+      },
+    ) => {
       const current = bag.current.latest;
       if (current.sessionId === null || current.desktopCall === undefined) return;
       const key = clipKey(layerId, unitId);
       if (ui.live?.pinned.key === key || ui.save?.pinned.key === key) return;
+      const list = takes[key] ?? [];
+      const chosen = list.find((take) => take.id === picked[key]) ?? list[0];
+      if (chosen === undefined || chosen.id === null) return;
+      const audioId = chosen.id;
       const seen = current.sessionId;
       try {
-        await current.desktopCall(seen, 'recordings.transcribe', { unitId, layerId });
+        await current.desktopCall(seen, 'recordings.transcribe', {
+          unitId,
+          layerId,
+          audioId,
+          ...(target ?? {}),
+        });
         if (!bag.current.alive || bag.current.latest.sessionId !== seen) return;
         await bag.current.latest.refresh();
         toast.showToast(t(locale, 'app.desktopTranscription.oralDraftReady'), 'info');

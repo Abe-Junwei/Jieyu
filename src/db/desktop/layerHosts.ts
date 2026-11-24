@@ -57,6 +57,26 @@ export function insertHostLinks(
   hosts: LayerHostInput[],
   now: string,
 ): void {
+  const layer = db
+    .prepare('SELECT tier_type, content_type FROM layers WHERE id = ?')
+    .get(layerId) as { tier_type: string; content_type: string } | undefined;
+  if (
+    layer?.tier_type === 'symbolic-association' &&
+    layer.content_type === 'transcription' &&
+    hosts.length > 1
+  ) {
+    throw new Error('orthography layer requires one host');
+  }
+  for (const host of hosts) {
+    const valid = db
+      .prepare(
+        `SELECT 1 FROM layers WHERE id = ? AND manuscript_id = ?
+      AND content_type = 'transcription' AND tier_type = 'time-aligned' AND deleted_at IS NULL`,
+      )
+      .get(host.hostLayerId, manuscriptId);
+    if (valid === undefined || host.hostLayerId === layerId)
+      throw new Error('layer host is not a transcription layer');
+  }
   if (hosts.length === 0) return;
   const preferredCount = hosts.filter((host) => host.preferred === true).length;
   if (preferredCount > 1) throw new Error('layer has more than one preferred host');
@@ -309,22 +329,32 @@ function checkHosts(db: SqliteDatabase, input: LayerHostsSet): CheckedHosts {
   if (!layer || layer.deletedAt !== null || !canChange) {
     throw new Error('layer cannot change hosts');
   }
+  if (layer.contentType === 'transcription' && input.hostLayerIds.length !== 1) {
+    throw new Error('orthography layer requires one host');
+  }
   const descendants = new Set(descendantIds(db, layer.id));
   for (const hostId of input.hostLayerIds) {
     const host = db
       .prepare(
-        `SELECT id, manuscript_id AS manuscriptId, content_type AS contentType,
+        `SELECT id, manuscript_id AS manuscriptId, content_type AS contentType, tier_type AS tierType,
                 deleted_at AS deletedAt
          FROM layers WHERE id = ?`,
       )
       .get(hostId) as
-      | { id: string; manuscriptId: string; contentType: string; deletedAt: string | null }
+      | {
+          id: string;
+          manuscriptId: string;
+          contentType: string;
+          tierType: string;
+          deletedAt: string | null;
+        }
       | undefined;
     if (
       !host ||
       host.deletedAt !== null ||
       host.manuscriptId !== layer.manuscriptId ||
       host.contentType !== 'transcription' ||
+      host.tierType !== 'time-aligned' ||
       host.id === layer.id
     ) {
       throw new Error('layer host is not a transcription layer');

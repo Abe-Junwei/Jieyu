@@ -185,6 +185,16 @@ export function moveLayer(db: SqliteDatabase, input: LayerMove): Layer {
 export function deleteLayer(db: SqliteDatabase, input: LayerDelete): { id: string } {
   const write = db.transaction(() => {
     const current = activeLayer(db, input.id);
+    const orthography = db
+      .prepare(
+        `SELECT 1 FROM layer_links
+      JOIN layers ON layers.id = layer_links.layer_id
+      WHERE host_layer_id IN (SELECT value FROM json_each(?)) AND layers.deleted_at IS NULL
+      AND layers.tier_type = 'symbolic-association' AND layers.content_type = 'transcription'
+      AND layers.modality = 'text' LIMIT 1`,
+      )
+      .get(JSON.stringify([current.id, ...descendantIds(db, current.id)]));
+    if (orthography !== undefined) throw new Error('layer has orthography dependents');
     const now = new Date().toISOString();
     const deletedAt = deleteStamp(now);
     const retainUntil = plusUtcDays(now, RETAIN_DAYS);

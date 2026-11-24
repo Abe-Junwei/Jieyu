@@ -52,6 +52,7 @@ export function useDesktopTranscriptionMergeController(input: {
   textLayerId: string | null;
   textOf: (unitId: string) => string;
   prepareText: () => Promise<boolean>;
+  onCommitted?: () => void;
   desktopCall: ((sessionId: string, method: string, args: unknown) => Promise<unknown>) | undefined;
   reload: () => Promise<unknown>;
 }) {
@@ -93,7 +94,10 @@ export function useDesktopTranscriptionMergeController(input: {
     void ask(unitId);
   };
 
-  async function confirm(separator: string, discardAudioIds: string[]) {
+  async function confirm(
+    discardAudioIds: string[],
+    textOverrides: { layerId: string; text: string }[],
+  ) {
     const current = live.current;
     const open = offer;
     const desktopCall = current.desktopCall;
@@ -160,9 +164,10 @@ export function useDesktopTranscriptionMergeController(input: {
       const text = frozenText(now.textOf, open.preview.keepId, open.preview.removeId);
       await now.desktopCall(now.sessionId, 'units.merge', {
         ...pair,
-        separator,
+        separator: ' ',
         baseline,
         operationId,
+        ...(textOverrides.length === 0 ? {} : { textOverrides }),
         ...(discard.length === 0 ? {} : { discardAudioIds: discard }),
         ...(now.textLayerId === null
           ? {}
@@ -178,6 +183,7 @@ export function useDesktopTranscriptionMergeController(input: {
       return;
     }
     setOffer(null);
+    current.onCommitted?.();
     await current.reload();
   }
 
@@ -254,8 +260,8 @@ export function useDesktopTranscriptionMergeController(input: {
           flight.current += 1;
           setOffer(null);
         }}
-        onConfirm={(separator, discardAudioIds) => {
-          void confirm(separator, discardAudioIds);
+        onConfirm={(discardAudioIds, textOverrides) => {
+          void confirm(discardAudioIds, textOverrides);
         }}
       />
     );

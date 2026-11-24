@@ -1,15 +1,31 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { exportToEaf, importFromEaf } from './EafService';
-import type { LayerDocType, LayerUnitDocType, OrthographyDocType, SpeakerDocType, LayerUnitContentDocType, LayerLinkDocType } from '../db';
+import type {
+  LayerDocType,
+  LayerUnitDocType,
+  OrthographyDocType,
+  SpeakerDocType,
+  LayerUnitContentDocType,
+  LayerLinkDocType,
+} from '../db';
 
-function withEafKeyMeta(baseKey: string, meta?: string | { tierId?: string; langLabel?: string }): string {
+function withEafKeyMeta(
+  baseKey: string,
+  meta?: string | { tierId?: string; langLabel?: string },
+): string {
   if (!meta) return baseKey;
   const payload = JSON.stringify(typeof meta === 'string' ? { tierId: meta } : meta);
   return `${baseKey}__eafmeta_${encodeURIComponent(payload)}`;
 }
 
-function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: 'transcription' | 'translation'; key: string }): LayerDocType {
+function makeLayer(
+  overrides: Partial<LayerDocType> & {
+    id: string;
+    layerType: 'transcription' | 'translation';
+    key: string;
+  },
+): LayerDocType {
   const now = '2026-03-25T00:00:00.000Z';
   return {
     ...overrides,
@@ -42,7 +58,14 @@ function makeUnit(): LayerUnitDocType {
   } as LayerUnitDocType;
 }
 
-function makeTranslation(overrides: Partial<LayerUnitContentDocType> & { id: string; layerId: string; unitId: string; text: string }): LayerUnitContentDocType {
+function makeTranslation(
+  overrides: Partial<LayerUnitContentDocType> & {
+    id: string;
+    layerId: string;
+    unitId: string;
+    text: string;
+  },
+): LayerUnitContentDocType {
   const now = '2026-03-25T00:00:00.000Z';
   return {
     ...overrides,
@@ -57,7 +80,9 @@ function makeTranslation(overrides: Partial<LayerUnitContentDocType> & { id: str
   } as LayerUnitContentDocType;
 }
 
-function makeSpeaker(overrides: Partial<SpeakerDocType> & { id: string; name: string }): SpeakerDocType {
+function makeSpeaker(
+  overrides: Partial<SpeakerDocType> & { id: string; name: string },
+): SpeakerDocType {
   const now = '2026-03-25T00:00:00.000Z';
   return {
     ...overrides,
@@ -68,7 +93,9 @@ function makeSpeaker(overrides: Partial<SpeakerDocType> & { id: string; name: st
   } as SpeakerDocType;
 }
 
-function makeOrthography(overrides: Partial<OrthographyDocType> & { id: string; languageId: string }): OrthographyDocType {
+function makeOrthography(
+  overrides: Partial<OrthographyDocType> & { id: string; languageId: string },
+): OrthographyDocType {
   const now = '2026-03-25T00:00:00.000Z';
   const { id, languageId, ...restOverrides } = overrides;
   return {
@@ -81,7 +108,14 @@ function makeOrthography(overrides: Partial<OrthographyDocType> & { id: string; 
   } as OrthographyDocType;
 }
 
-function makeLayerLink(overrides: Partial<LayerLinkDocType> & { id: string; layerId: string; transcriptionLayerKey: string; hostTranscriptionLayerId: string }): LayerLinkDocType {
+function makeLayerLink(
+  overrides: Partial<LayerLinkDocType> & {
+    id: string;
+    layerId: string;
+    transcriptionLayerKey: string;
+    hostTranscriptionLayerId: string;
+  },
+): LayerLinkDocType {
   const now = '2026-03-25T00:00:00.000Z';
   return {
     id: overrides.id,
@@ -108,8 +142,17 @@ describe('EAF export behavior for constraint layers', () => {
     const xml = exportToEaf({
       units: [makeUnit()],
       layers: [trc, sub],
-      translations: [makeTranslation({ id: 'utr_sub_1', layerId: sub.id, unitId: 'utt_1', text: 'sub-text' })],
-      layerLinks: [makeLayerLink({ id: 'link-sub', layerId: sub.id, transcriptionLayerKey: trc.key, hostTranscriptionLayerId: trc.id })],
+      translations: [
+        makeTranslation({ id: 'utr_sub_1', layerId: sub.id, unitId: 'utt_1', text: 'sub-text' }),
+      ],
+      layerLinks: [
+        makeLayerLink({
+          id: 'link-sub',
+          layerId: sub.id,
+          transcriptionLayerKey: trc.key,
+          hostTranscriptionLayerId: trc.id,
+        }),
+      ],
     });
 
     const doc = new DOMParser().parseFromString(xml, 'application/xml');
@@ -145,7 +188,14 @@ describe('EAF export behavior for constraint layers', () => {
     const xml = exportToEaf({
       units: [makeUnit()],
       layers: [trc, independent],
-      translations: [makeTranslation({ id: 'utr_ind_1', layerId: independent.id, unitId: 'utt_1', text: 'ind-text' })],
+      translations: [
+        makeTranslation({
+          id: 'utr_ind_1',
+          layerId: independent.id,
+          unitId: 'utt_1',
+          text: 'ind-text',
+        }),
+      ],
       layerSegments: new Map([[independent.id, [seg]]]),
     });
 
@@ -208,8 +258,18 @@ describe('EAF export behavior for constraint layers', () => {
       units: [makeUnit()],
       layers: [trc, independent],
       translations: [
-        makeTranslation({ id: 'utr_ind_multi_1', layerId: independent.id, unitId: 'utt_1', text: 'part-a' }),
-        makeTranslation({ id: 'utr_ind_multi_2', layerId: independent.id, unitId: 'utt_1', text: 'part-b' }),
+        makeTranslation({
+          id: 'utr_ind_multi_1',
+          layerId: independent.id,
+          unitId: 'utt_1',
+          text: 'part-a',
+        }),
+        makeTranslation({
+          id: 'utr_ind_multi_2',
+          layerId: independent.id,
+          unitId: 'utt_1',
+          text: 'part-b',
+        }),
       ],
       layerSegments: new Map([[independent.id, [segA, segB]]]),
     });
@@ -221,7 +281,9 @@ describe('EAF export behavior for constraint layers', () => {
     const anns = tier?.querySelectorAll('ALIGNABLE_ANNOTATION') ?? [];
     expect(anns.length).toBe(2);
 
-    const values = Array.from(tier?.querySelectorAll('ANNOTATION_VALUE') ?? []).map((node) => node.textContent ?? '');
+    const values = Array.from(tier?.querySelectorAll('ANNOTATION_VALUE') ?? []).map(
+      (node) => node.textContent ?? '',
+    );
     expect(values).toEqual(['part-a', 'part-b']);
   });
 
@@ -234,7 +296,11 @@ describe('EAF export behavior for constraint layers', () => {
       constraint: 'independent_boundary',
       isDefault: false,
     });
-    const defaultTrc = makeLayer({ id: 'trc_default', layerType: 'transcription', key: 'trc_default' });
+    const defaultTrc = makeLayer({
+      id: 'trc_default',
+      layerType: 'transcription',
+      key: 'trc_default',
+    });
     const seg: LayerUnitDocType = {
       id: 'seg_spk_1',
       textId: 'text_1',
@@ -246,22 +312,34 @@ describe('EAF export behavior for constraint layers', () => {
       createdAt: '2026-03-25T00:00:00.000Z',
       updatedAt: '2026-03-25T00:00:00.000Z',
     };
-    const segmentContents = new Map([[trc.id, new Map([[seg.id, {
-      id: 'seg_content_1',
-      textId: 'text_1',
-      segmentId: seg.id,
-      layerId: trc.id,
-      modality: 'text' as const,
-      text: 'seg-text',
-      sourceType: 'human' as const,
-      createdAt: '2026-03-25T00:00:00.000Z',
-      updatedAt: '2026-03-25T00:00:00.000Z',
-    }]])]]);
+    const segmentContents = new Map([
+      [
+        trc.id,
+        new Map([
+          [
+            seg.id,
+            {
+              id: 'seg_content_1',
+              textId: 'text_1',
+              segmentId: seg.id,
+              layerId: trc.id,
+              modality: 'text' as const,
+              text: 'seg-text',
+              sourceType: 'human' as const,
+              createdAt: '2026-03-25T00:00:00.000Z',
+              updatedAt: '2026-03-25T00:00:00.000Z',
+            },
+          ],
+        ]),
+      ],
+    ]);
 
     const xml = exportToEaf({
       units: [makeUnit()],
       layers: [defaultTrc, trc],
-      translations: [makeTranslation({ id: 'utr_seg_text', layerId: trc.id, unitId: 'utt_1', text: 'seg-text' })],
+      translations: [
+        makeTranslation({ id: 'utr_seg_text', layerId: trc.id, unitId: 'utt_1', text: 'seg-text' }),
+      ],
       layerSegments: new Map([[trc.id, [seg]]]),
       layerSegmentContents: segmentContents,
       speakers: [makeSpeaker({ id: 'speaker_seg_1', name: 'Segment Speaker' })],
@@ -274,7 +352,11 @@ describe('EAF export behavior for constraint layers', () => {
   });
 
   it('prefers preferred host link tier as PARENT_REF during export', () => {
-    const defaultTrc = makeLayer({ id: 'trc_default', layerType: 'transcription', key: withEafKeyMeta('trc_default', 'TRC_DEFAULT') });
+    const defaultTrc = makeLayer({
+      id: 'trc_default',
+      layerType: 'transcription',
+      key: withEafKeyMeta('trc_default', 'TRC_DEFAULT'),
+    });
     const customParent = makeLayer({
       id: 'trc_custom',
       layerType: 'transcription',
@@ -302,9 +384,27 @@ describe('EAF export behavior for constraint layers', () => {
         }),
       ],
       translations: [
-        makeTranslation({ id: 'utr_default', layerId: defaultTrc.id, unitId: 'utt_1', text: 'hello', externalRef: 'a_default' }),
-        makeTranslation({ id: 'utr_custom', layerId: customParent.id, unitId: 'utt_1', text: 'custom host', externalRef: 'a_custom' }),
-        makeTranslation({ id: 'utr_child', layerId: trl.id, unitId: 'utt_1', text: 'child', externalRef: 'a_child' }),
+        makeTranslation({
+          id: 'utr_default',
+          layerId: defaultTrc.id,
+          unitId: 'utt_1',
+          text: 'hello',
+          externalRef: 'a_default',
+        }),
+        makeTranslation({
+          id: 'utr_custom',
+          layerId: customParent.id,
+          unitId: 'utt_1',
+          text: 'custom host',
+          externalRef: 'a_custom',
+        }),
+        makeTranslation({
+          id: 'utr_child',
+          layerId: trl.id,
+          unitId: 'utt_1',
+          text: 'child',
+          externalRef: 'a_child',
+        }),
       ],
     });
 
@@ -317,9 +417,25 @@ describe('EAF export behavior for constraint layers', () => {
   });
 
   it('exports only preferred host and emits multi-host warning', () => {
-    const defaultTrc = makeLayer({ id: 'trc_default', layerType: 'transcription', key: withEafKeyMeta('trc_default', 'TRC_DEFAULT') });
-    const trcA = makeLayer({ id: 'trc_a', layerType: 'transcription', key: withEafKeyMeta('trc_a', 'TRC_A'), isDefault: false, sortOrder: 1 });
-    const trcB = makeLayer({ id: 'trc_b', layerType: 'transcription', key: withEafKeyMeta('trc_b', 'TRC_B'), isDefault: false, sortOrder: 2 });
+    const defaultTrc = makeLayer({
+      id: 'trc_default',
+      layerType: 'transcription',
+      key: withEafKeyMeta('trc_default', 'TRC_DEFAULT'),
+    });
+    const trcA = makeLayer({
+      id: 'trc_a',
+      layerType: 'transcription',
+      key: withEafKeyMeta('trc_a', 'TRC_A'),
+      isDefault: false,
+      sortOrder: 1,
+    });
+    const trcB = makeLayer({
+      id: 'trc_b',
+      layerType: 'transcription',
+      key: withEafKeyMeta('trc_b', 'TRC_B'),
+      isDefault: false,
+      sortOrder: 2,
+    });
     const trl = makeLayer({
       id: 'trl_child',
       layerType: 'translation',
@@ -332,13 +448,43 @@ describe('EAF export behavior for constraint layers', () => {
       units: [makeUnit()],
       layers: [defaultTrc, trcA, trcB, trl],
       layerLinks: [
-        makeLayerLink({ id: 'link-a', layerId: trl.id, transcriptionLayerKey: trcA.key, hostTranscriptionLayerId: trcA.id, isPreferred: false }),
-        makeLayerLink({ id: 'link-b', layerId: trl.id, transcriptionLayerKey: trcB.key, hostTranscriptionLayerId: trcB.id, isPreferred: true }),
+        makeLayerLink({
+          id: 'link-a',
+          layerId: trl.id,
+          transcriptionLayerKey: trcA.key,
+          hostTranscriptionLayerId: trcA.id,
+          isPreferred: false,
+        }),
+        makeLayerLink({
+          id: 'link-b',
+          layerId: trl.id,
+          transcriptionLayerKey: trcB.key,
+          hostTranscriptionLayerId: trcB.id,
+          isPreferred: true,
+        }),
       ],
       translations: [
-        makeTranslation({ id: 'utr_default', layerId: defaultTrc.id, unitId: 'utt_1', text: 'hello', externalRef: 'a_default' }),
-        makeTranslation({ id: 'utr_b', layerId: trcB.id, unitId: 'utt_1', text: 'host b', externalRef: 'a_host_b' }),
-        makeTranslation({ id: 'utr_child', layerId: trl.id, unitId: 'utt_1', text: 'child', externalRef: 'a_child' }),
+        makeTranslation({
+          id: 'utr_default',
+          layerId: defaultTrc.id,
+          unitId: 'utt_1',
+          text: 'hello',
+          externalRef: 'a_default',
+        }),
+        makeTranslation({
+          id: 'utr_b',
+          layerId: trcB.id,
+          unitId: 'utt_1',
+          text: 'host b',
+          externalRef: 'a_host_b',
+        }),
+        makeTranslation({
+          id: 'utr_child',
+          layerId: trl.id,
+          unitId: 'utt_1',
+          text: 'child',
+          externalRef: 'a_child',
+        }),
       ],
       onWarning: warningSpy,
     });
@@ -347,17 +493,25 @@ describe('EAF export behavior for constraint layers', () => {
     const childTier = doc.querySelector('TIER[TIER_ID="TRL_CHILD"]');
     expect(childTier).not.toBeNull();
     expect(childTier?.getAttribute('PARENT_REF')).toBe('TRC_B');
-    expect(childTier?.querySelector('REF_ANNOTATION')?.getAttribute('ANNOTATION_REF')).toBe('a_host_b');
-    expect(warningSpy).toHaveBeenCalledWith(expect.objectContaining({
-      code: 'translation-multi-host-lossy',
-      layerId: trl.id,
-      hostCount: 2,
-      preferredHostTranscriptionLayerId: trcB.id,
-    }));
+    expect(childTier?.querySelector('REF_ANNOTATION')?.getAttribute('ANNOTATION_REF')).toBe(
+      'a_host_b',
+    );
+    expect(warningSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 'translation-multi-host-lossy',
+        layerId: trl.id,
+        hostCount: 2,
+        preferredHostTranscriptionLayerId: trcB.id,
+      }),
+    );
   });
 
   it('keeps parent/constraint semantic on import after export (round-trip)', () => {
-    const trc = makeLayer({ id: 'trc_default', layerType: 'transcription', key: withEafKeyMeta('trc_default', 'TRC_MAIN') });
+    const trc = makeLayer({
+      id: 'trc_default',
+      layerType: 'transcription',
+      key: withEafKeyMeta('trc_default', 'TRC_MAIN'),
+    });
     const trl = makeLayer({
       id: 'trl_sub',
       layerType: 'translation',
@@ -372,7 +526,14 @@ describe('EAF export behavior for constraint layers', () => {
         makeTranslation({ id: 'utr_main', layerId: trc.id, unitId: 'utt_1', text: 'main' }),
         makeTranslation({ id: 'utr_sub', layerId: trl.id, unitId: 'utt_1', text: 'sub' }),
       ],
-      layerLinks: [makeLayerLink({ id: 'link-roundtrip', layerId: trl.id, transcriptionLayerKey: trc.key, hostTranscriptionLayerId: trc.id })],
+      layerLinks: [
+        makeLayerLink({
+          id: 'link-roundtrip',
+          layerId: trl.id,
+          transcriptionLayerKey: trc.key,
+          hostTranscriptionLayerId: trc.id,
+        }),
+      ],
     });
 
     const imported = importFromEaf(xml);
@@ -402,7 +563,13 @@ describe('EAF export behavior for constraint layers', () => {
       units: [makeUnit()],
       layers: [trc, trl],
       orthographies: [
-        makeOrthography({ id: 'ortho-ar', languageId: 'ara', scriptTag: 'Arab', regionTag: 'EG', variantTag: 'fonipa' }),
+        makeOrthography({
+          id: 'ortho-ar',
+          languageId: 'ara',
+          scriptTag: 'Arab',
+          regionTag: 'EG',
+          variantTag: 'fonipa',
+        }),
         makeOrthography({ id: 'ortho-eng', languageId: 'eng', scriptTag: 'Latn' }),
       ],
       translations: [
@@ -412,7 +579,9 @@ describe('EAF export behavior for constraint layers', () => {
     });
 
     const doc = new DOMParser().parseFromString(xml, 'application/xml');
-    const headerProperties = Array.from(doc.querySelectorAll('HEADER > PROPERTY')).reduce<Record<string, string>>((acc, property) => {
+    const headerProperties = Array.from(doc.querySelectorAll('HEADER > PROPERTY')).reduce<
+      Record<string, string>
+    >((acc, property) => {
       const name = property.getAttribute('NAME');
       if (name) acc[name] = property.textContent ?? '';
       return acc;
@@ -506,7 +675,11 @@ describe('EAF export behavior for constraint layers', () => {
   });
 
   it('exports transcription time_subdivision tiers from segment graph with parent ref', () => {
-    const defaultTrc = makeLayer({ id: 'trc_default', layerType: 'transcription', key: withEafKeyMeta('trc_default', 'TRC_DEFAULT') });
+    const defaultTrc = makeLayer({
+      id: 'trc_default',
+      layerType: 'transcription',
+      key: withEafKeyMeta('trc_default', 'TRC_DEFAULT'),
+    });
     const subTrc = makeLayer({
       id: 'trc_sub',
       layerType: 'transcription',
@@ -531,19 +704,36 @@ describe('EAF export behavior for constraint layers', () => {
     const xml = exportToEaf({
       units: [makeUnit()],
       layers: [defaultTrc, subTrc],
-      translations: [makeTranslation({ id: 'utr_default', layerId: defaultTrc.id, unitId: 'utt_1', text: 'main-text' })],
+      translations: [
+        makeTranslation({
+          id: 'utr_default',
+          layerId: defaultTrc.id,
+          unitId: 'utt_1',
+          text: 'main-text',
+        }),
+      ],
       layerSegments: new Map([[subTrc.id, [seg]]]),
-      layerSegmentContents: new Map([[subTrc.id, new Map([[seg.id, {
-        id: 'cnt_trc_sub',
-        textId: 'text_1',
-        segmentId: seg.id,
-        layerId: subTrc.id,
-        modality: 'text' as const,
-        text: 'sub-text',
-        sourceType: 'human' as const,
-        createdAt: '2026-03-25T00:00:00.000Z',
-        updatedAt: '2026-03-25T00:00:00.000Z',
-      }]])]]),
+      layerSegmentContents: new Map([
+        [
+          subTrc.id,
+          new Map([
+            [
+              seg.id,
+              {
+                id: 'cnt_trc_sub',
+                textId: 'text_1',
+                segmentId: seg.id,
+                layerId: subTrc.id,
+                modality: 'text' as const,
+                text: 'sub-text',
+                sourceType: 'human' as const,
+                createdAt: '2026-03-25T00:00:00.000Z',
+                updatedAt: '2026-03-25T00:00:00.000Z',
+              },
+            ],
+          ]),
+        ],
+      ]),
     });
 
     const doc = new DOMParser().parseFromString(xml, 'application/xml');
@@ -645,7 +835,12 @@ describe('EAF export behavior for constraint layers', () => {
         }),
       ],
       translations: [
-        makeTranslation({ id: 'utr_default', layerId: defaultTrc.id, unitId: 'utt_1', text: 'hello' }),
+        makeTranslation({
+          id: 'utr_default',
+          layerId: defaultTrc.id,
+          unitId: 'utt_1',
+          text: 'hello',
+        }),
         makeTranslation({ id: 'utr_child', layerId: trl.id, unitId: 'utt_1', text: '你好' }),
       ],
     });
@@ -705,5 +900,75 @@ describe('EAF export behavior for constraint layers', () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids.filter((id) => id === 'a1')).toHaveLength(1);
   });
+});
 
+it('exports empty orthographies as references to their own time owner, including empty host text', () => {
+  const a = makeLayer({
+    id: 'a',
+    key: 'a',
+    layerType: 'transcription',
+    constraint: 'independent_boundary',
+  });
+  const b = makeLayer({
+    id: 'b',
+    key: 'b',
+    layerType: 'transcription',
+    constraint: 'independent_boundary',
+  });
+  const oa = makeLayer({
+    id: 'oa',
+    key: 'oa',
+    layerType: 'transcription',
+    constraint: 'symbolic_association',
+  });
+  const ob = makeLayer({
+    id: 'ob',
+    key: 'ob',
+    layerType: 'transcription',
+    constraint: 'symbolic_association',
+  });
+  const u1 = makeUnit();
+  const u2 = { ...makeUnit(), id: 'utt_2', startTime: 2, endTime: 3 };
+  const xml = exportToEaf({
+    units: [u1, u2],
+    layers: [oa, ob, a, b],
+    defaultTranscriptionLayerId: a.id,
+    translations: [],
+    layerSegments: new Map([
+      [a.id, [u1]],
+      [b.id, [u2]],
+    ]),
+    layerLinks: [
+      makeLayerLink({
+        id: 'la',
+        layerId: oa.id,
+        hostTranscriptionLayerId: a.id,
+        transcriptionLayerKey: a.key,
+      }),
+      makeLayerLink({
+        id: 'lb',
+        layerId: ob.id,
+        hostTranscriptionLayerId: b.id,
+        transcriptionLayerKey: b.key,
+      }),
+    ],
+  });
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  expect(doc.querySelector('parsererror')).toBeNull();
+  for (const name of ['oa', 'ob']) {
+    const tier = doc.querySelector(`TIER[TIER_ID="${name}"]`)!;
+    expect(tier.querySelectorAll('REF_ANNOTATION')).toHaveLength(1);
+    expect(tier.querySelector('ALIGNABLE_ANNOTATION')).toBeNull();
+    const parentName = tier.getAttribute('PARENT_REF');
+    const ref = tier.querySelector('REF_ANNOTATION')!.getAttribute('ANNOTATION_REF');
+    expect(
+      doc.querySelector(
+        `TIER[TIER_ID="${parentName}"] ALIGNABLE_ANNOTATION[ANNOTATION_ID="${ref}"]`,
+      ),
+    ).not.toBeNull();
+    expect(tier.querySelector('ANNOTATION_VALUE')?.textContent).toBe('');
+  }
+  expect(doc.querySelector('TIER[TIER_ID="oa"]')?.getAttribute('PARENT_REF')).not.toBe(
+    doc.querySelector('TIER[TIER_ID="ob"]')?.getAttribute('PARENT_REF'),
+  );
 });

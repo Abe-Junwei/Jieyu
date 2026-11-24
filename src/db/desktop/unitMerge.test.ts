@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { finishAttachmentCleanup, readAttachmentFile, storeAttachmentFile } from './attachments';
 import { callDesktopSession } from './desktopCall';
 import { createDefinition, missingUnitFields, readFieldValue, setFieldValue } from './customFields';
-import { mergeBaseline, mergeUnits, undoMerge } from './unitMerge';
+import { mergeBaseline, mergePreview, mergeUnits, undoMerge } from './unitMerge';
 import { insertTextAudio } from './unitTextAudios';
 import { finishTextSave, inspectUnitTextSave, putUnitTextDraft, textSaveDigest } from './textSave';
 import { putUnitTimeDraft } from './unitTimeDrafts';
@@ -483,7 +483,11 @@ describe('unit merge', () => {
     putUnitTextDraft(db, { unitId: left, rawInput: '甲稿', baseBody: '' });
     putUnitTextDraft(db, { unitId: right, rawInput: '乙稿', baseBody: '' });
     expect(textCount(db, left, right)).toBe(0);
-    const bothDrafts = mergeUnits(db, { keepId: left, removeId: right });
+    const bothDrafts = mergeUnits(db, {
+      keepId: left,
+      removeId: right,
+      baseline: mergePreview(db, { keepId: left, removeId: right }).baseline,
+    });
     expect(bothDrafts.unit.text).toBe('甲稿 乙稿');
     expect(draftCount(db, bothDrafts.unit.id)).toBe(0);
     undoMerge(db, bothDrafts.undo);
@@ -494,13 +498,25 @@ describe('unit merge', () => {
     const bare = unit(sessionId, layerId, 3000, 4000, '');
     putUnitTextDraft(db, { unitId: bare, rawInput: '乙稿', baseBody: '' });
     expect(textCount(db, bare)).toBe(0);
-    expect(mergeUnits(db, { keepId: held, removeId: bare }).unit.text).toBe('甲 乙稿');
+    expect(
+      mergeUnits(db, {
+        keepId: held,
+        removeId: bare,
+        baseline: mergePreview(db, { keepId: held, removeId: bare }).baseline,
+      }).unit.text,
+    ).toBe('甲 乙稿');
 
     const bareFirst = unit(sessionId, layerId, 4000, 5000, '');
     const heldLater = unit(sessionId, layerId, 5000, 6000, '乙');
     putUnitTextDraft(db, { unitId: bareFirst, rawInput: '甲稿', baseBody: '' });
     expect(textCount(db, bareFirst)).toBe(0);
-    expect(mergeUnits(db, { keepId: bareFirst, removeId: heldLater }).unit.text).toBe('甲稿 乙');
+    expect(
+      mergeUnits(db, {
+        keepId: bareFirst,
+        removeId: heldLater,
+        baseline: mergePreview(db, { keepId: bareFirst, removeId: heldLater }).baseline,
+      }).unit.text,
+    ).toBe('甲稿 乙');
 
     const host = unit(sessionId, layerId, 6000, 7000, '甲');
     const other = unit(sessionId, layerId, 7000, 8000, '乙');
@@ -529,7 +545,14 @@ describe('unit merge', () => {
     expect(
       db.prepare('SELECT COUNT(*) AS n FROM unit_texts WHERE layer_id = ?').get(translation),
     ).toEqual({ n: 0 });
-    const linked = mergeUnits(db, { keepId: host, removeId: other });
+    expect(() => mergeUnits(db, { keepId: host, removeId: other })).toThrow(
+      'merge drafts require confirmation',
+    );
+    const linked = mergeUnits(db, {
+      keepId: host,
+      removeId: other,
+      baseline: mergePreview(db, { keepId: host, removeId: other }).baseline,
+    });
     expect(
       db
         .prepare('SELECT body FROM unit_texts WHERE unit_id = ? AND layer_id = ?')
@@ -538,6 +561,29 @@ describe('unit merge', () => {
     expect(
       db.prepare('SELECT COUNT(*) AS n FROM unit_text_drafts WHERE layer_id = ?').get(translation),
     ).toEqual({ n: 0 });
+    undoMerge(db, linked.undo);
+    const preview = mergePreview(db, { keepId: host, removeId: other });
+    expect(preview.texts.find((row) => row.layerId === translation)).toMatchObject({
+      official: '',
+      draft: '译甲 译乙',
+      result: '译甲 译乙',
+    });
+    const corrected = mergeUnits(db, {
+      keepId: host,
+      removeId: other,
+      baseline: preview.baseline,
+      textOverrides: [{ layerId: translation, text: '校订译文' }],
+    });
+    expect(corrected.unit.text).toBe('甲 乙');
+    expect(
+      db
+        .prepare('SELECT body FROM unit_texts WHERE unit_id = ? AND layer_id = ?')
+        .get(corrected.unit.id, translation),
+    ).toEqual({ body: '校订译文' });
+    undoMerge(db, corrected.undo);
+    expect(
+      db.prepare('SELECT COUNT(*) AS n FROM unit_text_drafts WHERE layer_id = ?').get(translation),
+    ).toEqual({ n: 2 });
   });
 
   it('retargets a reference held by another unit or a note, and undo puts it back', () => {

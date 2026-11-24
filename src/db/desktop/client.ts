@@ -190,7 +190,13 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once(sessionId, 'units.setSkipProcessing', input),
     updateUnitText: (
       sessionId: string,
-      input: { unitId: string; textLayerId?: string; text: string; operationId?: string },
+      input: {
+        unitId: string;
+        textLayerId?: string;
+        text: string;
+        operationId?: string;
+        resolveDraft?: { baseBody: string; currentBody: string; rawInput: string };
+      },
     ) => once(sessionId, 'units.updateText', input),
     readTextDraft: (sessionId: string, unitId: string, textLayerId?: string) =>
       once(sessionId, 'units.readTextDraft', layerScoped(unitId, textLayerId)),
@@ -216,6 +222,8 @@ export function createDesktopClient(bridge: DesktopBridge) {
     splitUnit: (
       sessionId: string,
       input: {
+        baseline?: string;
+        formalCuts?: { layerId: string; cutIndex: number }[];
         unitId: string;
         time: number;
         textLayerId?: string;
@@ -245,14 +253,26 @@ export function createDesktopClient(bridge: DesktopBridge) {
     ) => receipted(sessionId, 'units.moveSharedBoundary', { ...input }),
     moveUnit: (sessionId: string, input: { unitId: string; delta: number }) =>
       receipted(sessionId, 'units.moveUnit', { ...input }),
-    previewUnitDelete: (sessionId: string, unitId: string) =>
-      once(sessionId, 'units.deletePreview', { unitId }),
-    previewUnitsDelete: (sessionId: string, unitIds: string[]) =>
-      once(sessionId, 'units.deleteManyPreview', { unitIds }),
-    deleteUnit: (sessionId: string, unitId: string) =>
-      receipted(sessionId, 'units.delete', { unitId }),
-    deleteUnits: (sessionId: string, unitIds: string[]) =>
-      receipted(sessionId, 'units.deleteMany', { unitIds }),
+    previewUnitDelete: (sessionId: string, unitId: string, textLayerId?: string) =>
+      once(sessionId, 'units.deletePreview', {
+        unitId,
+        ...(textLayerId === undefined ? {} : { textLayerId }),
+      }),
+    previewUnitsDelete: (sessionId: string, unitIds: string[], textLayerId?: string) =>
+      once(sessionId, 'units.deleteManyPreview', {
+        unitIds,
+        ...(textLayerId === undefined ? {} : { textLayerId }),
+      }),
+    deleteUnit: (
+      sessionId: string,
+      unitId: string,
+      clear?: { textLayerId: string; fingerprint: string },
+    ) => receipted(sessionId, 'units.delete', { unitId, ...clear }),
+    deleteUnits: (
+      sessionId: string,
+      unitIds: string[],
+      clear?: { textLayerId: string; fingerprint: string },
+    ) => receipted(sessionId, 'units.deleteMany', { unitIds, ...clear }),
     readTimeDraft: (sessionId: string, unitId: string) =>
       once(sessionId, 'units.readTimeDraft', { unitId }),
     putTimeDraft: (

@@ -456,3 +456,163 @@ describe('desktop unit edges', () => {
     ).toMatchObject({ endMs: 1500 });
   });
 });
+
+describe('layer-scoped clear through desktop calls', () => {
+  it('clears official text and draft, replays once, and undoes only that layer', () => {
+    const root = folder();
+    const { sessionId } = openDesktopSession(root, [root]);
+    const host = layer(sessionId, false);
+    const db = requireDesktopSession(sessionId).db;
+    const manuscriptId = (
+      db.prepare('SELECT manuscript_id FROM layers WHERE id = ?').get(host) as {
+        manuscript_id: string;
+      }
+    ).manuscript_id;
+    const spelling = (
+      callDesktopSession(sessionId, 'layers.create', {
+        manuscriptId,
+        key: 'spelling',
+        name: { zh: '拼音' },
+        tierType: 'symbolic-association',
+        contentType: 'transcription',
+        hosts: [{ hostLayerId: host }],
+      }) as { id: string }
+    ).id;
+    const id = unit(sessionId, host, 0, 1000, '原文');
+    callDesktopSession(sessionId, 'units.updateText', {
+      unitId: id,
+      textLayerId: spelling,
+      text: 'ka',
+    });
+    callDesktopSession(sessionId, 'units.putTextDraft', {
+      unitId: id,
+      textLayerId: spelling,
+      rawInput: 'kaa',
+      baseBody: 'ka',
+    });
+    const preview = callDesktopSession(sessionId, 'units.deletePreview', {
+      unitId: id,
+      textLayerId: spelling,
+    }) as { fingerprint: string };
+    const input = {
+      unitId: id,
+      textLayerId: spelling,
+      fingerprint: preview.fingerprint,
+      operationId: 'clear-spelling',
+    };
+    callDesktopSession(sessionId, 'units.putTextDraft', {
+      unitId: id,
+      textLayerId: spelling,
+      rawInput: 'kaaa',
+      baseBody: 'ka',
+    });
+    expect(() => callDesktopSession(sessionId, 'units.delete', input)).toThrow(
+      'text clear preview is stale',
+    );
+    expect(
+      (callDesktopSession(sessionId, 'units.list', { layerId: spelling }) as { text: string }[])[0]
+        ?.text,
+    ).toBe('ka');
+    callDesktopSession(sessionId, 'units.putTextDraft', {
+      unitId: id,
+      textLayerId: spelling,
+      rawInput: 'kaa',
+      baseBody: 'ka',
+    });
+    input.fingerprint = (
+      callDesktopSession(sessionId, 'units.deletePreview', {
+        unitId: id,
+        textLayerId: spelling,
+      }) as { fingerprint: string }
+    ).fingerprint;
+    callDesktopSession(sessionId, 'units.delete', input);
+    callDesktopSession(sessionId, 'units.delete', input);
+    expect(
+      (
+        callDesktopSession(sessionId, 'units.list', { layerId: spelling }) as {
+          text: string;
+          draftText: string | null;
+        }[]
+      )[0],
+    ).toMatchObject({ text: '', draftText: null });
+    callDesktopSession(sessionId, 'units.putTextDraft', {
+      unitId: id,
+      textLayerId: spelling,
+      rawInput: 'newer',
+      baseBody: '',
+    });
+    expect(() => callDesktopSession(sessionId, 'units.undo', { manuscriptId })).toThrow(
+      'text clear undo is stale',
+    );
+    callDesktopSession(sessionId, 'units.discardTextDraft', { unitId: id, textLayerId: spelling });
+    callDesktopSession(sessionId, 'units.undo', { manuscriptId });
+    expect(
+      (
+        callDesktopSession(sessionId, 'units.list', { layerId: spelling }) as {
+          text: string;
+          draftText: string | null;
+        }[]
+      )[0],
+    ).toMatchObject({ text: 'ka', draftText: 'kaa' });
+    expect(
+      (callDesktopSession(sessionId, 'units.list', { layerId: host }) as { text: string }[])[0]
+        ?.text,
+    ).toBe('原文');
+    callDesktopSession(sessionId, 'units.redo', { manuscriptId });
+    closeDesktopSession(sessionId);
+    const reopened = openDesktopSession(root, [root]);
+    expect(
+      (
+        callDesktopSession(reopened.sessionId, 'units.list', { layerId: spelling }) as {
+          text: string;
+          draftText: string | null;
+        }[]
+      )[0],
+    ).toMatchObject({ text: '', draftText: null });
+    expect(
+      (
+        callDesktopSession(reopened.sessionId, 'units.list', { layerId: host }) as {
+          text: string;
+        }[]
+      )[0]?.text,
+    ).toBe('原文');
+    const second = unit(reopened.sessionId, host, 1000, 2000, '第二段');
+    callDesktopSession(reopened.sessionId, 'units.updateText', {
+      unitId: second,
+      textLayerId: spelling,
+      text: 'ta',
+    });
+    const bulk = callDesktopSession(reopened.sessionId, 'units.deleteManyPreview', {
+      unitIds: [id, second],
+      textLayerId: spelling,
+    }) as { fingerprint: string };
+    callDesktopSession(reopened.sessionId, 'units.deleteMany', {
+      unitIds: [id, second],
+      textLayerId: spelling,
+      fingerprint: bulk.fingerprint,
+      operationId: 'clear-two-spellings',
+    });
+    expect(
+      (
+        callDesktopSession(reopened.sessionId, 'units.list', { layerId: spelling }) as {
+          text: string;
+        }[]
+      ).map((row) => row.text),
+    ).toEqual(['', '']);
+    callDesktopSession(reopened.sessionId, 'units.undo', { manuscriptId });
+    expect(
+      (
+        callDesktopSession(reopened.sessionId, 'units.list', { layerId: spelling }) as {
+          text: string;
+        }[]
+      ).map((row) => row.text),
+    ).toEqual(['', 'ta']);
+    expect(
+      (
+        callDesktopSession(reopened.sessionId, 'units.list', { layerId: host }) as {
+          text: string;
+        }[]
+      ).map((row) => row.text),
+    ).toEqual(['原文', '第二段']);
+  });
+});

@@ -400,6 +400,7 @@ export function DesktopTranscriptionLane(props: {
             id: layer.id,
             name: layer.name,
             contentType: layer.contentType,
+            modality: layer.modality,
             tierType: layer.tierType,
           })),
           links: props.links ?? [],
@@ -451,6 +452,14 @@ export function DesktopTranscriptionLane(props: {
           <DesktopTranscriptionLayerLabel
             locale={props.locale}
             name={mainName}
+            timingLabel={
+              props.layers?.find((layer) => layer.id === row.layerId)?.tierType ===
+                'time-aligned' &&
+              props.layers?.find((layer) => layer.id === row.layerId)?.contentType ===
+                'transcription'
+                ? t(props.locale, 'app.desktopTranscription.timeOwner')
+                : ''
+            }
             row={row}
             focused
             onToggleGroup={() => toggleGroup(row.layerId)}

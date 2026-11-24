@@ -6,6 +6,7 @@
  */
 
 import type { CSSProperties, FC } from 'react';
+import { IconTipButton } from '../ui/IconTip';
 import { JieyuIcon } from '../ui/JieyuIcon';
 import { JIEYU_ICON_INLINE_TIGHT } from '../../utils/jieyuIcon';
 import { t, tf, useLocale } from '../../i18n';
@@ -99,9 +100,9 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
         </div>
       )}
       {showLoopBtn && (
-        <button
-          className={`region-action-btn ${segmentLoopPlayback ? 'region-action-btn-active' : ''}`}
-          title={
+        <IconTipButton
+          className={`region-action-btn${segmentLoopPlayback ? ' region-action-btn-active' : ''}`}
+          label={
             segmentLoopPlayback
               ? t(locale, 'transcription.wave.loopOn')
               : t(locale, 'transcription.wave.loopOff')
@@ -113,11 +114,11 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
           }}
         >
           <JieyuIcon name="Repeat" className={JIEYU_ICON_INLINE_TIGHT} />
-        </button>
+        </IconTipButton>
       )}
-      <button
+      <IconTipButton
         className="region-action-btn"
-        title={
+        label={
           isPlaying ? t(locale, 'transcription.wave.stop') : t(locale, 'transcription.wave.play')
         }
         onPointerDown={(e) => e.stopPropagation()}
@@ -131,7 +132,7 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
         ) : (
           <JieyuIcon name="Play" className={JIEYU_ICON_INLINE_TIGHT} />
         )}
-      </button>
+      </IconTipButton>
     </div>
   );
 };

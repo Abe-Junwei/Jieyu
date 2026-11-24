@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { callDesktopSession } from './desktopCall';
 import { storeAttachmentFile } from './attachments';
 import { splitUnit, undoSplit } from './unitSplit';
-import { insertTextAudio } from './unitTextAudios';
+import { insertTextAudio, audiosOfUnit } from './unitTextAudios';
 import { setFieldValue } from './customFields';
 import {
   closeDesktopSession,
@@ -458,6 +458,153 @@ function linkWord(sessionId: string): { unitId: string; tokenId: string; linkId:
 }
 
 describe('unit split recordings', () => {
+  function attachFive(sessionId: string, unitId: string) {
+    const db = requireDesktopSession(sessionId).db;
+    const textId = (
+      db.prepare('SELECT id FROM unit_texts WHERE unit_id = ?').get(unitId) as { id: string }
+    ).id;
+    for (let i = 1; i <= 5; i++) {
+      const file = storeAttachmentFile(db, desktopSessionFolder(sessionId), {
+        kind: 'audio',
+        mimeType: 'audio/wav',
+        bytes: Buffer.from(`take-${i}`),
+        operationId: `take-${i}`,
+      });
+      insertTextAudio(db, {
+        id: randomUUID(),
+        unit_text_id: textId,
+        file_id: file.fileId,
+        position: i,
+      });
+    }
+    return audiosOfUnit(db, unitId);
+  }
+
+  it.each([0, 2, 4])(
+    'keeps five recordings left at text cut %i through undo, redo and reopen',
+    (cutIndex) => {
+      const session = open();
+      const { unitId, layerId } = seed(session.sessionId);
+      const db = requireDesktopSession(session.sessionId).db;
+      const original = attachFive(session.sessionId, unitId);
+      const split = callDesktopSession(session.sessionId, 'units.split', {
+        unitId,
+        time: 1000,
+        textLayerId: layerId,
+        cutIndex,
+      }) as { left: { id: string }; right: { id: string }; recordingCount: number };
+      const expected = original.map(({ id, file_id, position }) => ({ id, file_id, position }));
+      const check = (sessionId: string) => {
+        const connection = requireDesktopSession(sessionId).db;
+        expect(
+          audiosOfUnit(connection, split.left.id).map(({ id, file_id, position }) => ({
+            id,
+            file_id,
+            position,
+          })),
+        ).toEqual(expected);
+        expect(audiosOfUnit(connection, split.right.id)).toEqual([]);
+      };
+      expect(split.recordingCount).toBe(5);
+      check(session.sessionId);
+      callDesktopSession(session.sessionId, 'units.undo', {});
+      expect(audiosOfUnit(db, unitId)).toEqual(original);
+      callDesktopSession(session.sessionId, 'units.redo', {});
+      check(session.sessionId);
+      const dir = desktopSessionFolder(session.sessionId);
+      closeDesktopSession(session.sessionId);
+      const reopened = openDesktopSession(dir, [dir]);
+      check(reopened.sessionId);
+      const reopenedDb = requireDesktopSession(reopened.sessionId).db;
+      for (const [index, clip] of original.entries()) {
+        const file = reopenedDb
+          .prepare('SELECT relpath FROM attachment_files WHERE id = ?')
+          .get(clip.file_id) as { relpath: string };
+        expect(readFileSync(join(dir, file.relpath), 'utf8')).toBe(`take-${index + 1}`);
+      }
+      expect(
+        callDesktopSession(reopened.sessionId, 'units.get', { id: split.left.id }),
+      ).toMatchObject({ text: '原文句子'.slice(0, cutIndex) });
+      expect(
+        callDesktopSession(reopened.sessionId, 'units.get', { id: split.right.id }),
+      ).toMatchObject({ text: '原文句子'.slice(cutIndex) });
+    },
+  );
+
+  it('keeps an empty recording carrier on the left', () => {
+    const session = open();
+    const { unitId } = seed(session.sessionId);
+    const db = requireDesktopSession(session.sessionId).db;
+    const original = attachFive(session.sessionId, unitId);
+    callDesktopSession(session.sessionId, 'units.updateText', { unitId, text: '' });
+    const split = callDesktopSession(session.sessionId, 'units.split', { unitId, time: 1000 }) as {
+      left: { id: string };
+      right: { id: string };
+    };
+    expect(audiosOfUnit(db, split.left.id)).toEqual(original);
+    expect(audiosOfUnit(db, split.right.id)).toEqual([]);
+  });
+
+  it('keeps all recordings left when splitting a merged segment again', () => {
+    const session = open();
+    const { unitId, layerId } = seed(session.sessionId);
+    const db = requireDesktopSession(session.sessionId).db;
+    const original = attachFive(session.sessionId, unitId);
+    const next = callDesktopSession(session.sessionId, 'units.create', {
+      layerId,
+      startMs: 2000,
+      endMs: 3000,
+      text: '后文',
+    }) as { id: string };
+    const merged = callDesktopSession(session.sessionId, 'units.merge', {
+      keepId: unitId,
+      removeId: next.id,
+    }) as { id: string };
+    const split = callDesktopSession(session.sessionId, 'units.split', {
+      unitId: merged.id,
+      time: 2000,
+      cutIndex: 0,
+    }) as { left: { id: string }; right: { id: string } };
+    expect(audiosOfUnit(db, split.left.id).map((row) => row.file_id)).toEqual(
+      original.map((row) => row.file_id),
+    );
+    expect(audiosOfUnit(db, split.right.id)).toEqual([]);
+  });
+
+  it.each(['delete', 'reorder', 'replace'])(
+    'rejects undo after recording %s without writing',
+    (change) => {
+      const session = open();
+      const { unitId } = seed(session.sessionId);
+      const db = requireDesktopSession(session.sessionId).db;
+      attachFive(session.sessionId, unitId);
+      const split = splitUnit(db, { unitId, time: 1000 });
+      const rows = audiosOfUnit(db, split.left.id);
+      if (change === 'delete')
+        db.prepare('DELETE FROM unit_text_audios WHERE id = ?').run(rows[0]!.id);
+      if (change === 'reorder') {
+        db.prepare('DELETE FROM unit_text_audios WHERE id = ?').run(rows[0]!.id);
+        db.prepare('UPDATE unit_text_audios SET position = 1 WHERE id = ?').run(rows[4]!.id);
+        insertTextAudio(db, { ...rows[0]!, position: 5 });
+      }
+      if (change === 'replace') {
+        const file = storeAttachmentFile(db, desktopSessionFolder(session.sessionId), {
+          kind: 'audio',
+          mimeType: 'audio/wav',
+          bytes: Buffer.from('replacement'),
+          operationId: 'replacement',
+        });
+        db.prepare('UPDATE unit_text_audios SET file_id = ? WHERE id = ?').run(
+          file.fileId,
+          rows[0]!.id,
+        );
+      }
+      const after = audiosOfUnit(db, split.left.id);
+      expect(() => undoSplit(db, split.undo)).toThrow('unit split undo is stale');
+      expect(audiosOfUnit(db, split.left.id)).toEqual(after);
+    },
+  );
+
   it('refuses undo after a new recording is attached', () => {
     const session = open();
     const { unitId } = seed(session.sessionId);
@@ -498,3 +645,116 @@ function linkRow(
     .db.prepare('SELECT id, attachment, target_id FROM token_lexeme_links WHERE id = ?')
     .get(linkId) as { id: string; attachment: string; target_id: string } | undefined;
 }
+
+it('splits each official spelling and preserves its whole draft on the left across reopen', () => {
+  const session = open();
+  const { unitId, layerId, manuscriptId } = seed(session.sessionId);
+  const spelling = callDesktopSession(session.sessionId, 'layers.create', {
+    manuscriptId,
+    key: 'spelling',
+    name: { zh: '拼音' },
+    tierType: 'symbolic-association',
+    contentType: 'transcription',
+    hosts: [{ hostLayerId: layerId }],
+  }) as { id: string };
+  callDesktopSession(session.sessionId, 'units.updateText', {
+    unitId,
+    textLayerId: spelling.id,
+    text: 'ka la',
+  });
+  callDesktopSession(session.sessionId, 'units.putTextDraft', {
+    unitId,
+    textLayerId: spelling.id,
+    rawInput: 'ka laa',
+    baseBody: 'ka la',
+  });
+  const preview = callDesktopSession(session.sessionId, 'units.splitPreview', { unitId }) as {
+    baseline: string;
+  };
+  const input = {
+    unitId,
+    time: 1000,
+    textLayerId: layerId,
+    baseline: preview.baseline,
+    formalCuts: [
+      { layerId, cutIndex: 2 },
+      { layerId: spelling.id, cutIndex: 2 },
+    ],
+  };
+  callDesktopSession(session.sessionId, 'units.putTextDraft', {
+    unitId,
+    textLayerId: spelling.id,
+    rawInput: 'ka laaa',
+    baseBody: 'ka la',
+  });
+  expect(() => callDesktopSession(session.sessionId, 'units.split', input)).toThrow(
+    'split base changed',
+  );
+  callDesktopSession(session.sessionId, 'units.putTextDraft', {
+    unitId,
+    textLayerId: spelling.id,
+    rawInput: 'ka laa',
+    baseBody: 'ka la',
+  });
+  input.baseline = (
+    callDesktopSession(session.sessionId, 'units.splitPreview', { unitId }) as { baseline: string }
+  ).baseline;
+  const split = callDesktopSession(session.sessionId, 'units.split', input) as {
+    left: { id: string };
+    right: { id: string };
+  };
+  const rows = callDesktopSession(session.sessionId, 'units.list', { layerId: spelling.id }) as {
+    text: string;
+    draftText: string | null;
+  }[];
+  expect(rows.map((row) => row.text)).toEqual(['ka', ' la']);
+  expect(rows[0]?.draftText).toBe('ka laa');
+  expect(
+    callDesktopSession(session.sessionId, 'units.readTextDraft', {
+      unitId: split.left.id,
+      textLayerId: spelling.id,
+    }),
+  ).toMatchObject({ baseBody: 'ka la', rawInput: 'ka laa' });
+  expect(() =>
+    callDesktopSession(session.sessionId, 'units.updateText', {
+      unitId: split.left.id,
+      textLayerId: spelling.id,
+      text: 'ka laa',
+    }),
+  ).toThrow('text draft conflicts');
+  callDesktopSession(session.sessionId, 'units.updateText', {
+    unitId: split.left.id,
+    textLayerId: spelling.id,
+    text: 'ka laa',
+    operationId: 'resolve-split-draft',
+    resolveDraft: { baseBody: 'ka la', currentBody: 'ka', rawInput: 'ka laa' },
+  });
+  callDesktopSession(session.sessionId, 'units.undo', { manuscriptId });
+  expect(
+    callDesktopSession(session.sessionId, 'units.readTextDraft', {
+      unitId: split.left.id,
+      textLayerId: spelling.id,
+    }),
+  ).toMatchObject({ rawInput: 'ka laa', baseBody: 'ka la' });
+  callDesktopSession(session.sessionId, 'units.undo', { manuscriptId });
+  expect(
+    (
+      callDesktopSession(session.sessionId, 'units.list', { layerId: spelling.id }) as {
+        text: string;
+        draftText: string;
+      }[]
+    )[0],
+  ).toMatchObject({ text: 'ka la', draftText: 'ka laa' });
+  callDesktopSession(session.sessionId, 'units.redo', { manuscriptId });
+  const root = desktopSessionFolder(session.sessionId);
+  closeDesktopSession(session.sessionId);
+  const reopened = openDesktopSession(root, [root]);
+  expect(
+    (
+      callDesktopSession(reopened.sessionId, 'units.list', { layerId: spelling.id }) as {
+        text: string;
+        draftText: string;
+      }[]
+    )[0],
+  ).toMatchObject({ text: 'ka', draftText: 'ka laa' });
+});

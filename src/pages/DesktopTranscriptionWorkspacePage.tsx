@@ -1,8 +1,10 @@
+import { DesktopTranscriptionDraftConflictDialog } from './DesktopTranscriptionDraftConflictDialog';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { TimeRuler } from '../components/TimeRuler';
 import { DesktopTranscriptionOralTools } from './DesktopTranscriptionOralTools';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
+import { IconTipButton } from '../components/ui/IconTip';
 import { JieyuIcon } from '../components/ui/JieyuIcon';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { ToastProvider } from '../contexts/ToastContext';
@@ -215,7 +217,8 @@ function DesktopTranscriptionWorkspace() {
     selectedUnitId: selection.selectedUnitId,
     textLayerId,
     textOf: (id) => mergeBody(textLayerId, id, draft.draft, sourceUnits, textKey),
-    prepareText: async () => (await draft.flushForClose()) === 'saved',
+    prepareText: draft.persistForStructure,
+    onCommitted: draft.structureCommitted,
     desktopCall: host?.desktopCall,
     reload: () => read.refresh(),
   });
@@ -227,6 +230,8 @@ function DesktopTranscriptionWorkspace() {
     draft: draft.draft,
     desktopCall: host?.desktopCall,
     playheadSec: getTranscriptionPlaybackClockSnapshot,
+    prepareText: draft.persistForStructure,
+    onCommitted: draft.structureCommitted,
     reload: () => read.refresh(),
   });
   useEffect(() => {
@@ -359,11 +364,10 @@ function DesktopTranscriptionWorkspace() {
           {read.error.length > 0 ? <p role="alert">{read.error}</p> : null}
           {hasAudio ? (
             <div className="desktop-tx-bar" data-testid="desktop-playback-bar">
-              <button
-                type="button"
+              <IconTipButton
                 className="desktop-tx-play"
                 disabled={!playback.isReady}
-                aria-label={t(
+                label={t(
                   locale,
                   playback.isPlaying
                     ? 'transcription.wave.toolbar.pause'
@@ -376,41 +380,30 @@ function DesktopTranscriptionWorkspace() {
                   aria-hidden
                   className={JIEYU_ICON_WAVE_PLAY}
                 />
-              </button>
-              <button
-                type="button"
-                className="desktop-tx-segment"
-                disabled={!playback.isReady || selection.selectedUnitId === null}
-                onClick={playback.playSegment}
-              >
-                {t(locale, 'app.desktopTranscription.playSegment')}
-              </button>
-              <button
-                type="button"
+              </IconTipButton>
+              <IconTipButton
                 className="desktop-tx-icon"
-                aria-label={t(locale, 'transcription.wave.toolbar.rewind10')}
+                label={t(locale, 'transcription.wave.toolbar.rewind10')}
                 onClick={() => playback.seekBySeconds(-10)}
               >
                 <JieyuIcon name="SkipBack" aria-hidden className={JIEYU_ICON_WAVE} />
-              </button>
-              <button
-                type="button"
+              </IconTipButton>
+              <IconTipButton
                 className="desktop-tx-icon"
-                aria-label={t(locale, 'transcription.wave.toolbar.forward10')}
+                label={t(locale, 'transcription.wave.toolbar.forward10')}
                 onClick={() => playback.seekBySeconds(10)}
               >
                 <JieyuIcon name="SkipForward" aria-hidden className={JIEYU_ICON_WAVE} />
-              </button>
+              </IconTipButton>
               <DesktopRateControl
                 locale={locale}
                 rate={playback.playbackRate}
                 onChange={playback.setPlaybackRate}
               />
-              <button
-                type="button"
+              <IconTipButton
                 className="desktop-tx-icon"
                 aria-pressed={playback.loop}
-                aria-label={t(
+                label={t(
                   locale,
                   playback.loop
                     ? 'transcription.wave.toolbar.globalLoopOff'
@@ -419,7 +412,7 @@ function DesktopTranscriptionWorkspace() {
                 onClick={() => playback.setLoop(!playback.loop)}
               >
                 <JieyuIcon name="Repeat" aria-hidden className={JIEYU_ICON_WAVE} />
-              </button>
+              </IconTipButton>
               <label className="desktop-tx-volume">
                 <JieyuIcon name="Volume2" aria-hidden className={JIEYU_ICON_WAVE} />
                 <input
@@ -441,11 +434,10 @@ function DesktopTranscriptionWorkspace() {
                 mode={playback.waveformDisplayMode}
                 onChange={playback.setWaveformDisplayMode}
               />
-              <button
-                type="button"
+              <IconTipButton
                 className="desktop-tx-icon desktop-tx-compact"
                 aria-pressed={layerView.compact}
-                aria-label={t(
+                label={t(
                   locale,
                   layerView.compact
                     ? 'app.desktopTranscription.compactOff'
@@ -454,15 +446,7 @@ function DesktopTranscriptionWorkspace() {
                 onClick={layerView.toggleCompact}
               >
                 <JieyuIcon name="Rows3" aria-hidden className={JIEYU_ICON_INLINE} />
-                <span className="desktop-tx-zoom-tip" aria-hidden>
-                  {t(
-                    locale,
-                    layerView.compact
-                      ? 'app.desktopTranscription.compactOff'
-                      : 'app.desktopTranscription.compactOn',
-                  )}
-                </span>
-              </button>
+              </IconTipButton>
             </div>
           ) : null}
           <div className="desktop-tx-stage">
@@ -609,16 +593,9 @@ function DesktopTranscriptionWorkspace() {
                 </div>
                 {playback.duration > 0 ? (
                   <div className="desktop-tx-ruler">
-                    <button
-                      type="button"
+                    <IconTipButton
                       className="desktop-tx-header-fold"
-                      aria-label={t(
-                        locale,
-                        layerView.headerFolded
-                          ? 'app.desktopTranscription.layerHeaderExpand'
-                          : 'app.desktopTranscription.layerHeaderCollapse',
-                      )}
-                      title={t(
+                      label={t(
                         locale,
                         layerView.headerFolded
                           ? 'app.desktopTranscription.layerHeaderExpand'
@@ -628,7 +605,7 @@ function DesktopTranscriptionWorkspace() {
                       onClick={layerView.toggleHeader}
                     >
                       <span aria-hidden className="desktop-tx-header-fold__mark" />
-                    </button>
+                    </IconTipButton>
                     <TimeRuler
                       duration={playback.duration}
                       rulerView={
@@ -745,6 +722,13 @@ function DesktopTranscriptionWorkspace() {
         </div>
       </div>
 
+      <DesktopTranscriptionDraftConflictDialog
+        locale={locale}
+        conflict={draft.conflict}
+        onDiscard={draft.discard}
+        onResolve={draft.resolveConflict}
+      />
+      {split.dialog}
       {merge.dialog}
       {waveMenu === null ? null : (
         <DesktopTranscriptionWaveMenu
@@ -759,6 +743,8 @@ function DesktopTranscriptionWorkspace() {
           onToggleSkip={(unitId) => waveSkipRef.current?.(unitId)}
           onDelete={(unitId) => waveDeleteRef.current?.(unitId)}
           onSplit={(unitId, time) => split.ask(unitId, time)}
+          canMerge={merge.canMerge}
+          onMerge={(unitId) => void merge.ask(unitId)}
         />
       )}
       {oral.ask ? (

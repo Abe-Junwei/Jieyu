@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { DesktopApp } from './DesktopApp';
@@ -164,6 +164,17 @@ describe('DesktopApp', () => {
     expect(screen.getByRole('link', { name: /转写|Transcription/ }).className).toContain(
       'left-rail-btn-active',
     );
+    const toggle = document.querySelector(
+      '.app-left-rail button[aria-expanded]',
+    ) as HTMLButtonElement;
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(
+      (document.querySelector('.app-shell') as HTMLElement).style.getPropertyValue(
+        '--side-pane-width',
+      ),
+    ).toBe('0px');
   });
 
   it('keeps a desktop lexicon route without a session', async () => {

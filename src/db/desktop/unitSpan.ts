@@ -153,7 +153,16 @@ interface TimeDraftRow {
   updated_at: string;
 }
 
+export interface TextDraftRow {
+  layer_id: string;
+  raw_input: string;
+  base_body: string;
+  provenance_json: string | null;
+  updated_at: string;
+}
+
 export interface RemovedUnit {
+  textDrafts?: TextDraftRow[];
   unit: UnitRow;
   texts: TextRow[];
   audios: StoredTextAudio[];
@@ -169,7 +178,11 @@ export interface RemovedUnit {
   timeDrafts: TimeDraftRow[];
 }
 
-export function readRemovedUnit(db: SqliteDatabase, unitId: string): RemovedUnit {
+export function readRemovedUnit(
+  db: SqliteDatabase,
+  unitId: string,
+  includeTextDrafts = false,
+): RemovedUnit {
   const unit = db
     .prepare(
       `SELECT id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, confidence, skip_processing,
@@ -186,6 +199,7 @@ export function readRemovedUnit(db: SqliteDatabase, unitId: string): RemovedUnit
     .prepare('SELECT id, source_kind, created_at FROM reception_batches WHERE unit_id = ?')
     .all(unitId) as BatchRow[];
   return {
+    ...(includeTextDrafts ? { textDrafts: readRemovedTextDrafts(db, unitId) } : {}),
     unit,
     texts: db
       .prepare(
@@ -239,6 +253,15 @@ export function readRemovedUnit(db: SqliteDatabase, unitId: string): RemovedUnit
       )
       .all(unitId) as TimeDraftRow[],
   };
+}
+
+export function readRemovedTextDrafts(db: SqliteDatabase, unitId: string): TextDraftRow[] {
+  return db
+    .prepare(
+      `SELECT layer_id, raw_input, base_body, provenance_json, updated_at
+    FROM unit_text_drafts WHERE unit_id = ? ORDER BY layer_id`,
+    )
+    .all(unitId) as TextDraftRow[];
 }
 
 export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): void {
@@ -421,6 +444,13 @@ export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): voi
       unit.id,
       row.created_at,
     );
+  }
+  for (const row of removed.textDrafts ?? []) {
+    db.prepare(
+      `INSERT INTO unit_text_drafts
+      (unit_id, layer_id, raw_input, base_body, provenance_json, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run(unit.id, row.layer_id, row.raw_input, row.base_body, row.provenance_json, row.updated_at);
   }
   const insertTimeDraft = db.prepare(
     `INSERT INTO unit_time_drafts (unit_id, edge, raw_input, base_ms, issue, updated_at)

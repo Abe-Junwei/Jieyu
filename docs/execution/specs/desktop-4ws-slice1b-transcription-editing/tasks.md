@@ -3,7 +3,7 @@ title: desktop-4ws-slice1b-transcription-editing tasks
 doc_type: execution-spec-tasks
 status: active
 owner: repo
-last_reviewed: 2026-11-23
+last_reviewed: 2026-11-24
 source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 depends_on:
   - ./requirements.md
@@ -47,6 +47,7 @@ depends_on:
   - 保留与恢复：`retain_until` 为 90 天，提醒后至少 7 天（复用 `reminder_shown_at`）。软删层进现有已删除列表，可恢复；稿件已删或首选宿主仍在删除状态则拒绝恢复。单层到期清除延后，软删层随稿件清除。
   - 验证：`npx vitest run src/db/desktop/layers.test.ts`（新建、改名、排序、层高、迁移冲突拒绝、软删子树、恢复拒绝，关库重开读回）；页面 vitest（上下文栏两层、新建翻译层后时间轴多一行、删除后行消失）；`npm run typecheck`、`npm run check:architecture-guard`；`npm run test:e2e:desktop-project -- --grep "<用例名>"`（新建翻译层、拖高、删除后从已删除列表恢复）。正字法、字体、口译录音、分轨不在本片。
 - [x] 口译轨（[#603](https://github.com/Abe-Junwei/Jieyu/issues/603)）口译录音、播放、删除、语音转文字。审查（2026-11-21）：短录音不挂在翻译层正文上，确认后的文字也不写入译文正文或主转写。录音放在只放录音的层，文字放在它的子文本层；#597 已有的纯文本翻译层不动，也不在那里加 `modality`。三步，仍记在 #603，不另开议题：
+  - 2026-11-24 审查修复：重复异步停止幂等并释放保存锁；失败重试复用操作编号，同文件重放返回原录音；模型前后核对正文与草稿，冲突不覆盖；来源记录具体 audioFileId/audioId/audioLayerId；暂停／继续接同一录音器，累计毫秒避免反复暂停丢用时。验证包括定向 vitest 与可见 Electron 假麦克风、原生录音器、协议模拟模型的丢响应重试及并发文字场景，不作为真实 Whisper／安装包验收。
   - 现状缺口：`unit_texts.audio_file_id` 有列但无写入路径；`publishAttachment` 只挂词条（要求 `lexemeId`）；桌面页没有麦克风入口；旧 `TimelineTranslationAudioControls` 认旧版媒体对象（`MediaItemDocType`），只能参照外观，数据来源重写；`modelRuns` 接受后会新建句段，不能写已有子层，语音转文字不走它。
   - 步骤 1 Electron 麦克风验证（2026-11-21，Electron 44.10.2）：开发壳录到 `audio/webm;codecs=opus`（约 400ms、5460 字节）。`MediaRecorder.isTypeSupported`：opus、webm、mp4 为真，wav 为假，所以短录音不用 wav。未装权限回调时 `getUserMedia` 仍成功，因为本机已授权给开发用的 Electron。打包配置 `electron-builder.yml` 还没有 `NSMicrophoneUsageDescription`，步骤 2 要给解语包补上，否则安装包弹不出麦克风。桌面 Whisper 只收 wav-pcm16、16kHz、单声道，转码留在步骤 3。
   - 步骤 2 录音存取：只登记文件的发布（不挂词条）、`attachAudio`／`detachAudio`、播放、删除。一次只建一对：语音转写是 `content_type=transcription`、`modality=audio` 的录音层，加上它自己的子文本层（`content_type=transcription`、`modality=text`）；口译另一次再建 `content_type=translation`、`modality=audio` 的录音层，加上它自己的子文本层（`content_type=translation`、`modality=text`）。同一个语段转写层下每类只建一次。新增页面控制器 `useDesktopTranscriptionOralController.ts`（计划见 design.md）。验证：单库 vitest（写→关→重开读回；删除后文件引用清理，见 ADR-0095）、页面 vitest、`npm run typecheck`、`npm run check:architecture-guard`、`npm run test:e2e:desktop-project -- --grep "<用例名>"`。
@@ -93,7 +94,7 @@ depends_on:
 - [x] 1b-3（[#563](https://github.com/Abe-Junwei/Jieyu/issues/563)）拆分：时间切点 + 文字位置、双新 id 与映射、跨切点分析待复核、回执与整步撤销。调研（2026-11-22）：Praat 按文本光标分正文，ELAN 在指定时刻拆开；身份、引用和撤销只按 ADR-0122 第 10 条与 E06，不沿用二者的左段旧 id，也不把 ELAN 正中拆的「两边同一原文」写进来。结论：适配。不新增依赖，不升 `user_version`。不调用 `deleteUnitTree`（它会清掉候选、批次、采纳、草稿和文本回执，也不处理没有外键的 `parent_unit_id`）。
   - 写入顺序：先把旧行 `start_ms`／`end_ms` 同时置空（两端皆空符合 CHECK；`units_same_speaker_no_overlap_insert` 与 `units_aligned_order_insert` 在起点为空时不检查）。旧行还占着 `UNIQUE(layer_id, sort_order)`，先把它的 `sort_order` 挪到层尾，再插入新左、新右。然后搬依赖，最后删旧行。撤销反过来：先把两条新段的时间置空并挪开 `sort_order`，插回旧行，依赖指回旧 id，再删新段。
   - 新行的列：`layer_id`、`speaker_id`、`parent_unit_id`、`skip_processing`、`self_certainty` 两侧都复制。`confidence` 两侧清空（它是原区间的模型分，切开后两侧都不是被打分的那段）。`analysis_generation` 与 `graph_fingerprint` 跟着图：图留在左段时只写左段，右段是 `0` 和空指纹；图卸下时两侧都是 `0` 和空指纹，原值在快照里。
-  - 正文：只有发起拆分的那一层按切点切开。该层左段沿用原 `unit_texts.id`，只改 `unit_id` 和正文；右段用新 id。切点在 0、左段正文为空时不留空行，原正文行 id 改挂新右段。切点在末尾时右段不建行。`audio_file_id` 留在仍持有原行 id 的那一侧，不复制。其它层（含翻译层）整段留在左段。
+  - 正文：只有发起拆分的那一层按切点切开。该层左段沿用原 `unit_texts.id`，只改 `unit_id` 和正文；右段用新 id。切点在 0、左段正文为空时不留空行，原正文行 id 改挂新右段。切点在末尾时右段不建行。录音条目全部完整留在左段、顺序不变、不裁切不复制；切点在 0 时另建左侧空载体，原正文行及其备注仍去右段。拆分后仅有录音时提示条数。撤销校验条目、归属、文件与顺序，后续录音变化则拒绝。其它层（含翻译层）整段留在左段。
   - 备注：锚在整段上的改到新左段。锚在正文行上的跟着该 `unit_texts.id`（因此切点在 0 时跟去右段）。锚在词或语素上的：图保留时保持 `active` 并改到新左段；图卸下时标 `detached`，id 保留，`unit_id` 改到新左段。锚在分析节点上的同样：图保留则跟着图走，图卸下则标 `detached`。
   - 图：能不能留，看本段自己那层 `role = 'transcription'` 的正文（`analysisCandidates.ts` 的 `MATERIAL`），不看发起拆分的层。从翻译层拆时转写正文整段在左，图可以留。拆完后该转写正文等于 `graph.text`，且这一层没有分到右段，整图、词、语素、结构边改挂新左段，id 不变。否则不把旧图写入左段的 `analysis_graph_json`（`validateAnalysisGraphPayload` 要求 `graph.text` 等于段正文）。新左段插入后，用拆前捕获的材料写 `review-snapshot`，再按改正文的现成路径卸下投影。没有图就不写快照。词没有句内字符位置，不按 `token_index` 猜到右段。按位置保留分析不补进本片，挂在切片 2（[#622](https://github.com/Abe-Junwei/Jieyu/issues/622)，[调研](../../../execution/plans/标注分析图位置与投影-业内调研-2026-11-23.md)）。
   - 子段：终点 `<=` 切点的归左，起点 `>=` 切点的归右，只改 `parent_unit_id`。跨切点的按本片递归成双新 id，没有光标，正文整段留在它自己的新左段；切点离它任一端不足 10 毫秒则整次拒绝。子树里有无时间的段也整次拒绝。
@@ -102,13 +103,13 @@ depends_on:
   - 落位：`src/db/desktop/unitSplit.ts`（从 `unitSpan.ts` 拆出；合并留到 1b-4）。页面用 `useDesktopTranscriptionSplitController.ts`，只装配。入口是句段菜单和已有的 `splitSegment`。时间用段内播放头，距边不足 10 毫秒只提示。能拆则直接写，不弹预览。正文为空时同样提示距边不足 10 毫秒。未保存的正文先写入该层草稿再拆。
   - 验证：`npx vitest run src/db/desktop/unitSplit.test.ts`（现有「右边正文等于整段」的断言改成按切点切开；关库重开）。覆盖触发器顺序、切点在 0 时正文行 id 跟去右段、翻译层发起时图仍在、回执丢失重试不产生第二对 id、草稿冲突不写、跨切点子段递归、重做沿用原 id、新段上加了备注或改了说话人则撤销拒绝。再跑 `npm run typecheck`、`npm run check:architecture-guard`，以及 `npm run test:e2e:desktop-project -- --grep "split unit"`。
 - [ ] 1b-4（[#564](https://github.com/Abe-Junwei/Jieyu/issues/564)）合并（2026-11-23 约定）：同稿同层同说话人、时间上紧邻的两段（中间可有空隙，也可夹着别的说话人，不能夹着同层同说话人的第三段）。均未指定说话人视作同说话人。新段新 id，两段旧 id 删除，旧→新记在这次编辑回执里，一步撤销。多段合并留 #566，一有一无或两段都没有时间留 #584。不升表以外的行为不改 `user_version`。录音多条升到 35 并另写 ADR，不迁移。34 版项目打不开，也不能先导出再导入。只读页 `DesktopProjectReadPage` 的合并这片删掉。
-  - 入口：选中一段时，句段菜单和 ⌘M 都跟后一个相邻段合并。没有后一个就不可用。确认框始终出现：空隙长度、可改的分隔符、备注条数；录音超过 5 条时勾选要丢弃的，剩下不超过 5 条才能确定。取消不写库、不改设置。确定成功后才把分隔符写入 `project.settings_json` 的 `mergeSeparator`。
+  - 入口：选中一段时，句段菜单和 ⌘M 都跟后一个相邻段合并。没有后一个就不可用。确认框始终出现。有空隙才显示长度，有备注才显示条数，录音超过 5 条才显示丢弃勾选；都没有时只留标题和操作。正文固定以一个空格连接，不提供分隔符输入。确认时固定提交这个空格，不读取已存的 `mergeSeparator`。取消不写库。
   - 下级：只改 `parent_unit_id`，时间和正文不动，不编造时间。没时间的下级保留，不因此拒绝。改挂后同层同说话人重叠，或有时间的下级落到新区间之外，整次拒绝。两侧 `parent_unit_id` 不同也拒绝。下级自己的时间草稿不动。新段占较早那段的 `sort_order`，同层后面的序号减一，不留空号。
-  - 正文：每一层按时间先左后右。两侧都有正文才插入同一个分隔符（默认一个空格）。只有一侧有就原样带走。拼接用打开确认框时冻结的可见正文：未提交输入优先，否则草稿，否则正式正文。两侧正文都空时不写正文内容；这一层还留着录音，或有备注锚在任一侧的 `unit_texts.id` 上，就保留载体行，正文为空。没有任何载体需求才不建行。`units.ts` 把正文存成空串、`analysisRestore.ts` 撤销分析要删正文行时，同样遵守：行上还有录音就留行，只把正文写成空。新行沿用仍要留下的那一行的 id；两侧都要留下时沿用较早那段的行 id，较晚那段的行 id 只记在映射里。拼出来的正文清掉来源；原样带走的保留来源。写完后这些层的正文草稿被消费，新段不留正文草稿。
+  - 正文：每一层按时间先左后右。两侧都有正文才插入一个空格（不提供分隔符输入）。只有一侧有就原样带走。拼接用打开确认框时冻结的可见正文：未提交输入优先，否则草稿，否则正式正文。两侧正文都空时不写正文内容；这一层还留着录音，或有备注锚在任一侧的 `unit_texts.id` 上，就保留载体行，正文为空。没有任何载体需求才不建行。`units.ts` 把正文存成空串、`analysisRestore.ts` 撤销分析要删正文行时，同样遵守：行上还有录音就留行，只把正文写成空。新行沿用仍要留下的那一行的 id；两侧都要留下时沿用较早那段的行 id，较晚那段的行 id 只记在映射里。拼出来的正文清掉来源；原样带走的保留来源。写完后这些层的正文草稿被消费，新段不留正文草稿。
   - 时间草稿：被合并的这两段有未提交时间草稿就整次拒绝。区间只用已保存的起止，结果盖住空隙。
   - 分析：只有一侧有图，且合并后的转写正文仍等于 `graph.text`，整图留在新段、id 不变。不能留成有效分析的活动图，先用现有 `readAnalysisMaterial` 捕获原文、图、投影、词典链接和备注，再各自写成复核快照挂到新段，然后才 `clearAnalysisProjection`。已有复核快照只改挂，不删。不拼图，不因此拒绝。待确认建议全部改挂后标为已拒绝。两侧都有活动图、且都没有历史快照时，合并后必须有两份新快照，活动投影里不再留这两份图的词和语素。
   - 自定义字段：JSON 相同留一份，只有一侧有就带走，不同则整次拒绝。新段过不了必填校验也整次回滚。
-  - 备注：锚在句段或正文上的改挂，内容不拼接。锚在词、语素或分析节点上的，图留下仍有效，图卸下标脱离。确认框只显示条数。不因此拒绝。
+  - 备注：锚在句段或正文上的改挂，内容不拼接。锚在词、语素或分析节点上的，图留下仍有效，图卸下标脱离。有备注时确认框只显示条数，没有则不显示。不因此拒绝。
   - 标记：模型置信度清空。跳过处理任一侧跳过则新段跳过。自我确信度两侧相同才留下，否则清空。都不因此拒绝。
   - 确认基准：打开确认框时固定两段 id 和每条录音的条目 id，并冻结当时的未提交编辑器文字。之后再打字，框失效，页面先刷新预览，不得把过期文字提交。事务内重算数据库基准，不把文稿 `generation` 当作基准。基准覆盖说话人、起止、父段、邻接、下级的 id 与时间与正文、各层正式正文与草稿、字段、分析指纹、录音条目 id 与顺序、丢弃勾选。任一项变了就整次拒绝并刷新预览。
   - 录音格式：`user_version` 35 的新库用 `unit_text_audios`。归属键是 `unit_text_id`，外键 `ON DELETE CASCADE`。每条有稳定 `id`，`file_id` 指向 `attachment_files`，`position` 从 1 到 5，同一行的 `position` 唯一，同一行同一文件不重复。超过 5 条由写入拒绝，不靠界面单独守。删掉一条后先把剩下的 `position` 写成临时序号，再重排成连续的 1..n。两侧引用同一个 `file_id` 时只留较早那段的那一条，算 1 条。`unit_texts` 不再有 `audio_file_id`。不写迁移器。ADR 写明 34 版项目打不开，也不能靠导出再导入过渡。同一改动必须改完这些消费者，不能只改合并写入：`recordingClips.ts` 的写入、删除、列表、播放和转写读取；`attachments.ts` 的引用计数；`unitSpan.ts` 的语段删除与恢复（层删除走这里）；`unitSplit.ts` 拆分时录音跟着原正文行，撤销快照改记录音条目，恢复时按原 id 插回再 `retainReferencedAttachment`；`RemovedUnit` 同样改记录音条目；`units.ts` 与 `analysisRestore.ts` 的留行；`manuscriptPurge.ts` 真删正文行之前先记下 `file_id`；`projectExchange.ts` 的单稿过滤按 `unit_text_id` 留下属于导出正文行的录音。分析复核快照不保存录音。

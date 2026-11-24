@@ -1,6 +1,28 @@
 import type { DictKey } from '../dictKeys';
 
 export const zhCNDictionary = {
+  'app.desktopTranscription.orthographyAdd': '添加正字法转写',
+  'app.desktopTranscription.orthographyName': '正字法转写',
+  'app.desktopTranscription.orthographyDeleteBlocked':
+    '不能删除时间主人：请先删除共用语段的正字法层。正文和草稿未改变。',
+  'app.desktopTranscription.timeOwner': '时间主人',
+  'app.desktopTranscription.timeFrom': '时间：{name}',
+  'app.desktopTranscription.clearConfirm': '清空当前写法？',
+  'app.desktopTranscription.clearExplain':
+    '只清空当前层所选格子的正文和草稿，语段、其他层、录音和笔记保留。',
+  'app.desktopTranscription.clearAction': '清空本层正文与草稿',
+  'app.desktopTranscription.splitTitle': '拆分共享语段',
+  'app.desktopTranscription.splitPoint': '切点（字符位置，留空则整段留左）',
+  'app.desktopTranscription.officialText': '正式正文',
+  'app.desktopTranscription.unsavedDraft': '未保存草稿',
+  'app.desktopTranscription.splitDraftKept': '草稿整段留在左段，不提交；基线冲突时暂停自动保存。',
+  'app.desktopTranscription.draftConflict':
+    '草稿与当前正文不同。自动保存已暂停；覆盖会将整段草稿写入左段，右段保留。',
+  'app.desktopTranscription.draftKeep': '保留草稿',
+  'app.desktopTranscription.draftDiscard': '舍弃草稿',
+  'app.desktopTranscription.draftOverwrite': '用草稿覆盖左段',
+  'app.desktopTranscription.mergeResult': '合并后正式正文',
+  'app.desktopTranscription.mergeDraftConfirm': '合并并保存草稿',
   'app.title': '解语 Jieyu',
   'app.subtitle': '濒危语言科研协作平台',
   'app.nav.transcription': '转写',
@@ -58,9 +80,18 @@ export const zhCNDictionary = {
   'app.desktopTranscription.contextLayerOralText': '口译文',
   'app.desktopTranscription.oralDraftReady': '转写已放进文字层，打开后保存才会写入',
   'app.desktopTranscription.oralDraftExists': '这段已有未保存的文字，先保存或放弃再转写',
+  'app.desktopTranscription.oralSpeakerOverlap': '同一说话人的时间重叠，没有新建语段',
+  'app.desktopTranscription.oralTargetTitle': '文字写到哪一层',
+  'app.desktopTranscription.oralTargetHost': '写进宿主层会盖掉这段已有的转写',
+  'app.desktopTranscription.oralTargetLonger': '目标语段比这段录音长，文字会写在更长的语段上',
+  'app.desktopTranscription.oralTargetCreate':
+    '这一层没有包住这段录音的语段。要按录音的时间新建一条吗？',
+  'app.desktopTranscription.oralTargetLayer': '还没有口译层。写下名称，建一层再写入。',
+  'app.desktopTranscription.oralTargetWrite': '写入',
   'app.desktopTranscription.oralWhisperMissing': '还没有本机语音模型，没有改用云端',
   'app.desktopTranscription.oralTranscribeEmpty': '没有转出文字',
   'app.desktopTranscription.oralTranscribeFailed': '语音转文字失败',
+  'app.desktopTranscription.oralTextChanged': '文字已变化，未写入转写结果',
   'app.desktopTranscription.oralSourceChanged': '录音已经换过，转写结果没有写入',
   'app.desktopTranscription.oralSaveFailed': '这段录音没有保存',
   'app.desktopTranscription.oralRefreshFailed': '录音已保存，列表没有刷新',
@@ -134,6 +165,8 @@ export const zhCNDictionary = {
   'app.desktopTranscription.layerStyleReset': '重置',
   'app.desktopTranscription.layerStyleLocalFonts': '本机字体',
   'app.desktopTranscription.layerStyleLocalFontsUnavailable': '无法加载本地字体',
+  'app.desktopTranscription.recordingPairExists':
+    '当前时间主人已有语音转写或口译层，请使用对应的已有层。',
   'app.desktopTranscription.layerActionFailed': '层操作没有完成',
   'app.desktopTranscription.layerTextConflict': '目标层已有这段正文',
   'app.desktopTranscription.layerUnitsConflict': '目标层已有重叠的句段',
@@ -164,7 +197,6 @@ export const zhCNDictionary = {
   'app.desktopTranscription.layerSegmentCount': '{count} 段',
   'app.desktopTranscription.layerHeaderCollapse': '收起层头',
   'app.desktopTranscription.layerHeaderExpand': '展开层头',
-  'app.desktopTranscription.contextSegmentOrdinal': '第 {index} 段',
   'app.desktopTranscription.waveformPlaceholder': '波形与时间轴复用接线见切片 1 后续任务',
   'app.desktopTranscription.noAudioTitle': '还没有录音',
   'app.desktopTranscription.noAudioMessage': '导入一段录音后，这里会显示波形和句段。',
@@ -198,9 +230,8 @@ export const zhCNDictionary = {
   'app.desktopTranscription.splitSegment': '拆分句段',
   'app.desktopTranscription.mergeNext': '向后合并',
   'app.desktopTranscription.mergeTitle': '合并下一段',
-  'app.desktopTranscription.mergeBody':
-    '跟后一个相邻、同一说话人的段合并。空隙 {gap} 秒。备注 {notes} 条，只改挂、不拼接。',
-  'app.desktopTranscription.mergeSeparator': '分隔符。框内是默认的一个空格；两侧都有字才插入。',
+  'app.desktopTranscription.mergeGap': '合并后将包含 {gap} 秒空隙。',
+  'app.desktopTranscription.mergeNotes': '{notes} 条备注将保留。',
   'app.desktopTranscription.mergeConfirm': '合并',
   'app.desktopTranscription.mergeTooMany':
     '{count} 条录音，最多留下 5 条。勾选要丢弃的，剩下不超过 5 条才能合并。',
@@ -208,6 +239,10 @@ export const zhCNDictionary = {
   'app.desktopTranscription.mergeLater': '后段',
   'app.desktopTranscription.mergeClip': '第 {index} 条',
   'app.desktopTranscription.clipIndex': '第 {index} 条',
+  'app.desktopTranscription.clipShort': '{index}/{count}',
+  'app.desktopTranscription.clipCap': '这一段已有五条录音',
+  'app.desktopTranscription.clipMore': '更多',
+  'app.desktopTranscription.clipTimeUnknown': '—:—',
   'app.desktopTranscription.mergeSeconds': '{seconds} 秒',
   'app.desktopTranscription.mergeListen': '试听',
   'app.desktopTranscription.mergeFailed': '没有合并',
@@ -216,6 +251,7 @@ export const zhCNDictionary = {
   'app.desktopTranscription.playlistTitle': '第 {index} 条，还剩 {remain} 条',
   'app.desktopTranscription.splitTooClose': '切点距边缘不足 10 毫秒',
   'app.desktopTranscription.splitOutside': '播放头不在这段里',
+  'app.desktopTranscription.splitRecordingsLeft': '{count} 条录音已完整保留在左段。',
   'app.desktopTranscription.splitFailed': '没有拆开',
   'app.desktopTranscription.deleteFailed': '没能删除句段',
   'app.desktopTranscription.deleteRefreshFailed':
@@ -1693,9 +1729,11 @@ export const zhCNDictionary = {
   'transcription.timeline.save.saving': '正在保存…',
   'transcription.timeline.save.unsaved': '未保存',
   'transcription.timeline.audio.startRecording': '开始录音翻译',
+  'transcription.timeline.audio.recordAnother': '再录一条',
   'transcription.timeline.audio.stopRecording': '停止录音翻译',
   'transcription.timeline.audio.playRecording': '播放录音翻译',
   'transcription.timeline.audio.pauseRecording': '暂停录音翻译',
+  'transcription.timeline.audio.pauseTake': '暂停录音',
   'transcription.timeline.audio.resumeRecording': '继续录音',
   'transcription.timeline.audio.level': '电平',
   'transcription.timeline.audio.deleteRecording': '删除录音翻译',
@@ -1714,7 +1752,7 @@ export const zhCNDictionary = {
   'transcription.timeline.audio.error.layerUnsupported':
     '当前层不支持录音（需音频/混合模态或 acceptsAudio）。',
   'transcription.timeline.audio.error.micPermissionDenied':
-    '无法使用麦克风：权限被拒绝。请在浏览器或系统设置中允许麦克风后重试。',
+    '无法使用麦克风：权限被拒绝。请在系统设置中允许麦克风后重试。',
   'transcription.timeline.audio.error.micNotFound': '未检测到可用的麦克风设备。',
   'transcription.timeline.audio.error.micBusy':
     '麦克风正被占用或不可用，请关闭其他使用麦克风的应用后重试。',

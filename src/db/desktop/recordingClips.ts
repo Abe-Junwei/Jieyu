@@ -9,6 +9,8 @@ import { createLayer } from './layers';
 import { provenanceSchema } from '../provenanceSchema';
 import { putUnitTextDraft, readUnitTextDraft } from './textSave';
 import { audiosOfText, insertTextAudio, repackTextAudios } from './unitTextAudios';
+import { TEXT_AUDIO_CAP } from '../../utils/textAudioCap';
+import { listTranscriptionTargets } from './recordingTarget';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -23,7 +25,6 @@ export interface RecordingPairInput {
 
 export interface RecordingPair {
   audioLayerId: string;
-  textLayerId: string;
 }
 
 export interface RecordingAttach {
@@ -96,18 +97,8 @@ export function createRecordingPair(db: SqliteDatabase, input: RecordingPairInpu
       new Date().toISOString(),
       audio.id,
     );
-    const text = createLayer(db, {
-      manuscriptId: host.manuscript_id,
-      key: freeKey(db, host.manuscript_id, `${prefix}-text`),
-      name: input.textName,
-      tierType: 'symbolic-association',
-      contentType: content,
-      languageId: host.language_id,
-      parentId: audio.id,
-      sortOrder: sort.n + 2,
-      hosts,
-    });
-    return { audioLayerId: audio.id, textLayerId: text.id };
+    // textName stays on the request so older callers still send it. No text layer is created.
+    return { audioLayerId: audio.id };
   });
   return write();
 }
@@ -116,7 +107,7 @@ export function attachRecording(
   db: SqliteDatabase,
   folder: string,
   input: RecordingAttach,
-): { fileId: string; replacedFileId: string | null } {
+): { fileId: string; audioId: string; replacedFileId: string | null } {
   const stored = storeAttachmentFile(db, folder, {
     kind: 'audio',
     mimeType: input.mimeType,
@@ -146,24 +137,18 @@ export function attachRecording(
            VALUES (?, ?, ?, ?, '', ?)`,
         ).run(textId, input.unitId, layer.id, layer.content_type, now);
       }
-      const previous = audiosOfText(db, textId)[0] ?? null;
-      if (previous !== null) {
-        db.prepare('DELETE FROM unit_text_audios WHERE id = ?').run(previous.id);
-      }
+      const clips = audiosOfText(db, textId);
+      const replay = clips.find((clip) => clip.file_id === stored.fileId);
+      if (replay) return { fileId: stored.fileId, audioId: replay.id, replacedFileId: null };
+      if (clips.length >= TEXT_AUDIO_CAP) throw new Error('oral clip cap');
+      const audioId = randomUUID();
       insertTextAudio(db, {
-        id: randomUUID(),
+        id: audioId,
         unit_text_id: textId,
         file_id: stored.fileId,
-        position: 1,
+        position: clips.length + 1,
       });
-      if (previous !== null && previous.file_id !== stored.fileId) {
-        queueUnreferencedAttachment(db, previous.file_id);
-      }
-      return {
-        fileId: stored.fileId,
-        replacedFileId:
-          previous !== null && previous.file_id !== stored.fileId ? previous.file_id : null,
-      };
+      return { fileId: stored.fileId, audioId, replacedFileId: null };
     })();
   } catch (error) {
     queueUnreferencedAttachment(db, stored.fileId);
@@ -202,7 +187,9 @@ export function recordingFileId(
   db: SqliteDatabase,
   unitId: string,
   layerId: string,
+  audioId?: string,
 ): string | null {
+  if (audioId !== undefined) return clipFileId(db, unitId, layerId, audioId);
   const row = db
     .prepare(
       `SELECT unit_text_audios.file_id AS fileId
@@ -216,22 +203,55 @@ export function recordingFileId(
   return row?.fileId ?? null;
 }
 
-/** Write the transcript only when the clip it heard is still the clip on the card. */
+function clipStillAttached(
+  db: SqliteDatabase,
+  unitId: string,
+  layerId: string,
+  fileId: string,
+): boolean {
+  const row = db
+    .prepare(
+      `SELECT 1 AS ok
+       FROM unit_text_audios
+       JOIN unit_texts ON unit_texts.id = unit_text_audios.unit_text_id
+       WHERE unit_texts.unit_id = ? AND unit_texts.layer_id = ? AND unit_text_audios.file_id = ?`,
+    )
+    .get(unitId, layerId, fileId);
+  return row !== undefined;
+}
+
+/** Write the transcript only when the clip it heard is still attached. */
 export function commitOralTranscript(
   db: SqliteDatabase,
   input: {
     unitId: string;
     audioLayerId: string;
     fileId: string;
+    audioId?: string;
+    baseline: string;
+    textLayerId: string;
+    destUnitId?: string;
     text: string;
     model: string;
     modelVersion: string;
   },
 ): OralTranscript {
-  if (recordingFileId(db, input.unitId, input.audioLayerId) !== input.fileId) {
-    throw new Error('oral source changed');
-  }
-  return proposeOralDraft(db, input);
+  const destUnitId = input.destUnitId ?? input.unitId;
+  return db.transaction(() => {
+    if (
+      !clipStillAttached(db, input.unitId, input.audioLayerId, input.fileId) ||
+      (input.audioId !== undefined &&
+        recordingFileId(db, input.unitId, input.audioLayerId, input.audioId) !== input.fileId)
+    )
+      throw new Error('oral source changed');
+    if (
+      oralTextBaseline(db, { unitId: destUnitId, textLayerId: input.textLayerId }) !==
+      input.baseline
+    ) {
+      throw new Error('oral text changed');
+    }
+    return proposeOralDraft(db, { ...input, unitId: destUnitId });
+  })();
 }
 
 export function readRecording(
@@ -264,11 +284,31 @@ function clipFileId(
   return row?.fileId ?? null;
 }
 
+/** A model may only propose against an unchanged target with no pending user draft. */
+export function oralTextBaseline(
+  db: SqliteDatabase,
+  input: { unitId: string; textLayerId: string },
+): string {
+  if (readUnitTextDraft(db, input.unitId, input.textLayerId) !== null) {
+    throw new Error('oral draft exists');
+  }
+  const text = db
+    .prepare(
+      'SELECT id, body, provenance_json, updated_at FROM unit_texts WHERE unit_id = ? AND layer_id = ?',
+    )
+    .get(input.unitId, input.textLayerId);
+  return JSON.stringify([input.textLayerId, text ?? null]);
+}
+
 export interface OralTranscript {
   textLayerId: string;
 }
 
 interface OralEngine {
+  text: string;
+  fileId?: string;
+  audioId?: string;
+  audioLayerId?: string;
   model: string;
   modelVersion: string;
 }
@@ -288,35 +328,36 @@ export function proposeOralDraft(
     text: string;
     model: string;
     modelVersion: string;
+    textLayerId: string;
+    fileId?: string;
+    audioId?: string;
   },
 ): OralTranscript {
-  const layer = audioLayer(db, input.audioLayerId);
-  const child = db
-    .prepare(
-      `SELECT id FROM layers
-       WHERE parent_id = ? AND modality = 'text' AND deleted_at IS NULL AND content_type = ?`,
-    )
-    .get(layer.id, layer.content_type) as { id: string } | undefined;
-  if (child === undefined) throw new Error('oral text layer is missing');
-  if (readUnitTextDraft(db, input.unitId, child.id) !== null) {
-    throw new Error('oral draft exists');
-  }
+  const textLayer = textTarget(db, input.audioLayerId, input.textLayerId);
+  oralTextBaseline(db, { unitId: input.unitId, textLayerId: textLayer.id });
   const stored = db
     .prepare(`SELECT body FROM unit_texts WHERE unit_id = ? AND layer_id = ? AND role = ?`)
-    .get(input.unitId, child.id, layer.content_type) as { body: string } | undefined;
+    .get(input.unitId, textLayer.id, textLayer.contentType) as { body: string } | undefined;
   const base = stored?.body ?? '';
   if (input.text !== base) {
-    const engine = { model: input.model, modelVersion: input.modelVersion };
+    const engine = {
+      text: input.text,
+      model: input.model,
+      modelVersion: input.modelVersion,
+      ...(input.fileId === undefined ? {} : { fileId: input.fileId }),
+      ...(input.audioId === undefined ? {} : { audioId: input.audioId }),
+      audioLayerId: input.audioLayerId,
+    };
     putUnitTextDraft(db, {
       unitId: input.unitId,
-      textLayerId: child.id,
+      textLayerId: textLayer.id,
       rawInput: input.text,
       baseBody: base,
       provenanceJson: oralProvenanceJson(engine),
     });
-    oralEngines.set(oralEngineKey(input.unitId, child.id), engine);
+    oralEngines.set(oralEngineKey(input.unitId, textLayer.id), engine);
   }
-  return { textLayerId: child.id };
+  return { textLayerId: textLayer.id };
 }
 
 export function peekOralEngine(unitId: string, textLayerId: string): OralEngine | undefined {
@@ -338,6 +379,15 @@ export function oralProvenanceJson(engine: OralEngine): string {
       method: 'auto-transcription',
       model: engine.model,
       modelVersion: engine.modelVersion,
+      ...(engine.fileId === undefined
+        ? {}
+        : {
+            params: {
+              audioFileId: engine.fileId,
+              ...(engine.audioId === undefined ? {} : { audioId: engine.audioId }),
+              ...(engine.audioLayerId === undefined ? {} : { audioLayerId: engine.audioLayerId }),
+            },
+          }),
       createdAt: new Date().toISOString(),
     }),
   );
@@ -355,6 +405,17 @@ export function listRecordings(db: SqliteDatabase, layerId: string): RecordingCl
     )
     .all(layerId) as { id: string; unitId: string; fileId: string }[];
   return rows;
+}
+
+function textTarget(
+  db: SqliteDatabase,
+  audioLayerId: string,
+  textLayerId: string,
+): { id: string; contentType: string } {
+  const listed = listTranscriptionTargets(db, audioLayerId);
+  const target = listed.targets.find((item) => item.id === textLayerId);
+  if (target === undefined) throw new Error('transcription target is not allowed');
+  return { id: target.id, contentType: listed.contentType };
 }
 
 function pairContent(kind: RecordingKind): 'transcription' | 'translation' {

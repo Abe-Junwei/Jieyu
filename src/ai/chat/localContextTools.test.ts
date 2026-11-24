@@ -2364,7 +2364,7 @@ describe('executeLocalContextToolCall get_unit_linguistic_memory', () => {
 
   it('reads linguistic memory via Dexie tables even when layer collection adapters are unavailable', async () => {
     const ref = { current: 0 };
-    const context = { shortTerm: {}, longTerm: {} };
+    const context = { shortTerm: { workspaceTextId: 'text-1' }, longTerm: {} };
     const mockDb = {
       dexie: {
         transaction: vi.fn(async (_mode: unknown, ...args: Array<unknown>) => {
@@ -2428,6 +2428,53 @@ describe('executeLocalContextToolCall get_unit_linguistic_memory', () => {
 
     expect(result.ok).toBe(true);
     expect((result.result as { unit: { id: string } }).unit.id).toBe('utt-safe');
+  });
+
+  it('refuses another project’s unit and a project scope with no text (#648)', async () => {
+    const ref = { current: 0 };
+    const get = vi.fn(async () => ({
+      id: 'utt-other',
+      layerId: 'layer-tr',
+      textId: 'text-2',
+      mediaId: 'media-1',
+      startTime: 0,
+      endTime: 1,
+      unitType: 'unit',
+    }));
+    mockGetDb.mockResolvedValue({
+      dexie: {
+        transaction: vi.fn(async (_mode: unknown, ...args: Array<unknown>) => {
+          const callback = args[args.length - 1];
+          if (typeof callback !== 'function') throw new Error('transaction callback missing');
+          return callback();
+        }),
+        layer_units: { get },
+        unit_tokens: {
+          where: vi.fn(() => ({ equals: vi.fn(() => ({ toArray: vi.fn(async () => []) })) })),
+        },
+      },
+      collections: {},
+    });
+    mockListUnitTextsByUnit.mockResolvedValue([]);
+    const call = (context: { shortTerm: { workspaceTextId?: string }; longTerm: object }) =>
+      executeLocalContextToolCall(
+        {
+          name: 'get_unit_linguistic_memory',
+          arguments: { unitId: 'utt-other', includeNotes: false, includeMorphemes: false },
+        },
+        context,
+        ref,
+      );
+
+    const missing = await call({ shortTerm: {}, longTerm: {} });
+    expect(missing.ok).toBe(false);
+    expect(missing.error).toContain('unit not found');
+    expect(get).not.toHaveBeenCalled();
+
+    const foreign = await call({ shortTerm: { workspaceTextId: 'text-1' }, longTerm: {} });
+    expect(foreign.ok).toBe(false);
+    expect(foreign.result).toBeNull();
+    expect(foreign.error).toContain('unit not found');
   });
 });
 

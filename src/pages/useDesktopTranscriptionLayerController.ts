@@ -1,3 +1,4 @@
+import { layerCreateParams, type LayerCreateKind } from './desktopTranscriptionLayerCommands';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { useToast } from '../contexts/ToastContext';
@@ -12,6 +13,7 @@ interface StructureLayer {
   contentType?: string;
   tierType?: string;
   sortOrder?: number;
+  languageId?: string | null;
   parentId?: string | null;
 }
 
@@ -104,42 +106,27 @@ export function useDesktopTranscriptionLayerController(input: {
         showFailure(layerErrorText(locale, message));
       }
     };
-    const create = (kind: 'transcription' | 'translation', label: string) => {
+    const create = (kind: LayerCreateKind, label: string, sourceLayerId?: string) => {
       const current = latest.current;
-      const layers = current.layers ?? [];
-      const host = transcriptionHost(layers, current.links ?? [], current.currentLayerId);
-      if (kind === 'translation' && host === undefined) {
-        showFailure(t(locale, 'app.desktopTranscription.layerActionFailed'));
-        return;
-      }
       void (async () => {
-        const taken = await deletedKeys(latest.current);
-        if (taken === null) {
-          showFailure(t(locale, 'app.desktopTranscription.layerActionFailed'));
-          return;
+        try {
+          const taken = await deletedKeys(current);
+          if (taken === null) throw new Error('layer is missing');
+          await run(
+            'layers.create',
+            layerCreateParams({
+              ...current,
+              layers: current.layers ?? [],
+              links: current.links ?? [],
+              currentLayerId: sourceLayerId ?? current.currentLayerId,
+              kind,
+              label,
+              deletedKeys: taken,
+            }),
+          );
+        } catch (caught) {
+          showFailure(layerErrorText(locale, caught instanceof Error ? caught.message : ''));
         }
-        const prefix = kind === 'transcription' ? 'tx' : 'tl';
-        const keys = new Set([
-          ...layers.map((item) => item.key).filter((key) => key !== undefined),
-          ...taken,
-        ]);
-        let count = layers.length + 1;
-        let key = `${prefix}-${count}`;
-        while (keys.has(key)) {
-          count += 1;
-          key = `${prefix}-${count}`;
-        }
-        void run('layers.create', {
-          manuscriptId: current.manuscriptId,
-          key,
-          name: { zh: label },
-          tierType: kind === 'transcription' ? 'time-aligned' : 'symbolic-association',
-          contentType: kind,
-          sortOrder: Math.max(-1, ...layers.map((item) => item.sortOrder ?? 0)) + 1,
-          ...(kind === 'translation' && host !== undefined
-            ? { hosts: [{ hostLayerId: host.id, preferred: true }] }
-            : {}),
-        });
       })();
     };
     const createPair = (kind: 'voice' | 'oral', audioName: string, textName: string) => {
@@ -226,6 +213,12 @@ interface HostsPreview {
 }
 
 function layerErrorText(locale: Parameters<typeof t>[0], message: string): string {
+  if (message.includes('recording pair already exists'))
+    return t(locale, 'app.desktopTranscription.recordingPairExists');
+  if (message.includes('layer has orthography dependents'))
+    return t(locale, 'app.desktopTranscription.orthographyDeleteBlocked');
+  if (message.includes('orthography layer requires one host'))
+    return t(locale, 'app.desktopTranscription.layerHostsRefused');
   if (message.includes('layer text conflicts')) {
     return t(locale, 'app.desktopTranscription.layerTextConflict');
   }
