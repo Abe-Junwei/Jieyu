@@ -1,6 +1,6 @@
 /**
- * 用仓库里的 Silero v6.2.3 模型（public/models/silero_vad.onnx）真跑一遍 v5+ 接口。
- * Runs the repo's Silero v6.2.3 model (public/models/silero_vad.onnx) through the v5+ interface.
+ * 用仓库里的 Silero v6.3 模型（public/models/silero_vad.onnx）真跑一遍 v5+ 接口。
+ * Runs the repo's Silero v6.3 model (public/models/silero_vad.onnx) through the v5+ interface.
  */
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
