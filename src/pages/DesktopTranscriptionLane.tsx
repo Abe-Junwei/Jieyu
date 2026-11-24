@@ -21,7 +21,6 @@ import { DesktopTranscriptionCreatePreview } from './DesktopTranscriptionCreateP
 import { DesktopTranscriptionLaneResize } from './DesktopTranscriptionLaneResize';
 import { DesktopWaveformEdges } from './DesktopWaveformEdges';
 import { TimelineAnnotationItem } from '../components/TimelineAnnotationItem';
-import { desktopAnnotationStyle } from '../utils/layerDisplayStyle';
 import {
   layerStyleFields,
   styleMenuProps,
@@ -48,6 +47,7 @@ import { NO_CONFLICTS } from './desktopTranscriptionEdgeSession';
 import type { RouteLayer, RouteLink } from './desktopTranscriptionCreateRoute';
 import { textKey } from './desktopTranscriptionTextKey';
 import {
+  annotationStyle,
   DesktopTranscriptionJoins,
   DesktopTranscriptionLayerRows,
   laneHeightStyle,
@@ -742,25 +742,7 @@ function mainAnnotationStyle(
   layerId: string | null,
 ): CSSProperties | undefined {
   const layer = layers?.find((item) => item.id === layerId);
-  if (layer === undefined) return undefined;
-  const style = desktopAnnotationStyle({
-    ...(layer.displayFont === undefined ? {} : { displayFont: layer.displayFont }),
-    ...(layer.displayFontSize === undefined ? {} : { displayFontSize: layer.displayFontSize }),
-    ...(layer.displayBold === undefined ? {} : { displayBold: layer.displayBold }),
-    ...(layer.displayItalic === undefined ? {} : { displayItalic: layer.displayItalic }),
-    ...(layer.orthographyScriptTag === undefined ? {} : { scriptTag: layer.orthographyScriptTag }),
-    ...(layer.languageId === undefined ? {} : { languageId: layer.languageId }),
-  });
-  if (
-    style.fontFamily === undefined &&
-    style.fontSize === undefined &&
-    style.fontWeight === undefined &&
-    style.fontStyle === undefined &&
-    style.direction === undefined
-  ) {
-    return undefined;
-  }
-  return style;
+  return layer === undefined ? undefined : annotationStyle(layer);
 }
 
 function timedOf(unit: { id: string; startMs: number | null; endMs: number | null }) {

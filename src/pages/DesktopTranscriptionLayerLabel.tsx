@@ -45,7 +45,7 @@ function TreeLines(props: { row: LayerTreeRow }) {
               style={cssVars({ '--x': px(x), '--w': px(width) })}
             />
             {(branch.child || branch.host) && width > 0 ? (
-              <i className="tree-jog" style={cssVars({ '--x': px(x), '--w': px(width) })} />
+              <i className="tree-jog" style={cssVars({ '--w': px(width), '--x': px(x) })} />
             ) : null}
           </span>
         );

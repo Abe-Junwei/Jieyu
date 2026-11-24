@@ -398,7 +398,7 @@ export function laneHeightStyle(height: number | null | undefined): CSSPropertie
   return { '--lane-height': `${height}px` } as CSSProperties;
 }
 
-function annotationStyle(layer: LayerRowLayer): CSSProperties | undefined {
+export function annotationStyle(layer: LayerRowLayer): CSSProperties | undefined {
   const style = desktopAnnotationStyle({
     ...(layer.displayFont === undefined ? {} : { displayFont: layer.displayFont }),
     ...(layer.displayFontSize === undefined ? {} : { displayFontSize: layer.displayFontSize }),

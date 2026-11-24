@@ -753,7 +753,11 @@ test('drags create on the waveform and on a linked layer row, and texts stay per
     expect((await listed()).map((unit) => unit.text)).not.toContain('gloss one');
 
     await first.click({ button: 'right' });
-    await page.getByRole('menuitem', { name: /Gloss/ }).click();
+    await page.getByRole('menuitem', { name: /^(清空「|Clear “)/ }).click();
+    await page
+      .getByRole('dialog', { name: /^(清空当前写法？|Clear this writing\?)$/ })
+      .getByRole('button', { name: /^(清空本层正文与草稿|Clear this layer’s text and drafts)$/ })
+      .click();
     await expect
       .poll(async () =>
         (await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId: tl.id })).map(
@@ -2854,7 +2858,7 @@ async function offer1b4(page: Page, layerId: string, unitId: string) {
 
 async function finish1b4(page: Page, session: string, layerId: string) {
   const prior = new Set((await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).map(u => u.id));
-  await page.getByRole('dialog').getByRole('button', { name: /^(合并|Merge)$/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /合并|Merge/ }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   let made: ListedUnit | undefined;
   await expect.poll(async () => {
@@ -2925,7 +2929,7 @@ test('1b4 runtime merges current editor text exactly once', async () => {
     await page.keyboard.press('Meta+m');
     await expect(page.getByRole('dialog')).toBeVisible();
     const oldIds = new Set((await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).map(u => u.id));
-    await page.getByRole('dialog').getByRole('button', { name: /^(合并|Merge)$/ }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /合并|Merge/ }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     const merged = (await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).find(u => !oldIds.has(u.id));
     if (!merged) throw new Error('editor merge result missing');
@@ -2958,14 +2962,14 @@ test('1b4 runtime six recordings discard preview playlist play and delete', asyn
     await merge(de.id);
     const dialog = await offer1b4(page, layerId, abc.id);
     await expect(dialog.locator('.desktop-tx-merge__row')).toHaveCount(6);
-    await expect(dialog.getByRole('button', { name: /^(合并|Merge)$/ })).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: /合并|Merge/ })).toBeDisabled();
     await expect(dialog.locator('.desktop-tx-merge__time')).toHaveCount(6);
-    await expect(dialog.locator('.desktop-tx-merge__time').first()).toHaveText('1 秒');
+    await expect(dialog.locator('.desktop-tx-merge__time').first()).toHaveText(/1\s*(秒|s)/);
     await dialog.getByRole('button', { name: /^(试听|Listen)$/ }).first().click();
     const audibleWindow = await app.browserWindow(page);
     await expect.poll(() => audibleWindow.evaluate(w => (w as unknown as { webContents: { isCurrentlyAudible(): boolean } }).webContents.isCurrentlyAudible()), { timeout: 3000, intervals: [50] }).toBe(true);
     await dialog.getByRole('checkbox').last().check();
-    await expect(dialog.getByRole('button', { name: /^(合并|Merge)$/ })).toBeEnabled();
+    await expect(dialog.getByRole('button', { name: /合并|Merge/ })).toBeEnabled();
     const joined = await finish1b4(page, session, layerId);
     const beforeSplit = await desktopCall<{id: string; unitId: string; fileId: string}[]>(page, session, 'recordings.list', {layerId: pair.audioLayerId});
     expect(beforeSplit).toHaveLength(5);
@@ -2974,7 +2978,7 @@ test('1b4 runtime six recordings discard preview playlist play and delete', asyn
     if (!waveBox) throw new Error('recorded split target missing');
     await page.mouse.click(waveBox.x + waveBox.width / 2, waveBox.y + waveBox.height / 2, {button: 'right'});
     await page.getByTestId('desktop-wave-menu').getByRole('menuitem', {name: /^(拆分句段|Split segment)$/}).click();
-    await expect(page.getByText('5 条录音已完整保留在左段。', {exact: true})).toBeVisible();
+    await expect(page.getByText(/5 条录音已完整保留在左段|5 recordings were kept intact in the left segment/)).toBeVisible();
     const splitClips = await desktopCall<{id: string; unitId: string; fileId: string}[]>(page, session, 'recordings.list', {layerId: pair.audioLayerId});
     expect(splitClips.map(clip => [clip.id, clip.fileId])).toEqual(beforeSplit.map(clip => [clip.id, clip.fileId]));
     const halves = (await desktopCall<ListedUnit[]>(page, session, 'units.list', {layerId})).filter(u => u.startMs !== null && u.endMs !== null && u.startMs >= joined.startMs! && u.endMs <= joined.endMs!);
@@ -3105,7 +3109,7 @@ test('oral recording safety pauses resumes retries lost receipts and protects co
       await expect.poll(() => requests).toBe(1);
       await desktopCall(page,session,'units.putTextDraft',{unitId:unit.id,textLayerId:target.id,rawInput:'manual draft',baseBody:''});
       release();
-      await expect(page.getByText('这段已有未保存的文字，先保存或放弃再转写',{exact:true})).toBeVisible();
+      await expect(page.getByText(/这段已有未保存的文字|This line already has unsaved text/)).toBeVisible();
       expect(await readDraft()).toMatchObject({rawInput:'manual draft',provenanceJson:null});
       await desktopCall(page,session,'units.discardTextDraft',{unitId:unit.id,textLayerId:target.id});
       holdModel();
@@ -3114,7 +3118,7 @@ test('oral recording safety pauses resumes retries lost receipts and protects co
       await expect.poll(() => requests).toBe(2);
       await desktopCall(page,session,'units.updateText',{unitId:unit.id,textLayerId:target.id,text:'manual body'});
       release();
-      await expect(page.getByText('文字已变化，未写入转写结果',{exact:true})).toBeVisible();
+      await expect(page.getByText(/文字已变化，未写入转写结果|The text changed; the transcript was not written/)).toBeVisible();
       expect(await readDraft()).toBeNull();
       pending=Promise.resolve();
       await transcribe();
@@ -3258,7 +3262,7 @@ test('正字法转写：添加、合并取消和按层清空保留宿主', async
     expect((await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId })).length).toBe(originals.length);
     const row = page.locator(`.desktop-tx-lane[data-layer-id="${spelling.id}"]`);
     await row.locator('.timeline-annotation').first().click({ button: 'right' });
-    await page.getByRole('menuitem', { name: /^(清空「|Clear)/ }).click();
+    await page.getByRole('menuitem', { name: /^(清空「|Clear “)/ }).click();
     const clear = page.getByRole('dialog', { name: /^(清空当前写法？|Clear this writing\?)$/ });
     await clear.getByRole('button', { name: /^(清空本层正文与草稿|Clear this layer’s text and drafts)$/ }).click();
     await expect.poll(async () => (await desktopCall<{ text: string; draftText: string | null }[]>(page, sessionId, 'units.list', { layerId: spelling.id }))[0]).toMatchObject({ text: '', draftText: null });

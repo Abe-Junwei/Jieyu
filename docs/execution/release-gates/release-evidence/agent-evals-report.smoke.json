@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T08:55:11.929Z",
+  "generatedAt": "2026-11-24T12:48:20.483Z",
   "mode": "enforce",
   "suite": {
     "suiteId": "jieyu-agent-evals-v1",
@@ -25,8 +25,8 @@
     "missingTrajectorySignals": [],
     "auditTracePassed": true,
     "thresholdPassed": true,
-    "startedAt": "2026-11-24T08:54:40.559Z",
-    "endedAt": "2026-11-24T08:55:11.929Z"
+    "startedAt": "2026-11-24T12:47:43.496Z",
+    "endedAt": "2026-11-24T12:48:20.483Z"
   },
   "cases": [
     {
@@ -38,9 +38,9 @@
       "command": "npm run typecheck",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-11-24T08:54:40.560Z",
-      "endedAt": "2026-11-24T08:55:09.281Z",
-      "elapsedMs": 28721,
+      "startedAt": "2026-11-24T12:47:43.497Z",
+      "endedAt": "2026-11-24T12:48:17.527Z",
+      "elapsedMs": 34030,
       "stdout": "\n> jieyu@1.1.0 typecheck\n> tsc --noEmit && tsc -p electron --noEmit\n\n",
       "stderr": ""
     },
@@ -53,11 +53,11 @@
       "command": "npm run check:architecture-guard:core",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-11-24T08:55:09.281Z",
-      "endedAt": "2026-11-24T08:55:10.094Z",
-      "elapsedMs": 813,
+      "startedAt": "2026-11-24T12:48:17.527Z",
+      "endedAt": "2026-11-24T12:48:18.549Z",
+      "elapsedMs": 1022,
       "stdout": "\n> jieyu@1.1.0 check:architecture-guard:core\n> node scripts/check-architecture-guard.mjs\n\n[check-architecture-guard] OK: guarded files stayed within architecture ceilings.\n",
-      "stderr": "[check-architecture-guard] WARN: 40 hotspot(s) approaching ceilings.\n- src/hooks/voice/useVoiceInteractionSummaries.ts: line count 182/200 reached 91% of ceiling\n- src/hooks/voice/useVoiceInteractionSummaries.ts: useMemo declarations 5/5 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionSummaries.ts: useEffect count 2/2 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: line count 115/120 reached 96% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: useMemo declarations 1/1 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: useEffect count 3/3 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionCommercialSync.ts: useCallback declarations 1/1 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionCommercialSync.ts: useEffect count 2/2 reached 100% of ceiling\n- src/hooks/transcription/useSegmentRangeGesturePreviewWriter.ts: ratchet floor unchanged for 131d (>= 90d trend window since floorSetAt=2026-07-16); consider slimming.\n- src/pages/useSpeakerActionRoutingController.ts: line count 416/420 reached 99% of ceiling\n- src/pages/useSpeakerActionRoutingController.ts: useEffect count 1/1 reached 100% of ceiling\n- src/pages/useSpeakerActionMixedSelectionMutationCluster.ts: line count 271/280 reached 97% of ceiling\n- src/pages/useSpeakerActionSelectionRoutingHandlers.ts: line count 190/220 reached 86% of ceiling\n- src/pages/useSpeakerActionFilterRoutingHandlers.ts: line count 216/240 reached 90% of ceiling\n- src/pages/useSpeakerActionRoutingHandlers.ts: line count 248/280 reached 89% of ceiling\n- src/pages/useTranscriptionProjectMediaController.ts: ratchet floor unchanged for 131d (>= 90d trend window since floorSetAt=2026-07-16); consider slimming.\n- src/pages/useTranscriptionTimelineInteractionController.ts: ratchet floor unchanged for 131d (>= 90d trend window since floorSetAt=2026-07-16); consider slimming.\n- src/pages/useTranscriptionChatWindowLayout.ts: line count 280/300 reached 93% of ceiling\n- src/pages/useTranscriptionChatWindowLayout.ts: useEffect count 7/8 reached 88% of ceiling\n- src/hooks/importExport/useImportExport.importHandlers.ts: line count 1316/1500 reached 88% of ceiling\n- src/hooks/importExport/useImportExport.ts: line count 1280/1500 reached 85% of ceiling\n- src/pages/DesktopTranscriptionLane.tsx: line count 796/800 reached 100% of ceiling\n- src/pages/DesktopTranscriptionLayerStyleMenu.tsx: line count 737/800 reached 92% of ceiling\n- src/pages/DesktopTranscriptionWorkspacePage.tsx: line count 766/800 reached 96% of ceiling\n- src/pages/LanguageMetadataWorkspacePage.tsx: line count 697/800 reached 87% of ceiling\n- src/pages/LexiconPage.tsx: line count 706/800 reached 88% of ceiling\n- src/pages/OrchestratorWaveformContent.tsx: line count 706/800 reached 88% of ceiling\n- src/pages/annotation/AnnotationIgtRow.tsx: line count 745/800 reached 93% of ceiling\n- src/pages/annotation/annotationRetokenize.ts: line count 785/800 reached 98% of ceiling\n- src/pages/useDesktopLayerView.ts: useCallback declarations 6/6 reached 100% of ceiling\n- src/pages/useDesktopTranscriptionMergeController.tsx: line count 283/300 reached 94% of ceiling\n- src/pages/useDesktopTranscriptionSplitController.tsx: line count 262/300 reached 87% of ceiling\n- src/pages/useOrchestratorViewModels.ts: line count 272/300 reached 91% of ceiling\n- src/pages/useTranscriptionSegmentBatchMerge.ts: line count 259/300 reached 86% of ceiling\n- src/pages/useDesktopLayerView.ts: useCallback declarations 6/6 reached 100% of ceiling\n- src/pages/useDesktopProjectReadController.ts: line count 271/300 reached 90% of ceiling\n- src/pages/useDesktopTranscriptionLayerController.ts: line count 279/300 reached 93% of ceiling\n- src/pages/useDesktopTranscriptionMergeController.tsx: line count 283/300 reached 94% of ceiling\n- src/pages/useDesktopTranscriptionSplitController.tsx: line count 262/300 reached 87% of ceiling\n- src/desktop/useDesktopDraftGuard.ts: line count 288/300 reached 96% of ceiling\n"
+      "stderr": "[check-architecture-guard] WARN: 40 hotspot(s) approaching ceilings.\n- src/hooks/voice/useVoiceInteractionSummaries.ts: line count 182/200 reached 91% of ceiling\n- src/hooks/voice/useVoiceInteractionSummaries.ts: useMemo declarations 5/5 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionSummaries.ts: useEffect count 2/2 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: line count 115/120 reached 96% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: useMemo declarations 1/1 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionAssistantRuntime.ts: useEffect count 3/3 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionCommercialSync.ts: useCallback declarations 1/1 reached 100% of ceiling\n- src/hooks/voice/useVoiceInteractionCommercialSync.ts: useEffect count 2/2 reached 100% of ceiling\n- src/hooks/transcription/useSegmentRangeGesturePreviewWriter.ts: ratchet floor unchanged for 131d (>= 90d trend window since floorSetAt=2026-07-16); consider slimming.\n- src/pages/useSpeakerActionRoutingController.ts: line count 416/420 reached 99% of ceiling\n- src/pages/useSpeakerActionRoutingController.ts: useEffect count 1/1 reached 100% of ceiling\n- src/pages/useSpeakerActionMixedSelectionMutationCluster.ts: line count 271/280 reached 97% of ceiling\n- src/pages/useSpeakerActionSelectionRoutingHandlers.ts: line count 190/220 reached 86% of ceiling\n- src/pages/useSpeakerActionFilterRoutingHandlers.ts: line count 216/240 reached 90% of ceiling\n- src/pages/useSpeakerActionRoutingHandlers.ts: line count 248/280 reached 89% of ceiling\n- src/pages/useTranscriptionProjectMediaController.ts: ratchet floor unchanged for 131d (>= 90d trend window since floorSetAt=2026-07-16); consider slimming.\n- src/pages/useTranscriptionTimelineInteractionController.ts: ratchet floor unchanged for 131d (>= 90d trend window since floorSetAt=2026-07-16); consider slimming.\n- src/pages/useTranscriptionChatWindowLayout.ts: line count 280/300 reached 93% of ceiling\n- src/pages/useTranscriptionChatWindowLayout.ts: useEffect count 7/8 reached 88% of ceiling\n- src/hooks/importExport/useImportExport.importHandlers.ts: line count 1316/1500 reached 88% of ceiling\n- src/hooks/importExport/useImportExport.ts: line count 1280/1500 reached 85% of ceiling\n- src/pages/DesktopTranscriptionLane.tsx: line count 786/800 reached 98% of ceiling\n- src/pages/DesktopTranscriptionLayerStyleMenu.tsx: line count 747/800 reached 93% of ceiling\n- src/pages/DesktopTranscriptionWorkspacePage.tsx: line count 771/800 reached 96% of ceiling\n- src/pages/LanguageMetadataWorkspacePage.tsx: line count 697/800 reached 87% of ceiling\n- src/pages/LexiconPage.tsx: line count 706/800 reached 88% of ceiling\n- src/pages/OrchestratorWaveformContent.tsx: line count 706/800 reached 88% of ceiling\n- src/pages/annotation/AnnotationIgtRow.tsx: line count 745/800 reached 93% of ceiling\n- src/pages/annotation/annotationRetokenize.ts: line count 785/800 reached 98% of ceiling\n- src/pages/useDesktopLayerView.ts: useCallback declarations 6/6 reached 100% of ceiling\n- src/pages/useDesktopTranscriptionMergeController.tsx: line count 286/300 reached 95% of ceiling\n- src/pages/useDesktopTranscriptionSplitController.tsx: line count 295/300 reached 98% of ceiling\n- src/pages/useOrchestratorViewModels.ts: line count 272/300 reached 91% of ceiling\n- src/pages/useTranscriptionSegmentBatchMerge.ts: line count 259/300 reached 86% of ceiling\n- src/pages/useDesktopLayerView.ts: useCallback declarations 6/6 reached 100% of ceiling\n- src/pages/useDesktopProjectReadController.ts: line count 271/300 reached 90% of ceiling\n- src/pages/useDesktopTranscriptionLayerController.ts: line count 292/300 reached 97% of ceiling\n- src/pages/useDesktopTranscriptionMergeController.tsx: line count 286/300 reached 95% of ceiling\n- src/pages/useDesktopTranscriptionSplitController.tsx: line count 295/300 reached 98% of ceiling\n- src/desktop/useDesktopDraftGuard.ts: line count 300/300 reached 100% of ceiling\n"
     },
     {
       "id": "ai-messages-isolation",
@@ -68,9 +68,9 @@
       "command": "node scripts/check-ai-messages-isolation.mjs",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-11-24T08:55:10.094Z",
-      "endedAt": "2026-11-24T08:55:10.137Z",
-      "elapsedMs": 43,
+      "startedAt": "2026-11-24T12:48:18.549Z",
+      "endedAt": "2026-11-24T12:48:18.590Z",
+      "elapsedMs": 41,
       "stdout": "[check-ai-messages-isolation] OK: src/ai/messages/ keeps formatter copy isolated from UI i18n.\n",
       "stderr": ""
     },
@@ -86,10 +86,10 @@
       "command": "npx vitest run scripts/agent-evals/cases/semantic-cases.test.ts",
       "status": "passed",
       "exitCode": 0,
-      "startedAt": "2026-11-24T08:55:10.137Z",
-      "endedAt": "2026-11-24T08:55:11.929Z",
-      "elapsedMs": 1792,
-      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ scripts/agent-evals/cases/semantic-cases.test.ts (63 tests) 9ms\n\n Test Files  1 passed (1)\n      Tests  63 passed (63)\n   Start at  16:55:10\n   Duration  680ms (transform 340ms, setup 498ms, import 98ms, tests 9ms, environment 0ms)\n\n",
+      "startedAt": "2026-11-24T12:48:18.590Z",
+      "endedAt": "2026-11-24T12:48:20.483Z",
+      "elapsedMs": 1893,
+      "stdout": "\n RUN  v4.1.12 /Users/junwei/开发/Jieyu\n\n ✓ scripts/agent-evals/cases/semantic-cases.test.ts (63 tests) 9ms\n\n Test Files  1 passed (1)\n      Tests  63 passed (63)\n   Start at  20:48:19\n   Duration  791ms (transform 360ms, setup 602ms, import 93ms, tests 9ms, environment 0ms)\n\n",
       "stderr": ""
     }
   ]

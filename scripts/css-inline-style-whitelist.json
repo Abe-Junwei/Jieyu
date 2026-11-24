@@ -156,34 +156,26 @@
       "file": "src/pages/DesktopTranscriptionLayerLabel.tsx",
       "reason": "Tree guide, elbow, jog and side-lane offsets derive from each row's runtime depth, lane index, and the nameplate jog. A dragged label adds translateY.",
       "reviewer": "Cursor + junwei",
-      "reviewedAt": "2026-11-22",
+      "reviewedAt": "2026-11-24",
       "snippets": [
         {
-          "anchor": "levelX(level)",
-          "reviewedSha256": "4ee5c0fdd07558112b1837bfd0467a74a8068d45227b5017d871c0e058407c85"
+          "anchor": "'--x': px(x), '--w': px(width)",
+          "reviewedSha256": "ca39a44320d5fd63255fd231dec3745257d1d87bf61a8c85f3a5347ed7757c18"
         },
         {
-          "anchor": "parentX - shift",
-          "reviewedSha256": "c515cfdb0a6d3e4e975eac9bc5c17a407509d24efff75ad30c2149b51cad5755"
+          "anchor": "'--w': px(width), '--x': px(x)",
+          "reviewedSha256": "835d2d53d7e9870c972096ac85531f188993cf7241773c9a2506f16d8f8801f3"
         },
         {
-          "anchor": "'--x': px(dotX - shift) })}",
-          "reviewedSha256": "fe0329e9d0cb6831797d3b93478ba17737743d9bb0596b24bce3709e50efc42c"
-        },
-        {
-          "anchor": "'--w': px(shift)",
-          "reviewedSha256": "03160e00781b00e55a860a4c7f968fb57412af73d61dd777502fd25091a2c3c2"
-        },
-        {
-          "anchor": "'--x': px(x) })",
+          "anchor": "cssVars({ '--x': px(x) })",
           "reviewedSha256": "15909ff1b540de9c0b1ae3bb47a095bb2145809eb71e96957d3e6adbc8e6e2ff"
         },
         {
-          "anchor": "'--w': px(dotX - (lane.role",
+          "anchor": "lane.role === 'host' ? 6 : 4",
           "reviewedSha256": "1ec3d03256d5f3cd36b3816c0149231bd69cb29072854126edd2f278bcca7e21"
         },
         {
-          "anchor": "'--dot-x': px(levelX(row.depth))",
+          "anchor": "translateY(${props.dragOffset}px)",
           "reviewedSha256": "93a572bfb9ff9251fec4f372a5b751ec275a6d8058912d30e9013ead846a68a3"
         },
         {
@@ -429,6 +421,18 @@
         {
           "anchor": "style={{ top: at.top, left: at.left }}",
           "reviewedSha256": "0eb79daf4a8e3795c2340bbf1e05e0aa046911810d386b33b8642884277e238a"
+        }
+      ]
+    },
+    {
+      "file": "src/components/ui/IconTip.tsx",
+      "reason": "The tip portal follows the live host box; left, top, and transform clamp to the viewport after measure.",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-24",
+      "snippets": [
+        {
+          "anchor": "left: place.x,",
+          "reviewedSha256": "6120cfa0b1dfd5bf77d17d8a790aef40bc2d969598ffb15b8ab53bdef3441a46"
         }
       ]
     }

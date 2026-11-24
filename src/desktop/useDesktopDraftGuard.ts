@@ -14,12 +14,7 @@ import {
 
 import { useDesktopDraftTimers } from './useDesktopDraftTimers';
 
-/**
- * One unsaved text draft. Leaving saves it first when it can be submitted. A failed save, an unfinished
- * IME composition stops the leave until retry or discard. A committed save whose list
- * refresh failed stays on that unit and is not written again until that text changes. A stale query
- * baseline is not the committed text. The draft stays out of the query cache.
- */
+/** One unsaved text draft. Leave saves first when submittable; failed save / IME blocks leave. */
 export function useDesktopDraftGuard(
   save: (draft: DesktopTextDraft, operationId: string) => Promise<boolean | TextSaveResult>,
   store?: DraftStore,
@@ -68,7 +63,6 @@ export function useDesktopDraftGuard(
 
   const submittable = (_current: DesktopTextDraft) =>
     !composing.current && conflict.current.current === null;
-
   const persist = (current: DesktopTextDraft) => {
     const inflight = sent.current;
     const base =

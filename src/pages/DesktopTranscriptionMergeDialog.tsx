@@ -75,6 +75,8 @@ export function DesktopTranscriptionMergeDialog(props: {
   const tooMany = fullest > CAP;
   const blocked = props.stale || keptOnFullestRow(preview.earlier, preview.later, discard) > CAP;
   const gap = (preview.gapMs / 1000).toFixed(3);
+  const detail =
+    (preview.texts?.length ?? 0) > 1 || preview.texts?.some((row) => row.draft !== null) === true;
 
   const clipKey = clips.map((clip) => clip.id).join('\n');
   useEffect(() => {
@@ -171,30 +173,32 @@ export function DesktopTranscriptionMergeDialog(props: {
         <p>{tf(locale, 'app.desktopTranscription.mergeTooMany', { count: fullest })}</p>
       ) : null}
       {props.stale ? <p>{t(locale, 'app.desktopTranscription.mergeStale')}</p> : null}
-      {preview.texts?.map((row) => (
-        <section key={row.layerId}>
-          <h3>{layerLabel(row.name, locale, row.layerId)}</h3>
-          <label>
-            {t(locale, 'app.desktopTranscription.officialText')}
-            <input readOnly value={row.official} />
-          </label>
-          {row.draft === null ? null : (
-            <label>
-              {t(locale, 'app.desktopTranscription.unsavedDraft')}
-              <input readOnly value={row.draft} />
-            </label>
-          )}
-          <label>
-            {t(locale, 'app.desktopTranscription.mergeResult')}
-            <input
-              value={texts[row.layerId] ?? row.result}
-              onChange={(event) =>
-                setTexts((current) => ({ ...current, [row.layerId]: event.target.value }))
-              }
-            />
-          </label>
-        </section>
-      ))}
+      {detail
+        ? preview.texts?.map((row) => (
+            <section key={row.layerId}>
+              <h3>{layerLabel(row.name, locale, row.layerId)}</h3>
+              <label>
+                {t(locale, 'app.desktopTranscription.officialText')}
+                <input readOnly value={row.official} />
+              </label>
+              {row.draft === null ? null : (
+                <label>
+                  {t(locale, 'app.desktopTranscription.unsavedDraft')}
+                  <input readOnly value={row.draft} />
+                </label>
+              )}
+              <label>
+                {t(locale, 'app.desktopTranscription.mergeResult')}
+                <input
+                  value={texts[row.layerId] ?? row.result}
+                  onChange={(event) =>
+                    setTexts((current) => ({ ...current, [row.layerId]: event.target.value }))
+                  }
+                />
+              </label>
+            </section>
+          ))
+        : null}
       {tooMany ? (
         <>
           <ClipGroup
