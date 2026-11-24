@@ -1838,7 +1838,8 @@
     color 0.14s;
 }
 
-.desktop-tx-lane .timeline-translation-audio-btn:hover:not(:disabled) {
+.desktop-tx-lane .timeline-translation-audio-btn:hover:not(:disabled),
+.desktop-tx-lane .timeline-translation-audio-btn:focus-visible:not(:disabled) {
   background: color-mix(in srgb, var(--text-primary) 8%, transparent);
 }
 
@@ -1847,6 +1848,7 @@
 }
 
 .desktop-tx-lane .timeline-translation-audio-btn-delete:hover:not(:disabled),
+.desktop-tx-lane .timeline-translation-audio-btn-delete:focus-visible:not(:disabled),
 .desktop-tx-lane .timeline-translation-audio-btn-delete:active:not(:disabled) {
   background: color-mix(in srgb, var(--state-danger-text) 12%, transparent);
 }
