@@ -32,10 +32,6 @@
   gap: 4px;
 }
 
-.timeline-translation-audio-controls-recording {
-  background: transparent;
-}
-
 .timeline-translation-audio-btn {
   display: inline-flex;
   align-items: center;
