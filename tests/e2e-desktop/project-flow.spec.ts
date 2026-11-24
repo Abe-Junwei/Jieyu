@@ -2850,15 +2850,15 @@ async function offer1b4(page: Page, layerId: string, unitId: string) {
   const card = page.locator(`.desktop-tx-lane__track[data-layer-id="${layerId}"] .timeline-annotation[data-unit-id="${unitId}"]`);
   await card.click();
   await card.click({ button: 'right' });
-  await page.getByRole('menuitem', { name: /向后合并|Merge with next/ }).click();
-  const dialog = page.getByRole('dialog', { name: /合并下一段|Merge/ });
+  await page.getByRole('menuitem', { name: /向后合并|Merge with the next/ }).click();
+  const dialog = page.getByRole('dialog', { name: /合并下一段|Merge with the next segment/ });
   await expect(dialog).toBeVisible();
   return dialog;
 }
 
 async function finish1b4(page: Page, session: string, layerId: string) {
   const prior = new Set((await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).map(u => u.id));
-  await page.getByRole('dialog').getByRole('button', { name: /合并|Merge/ }).click();
+  await page.getByRole('dialog').locator('button.btn-primary').click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   let made: ListedUnit | undefined;
   await expect.poll(async () => {
@@ -2910,7 +2910,7 @@ test('1b4 runtime menu cancel shortcut merge undo redo and no next', async () =>
     const win = await app.browserWindow(page);
     expect(await win.evaluate(w => w.isMinimized())).toBe(false);
     await card.click({ button: 'right' });
-    await expect(page.getByRole('menuitem', { name: /向后合并|Merge with next/ })).toBeDisabled();
+    await expect(page.getByRole('menuitem', { name: /向后合并|Merge with the next/ })).toBeDisabled();
     await page.keyboard.press('Escape');
     await page.screenshot({ path: test.info().outputPath('1b4-basic.png') });
   });
@@ -2929,7 +2929,7 @@ test('1b4 runtime merges current editor text exactly once', async () => {
     await page.keyboard.press('Meta+m');
     await expect(page.getByRole('dialog')).toBeVisible();
     const oldIds = new Set((await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).map(u => u.id));
-    await page.getByRole('dialog').getByRole('button', { name: /合并|Merge/ }).click();
+    await page.getByRole('dialog').locator('button.btn-primary').click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     const merged = (await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId })).find(u => !oldIds.has(u.id));
     if (!merged) throw new Error('editor merge result missing');
@@ -2962,14 +2962,14 @@ test('1b4 runtime six recordings discard preview playlist play and delete', asyn
     await merge(de.id);
     const dialog = await offer1b4(page, layerId, abc.id);
     await expect(dialog.locator('.desktop-tx-merge__row')).toHaveCount(6);
-    await expect(dialog.getByRole('button', { name: /合并|Merge/ })).toBeDisabled();
+    await expect(dialog.locator('button.btn-primary')).toBeDisabled();
     await expect(dialog.locator('.desktop-tx-merge__time')).toHaveCount(6);
     await expect(dialog.locator('.desktop-tx-merge__time').first()).toHaveText(/1\s*(秒|s)/);
-    await dialog.getByRole('button', { name: /^(试听|Listen)$/ }).first().click();
+    await dialog.getByRole('button', { name: /^(试听|Play)$/ }).first().click();
     const audibleWindow = await app.browserWindow(page);
     await expect.poll(() => audibleWindow.evaluate(w => (w as unknown as { webContents: { isCurrentlyAudible(): boolean } }).webContents.isCurrentlyAudible()), { timeout: 3000, intervals: [50] }).toBe(true);
     await dialog.getByRole('checkbox').last().check();
-    await expect(dialog.getByRole('button', { name: /合并|Merge/ })).toBeEnabled();
+    await expect(dialog.locator('button.btn-primary')).toBeEnabled();
     const joined = await finish1b4(page, session, layerId);
     const beforeSplit = await desktopCall<{id: string; unitId: string; fileId: string}[]>(page, session, 'recordings.list', {layerId: pair.audioLayerId});
     expect(beforeSplit).toHaveLength(5);
@@ -3302,7 +3302,7 @@ test('正字法转写：添加、合并取消和按层清空保留宿主', async
     const addVoice = async () => {
       await page.locator(`.desktop-tx-lane[data-layer-id="${layerId}"] .desktop-tx-layer-label`).click({ button: 'right' });
       await page.getByRole('button', { name: /^(新建层|New layer)$/ }).click();
-      await page.getByRole('menuitem', { name: /^(新建语音转写|New voice transcription)$/ }).click();
+      await page.getByRole('menuitem', { name: /^(新建语音转写|New careful speech)$/ }).click();
     };
     await addVoice();
     await expect.poll(async () => (await listLayers()).filter(layer => layer.modality === 'audio' && layer.contentType === 'transcription').length).toBe(1);
