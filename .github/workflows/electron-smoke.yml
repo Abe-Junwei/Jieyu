@@ -39,6 +39,8 @@ jobs:
           node-version-file: '.nvmrc'
           cache: npm
       - run: npm ci
+      - name: Desktop selector labels
+        run: npm run check:desktop-selectors
       - name: Electron project flow (tests/e2e-desktop)
         run: npm run test:e2e:desktop-project
       - uses: actions/upload-artifact@v7

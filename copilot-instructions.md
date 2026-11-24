@@ -3,7 +3,7 @@ title: 解语 Copilot 项目级开发约束（canonical full text）
 doc_type: agent-instructions
 status: active
 owner: repo
-last_reviewed: 2026-10-15
+last_reviewed: 2026-11-24
 applies_to: ["cursor", "github-copilot", "kimi-cli"]
 ---
 
@@ -104,6 +104,7 @@ applies_to: ["cursor", "github-copilot", "kimi-cli"]
 3. 页面或 Orchestrator 中若出现一组同类业务回调（例如 create/mutate/router/speaker/batch/waveform），必须优先考虑提取 dedicated controller。
 4. 若新增逻辑会让页面层继续膨胀，应优先视为“架构未完成”，而不是“功能已完成”。
 5. 若文件进入 architecture hotspot 区（默认达到硬上限的 85%），应在同一 PR 内优先拆分、降复杂度，或明确登记为暂时例外并给出回收计划。
+6. 为满足行数上限，优先提取并 export/reuse 现有纯函数或按职责拆分；保持 `exactOptionalPropertyTypes` 的缺省值语义。不得以放宽类型、删除必要的可选属性条件展开、合并多条语句压行或削弱业务断言换取门禁通过。
 
 ## 三、目录与落位规则
 
@@ -313,6 +314,17 @@ Explore（仅读本仓库）回答"我们现在有什么"；Research（向外调
 5. 这次改动是在减少未来复杂度，还是只是转移复杂度？
 
 如果答案不理想，应继续重构，而不是直接停止。
+
+### 8.1 按改动触发本地检查
+
+- **入口**：编辑期间运行 `npm run check:changed`；`--base <ref>` 指定比较起点，`--dry-run` 显示计划。默认比较 upstream 的 merge-base（无 upstream 时依次找 origin/main、main、HEAD），包含暂存、未暂存和未跟踪文件。命中的检查读取整个工作区，不声称只校验暂存内容。
+- **push 前**：`.husky/pre-push` 按 Git 传入的真实本地/远端 SHA 触发同一入口；新分支比较现有主线，远端对象缺失则保守检查全部路径，删除引用不跑源码检查。待推送 commit 须是当前 HEAD，且工作区干净，避免未提交修复掩盖待推送版本。不要自动 stash 或移动用户改动。
+- **CSS**：CSS、生产 TSX、样式工具、token 与 CSS 检查配置触发 `check:css-architecture` / `check:css-a11y` / `test:visual-css`。最后一项只是源码哈希，不是渲染验收；桌面 UI 仍跑相关 `test:e2e:desktop-project -- --grep "<用例>"` 并核对界面。门禁逐项报告耗时，首版保持 pre-commit 轻量，不把 CSS 三件套或全量 vitest/desktop-flow 塞入其中。
+- **基线**：先修新违规，再评估基线变化。CSS 哈希仅在核对实际界面后手动更新；a11y 等违规白名单须逐项说明接受原因与偿还方式。入口不自动运行 `write-baseline`，不得用重写白名单接受新违规、放宽断言或取消严格类型来消除失败。
+- **语言**：desktop-flow 各 Electron 启动默认显式 `locale: 'en-US'`，小范围 locale smoke 同时验证 en-US / zh-CN。英文用例允许精确英文标签，共用双语用例使用双语选择器。`check:desktop-selectors` 检查 UI 标签调用中的纯中文字符串、正则及可解析常量；中文文稿名/正文等测试数据使用紧邻的 `// desktop-selector-data: <原因>`，明确中文断言使用 `// desktop-selector-locale: <zh-CN 原因>`。动态标签、旧英文和两种语言的正确性仍靠定向运行验证；改字典时 grep 相关 key 的旧中英文文案并复核测试，不能只靠该静态门。
+- **schema / UI**：schema 变化必须运行独立的 `src/db/desktop/schema.test.ts` 合同，保留人工审阅的预期清单，不能从同一 schema 自动生成预期使断言自证。删除/改名入口时，同 PR 复核并运行相关测试；业务行为仍存在就改入口继续验证，不机械删测，也不强制测试文件必须改动。路径门运行现存同名领域测试和已修改测试，不替代代理补查跨模块行为与端到端路径。
+- **失败分类**：安装/网络日志已确认的基建 flake 可重跑一次并保留首轮日志；产品断言、类型或确定性检查失败先修复，不将未知失败归为 flake。CI 保留现有兜底，不另造流程。
+- **Research / adapt（2026-11-24）**：复用仓库门禁与 TypeScript AST，不加依赖。Git 原生 [pre-push 输入合同](https://git-scm.com/docs/githooks#_pre_push) 提供实际待推送引用；Playwright 原生 [Electron locale](https://playwright.dev/docs/api/class-electron#electron-launch-option-locale) 固定浏览器语言，无需在产品里加测试专用语言开关。
 
 ## 九、面板 CSS 视觉层级规则
 

@@ -117,7 +117,11 @@ test('mock model HTTP response becomes candidates, persists accepted text, and r
       JIEYU_DESKTOP_USER_DATA: join(root, 'userData'),
     };
     delete env.ELECTRON_RUN_AS_NODE;
-    const current = await electron.launch({ args: [resolve('electron/dist/main.js')], env });
+    const current = await electron.launch({
+      args: [resolve('electron/dist/main.js')],
+      env,
+      locale: 'en-US',
+    });
     await current.evaluate((main, path) => {
       (
         main as unknown as {

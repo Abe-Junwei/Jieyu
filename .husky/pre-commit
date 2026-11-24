@@ -4,3 +4,4 @@ set -eu
 npx lint-staged
 npm run check:i18n-hardcoded:changed
 npm run check:translation-host-link-ssot:changed
+npm run check:desktop-selectors

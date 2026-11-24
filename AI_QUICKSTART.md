@@ -3,7 +3,7 @@ title: AI_QUICKSTART — 解语跨工具 AI 上手指引
 doc_type: agent-quickstart
 status: active
 owner: repo
-last_reviewed: 2026-11-16
+last_reviewed: 2026-11-24
 applies_to: ["cursor", "github-copilot", "kimi-cli"]
 ---
 
@@ -73,6 +73,14 @@ ReadyWorkspace 装配和主路线图不在每次必读里。碰到才读 §2 对
 3. `npm run dev` / `npm run build` 是桌面入口。`dev:legacy` / `build:legacy` / `preview:legacy` 只给尚未迁走的 Chromium 用例。桌面页面、壳层和 `src/db/desktop` 跑 `npm run test:e2e:desktop-project`（以 CI `desktop-flow` 为准；本机只用 `-- --grep` 跑相关用例，窗口默认隐藏）。`npm run test:e2e:chromium` 只覆盖仍走旧网页构建的组。
 4. 触及编排 / 复杂度时还要：`npm run check:architecture-guard`
 
+**路径→本地检查**（规则与例外见 [copilot-instructions.md §8.1](copilot-instructions.md#81-按改动触发本地检查)；先用 `npm run check:changed -- --dry-run` 看选择结果）：
+
+| 改动 | 完成前必跑 |
+| --- | --- |
+| CSS / TSX / 样式工具、token 或 CSS 门禁配置 | `npm run check:changed` 触发 CSS architecture / a11y / CSS 哈希基线；界面另跑相关 desktop-flow `--grep` |
+| 桌面测试 / 字典文案 | `npm run check:desktop-selectors` + 相关 en-US desktop-flow；语言关键路径另有 zh-CN smoke |
+| schema / 桌面领域或 UI / 测试 | `npm run check:changed` 触发独立 schema 合同及现存同名/改动测试；复核移除入口涉及的其他测试 |
+
 **机器守卫（工具无关，未跑 = 不算完成）**：
 
 - `npm run check:architecture-guard` — 编排层 / controller 边界 / 复杂度上限
@@ -102,7 +110,7 @@ Commit   commit msg 附验证证据（命令 + 摘要）
 
 **Plan 确认前 checklist**（SDD 触发见 [copilot-instructions.md](copilot-instructions.md) §5.2.1）：spec 三件套齐 → `design.md` §1 Research 填实（非占位符）→ 落位路径 + `npm run`/`vitest` 命令 → **用户确认 Plan** 后再 Implement。
 
-**Cursor stop hook 自动 verify**（改过 `src/**/*.ts(x)`、`docs/execution/specs/`、`scripts/check-*.{mjs,cjs}` 或 `AGENTS.md` / `AI_QUICKSTART.md` / `copilot-instructions.md`）：`typecheck` → `check:agent-evals:smoke` → `check:dev-agent-workflow-verify`。
+**Cursor stop hook 自动 verify**（改过上述路径门命中的文件、`src/**/*.ts(x)`、spec 或代理规则）：`typecheck` → `check:changed -- --base HEAD` → smoke evals → dev-agent workflow verify。
 
 单文件 ≤ 10 行小修复可跳过 Explore + Research；新功能未做 Research 不得进入 Plan；Commit 验证证据不可省。完整 Research 维度见 [copilot-instructions.md](copilot-instructions.md) §5.1.5。
 
