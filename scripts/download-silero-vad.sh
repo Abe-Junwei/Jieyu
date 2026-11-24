@@ -11,16 +11,16 @@
 #   - sha256sum 或 shasum | sha256sum or shasum
 #
 # 模型来源 | Model source:
-#   https://github.com/snakers4/silero-vad (MIT), tag v6.2.3 (commit 5cd79456)
-#   sha256 与 PyPI silero-vad 6.2.3 wheel 内 silero_vad/data/silero_vad.onnx 一致
-#   sha256 matches silero_vad/data/silero_vad.onnx inside the PyPI silero-vad 6.2.3 wheel
+#   https://github.com/snakers4/silero-vad (MIT), tag v6.3 (commit 63d4a2a7)
+#   sha256 与 PyPI silero-vad 6.3 wheel 内 silero_vad/data/silero_vad.onnx 一致
+#   sha256 matches silero_vad/data/silero_vad.onnx inside the PyPI silero-vad 6.3 wheel
 #   升级时同时改 VERSION 和 SHA256 | Bump VERSION and SHA256 together
 
 set -euo pipefail
 
-SILERO_VERSION="v6.2.3"
-EXPECTED_SHA256="1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3"
-EXPECTED_BYTES=2327524
+SILERO_VERSION="v6.3"
+EXPECTED_SHA256="f6f4407b41e05e277e7f5cfd9b9ae957b1dfe763c6076a934734c0b448e09b31"
+EXPECTED_BYTES=2204103
 
 MODEL_DIR="${DESTDIR:-public/models}"
 MODEL_FILENAME="silero_vad.onnx"
@@ -55,7 +55,7 @@ fi
 TMP="$(mktemp "${MODEL_DIR}/.silero_vad.XXXXXX")"
 trap 'rm -f "${TMP}"' EXIT
 
-echo "[Silero-VAD] 正在下载 ${SILERO_VERSION}（约 2.3 MB）... | Downloading ${SILERO_VERSION} (~2.3 MB)..."
+echo "[Silero-VAD] 正在下载 ${SILERO_VERSION}（约 2.2 MB）... | Downloading ${SILERO_VERSION} (~2.2 MB)..."
 echo "  来源 | Source : ${SOURCE_URL}"
 echo "  目标 | Target : ${DEST}"
 echo ""

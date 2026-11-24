@@ -21,9 +21,9 @@ const SILERO_VAD_MODEL_ID = 'silero_vad.onnx';
  * 与 `scripts/download-silero-vad.sh` 钉死的版本一致（P11）。
  * Matches the pin in `scripts/download-silero-vad.sh` (P11).
  */
-const SILERO_VAD_MODEL_VERSION = 'v6.2.3';
+const SILERO_VAD_MODEL_VERSION = 'v6.3';
 /** 与下载脚本 EXPECTED_SHA256 一致 | Matches the download script EXPECTED_SHA256 */
-const SILERO_VAD_MODEL_SHA256 = '1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3';
+const SILERO_VAD_MODEL_SHA256 = 'f6f4407b41e05e277e7f5cfd9b9ae957b1dfe763c6076a934734c0b448e09b31';
 /** 能量 VAD 是内置算法，版本随代码 | Built-in energy VAD, versioned with the code */
 const ENERGY_VAD_MODEL_ID = 'jieyu-rms-energy-vad';
 const ENERGY_VAD_MODEL_VERSION = '1';
