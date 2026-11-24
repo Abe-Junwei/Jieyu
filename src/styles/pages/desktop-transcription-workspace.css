@@ -2128,7 +2128,7 @@
   text-overflow: clip;
   white-space: nowrap;
   --tx-text-fade: 0;
-  mask-image: linear-gradient(to right, #000 calc(100% - 2em * var(--tx-text-fade)), transparent);
+  mask-image: linear-gradient(to right, black calc(100% - 2em * var(--tx-text-fade)), transparent);
   animation: tx-text-fade linear both;
   animation-timeline: scroll(self inline);
 }
@@ -2139,7 +2139,7 @@
 }
 
 .desktop-tx-lane .timeline-annotation[dir='rtl'] > span.timeline-annotation-text {
-  mask-image: linear-gradient(to left, #000 calc(100% - 2em * var(--tx-text-fade)), transparent);
+  mask-image: linear-gradient(to left, black calc(100% - 2em * var(--tx-text-fade)), transparent);
 }
 
 .desktop-tx-lane .timeline-annotation:hover:not(:has(.timeline-translation-audio-controls)),
@@ -2157,8 +2157,8 @@
     animation-name: tx-text-fade, tx-text-fade;
     animation-timeline: scroll(self inline), scroll(self block);
     mask-image:
-      linear-gradient(#000, #000),
-      linear-gradient(to right, #000 calc(100% - 2em * var(--tx-text-fade)), transparent);
+      linear-gradient(black, black),
+      linear-gradient(to right, black calc(100% - 2em * var(--tx-text-fade)), transparent);
     mask-size:
       100% calc(1.4em + 1px),
       100% 100%;
@@ -2168,8 +2168,8 @@
 
   .desktop-tx-lane .timeline-annotation[dir='rtl'] > span.timeline-annotation-text {
     mask-image:
-      linear-gradient(#000, #000),
-      linear-gradient(to left, #000 calc(100% - 2em * var(--tx-text-fade)), transparent);
+      linear-gradient(black, black),
+      linear-gradient(to left, black calc(100% - 2em * var(--tx-text-fade)), transparent);
   }
 }
 
