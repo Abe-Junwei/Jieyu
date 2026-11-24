@@ -68,6 +68,11 @@ export function TranscriptionTargetDialog(props: {
   useEffect(() => {
     request.current += 1;
   }, [props.layerId, props.unitId]);
+  useEffect(() => {
+    return () => {
+      request.current += 1;
+    };
+  }, []);
   const listTargets = useRef(props.listTargets);
   listTargets.current = props.listTargets;
 

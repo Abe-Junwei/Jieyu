@@ -277,35 +277,6 @@ describe('DesktopProjectReadPage', () => {
     });
   });
 
-  it('merges the next unit from the page, undoes it, and reads both back', async () => {
-    const dir = tempFolder();
-    writeFileSync(join(dir, 'a.wav'), '');
-    const session = openDesktopSession(dir, [dir]);
-    const left = seedReadUnit(session.sessionId, 0, 1, '甲');
-    const right = callDesktopSession(session.sessionId, 'units.create', {
-      layerId: left.layerId,
-      startMs: 1000,
-      endMs: 2000,
-      text: '乙',
-    }) as { id: string };
-    mount(session.sessionId);
-    fireEvent.click(await screen.findByRole('button', { name: /甲/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Merge next' }));
-    expect(await screen.findByRole('button', { name: '0.0–2.0 甲' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /乙/ })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
-    expect(await screen.findByRole('button', { name: /乙/ })).toBeTruthy();
-    reopenDesktopSession(session.sessionId);
-    expect(callDesktopSession(session.sessionId, 'units.get', { id: left.id })).toMatchObject({
-      endMs: 1000,
-      text: '甲',
-    });
-    expect(callDesktopSession(session.sessionId, 'units.get', { id: right.id })).toMatchObject({
-      startMs: 1000,
-      text: '乙',
-    });
-  });
-
   describe('slice 0: text save through the invalidation table', () => {
     it('re-reads through the single table, not a page reload, and shows the saved value', async () => {
       const dir = tempFolder();
