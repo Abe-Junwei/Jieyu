@@ -3,7 +3,7 @@ title: desktop-4ws-slice1b-transcription-editing tasks
 doc_type: execution-spec-tasks
 status: active
 owner: repo
-last_reviewed: 2026-11-24
+last_reviewed: 2026-11-25
 source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 depends_on:
   - ./requirements.md
@@ -102,7 +102,7 @@ depends_on:
   - 撤销与重做：撤销载荷记下左右 id 和拆前行。重做沿用这对 id，映射仍用原来那次的 `operation_id`，不再 `randomUUID`。过期判断沿用 `splitStillAfter` 的集合比对，范围是两条新段加上它们的依赖（正文、说话人、时间、草稿、备注、分析、录音条目，以及以它们为父的子段）。多了或少了都拒绝。
   - 落位：`src/db/desktop/unitSplit.ts`（从 `unitSpan.ts` 拆出；合并留到 1b-4）。页面用 `useDesktopTranscriptionSplitController.ts`，只装配。入口是句段菜单和已有的 `splitSegment`。时间用段内播放头，距边不足 10 毫秒只提示。能拆则直接写，不弹预览。正文为空时同样提示距边不足 10 毫秒。未保存的正文先写入该层草稿再拆。
   - 验证：`npx vitest run src/db/desktop/unitSplit.test.ts`（现有「右边正文等于整段」的断言改成按切点切开；关库重开）。覆盖触发器顺序、切点在 0 时正文行 id 跟去右段、翻译层发起时图仍在、回执丢失重试不产生第二对 id、草稿冲突不写、跨切点子段递归、重做沿用原 id、新段上加了备注或改了说话人则撤销拒绝。再跑 `npm run typecheck`、`npm run check:architecture-guard`，以及 `npm run test:e2e:desktop-project -- --grep "split unit"`。
-- [ ] 1b-4（[#564](https://github.com/Abe-Junwei/Jieyu/issues/564)）合并（2026-11-23 约定）：同稿同层同说话人、时间上紧邻的两段（中间可有空隙，也可夹着别的说话人，不能夹着同层同说话人的第三段）。均未指定说话人视作同说话人。新段新 id，两段旧 id 删除，旧→新记在这次编辑回执里，一步撤销。多段合并留 #566，一有一无或两段都没有时间留 #584。不升表以外的行为不改 `user_version`。录音多条升到 35 并另写 ADR，不迁移。34 版项目打不开，也不能先导出再导入。只读页 `DesktopProjectReadPage` 的合并这片删掉。
+- [x] 1b-4（[#564](https://github.com/Abe-Junwei/Jieyu/issues/564)）合并（2026-11-23 约定）：同稿同层同说话人、时间上紧邻的两段（中间可有空隙，也可夹着别的说话人，不能夹着同层同说话人的第三段）。均未指定说话人视作同说话人。新段新 id，两段旧 id 删除，旧→新记在这次编辑回执里，一步撤销。多段合并留 #566，一有一无或两段都没有时间留 #584。不升表以外的行为不改 `user_version`。录音多条升到 35 并另写 ADR，不迁移。34 版项目打不开，也不能先导出再导入。只读页 `DesktopProjectReadPage` 的合并这片删掉。
   - 入口：选中一段时，句段菜单和 ⌘M 都跟后一个相邻段合并。没有后一个就不可用。确认框始终出现。有空隙才显示长度，有备注才显示条数，录音超过 5 条才显示丢弃勾选；都没有时只留标题和操作。正文固定以一个空格连接，不提供分隔符输入。确认时固定提交这个空格，不读取已存的 `mergeSeparator`。取消不写库。
   - 下级：只改 `parent_unit_id`，时间和正文不动，不编造时间。没时间的下级保留，不因此拒绝。改挂后同层同说话人重叠，或有时间的下级落到新区间之外，整次拒绝。两侧 `parent_unit_id` 不同也拒绝。下级自己的时间草稿不动。新段占较早那段的 `sort_order`，同层后面的序号减一，不留空号。
   - 正文：每一层按时间先左后右。两侧都有正文才插入一个空格（不提供分隔符输入）。只有一侧有就原样带走。拼接用打开确认框时冻结的可见正文：未提交输入优先，否则草稿，否则正式正文。两侧正文都空时不写正文内容；这一层还留着录音，或有备注锚在任一侧的 `unit_texts.id` 上，就保留载体行，正文为空。没有任何载体需求才不建行。`units.ts` 把正文存成空串、`analysisRestore.ts` 撤销分析要删正文行时，同样遵守：行上还有录音就留行，只把正文写成空。新行沿用仍要留下的那一行的 id；两侧都要留下时沿用较早那段的行 id，较晚那段的行 id 只记在映射里。拼出来的正文清掉来源；原样带走的保留来源。写完后这些层的正文草稿被消费，新段不留正文草稿。
@@ -118,6 +118,9 @@ depends_on:
   - 实施顺序：四步，前一步的验证通过才做下一步。① 格式 35：ADR、`schema.ts`、`formatFreeze.record.json` 与录音格式列出的消费者同一次改完，包括空正文留行、拆分与 `RemovedUnit` 的录音条目、永久删除前先记下 `file_id`。不含撤销账本的持有。录音按钮仍只写一条，位置是 1。此步不改合并语义。验证：`npx vitest run src/db/desktop/formatFreeze.test.ts src/db/desktop/recordingClips.test.ts src/db/desktop/unitSplit.test.ts src/db/desktop/attachments.test.ts src/db/desktop/projectExchange.test.ts`。② 清理让路：`sessionEdit` 导出撤销和重做账本里的 `file_id`。统一扫描在会话结束、打开项目、清空重做栈之后各跑一次，三处各有测试。删句段后再在另一行卸下同一个文件，文件不得进回收站。③ 合并写入：新文件 `unitMerge.ts` 替换 `unitSpan.mergeUnits` 的调用，不把新逻辑放回 `unitSpan.ts`。`sessionEdit` 的旧 merge 换成新快照。只读页去掉 `onMerge`。回执、撤销、重做、基准拒绝都在这一步。验证：tasks 里 `unitMerge.test.ts` 那一组。④ 界面：`useDesktopTranscriptionMergeController.ts` 只装配。确认框、句段菜单、⌘M。播放列表动样式前先读 Pixso，没有画板就停下。页面 vitest、`npm run test:e2e:desktop-project -- --grep "merge unit"`，以及桌面流程里按一次 ⌘M、窗口不最小化，都在这一步跑。
   - 落位：`src/db/desktop/unitMerge.ts`（不放回 `unitSpan.ts`）。`units.merge` 走 `operationContract`／`desktopCall`／`client` 和 `withEditReceipt`，`EditReceiptKind` 增加 `merge`。格式 35 的 ADR 与 schema 同一次改动写完，上面的录音生命周期、基准和撤销规则写进该 ADR，不另做一份只描述界面的说明。页面用 `useDesktopTranscriptionMergeController.ts`，只装配。确认框用 `ModalPanel`。播放列表接现有口译控件；动桌面样式前先读 Pixso，没有对应画板就先补精稿再写界面。
   - 验证：`npx vitest run src/db/desktop/unitMerge.test.ts src/db/desktop/recordingClips.test.ts src/db/desktop/unitSplit.test.ts src/db/desktop/attachments.test.ts`（关库重开）。覆盖空隙被盖住、分隔符只在两侧都有字时插入、空正文但仍有录音或行级备注时载体行还在且旧行 id 映射可撤销、下级改挂且时间不变、重叠下级整次拒绝、没时间的下级仍在、字段不一致不写、时间草稿拒绝、确认期间录音或下级变化则整次拒绝、唯一分析保留、两侧都有活动图且没有历史快照时先留下两份复核快照再清投影、录音 6 条未勾选不写、留下 5 条后执行清理再撤销则原 6 条都能读回、合并后改录音或下级则撤销拒绝、完整撤销与重做以及回执重发不产生第二个新 id 也不重复压栈、拆分和删除恢复仍能读到录音、删句段后在另一行卸下同一个文件不得进回收站、会话结束／打开项目／清空重做栈三处扫描各有一条。再跑页面 vitest（确认框取消不写、打开后继续打字则框失效、⌘M 没有后一个则不可用）、`npm run typecheck`、`npm run check:architecture-guard`，以及 `npm run test:e2e:desktop-project -- --grep "merge unit"`。桌面流程里按一次 ⌘M，窗口不最小化。
+  - 收口复审（2026-11-25）：沿句段菜单／⌘M → controller → IPC → 合并事务 → 回执／会话撤销 → 关闭重开读回核对。发现并补上两处：界面绕过 `createDesktopClient`，丢回复后不核实回执；预览沿用旧 `mergeSeparator`，与固定空格提交不一致。三条失败回归先复现，再改为复用客户端的同编号核实／重试、预览固定空格；不改格式、不改确认框外观。
+  - 本地合成验收：`merge unit|1b4 runtime|正字法转写` 定向 Electron 8 项通过，覆盖菜单取消、⌘M 不最小化、正式正文与草稿、六条录音显式丢弃／播放列表／删除／拆分保留、撤销重做、关闭重开，以及请求丢失／提交后回复丢失。故障例实际注入主进程 IPC；只生成一个新身份，未提交时复用同一 operationId 重试，已提交时只查回执，一步撤销可恢复原两段。
+  - 最新多层合同以正字法规格与 ADR-0141 为准：确认框单列各层正式正文和未保存草稿，取消保留草稿，确认后才合入；录音不再拥有文本子层。沿用原测试中的保存来源、映射、字段冲突、分析快照、录音引用持有与重开证据。本项只关闭 1b-4，不关闭 #567 或首发 V06 总门；多段合并、无时间合并、Windows 安装包与真实材料抽验不在本次范围。
 - [ ] 1b-5（[#565](https://github.com/Abe-Junwei/Jieyu/issues/565)）点层：增删改移、同层同毫秒唯一 → 验证：同上
 - [ ] 1b-6（[#566](https://github.com/Abe-Junwei/Jieyu/issues/566)）其余入口：多选（批量改说话人、批量删除、多段一次合并）、说话人与备注、修改确信程度、说话人目录筛选（FR-032）、部分转写（FR-066/068）、馆藏音频手动定位（FR-082）。单段指派与清除已改到 #600。本片仍做批量改说话人、新建说话人、说话人与备注、目录筛选；上下文栏的指派留在本片 → 验证：同上
 - [ ] 1b-7（[#584](https://github.com/Abe-Junwei/Jieyu/issues/584)）无录音文稿与逐段补时间：按顺序和字数排版、只按文字位置拆分、部分对齐夹在前后已对齐段之间；合并一有一无则结果无时间并在确认框说明；两段都没有时间的相邻合并也留在本片；解除录音关联保留已有时间和点。表结构不在本片 → 验证：同上
