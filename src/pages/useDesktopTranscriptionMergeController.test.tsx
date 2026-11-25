@@ -50,10 +50,12 @@ function Host(props: {
   );
 }
 
-const calls = vi.fn(async (sessionId: string, method: string) => {
-  if (method === 'units.mergePreview') return preview;
-  return { sessionId, method };
-});
+const calls = vi.fn(
+  async (sessionId: string, method: string, _args?: unknown): Promise<unknown> => {
+    if (method === 'units.mergePreview') return preview;
+    return { sessionId, method };
+  },
+);
 
 function clip(id: string, layerId: string, fileId: string): MergeClipView {
   return { id, unitId: 'u', layerId, fileId };
@@ -176,6 +178,54 @@ describe('merge dialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'open' }));
     expect(await screen.findByText('合并后将包含 1.000 秒空隙。')).toBeTruthy();
     expect(screen.getByText('2 条备注将保留。')).toBeTruthy();
+  });
+
+  it('finishes a committed merge after its IPC reply is lost, without submitting twice', async () => {
+    calls.mockImplementation(async (_session, method) => {
+      if (method === 'units.mergePreview') return preview;
+      if (method === 'units.merge') throw new Error('reply lost after commit');
+      if (method === 'units.inspectEdit') return { status: 'committed', result: { id: 'merged' } };
+      throw new Error(`unexpected ${method}`);
+    });
+    render(
+      <ToastProvider>
+        <Host text="甲" />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'open' }));
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '合并' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(calls.mock.calls.filter((call) => call[1] === 'units.merge')).toHaveLength(1);
+    expect(calls.mock.calls.some((call) => call[1] === 'units.inspectEdit')).toBe(true);
+  });
+
+  it('retries an unsubmitted merge with the same operation id and frozen payload', async () => {
+    let attempts = 0;
+    calls.mockImplementation(async (_session, method) => {
+      if (method === 'units.mergePreview') return preview;
+      if (method === 'units.merge' && attempts++ === 0) throw new Error('request lost');
+      if (method === 'units.inspectEdit') return { status: 'not-submitted' };
+      return { id: 'merged' };
+    });
+    render(
+      <ToastProvider>
+        <Host text="甲" />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'open' }));
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '合并' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const writes = calls.mock.calls.filter((call) => call[1] === 'units.merge');
+    expect(writes).toHaveLength(2);
+    expect(writes[0]?.[2]).toEqual(writes[1]?.[2]);
+    expect(writes[0]?.[2]).toMatchObject({
+      operationId: expect.any(String),
+      separator: ' ',
+      keepText: '甲',
+      removeText: '甲',
+    });
   });
 
   it('does not write when cancel is chosen', async () => {

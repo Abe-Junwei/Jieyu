@@ -6,6 +6,7 @@ import {
   type MergePreviewView,
 } from './DesktopTranscriptionMergeDialog';
 import { nextMergeId, timedUnits, type MergeSourceUnit } from './desktopTranscriptionMerge';
+import { createDesktopClient } from '../app/desktopProjectReadPageAccess';
 
 interface FrozenText {
   keep: string;
@@ -106,7 +107,6 @@ export function useDesktopTranscriptionMergeController(input: {
     if (!sameText(seen, open.frozen)) return;
     const sessionId = current.sessionId;
     const layerId = current.textLayerId;
-    const operationId = globalThis.crypto.randomUUID();
     const discard = [...discardAudioIds].sort();
     const mine = flight.current;
     const pair = { keepId: open.preview.keepId, removeId: open.preview.removeId };
@@ -162,11 +162,10 @@ export function useDesktopTranscriptionMergeController(input: {
         return;
       }
       const text = frozenText(now.textOf, open.preview.keepId, open.preview.removeId);
-      await now.desktopCall(now.sessionId, 'units.merge', {
+      await createDesktopClient({ desktopCall: now.desktopCall }).mergeUnits(now.sessionId, {
         ...pair,
         separator: ' ',
         baseline,
-        operationId,
         ...(textOverrides.length === 0 ? {} : { textOverrides }),
         ...(discard.length === 0 ? {} : { discardAudioIds: discard }),
         ...(now.textLayerId === null

@@ -248,6 +248,10 @@ export function createDesktopClient(bridge: DesktopBridge) {
         separator?: string;
         discardAudioIds?: string[];
         baseline?: string;
+        textOverrides?: { layerId: string; text: string }[];
+        textLayerId?: string;
+        keepText?: string;
+        removeText?: string;
       },
     ) => receipted(sessionId, 'units.merge', { ...input }),
     updateBoundary: (sessionId: string, input: { leftId: string; rightId: string; time: number }) =>

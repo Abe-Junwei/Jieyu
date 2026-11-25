@@ -198,6 +198,22 @@ describe('unit merge', () => {
     expect(db.prepare('SELECT COUNT(*) AS n FROM units').get()).toEqual({ n: 2 });
   });
 
+  it('previews the fixed UI separator even when an old project preference differs', () => {
+    const { sessionId, layerId } = open();
+    const left = unit(sessionId, layerId, 0, 1000, '甲');
+    const right = unit(sessionId, layerId, 2000, 3000, '乙');
+    const db = requireDesktopSession(sessionId).db;
+    db.prepare('UPDATE project SET settings_json = ?').run('{"mergeSeparator":"、"}');
+    const preview = mergePreview(db, { keepId: left, removeId: right });
+    expect(preview.separator).toBe(' ');
+    expect(preview.texts).toEqual([
+      expect.objectContaining({ official: '甲 乙', result: '甲 乙' }),
+    ]);
+    expect(db.prepare('SELECT settings_json FROM project').get()).toEqual({
+      settings_json: '{"mergeSeparator":"、"}',
+    });
+  });
+
   it('keeps an empty carrier when a text note remains, and undo restores that row id', () => {
     const { sessionId, layerId } = open();
     const left = unit(sessionId, layerId, 0, 1000, '甲');
