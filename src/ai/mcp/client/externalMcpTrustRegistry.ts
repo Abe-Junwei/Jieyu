@@ -36,8 +36,32 @@ const AUDIT_COLLECTION = 'external_mcp_trust';
 const AUDIT_FIELD = 'external_mcp_trust';
 const LAST_TOOLS_JSON_MAX = 32_000;
 
-function serializeLastToolsJson(tools: readonly ExternalMcpToolSchema[]): string {
-  return JSON.stringify(tools).slice(0, LAST_TOOLS_JSON_MAX);
+function isParseableToolsJson(raw: string): boolean {
+  try {
+    return Array.isArray(JSON.parse(raw));
+  } catch {
+    return false;
+  }
+}
+
+/** Pack whole tool objects under the budget; never mid-string slice (invalid JSON). */
+function serializeLastToolsJson(
+  tools: readonly ExternalMcpToolSchema[],
+  previousJson?: string,
+): string {
+  const full = JSON.stringify(tools);
+  if (full.length <= LAST_TOOLS_JSON_MAX) return full;
+
+  const kept: ExternalMcpToolSchema[] = [];
+  for (const tool of tools) {
+    const next = JSON.stringify([...kept, tool]);
+    if (next.length > LAST_TOOLS_JSON_MAX) break;
+    kept.push(tool);
+  }
+  if (kept.length > 0) return JSON.stringify(kept);
+  // ponytail: single tool over budget → keep prior cache; drop per-tool schema trim if needed
+  if (previousJson && isParseableToolsJson(previousJson)) return previousJson;
+  return '[]';
 }
 
 export function normalizeExternalMcpOrigin(raw: string): string | null {
@@ -146,7 +170,7 @@ export async function persistExternalMcpLastToolsJson(input: {
     enabled: previous.enabled,
     createdAt: previous.createdAt,
     updatedAt: timestamp,
-    lastToolsJson: serializeLastToolsJson(input.tools),
+    lastToolsJson: serializeLastToolsJson(input.tools, previous.lastToolsJson),
     lastToolsFetchedAt: timestamp,
     ...(previous.label ? { label: previous.label } : {}),
     ...(previous.lastSchemaScanResult
@@ -195,7 +219,7 @@ export async function setExternalMcpTrustEnabled(input: {
   const label = input.label?.trim() || previous?.label;
   const toolsJson =
     input.tools && input.tools.length > 0
-      ? serializeLastToolsJson(input.tools)
+      ? serializeLastToolsJson(input.tools, previous?.lastToolsJson)
       : previous?.lastToolsJson;
   const fetchedAt =
     input.tools && input.tools.length > 0 ? timestamp : previous?.lastToolsFetchedAt;
