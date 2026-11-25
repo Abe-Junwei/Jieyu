@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // stop hook（本地安全网，仅 Cursor）：把"未经验证不得宣称已完成"（AGENTS.md §4）
 // 从人类自律变为自动闭环。仅当 afterFileEdit 落下 sentinel 时，在 agent 收尾跑：
-//   typecheck → check:agent-evals:smoke → check:dev-agent-workflow-verify
+//   typecheck → check:changed → check:agent-evals:smoke → check:dev-agent-workflow-verify
 // 纯问答 / 未触发 sentinel 的回合直接 no-op，零打扰。
 // 失败时回注 followup_message 让 agent 先修再收尾（loop_limit=2 兜底防循环）。
 // 始终 fail-open（exit 0）：钩子异常不得阻塞会话结束。
@@ -97,6 +97,11 @@ async function main() {
     if (!typecheck.ok) failures.push(typecheck);
 
     if (typecheck.ok) {
+      const changed = runCheck('check:changed', ['check:changed', '--', '--base', 'HEAD']);
+      if (!changed.ok) failures.push(changed);
+    }
+
+    if (typecheck.ok && failures.length === 0) {
       const evals = runCheck('check:agent-evals:smoke', ['check:agent-evals:smoke']);
       if (!evals.ok) failures.push(evals);
     }
@@ -111,7 +116,7 @@ async function main() {
     const drift = await docDriftReminder();
 
     if (failures.length === 0) {
-      process.stderr.write('[stop-verify] typecheck + smoke evals + dev-agent workflow 通过\n');
+      process.stderr.write('[stop-verify] typecheck + changed-path checks + smoke evals + dev-agent workflow 通过\n');
       process.stdout.write(drift ? JSON.stringify({ followup_message: drift }) : '{}');
       return;
     }

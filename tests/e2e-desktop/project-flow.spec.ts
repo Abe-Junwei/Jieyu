@@ -51,6 +51,20 @@ const purgeConfirm = /^(Confirm purge|确认清除)$/;
 const deletedClip = /Manuscript Clip|文稿 Clip/;
 const userDataOf = new WeakMap<ElectronApplication, string>();
 
+for (const locale of ['en-US', 'zh-CN'] as const) {
+  test(`desktop locale smoke: ${locale}`, async () => {
+    const app = await launch(`locale-${locale}`, undefined, undefined, undefined, locale);
+    try {
+      const page = await app.firstWindow();
+      expect(await page.evaluate(() => navigator.language)).toBe(locale);
+      const label = locale === 'en-US' ? 'Open folder' : '打开文件夹';
+      await expect(page.getByRole('button', { name: label, exact: true })).toBeVisible();
+    } finally {
+      await app.close();
+    }
+  });
+}
+
 test('renderer has no IndexedDB databases and stays on the desktop surface', async () => {
   const app = await launch('surface');
   try {
@@ -2109,6 +2123,7 @@ async function launch(
   keepUserData?: string,
   extraEnv?: Record<string, string>,
   chromiumArgs?: readonly string[],
+  locale: 'en-US' | 'zh-CN' = 'en-US',
 ): Promise<ElectronApplication> {
   const userData = keepUserData ?? mkdtempSync(join(tmpdir(), `jieyu-m4c-${name}-`));
   const env: Record<string, string> = {};
@@ -2124,8 +2139,8 @@ async function launch(
   if (packagedApp === undefined) args.push(join(process.cwd(), 'electron/dist/main.js'));
   const app = await electron.launch(
     packagedApp === undefined
-      ? { args, env, timeout: 60_000 }
-      : { executablePath: packagedApp, args, env, timeout: 60_000 },
+      ? { args, env, locale, timeout: 60_000 }
+      : { executablePath: packagedApp, args, env, locale, timeout: 60_000 },
   );
   userDataOf.set(app, userData);
   if (keepUserData === undefined) {
@@ -3183,12 +3198,16 @@ test('wave segment controls receive pointer actions above drag handles', async (
   });
 });
 
-test('正字法转写：添加、合并取消和按层清空保留宿主', async () => {
+for (const locale of ['en-US', 'zh-CN'] as const) {
+  test(`正字法转写：添加、合并取消和按层清空保留宿主 (${locale})`, () => orthographyFlow(locale));
+}
+
+async function orthographyFlow(locale: 'en-US' | 'zh-CN') {
   if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
   const copy = mkdtempSync(join(tmpdir(), 'jieyu-orthography-'));
   cpSync(folder, copy, { recursive: true });
   rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
-  const app = await launch('orthography');
+  const app = await launch('orthography', undefined, undefined, undefined, locale);
   try {
     await stubFolderDialog(app, copy);
     const page = await app.firstWindow();
@@ -3319,4 +3338,4 @@ test('正字法转写：添加、合并取消和按层清空保留宿主', async
     await app.close();
     rmSync(copy, { recursive: true, force: true });
   }
-});
+}

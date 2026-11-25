@@ -3,13 +3,13 @@
 //  1) 对 AI 刚写入的 src 下 .ts/.tsx/.css 跑 prettier --write，
 //     使 AI 产出与 lint-staged.config.mjs 同款格式，减少 diff 噪声。
 //  2) 若改的是需 verify 的路径，落 sentinel，供 stop 钩子收尾校验。
-//     覆盖：src/**/*.ts(x) | docs/execution/specs/ | scripts/check-*.{mjs,cjs}
-//     | AGENTS.md / AI_QUICKSTART.md / copilot-instructions.md
+//     覆盖路径门命中的 CSS / TSX / 测试 / 配置，加上 src TS、spec 与代理规则。
 // 始终 fail-open（exit 0）：钩子任何异常都不得阻塞编辑流程。
 import { spawnSync } from 'node:child_process';
-import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, realpathSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checksFor } from '../../scripts/check-changed.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, '..', '..');
@@ -37,6 +37,7 @@ function extractPath(raw) {
 }
 
 function shouldMarkVerifyPending(normalized) {
+  if (checksFor([normalized], repoRoot).length > 0) return true;
   if (/^src\/.*\.(ts|tsx)$/.test(normalized)) return true;
   if (
     normalized.startsWith('docs/execution/specs/')
@@ -64,7 +65,8 @@ function main() {
       return;
     }
 
-    const normalized = filePath.replace(/\\/g, '/');
+    const fullPath = resolve(repoRoot, filePath);
+    const normalized = relative(repoRoot, existsSync(fullPath) ? realpathSync(fullPath) : fullPath).replace(/\\/g, '/');
     const isSrc = /(^|\/)src\//.test(normalized);
     const isFormattable = /\.(ts|tsx|css)$/.test(normalized);
 
