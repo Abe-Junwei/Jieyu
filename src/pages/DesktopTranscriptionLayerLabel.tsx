@@ -272,7 +272,7 @@ export function DesktopTranscriptionLayerLabel(props: {
                 create: {
                   ...props.create,
                   onCreate: (
-                    kind: 'transcription' | 'translation' | 'orthography',
+                    kind: 'transcription' | 'translation' | 'orthography' | 'point',
                     label: string,
                   ) => {
                     setMenu(null);

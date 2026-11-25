@@ -69,6 +69,25 @@ describe('layerCommandItems', () => {
   });
 });
 
+it('creates a point layer without hosts', () => {
+  expect(
+    layerCreateParams({
+      kind: 'point',
+      label: '事件',
+      manuscriptId: 'm',
+      currentLayerId: null,
+      layers: [{ id: 'tx', contentType: 'transcription', tierType: 'time-aligned', sortOrder: 0 }],
+      links: [],
+      deletedKeys: [],
+    }),
+  ).toMatchObject({
+    key: 'pt-2',
+    tierType: 'time-aligned',
+    contentType: 'point',
+    name: { zh: '事件' },
+  });
+});
+
 it('creates an orthography only on the requested time owner and never falls back to the first layer', () => {
   const a = { id: 'a', contentType: 'transcription', tierType: 'time-aligned' };
   const b = { ...a, id: 'b' };

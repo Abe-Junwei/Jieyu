@@ -42,6 +42,7 @@ import {
   seamSeconds,
 } from './desktopTranscriptionEdgeView';
 import { useDesktopTranscriptionEdgeController } from './useDesktopTranscriptionEdgeController';
+import type { DesktopPointTrackApi } from './useDesktopTranscriptionPointController';
 import { edgeFocusKind } from './desktopTranscriptionEdge';
 import { NO_CONFLICTS } from './desktopTranscriptionEdgeSession';
 import type { RouteLayer, RouteLink } from './desktopTranscriptionCreateRoute';
@@ -140,6 +141,7 @@ export function DesktopTranscriptionLane(props: {
   audioTools?: (layerId: string, unitId: string) => ReactNode;
   onCreateTranscription: () => void;
   lanes?: SpeakerLaneChrome;
+  pointsApi?: DesktopPointTrackApi;
 }) {
   const toast = useToast();
   const [editing, setEditing] = useState<LayerCardRef | null>(null);
@@ -413,6 +415,7 @@ export function DesktopTranscriptionLane(props: {
       ? undefined
       : {
           layers: (props.layers ?? []).map((layer) => ({ id: layer.id, name: layer.name })),
+          canCreatePoint: props.hasAudio,
           onCreate: props.onCreateLayer,
           onCreatePair: props.onCreatePair,
         };
@@ -677,6 +680,7 @@ export function DesktopTranscriptionLane(props: {
           {...(props.onLaneHeight === undefined ? {} : { onLaneHeight: props.onLaneHeight })}
           {...(props.audioTools === undefined ? {} : { audioTools: props.audioTools })}
           {...(props.lanes === undefined ? {} : { lanes: props.lanes })}
+          {...(props.pointsApi === undefined ? {} : { pointsApi: props.pointsApi })}
           onCreate={(event, layerId, units) => {
             setCreateLayerId(layerId);
             setWaveDrag(false);

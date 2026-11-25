@@ -13,7 +13,11 @@ export type EditReceiptKind =
   | 'undo'
   | 'redo'
   | 'split'
-  | 'merge';
+  | 'merge'
+  | 'pointCreate'
+  | 'pointLabel'
+  | 'pointMove'
+  | 'pointDelete';
 
 export type EditInspection =
   { status: 'committed'; result: unknown } | { status: 'not-submitted' } | { status: 'conflict' };

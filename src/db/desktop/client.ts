@@ -13,6 +13,7 @@ import type { ConversationCreate } from './conversations';
 import type { MessageAppend } from './messages';
 import type { UnitCreate } from './units';
 import type { ContentNoteQuery, ContentNoteWrite } from './notes';
+import type { PointCreate, PointLabelUpdate, PointMove, PointQuery } from './points';
 import type { PreviewCandidateInput } from './modelRuns';
 
 export interface DesktopBridge {
@@ -29,7 +30,11 @@ type EditMethod =
   | 'units.undo'
   | 'units.redo'
   | 'units.split'
-  | 'units.merge';
+  | 'units.merge'
+  | 'points.create'
+  | 'points.updateLabel'
+  | 'points.move'
+  | 'points.delete';
 
 const EDIT_KINDS: Record<EditMethod, EditReceiptKind> = {
   'units.create': 'create',
@@ -42,6 +47,10 @@ const EDIT_KINDS: Record<EditMethod, EditReceiptKind> = {
   'units.redo': 'redo',
   'units.split': 'split',
   'units.merge': 'merge',
+  'points.create': 'pointCreate',
+  'points.updateLabel': 'pointLabel',
+  'points.move': 'pointMove',
+  'points.delete': 'pointDelete',
 };
 
 /** ADR-0129: the edit may or may not have committed, and the library could not say which. */
@@ -414,6 +423,15 @@ export function createDesktopClient(bridge: DesktopBridge) {
     ) => once(sessionId, 'notes.saveLexeme', input),
     listLexemeNotes: (sessionId: string, lexemeId: string) =>
       once(sessionId, 'notes.listLexeme', { lexemeId }),
+    createPoint: (sessionId: string, input: PointCreate) =>
+      receipted(sessionId, 'points.create', { ...input }),
+    updatePointLabel: (sessionId: string, input: PointLabelUpdate) =>
+      receipted(sessionId, 'points.updateLabel', { ...input }),
+    movePoint: (sessionId: string, input: PointMove) =>
+      receipted(sessionId, 'points.move', { ...input }),
+    deletePoint: (sessionId: string, id: string) => receipted(sessionId, 'points.delete', { id }),
+    getPoint: (sessionId: string, id: string) => once(sessionId, 'points.get', { id }),
+    listPoints: (sessionId: string, input: PointQuery) => once(sessionId, 'points.list', input),
     applyAnalysis: (
       sessionId: string,
       input: {

@@ -140,6 +140,14 @@ import {
   saveLexemeNote,
   updateContentNote,
 } from './notes';
+import {
+  createPoint,
+  deletePoint,
+  getPoint,
+  listPoints,
+  movePoint,
+  updatePointLabel,
+} from './points';
 import { createConversation, listConversations } from './conversations';
 import {
   appendMessage,
@@ -183,6 +191,7 @@ import {
   updateBoundary,
   setUnitSkipProcessing,
   updateUnitText,
+  type Unit,
   type UnitTextUndo,
 } from './units';
 import {
@@ -245,6 +254,10 @@ const EDIT_METHODS = {
   redo: 'units.redo',
   split: 'units.split',
   merge: 'units.merge',
+  pointCreate: 'points.create',
+  pointLabel: 'points.updateLabel',
+  pointMove: 'points.move',
+  pointDelete: 'points.delete',
 } as const satisfies Record<EditReceiptKind, keyof DesktopOperations>;
 
 const operationHandlers = {
@@ -431,6 +444,117 @@ const operationHandlers = {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.listLexeme']['check']>) =>
       listLexemeNotes(ctx.db, input.lexemeId),
   },
+  'points.create': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['points.create']['check']>) => {
+      const { operationId, ...create } = input;
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'pointCreate',
+          payload: create,
+          manuscriptId: (point) => point.manuscriptId,
+        },
+        () => {
+          const point = createPoint(ctx.db, create);
+          rememberSessionEdit(ctx.sessionId, {
+            kind: 'pointCreate',
+            undo: { manuscriptId: point.manuscriptId, point },
+          });
+          return point;
+        },
+      );
+    },
+  },
+  'points.updateLabel': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['points.updateLabel']['check']>,
+    ) => {
+      const { operationId, ...update } = input;
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'pointLabel',
+          payload: update,
+          manuscriptId: (point) => point.manuscriptId,
+        },
+        () => {
+          const before = getPoint(ctx.db, update.id);
+          if (!before) throw new Error('point is missing');
+          const after = updatePointLabel(ctx.db, update);
+          if (before.label !== after.label) {
+            rememberSessionEdit(ctx.sessionId, {
+              kind: 'pointLabel',
+              undo: { manuscriptId: after.manuscriptId, before, after },
+            });
+          }
+          return after;
+        },
+      );
+    },
+  },
+  'points.move': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['points.move']['check']>) => {
+      const { operationId, ...move } = input;
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'pointMove',
+          payload: move,
+          manuscriptId: (point) => point.manuscriptId,
+        },
+        () => {
+          const before = getPoint(ctx.db, move.id);
+          if (!before) throw new Error('point is missing');
+          const after = movePoint(ctx.db, move);
+          if (before.timeMs !== after.timeMs) {
+            rememberSessionEdit(ctx.sessionId, {
+              kind: 'pointMove',
+              undo: { manuscriptId: after.manuscriptId, before, after },
+            });
+          }
+          return after;
+        },
+      );
+    },
+  },
+  'points.delete': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['points.delete']['check']>) => {
+      const { operationId, id } = input;
+      let manuscriptId = '';
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'pointDelete',
+          payload: { id },
+          manuscriptId: () => manuscriptId,
+        },
+        () => {
+          const before = getPoint(ctx.db, id);
+          if (!before) throw new Error('point is missing');
+          manuscriptId = before.manuscriptId;
+          deletePoint(ctx.db, id);
+          rememberSessionEdit(ctx.sessionId, {
+            kind: 'pointDelete',
+            undo: { manuscriptId: before.manuscriptId, point: before },
+          });
+          return { id };
+        },
+      );
+    },
+  },
+  'points.get': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['points.get']['check']>) =>
+      getPoint(ctx.db, input.id),
+  },
+  'points.list': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['points.list']['check']>) =>
+      listPoints(ctx.db, input),
+  },
   'modelRuns.listAcceptable': {
     run: (
       ctx: ContractCtx,
@@ -520,7 +644,7 @@ const operationHandlers = {
       listUnits(ctx.db, input.layerId),
   },
   'units.undoText': {
-    run: (ctx: ContractCtx) => undoSessionEdit(ctx.sessionId, ctx.db, 'text'),
+    run: (ctx: ContractCtx) => undoSessionEdit(ctx.sessionId, ctx.db, 'text') as Unit | Unit[],
   },
   'units.undo': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.undo']['check']>) => {

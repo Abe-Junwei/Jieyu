@@ -27,10 +27,27 @@ import {
   type RemovedUnit,
 } from './unitSpan';
 import { retimeManuscript, undoRetime, type RetimeUndo } from './manuscripts';
+import {
+  redoPointCreate,
+  redoPointDelete,
+  redoPointLabel,
+  redoPointMove,
+  undoPointCreate,
+  undoPointDelete,
+  undoPointLabel,
+  undoPointMove,
+  type Point,
+  type PointCreateUndo,
+  type PointDeleteUndo,
+  type PointLabelUndo,
+  type PointMoveUndo,
+} from './points';
 import { readStoredUnit, updateUnitText, type Unit, type UnitTextUndo } from './units';
 import { bindHeldAttachmentIds } from './attachments';
 
 type SqliteDatabase = InstanceType<typeof Database>;
+
+export type SessionEditResult = Unit | Unit[] | Point | Point[];
 
 export type SessionEdit =
   | { kind: 'clearText'; undo: TextClearUndo }
@@ -44,7 +61,11 @@ export type SessionEdit =
   | { kind: 'create'; undo: { manuscriptId: string; tree: RemovedUnit } }
   | { kind: 'delete'; undo: { manuscriptId: string; tree: RemovedUnit } }
   | { kind: 'deleteMany'; undo: { manuscriptId: string; trees: RemovedUnit[] } }
-  | { kind: 'retime'; undo: RetimeUndo; offsetMs: number; scale: number };
+  | { kind: 'retime'; undo: RetimeUndo; offsetMs: number; scale: number }
+  | { kind: 'pointCreate'; undo: PointCreateUndo }
+  | { kind: 'pointDelete'; undo: PointDeleteUndo }
+  | { kind: 'pointLabel'; undo: PointLabelUndo }
+  | { kind: 'pointMove'; undo: PointMoveUndo };
 
 type Frame = { edit: SessionEdit };
 type Book = { undo: Frame[]; redo: Frame[] };
@@ -97,6 +118,10 @@ function snapshotTrees(edit: SessionEdit): RemovedUnit[] {
     case 'delete':
     case 'deleteMany':
     case 'retime':
+    case 'pointCreate':
+    case 'pointDelete':
+    case 'pointLabel':
+    case 'pointMove':
       return [];
     default: {
       const unreachable: never = edit;
@@ -155,6 +180,10 @@ function fileIdsOf(edit: SessionEdit): string[] {
     case 'boundary':
     case 'span':
     case 'retime':
+    case 'pointCreate':
+    case 'pointDelete':
+    case 'pointLabel':
+    case 'pointMove':
       return [];
     default: {
       const unreachable: never = edit;
@@ -184,6 +213,10 @@ function manuscriptOf(edit: SessionEdit): string {
     case 'create':
     case 'delete':
     case 'deleteMany':
+    case 'pointCreate':
+    case 'pointDelete':
+    case 'pointLabel':
+    case 'pointMove':
       return edit.undo.manuscriptId;
     case 'retime':
       return edit.undo.manuscriptId;
@@ -247,7 +280,7 @@ export function undoSessionEdit(
   db: SqliteDatabase,
   only?: 'text',
   manuscriptId?: string,
-): Unit | Unit[] {
+): SessionEditResult {
   const book = activeSessionId === sessionId ? topBook(sessionId, manuscriptId) : undefined;
   const frame = book?.undo[book.undo.length - 1];
   if (!frame || (only === 'text' && frame.edit.kind !== 'text')) {
@@ -264,7 +297,7 @@ export function redoSessionEdit(
   sessionId: string,
   db: SqliteDatabase,
   manuscriptId?: string,
-): Unit | Unit[] {
+): SessionEditResult {
   const book = activeSessionId === sessionId ? topBook(sessionId, manuscriptId) : undefined;
   const frame = book?.redo[book.redo.length - 1];
   if (!frame) throw new Error('unit text redo is empty');
@@ -335,6 +368,10 @@ function stampGeneration(db: SqliteDatabase, edit: SessionEdit, generation: numb
     case 'create':
     case 'delete':
     case 'deleteMany':
+    case 'pointCreate':
+    case 'pointDelete':
+    case 'pointLabel':
+    case 'pointMove':
       return;
     case 'retime':
       edit.undo.manuscriptGeneration = generation;
@@ -346,7 +383,7 @@ function stampGeneration(db: SqliteDatabase, edit: SessionEdit, generation: numb
   }
 }
 
-function applyUndo(db: SqliteDatabase, edit: SessionEdit): Unit | Unit[] {
+function applyUndo(db: SqliteDatabase, edit: SessionEdit): SessionEditResult {
   switch (edit.kind) {
     case 'clearText':
       return undoTextClear(db, edit.undo);
@@ -373,6 +410,14 @@ function applyUndo(db: SqliteDatabase, edit: SessionEdit): Unit | Unit[] {
     case 'retime':
       undoRetime(db, edit.undo);
       return [];
+    case 'pointCreate':
+      return undoPointCreate(db, edit.undo);
+    case 'pointDelete':
+      return undoPointDelete(db, edit.undo);
+    case 'pointLabel':
+      return undoPointLabel(db, edit.undo);
+    case 'pointMove':
+      return undoPointMove(db, edit.undo);
     default: {
       const unreachable: never = edit;
       return unreachable;
@@ -383,7 +428,7 @@ function applyUndo(db: SqliteDatabase, edit: SessionEdit): Unit | Unit[] {
 function applyRedo(
   db: SqliteDatabase,
   edit: SessionEdit,
-): { value: Unit | Unit[]; edit: SessionEdit } {
+): { value: SessionEditResult; edit: SessionEdit } {
   switch (edit.kind) {
     case 'clearText': {
       const undo = redoTextClear(db, edit.undo);
@@ -447,6 +492,30 @@ function applyRedo(
           undo: retimed.undo,
           offsetMs: edit.offsetMs,
           scale: edit.scale,
+        },
+      };
+    }
+    case 'pointCreate':
+      return { value: redoPointCreate(db, edit.undo), edit };
+    case 'pointDelete':
+      return { value: redoPointDelete(db, edit.undo), edit };
+    case 'pointLabel': {
+      const after = redoPointLabel(db, edit.undo);
+      return {
+        value: after,
+        edit: {
+          kind: 'pointLabel',
+          undo: { manuscriptId: edit.undo.manuscriptId, before: edit.undo.before, after },
+        },
+      };
+    }
+    case 'pointMove': {
+      const after = redoPointMove(db, edit.undo);
+      return {
+        value: after,
+        edit: {
+          kind: 'pointMove',
+          undo: { manuscriptId: edit.undo.manuscriptId, before: edit.undo.before, after },
         },
       };
     }

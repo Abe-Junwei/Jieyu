@@ -1,5 +1,6 @@
 import type { Layer, LayerLink } from './layers';
 import type { Manuscript } from './manuscripts';
+import type { Point } from './points';
 import type { Unit } from './units';
 
 export interface DesktopProjectReadApi {
@@ -7,11 +8,13 @@ export interface DesktopProjectReadApi {
   listLayers(sessionId: string, manuscriptId: string): Promise<Layer[]>;
   listLayerLinks(sessionId: string, manuscriptId: string): Promise<LayerLink[]>;
   listUnits(sessionId: string, layerId: string): Promise<Unit[]>;
+  listPoints(sessionId: string, manuscriptId: string): Promise<Point[]>;
   mediaPlayUrl(sessionId: string, mediaId: string): Promise<string>;
 }
 
 export interface DesktopProjectLayerRead extends Layer {
   units: Unit[];
+  points: Point[];
 }
 
 export interface DesktopProjectRead {
@@ -53,10 +56,18 @@ export async function loadDesktopProjectRead(
     };
   }
   const listed = await api.listLayers(sessionId, selected.id);
+  const points = await api.listPoints(sessionId, selected.id);
+  const byLayer = new Map<string, Point[]>();
+  for (const point of points) {
+    const rows = byLayer.get(point.layerId);
+    if (rows === undefined) byLayer.set(point.layerId, [point]);
+    else rows.push(point);
+  }
   const layers = await Promise.all(
     listed.map(async (item) => ({
       ...item,
       units: await api.listUnits(sessionId, item.id),
+      points: byLayer.get(item.id) ?? [],
     })),
   );
   const links = (await api.listLayerLinks(sessionId, selected.id)) ?? [];

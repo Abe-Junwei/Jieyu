@@ -200,7 +200,7 @@
       "file": "src/pages/DesktopTranscriptionLayerRows.tsx",
       "reason": "Linked-layer height, track width, the create preview frame, and the join tick follow the saved height, live zoom, and drag time. A dragged or shifted lane adds translateY.",
       "reviewer": "Cursor + junwei",
-      "reviewedAt": "2026-11-23",
+      "reviewedAt": "2026-11-25",
       "snippets": [
         {
           "anchor": "width: props.duration * props.zoomPxPerSec",
@@ -216,7 +216,7 @@
         },
         {
           "anchor": "...dragBits.laneStyle",
-          "reviewedSha256": "30a9be9734d4ebd33fa6a8cee8e1eb20a34696f8cf320f35c16ae7abe2c02f4b"
+          "reviewedSha256": "7c71784721fd3ca0213527db17ce49800e716a259a69aa53eef057efb5bc1c50"
         },
         {
           "anchor": "style={dragBits.laneStyle}",
@@ -433,6 +433,30 @@
         {
           "anchor": "left: place.x,",
           "reviewedSha256": "6120cfa0b1dfd5bf77d17d8a790aef40bc2d969598ffb15b8ab53bdef3441a46"
+        }
+      ]
+    },
+    {
+      "file": "src/pages/DesktopTranscriptionPointTrack.tsx",
+      "reason": "Point track width follows zoom; pin and preview left are live ms→px; context menu uses click coordinates.",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-25",
+      "snippets": [
+        {
+          "anchor": "width: props.duration * props.zoomPxPerSec",
+          "reviewedSha256": "68bc0d0d8f41fc49089323afee8f6844227e3e372de73e769305b91ef373c4f5"
+        },
+        {
+          "anchor": "left: leftPx(drag.timeMs)",
+          "reviewedSha256": "1940869900feeabfb47d94d7183494a8b087421f571b2be214628a9532b9700a"
+        },
+        {
+          "anchor": "left: leftPx(timeMs)",
+          "reviewedSha256": "48d64b99ea01e8a8d50c6220984b559346c008de3d988d7a1751a9e886c30d69"
+        },
+        {
+          "anchor": "left: props.x, top: props.y",
+          "reviewedSha256": "db5de6844b0f16655032cfcc973bebb8b436554f6396398421c9d6a70ce52594"
         }
       ]
     }
