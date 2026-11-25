@@ -438,7 +438,7 @@
     },
     {
       "file": "src/pages/DesktopTranscriptionPointTrack.tsx",
-      "reason": "Point track width follows zoom; pin and preview left are live ms→px; context menu uses click coordinates.",
+      "reason": "Point track width follows zoom; pin left is live ms→px; guide uses measured wave→lane CSS vars; context menu uses click coordinates.",
       "reviewer": "Cursor + junwei",
       "reviewedAt": "2026-11-25",
       "snippets": [
@@ -447,12 +447,12 @@
           "reviewedSha256": "68bc0d0d8f41fc49089323afee8f6844227e3e372de73e769305b91ef373c4f5"
         },
         {
-          "anchor": "left: leftPx(drag.timeMs)",
-          "reviewedSha256": "1940869900feeabfb47d94d7183494a8b087421f571b2be214628a9532b9700a"
-        },
-        {
           "anchor": "left: leftPx(timeMs)",
           "reviewedSha256": "48d64b99ea01e8a8d50c6220984b559346c008de3d988d7a1751a9e886c30d69"
+        },
+        {
+          "anchor": "--point-guide-left",
+          "reviewedSha256": "4571ebba6572a2c799fcd5740fbca6983ddee9d22d832fb077e10e5b2c06c6e7"
         },
         {
           "anchor": "left: props.x, top: props.y",

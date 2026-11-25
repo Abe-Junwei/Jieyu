@@ -225,6 +225,26 @@
         "gate_correctness",
         "audit_traceability"
       ]
+    },
+    {
+      "id": "desktop-point-craft-regressions",
+      "name": "Point editing rejects foreign keyboard focus and stale async completions",
+      "command": "npx vitest run src/pages/desktopTranscriptionPointRegression.test.tsx",
+      "category": "workflow",
+      "evalSuite": "regression",
+      "tiers": ["full"],
+      "goldenTaskCount": 0,
+      "trajectorySignals": []
+    },
+    {
+      "id": "codex-review-stream-tags-and-clear-undo",
+      "name": "Case-insensitive streaming tags and chained linked-text clear undo",
+      "command": "npx vitest run src/ai/providers/streamUtils.test.ts src/db/desktop/unitEdges.test.ts",
+      "category": "workflow",
+      "evalSuite": "regression",
+      "tiers": ["full"],
+      "goldenTaskCount": 0,
+      "trajectorySignals": []
     }
   ]
 }

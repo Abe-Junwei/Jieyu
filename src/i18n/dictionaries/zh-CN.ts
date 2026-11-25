@@ -81,6 +81,7 @@ export const zhCNDictionary = {
   'app.desktopTranscription.contextLayerPoint': '事件',
   'app.desktopTranscription.pointNeedsMedia': '没有录音时不能新建点层',
   'app.desktopTranscription.pointUntitled': '未命名点',
+  'app.desktopTranscription.pointEmptyHint': '单击添加事件',
   'app.desktopTranscription.pointEditLabel': '编辑标签',
   'app.desktopTranscription.pointSeek': '定位到此刻',
   'app.desktopTranscription.pointDelete': '删除点',

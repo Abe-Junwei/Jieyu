@@ -135,7 +135,7 @@ function streamVisibleHoldBackLength(visible: string): number {
   const sentinels = ['<think>', '</think>', '<redacted_thinking>', '</redacted_thinking>'] as const;
   for (let i = visible.length - 1; i >= 0; i -= 1) {
     if (visible[i] !== '<') continue;
-    const tail = visible.slice(i);
+    const tail = visible.slice(i).toLowerCase();
     for (const tag of sentinels) {
       if (tag.length > tail.length && tag.startsWith(tail)) {
         return visible.length - i;

@@ -75,6 +75,7 @@ export const DICT_KEYS = [
   'app.desktopTranscription.contextLayerPoint',
   'app.desktopTranscription.pointNeedsMedia',
   'app.desktopTranscription.pointUntitled',
+  'app.desktopTranscription.pointEmptyHint',
   'app.desktopTranscription.pointEditLabel',
   'app.desktopTranscription.pointSeek',
   'app.desktopTranscription.pointDelete',

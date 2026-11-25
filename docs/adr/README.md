@@ -13,7 +13,7 @@ source_of_truth: decision-index
 
 ## 编号
 
-下一号是 **0143**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
+下一号是 **0144**。0007、0010–0017 空着，不补。编号不复用。撞号的文件不改名，引用时写文件名。
 
 `adr-*` 那一组自称 ADR-001–007，序列已关闭。
 
@@ -92,6 +92,7 @@ source_of_truth: decision-index
 - [0116：页面级通知只用提示条，动作必须有常驻入口](./0116-page-notices-as-toasts-with-durable-carriers.md)
 - [0117：当前激活语段用输入焦点的圆角灰边，保留主题浅底](./0117-active-segment-uses-input-focus-chrome.md)
 - [0132：多层正文共享时间语段并恢复旧版拖建路由](./0132-layer-scoped-transcription-and-legacy-create-routing.md)
+- [0143：命令行只是操作合同的另一个入口](./0143-cli-is-another-door-to-the-operation-contract.md)
 - [0142：上下文栏收到零宽，重开在左轨顶部](./0142-context-pane-reopens-from-the-left-rail.md)
 - [0141：录音层不挂文字子层](./0141-recording-text-is-not-a-child.md)
 - [0133：桌面转写区分已有语段、拖建预览与文本卡焦点](./0133-desktop-transcription-range-and-create-preview.md)

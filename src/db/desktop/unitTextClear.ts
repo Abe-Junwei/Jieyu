@@ -58,7 +58,23 @@ function cells(db: SqliteDatabase, unitIds: readonly string[], textLayerId: stri
 }
 
 function digest(rows: Cell[]): string {
-  return createHash('sha256').update(JSON.stringify(rows)).digest('hex');
+  // Undoing a later edit restores content with a fresh timestamp.
+  const state = rows.map(({ unitId, text, draft }) => ({
+    unitId,
+    text:
+      text === null
+        ? null
+        : { id: text.id, body: text.body, provenance_json: text.provenance_json },
+    draft:
+      draft === null
+        ? null
+        : {
+            raw_input: draft.raw_input,
+            base_body: draft.base_body,
+            provenance_json: draft.provenance_json,
+          },
+  }));
+  return createHash('sha256').update(JSON.stringify(state)).digest('hex');
 }
 
 export function textClearPreview(

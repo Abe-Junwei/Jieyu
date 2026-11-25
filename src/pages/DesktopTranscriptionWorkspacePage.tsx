@@ -275,6 +275,7 @@ function DesktopTranscriptionWorkspace() {
   const points = useDesktopTranscriptionPointController({
     locale,
     sessionId: read.sessionId,
+    manuscriptId: read.model?.manuscriptId ?? null,
     desktopCall: host?.desktopCall,
     layers: read.model?.layers,
     durationSec: playback.duration,

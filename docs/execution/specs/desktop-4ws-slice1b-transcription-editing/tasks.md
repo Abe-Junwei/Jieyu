@@ -130,11 +130,44 @@ depends_on:
   - 测试落位：新增 `src/db/desktop/points.test.ts`（真实 SQLite + 关库重开）、`src/pages/useDesktopTranscriptionPointController.test.ts`（取消／冲突／过期结果／单次提交），相关点轨道页面测试，以及 `tests/e2e-desktop` 的独立 point flow。DB 测试经注册入口调用；覆盖同层重复拒绝、异层同刻允许、负数／小数拒绝、非点层／已删层／跨稿拒绝、媒体上下限、无媒体既有点、撤销冲突不写与回执重发。
   - 门禁：`npm run typecheck`、上述定向 Vitest、`npm run check:architecture-guard`、`npm run check:docs-governance`；界面改动跑 `npm run check:changed -- --base <本片基线>`，以及 `npm run test:e2e:desktop-project -- --grep "point"` 和 `npm run test:e2e:chromium`。全量 desktop-flow 交 CI；证据齐全才勾选本条。
   - 本地验收（2026-11-25）：`typecheck`、`check:desktop-selectors`、`check:architecture-guard`、CSS 三件套、`check:docs-governance`、`check:dev-agent-workflow-verify` 与 `git diff --check` 通过。14 个定向 Vitest 文件共 106 项通过，覆盖点操作／回执／撤销／层恢复／调时／项目读回／导出与页面。Electron `--grep "point layer"` 1 项通过：真实鼠标建点与拖移、标签、Esc 取消、右键删除、⌘Z／⌘⇧Z、关库重开；pointercancel 由 controller 定向测试覆盖。PR CI 全量 desktop-flow 尚待通过。
+  - 2026-11-25 A1 审查回归：补充单击时间不变、菱形/引导线中心一致、标签再次点击编辑、Esc 分层退出、输入控件不误删点、读数不裁切和松手移除的 Electron 断言；异步切稿与交错标签保存由 `desktopTranscriptionPointRegression.test.tsx` 覆盖。验证结果见本次任务报告，不据此关闭 PR CI 关账项。
 - [ ] 1b-6（[#566](https://github.com/Abe-Junwei/Jieyu/issues/566)）其余入口：多选（批量改说话人、批量删除、多段一次合并）、说话人与备注、修改确信程度、说话人目录筛选（FR-032）、部分转写（FR-066/068）、馆藏音频手动定位（FR-082）。单段指派与清除已改到 #600。本片仍做批量改说话人、新建说话人、说话人与备注、目录筛选；上下文栏的指派留在本片 → 验证：同上
+  - 2026-11-25 调研规划已起草：[详细计划](../../plans/1b-6-转写批量编辑-实施规划-2026-11-25.md)、[外部一手证据](../../plans/1b-6-转写批量编辑-调研-2026-11-25.md)。依赖修订为 6r 现有备注缺陷独立处理、6p 行为不变拆分 → 6c 格式/领域 → 6d；另有 6a 选择 → 6b 说话人/筛选，6c UI 集成依赖 6a/6b，最终 6e 汇总验收；产品语义已于 2026-11-25 逐项确认；格式 ADR 与精稿待补，未实施。
 - [ ] 1b-7（[#584](https://github.com/Abe-Junwei/Jieyu/issues/584)）无录音文稿与逐段补时间：按顺序和字数排版、只按文字位置拆分、部分对齐夹在前后已对齐段之间；合并一有一无则结果无时间并在确认框说明；两段都没有时间的相邻合并也留在本片；解除录音关联保留已有时间和点。表结构不在本片 → 验证：同上
 - [ ] 自动分段（[#604](https://github.com/Abe-Junwei/Jieyu/issues/604)）沿用现有 VAD（FR-072）：仅在当前转写层空白区间生成新段（严格 0 ms 不重叠、不改已有段），整批一次事务提交并作为同一步可撤销，失败有提示。依赖 1b-0 毫秒与 1b-2 新建／撤销 → 验证：单库与页面 vitest + 桌面流程（写→关→重开读回）
 - [ ] 旧页台账关账（[S7 对照](../desktop-legacy-isolation/tasks.md#s7-台账关账对照)）：`scripts/old-path-exit.record.json` 的 `features` 中 `home`、`transcription`、`language-metadata`、`orthography`、`orthography-bridge` 改为 `ported`，填桌面测试与决定；旧测试的业务断言在桌面测试里有对应 → 验证：`npm run check:old-path-exit`
 - [ ] 收尾（[#567](https://github.com/Abe-Junwei/Jieyu/issues/567)）：flag 开路径完整桌面流程；自用一周后决定默认值；用户本人抽验 → 验证：主路线图 1b 退出条件
+
+## 1b-6 实施任务与逐片验收（2026-11-25 复审）
+
+下列均为计划项，不表示已实施。产品语义已确认；[存储合同草案](../../plans/1b-6-按层确信存储合同-2026-11-25.md) 待审定为正式 ADR，当前格式未变。[详细合同、依赖、消费者和命令](../../plans/1b-6-转写批量编辑-实施规划-2026-11-25.md)是本表的验收依据。
+
+- [ ] 准入：审定存储 ADR/版本占用，登记独立 false 默认 flag；6a/6b/6c/6d 各自补 Pixso 精稿并 MCP 实读/截图，写入 active design 对照后才能接新 UI。批准的纯领域/测试工作可单独推进。
+- [ ] 6r：现有层正文备注孤儿缺陷独立修复，不等待格式 36 或 6b。
+  - [ ] 注册入口复现普通清空、正文撤销、删除最后一条录音后的载体丢失；检查 active note 目标存在、原正文 id、可见备注和关库重开。
+  - [ ] 统一保留带备注载体，并验证明确删除句段的正常备注处理；已有孤儿先诊断，不猜层修复或静默删除。此项尚未实施，不把旧 notes 测试通过当修复证据。
+- [ ] 6p：合并行为不变拆分前置 PR（先于 6c/6d）。
+  - [ ] 按实际依赖拆预览/写入/快照，controller 的纯逻辑移入已有 helpers；公开两段入口、格式、回执语义及原两段确信规则不变；6c 再明确变更该规则并新增断言。
+  - [ ] 原两段草稿/录音/引用/撤销/重做及重开断言全过，typecheck/架构门过；不以删测/压行满足阈值。
+- [ ] 6a：同结构层多选、统一右键目标与既有批删。
+  - [ ] 选择/范围/切层切稿/reload 清理、投影去重、预览基准与完整影响集合落地；单目标走 units.delete、至少两个才走 deleteMany；新增 UI 精稿通过。
+  - [ ] 输入焦点保护、任一目标拒绝整批不变、写后重开及定向 Electron 证据齐。
+- [ ] 6b：依赖 6a；说话人目录、全层筛选、原子新建并指派。
+  - [ ] 工作区所有写入口按规划 §10 接 viewScope/影响闭包/基准及回执摘要；前端发送前校验 filterRevision，旧回执不抢回视图。兼容入口不能成为绕过路径。
+  - [ ] create/patch/redeliver 均改保留句段历史，覆盖成功/失败/no-op/冲突/补交；patch 仍走字段 revision/delivery。指派/清除/新建并指派的 operationContract/client/EDIT_METHODS/EditReceiptKind/inspect 重试接齐，重放不重复 frame。
+  - [ ] 首先验证跨稿整批拒绝且无写入/无 frame，再覆盖重叠拒绝与重复回执。
+  - [ ] 新建并指派成功一次 frame；失败不留新人，undo 保留目录项、redo 复用身份；优先复用既有 assign frame。
+  - [ ] 多选/未指派、隐藏点、隐藏段取消选择、禁拖建、隐藏依赖阻断、整稿调时先回全部、撤销不抢选择、切稿/重开恢复全部；全部写入口同一套规则，UI 与读回证据齐。
+- [ ] 6c：格式/领域依赖 6p 与 ADR 审定，可与 6a/6b 独立推进；UI/筛选集成依赖 6a/6b 的目标和视图合同。
+  - [ ] 一个格式切换 PR 包含 schema/版本/冻结及全部消费者，role 派生、旧共享列删除、不迁移/旧包拒绝；不能先单合破坏消费者的 schema。
+  - [ ] 空卡业务入参为 unitId/textLayerId，事务内解析 role/建载体再转 unitTextId 锚点；recordingClips 等清理消费者齐全。逐一验规划 §12 的撤销基准；6c 新增两段确信语义断言，同版本交换保原 id 并核对单稿过滤，不做通用 id 重映射。
+  - [ ] 规划 §9 的真实测试文件、新增领域/UI 测试、`check:desktop-format-freeze` 与定向 Electron 均通过；逐层值写后关库重开读回。
+- [ ] 6d：依赖 6p 和 6c 完整退出；N 段一次合并。
+  - [ ] 数组预览/快照/回执/撤销复用 6c 载荷，完整数据判断连续性，隐藏依赖阻断，逐层草稿/录音取舍及全旧→新映射。
+  - [ ] 三段以上、失败整批回滚、一次撤销/重做、后改拒绝、媒体持有和重开 Electron 证据齐。
+- [ ] 6e：依赖 6r 与 6a–6d；部分转写、无原文译释、手动定位和完整真实流程。
+  - [ ] en-US 主流程、zh-CN smoke、键盘与字号/窄窗、flag true/false 路径；关闭新 flag 保留既有能力。
+  - [ ] 全片 CI/写后重开/故障证据登记后才勾 #566；#567 和首发总门另验，不以文档或点层测试替代。
 
 ## Pre-merge gates（每片）
 
