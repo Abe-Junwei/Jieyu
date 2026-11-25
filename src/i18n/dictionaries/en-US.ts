@@ -87,6 +87,7 @@ export const enUSDictionary = {
   'app.desktopTranscription.pointNeedsMedia':
     'A recording is required before creating a point layer',
   'app.desktopTranscription.pointUntitled': 'Untitled point',
+  'app.desktopTranscription.pointEmptyHint': 'Click to add an event',
   'app.desktopTranscription.pointEditLabel': 'Edit label',
   'app.desktopTranscription.pointSeek': 'Seek to this time',
   'app.desktopTranscription.pointDelete': 'Delete point',

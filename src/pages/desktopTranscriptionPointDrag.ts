@@ -1,7 +1,7 @@
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { clampPointMs, type PointView } from './desktopTranscriptionPointOps';
 
-/** Bind preview-only drag; commit once on pointerup. Esc or pointercancel only clear preview. */
+/** Bind preview-only drag on window; commit once on pointerup. Esc / cancel clear preview. */
 export function bindPointDrag(input: {
   event: ReactPointerEvent<HTMLElement>;
   point: PointView;
@@ -11,55 +11,55 @@ export function bindPointDrag(input: {
   dragOrigin: { current: { pointId: string; layerId: string; timeMs: number } | null };
   setDrag: (preview: { layerId: string; pointId: string; timeMs: number } | null) => void;
   commitMove: (pointId: string, timeMs: number) => void;
-}): void {
-  const { event, point, layerId } = input;
+}): () => void {
+  const { point, layerId } = input;
+  const pointerId = input.event.pointerId;
+  const originX = input.event.clientX;
+  const originMs = input.msAt(originX);
+  let moved = false;
+  const timeAt = (x: number) =>
+    clampPointMs(point.timeMs + input.msAt(x) - originMs, input.durationSec());
   input.dragOrigin.current = { pointId: point.id, layerId, timeMs: point.timeMs };
-  const target = event.currentTarget;
-  if (typeof target.setPointerCapture === 'function') {
-    target.setPointerCapture(event.pointerId);
-  }
   const dropListeners = () => {
-    target.removeEventListener('pointermove', onMove);
-    target.removeEventListener('pointerup', onUp);
-    target.removeEventListener('pointercancel', onCancel);
-  };
-  const release = (pointerId: number) => {
-    if (typeof target.releasePointerCapture === 'function') {
-      try {
-        target.releasePointerCapture(pointerId);
-      } catch {
-        /* already released */
-      }
-    }
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onCancel);
   };
   const clearPreview = () => {
     input.dragOrigin.current = null;
     input.setDrag(null);
   };
   const onMove = (move: PointerEvent) => {
+    if (move.pointerId !== pointerId) return;
     if (input.dragOrigin.current?.pointId !== point.id) return;
+    if (!moved && Math.abs(move.clientX - originX) < 4) return;
+    moved = true;
     input.setDrag({
       layerId,
       pointId: point.id,
-      timeMs: clampPointMs(input.msAt(move.clientX), input.durationSec()),
+      timeMs: timeAt(move.clientX),
     });
   };
   const onUp = (up: PointerEvent) => {
-    release(up.pointerId);
+    if (up.pointerId !== pointerId) return;
     dropListeners();
     const preview = input.dragOrigin.current;
     clearPreview();
-    if (preview === null) return;
-    const next = clampPointMs(input.msAt(up.clientX), input.durationSec());
+    if (preview === null || !moved) return;
+    const next = timeAt(up.clientX);
     if (next === preview.timeMs) return;
     input.commitMove(preview.pointId, next);
   };
   const onCancel = (cancel: PointerEvent) => {
-    release(cancel.pointerId);
+    if (cancel.pointerId !== pointerId) return;
     dropListeners();
     clearPreview();
   };
-  target.addEventListener('pointermove', onMove);
-  target.addEventListener('pointerup', onUp);
-  target.addEventListener('pointercancel', onCancel);
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onCancel);
+  return () => {
+    dropListeners();
+    clearPreview();
+  };
 }

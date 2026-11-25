@@ -1,8 +1,23 @@
+import { useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
+import type {
+  CSSProperties,
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent,
+} from 'react';
 import { t, type Locale } from '../i18n';
 import type { PointView } from './desktopTranscriptionPointOps';
 import type { DesktopPointTrackApi } from './useDesktopTranscriptionPointController';
+
+/** A1 readout: m:ss.mmm */
+export function formatPointReadout(timeMs: number): string {
+  const ms = Math.max(0, Math.round(timeMs));
+  const frac = ms % 1000;
+  const totalSec = Math.floor(ms / 1000);
+  const s = totalSec % 60;
+  const m = Math.floor(totalSec / 60);
+  return `${m}:${String(s).padStart(2, '0')}.${String(frac).padStart(3, '0')}`;
+}
 
 export function DesktopTranscriptionPointTrack(props: {
   locale: Locale;
@@ -13,6 +28,14 @@ export function DesktopTranscriptionPointTrack(props: {
   pointsApi: DesktopPointTrackApi;
 }) {
   const drag = props.pointsApi.drag;
+  const selectedOnLane =
+    props.pointsApi.selected?.layerId === props.layerId ? props.pointsApi.selected : null;
+  const guideTimeMs =
+    drag?.layerId === props.layerId
+      ? drag.timeMs
+      : selectedOnLane
+        ? (props.points.find((p) => p.id === selectedOnLane.pointId)?.timeMs ?? null)
+        : null;
   const msAt = (clientX: number) => {
     const track = document.querySelector(
       `.desktop-tx-lane[data-layer-id="${CSS.escape(props.layerId)}"] .desktop-tx-lane__track`,
@@ -31,14 +54,10 @@ export function DesktopTranscriptionPointTrack(props: {
         style={props.zoomPxPerSec > 0 ? { width: props.duration * props.zoomPxPerSec } : undefined}
         onPointerDown={(event) => props.pointsApi.onTrackPointerDown(event, props.layerId, msAt)}
       >
-        {drag?.layerId === props.layerId ? (
-          <div
-            className="desktop-tx-pin is-preview"
-            style={{ left: leftPx(drag.timeMs) }}
-            aria-hidden
-          >
-            <span className="desktop-tx-pin__mark" />
-          </div>
+        {props.points.length === 0 ? (
+          <span className="desktop-tx-point-track__hint" aria-hidden>
+            {t(props.locale, 'app.desktopTranscription.pointEmptyHint')}
+          </span>
         ) : null}
         {props.points.map((point) => {
           const selected =
@@ -61,11 +80,6 @@ export function DesktopTranscriptionPointTrack(props: {
               onContextMenu={(event: ReactMouseEvent<HTMLElement>) =>
                 props.pointsApi.onPointContextMenu(event, props.layerId, point)
               }
-              onDoubleClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                props.pointsApi.editPoint(point.id, point.label);
-              }}
             >
               <button
                 type="button"
@@ -88,21 +102,38 @@ export function DesktopTranscriptionPointTrack(props: {
                     if (event.nativeEvent.isComposing || event.keyCode === 229) return;
                     if (event.key === 'Enter') {
                       event.preventDefault();
+                      event.stopPropagation();
                       props.pointsApi.commitLabel();
                     } else if (event.key === 'Escape') {
                       event.preventDefault();
+                      event.stopPropagation();
                       props.pointsApi.cancelEdit();
                     }
                   }}
                   onPointerDown={(event) => event.stopPropagation()}
                 />
               ) : point.label.trim().length > 0 ? (
-                <span className="desktop-tx-pin__label">{point.label}</span>
+                <span
+                  className="desktop-tx-pin__label"
+                  onPointerDown={(event) =>
+                    props.pointsApi.onLabelPointerDown(event, props.layerId, point)
+                  }
+                >
+                  {point.label}
+                </span>
               ) : null}
             </div>
           );
         })}
       </div>
+      {guideTimeMs !== null ? (
+        <PointGuide
+          layerId={props.layerId}
+          timeMs={guideTimeMs}
+          zoomPxPerSec={props.zoomPxPerSec}
+          dragging={drag?.layerId === props.layerId}
+        />
+      ) : null}
       {props.pointsApi.menu?.layerId === props.layerId
         ? createPortal(
             <PointMenu
@@ -124,6 +155,70 @@ export function DesktopTranscriptionPointTrack(props: {
           )
         : null}
     </>
+  );
+}
+
+/** Guide: wave top → point-lane top (does not enter the event/point layer). */
+function PointGuide(props: {
+  layerId: string;
+  timeMs: number;
+  zoomPxPerSec: number;
+  dragging: boolean;
+}) {
+  const [box, setBox] = useState<{ left: number; top: number; height: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const wave = document.querySelector('.desktop-tx-wave');
+      const lane = document.querySelector(
+        `.desktop-tx-lane[data-layer-id="${CSS.escape(props.layerId)}"]`,
+      );
+      const track = lane?.querySelector('.desktop-tx-point-track');
+      if (!(wave instanceof HTMLElement) || !(track instanceof HTMLElement)) {
+        setBox(null);
+        return;
+      }
+      const wr = wave.getBoundingClientRect();
+      const lr = lane instanceof HTMLElement ? lane.getBoundingClientRect() : null;
+      const tr = track.getBoundingClientRect();
+      // Stop at the top of the point lane — guide does not paint into 事件层.
+      const bottom = lr?.top ?? tr.top;
+      const height = bottom - wr.top;
+      if (!(height > 2) || !(props.zoomPxPerSec > 0)) {
+        setBox(null);
+        return;
+      }
+      const left = tr.left + (props.timeMs / 1000) * props.zoomPxPerSec;
+      setBox({ left, top: wr.top, height });
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    const tiers = document.querySelector('.desktop-tx-tiers');
+    tiers?.addEventListener('scroll', measure, true);
+    return () => {
+      window.removeEventListener('resize', measure);
+      tiers?.removeEventListener('scroll', measure, true);
+    };
+  }, [props.layerId, props.timeMs, props.zoomPxPerSec]);
+
+  if (box === null) return null;
+  return createPortal(
+    <div
+      className={`desktop-tx-point-guide${props.dragging ? ' is-drag' : ''}`}
+      style={
+        {
+          '--point-guide-left': `${box.left}px`,
+          '--point-guide-top': `${box.top}px`,
+          '--point-guide-height': `${box.height}px`,
+        } as CSSProperties
+      }
+      aria-hidden
+    >
+      {props.dragging ? (
+        <span className="desktop-tx-pin__readout">{formatPointReadout(props.timeMs)}</span>
+      ) : null}
+    </div>,
+    document.body,
   );
 }
 

@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
-import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../contexts/ToastContext';
 import { useDesktopTranscriptionPointController } from './useDesktopTranscriptionPointController';
 
@@ -23,11 +23,66 @@ function wrap({ children }: { children: React.ReactNode }) {
 }
 
 describe('useDesktopTranscriptionPointController', () => {
+  afterEach(cleanup);
   beforeEach(() => {
     createPoint.mockReset();
     updatePointLabel.mockReset();
     movePoint.mockReset();
     deletePoint.mockReset();
+  });
+
+  it('opens label edit only on re-click of the selected label or Enter', async () => {
+    const seekTo = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useDesktopTranscriptionPointController({
+          locale: 'zh-CN',
+          sessionId: 's1',
+          manuscriptId: 'm1',
+          desktopCall: vi.fn(),
+          layers: [
+            {
+              id: 'pt',
+              contentType: 'point',
+              points: [{ id: 'a', timeMs: 100, label: '拍手' }],
+            },
+          ],
+          durationSec: 10,
+          playheadSec: () => 0,
+          seekTo,
+          clearUnitSelection: () => undefined,
+          reload: async () => undefined,
+        }),
+      { wrapper: wrap },
+    );
+
+    const down = {
+      button: 0,
+      currentTarget: document.createElement('div'),
+      preventDefault: () => undefined,
+      stopPropagation: () => undefined,
+    } as unknown as React.PointerEvent<HTMLElement>;
+
+    act(() => {
+      result.current.onLabelPointerDown(down, 'pt', { id: 'a', timeMs: 100, label: '拍手' });
+    });
+    expect(result.current.selected).toEqual({ layerId: 'pt', pointId: 'a' });
+    expect(result.current.editingId).toBeNull();
+
+    act(() => {
+      result.current.onLabelPointerDown(down, 'pt', { id: 'a', timeMs: 100, label: '拍手' });
+    });
+    expect(result.current.editingId).toBe('a');
+
+    act(() => {
+      result.current.cancelEdit();
+    });
+    expect(result.current.editingId).toBeNull();
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    expect(result.current.editingId).toBe('a');
   });
 
   it('creates at the playhead with ⌘Enter and opens label edit', async () => {
@@ -50,6 +105,7 @@ describe('useDesktopTranscriptionPointController', () => {
         useDesktopTranscriptionPointController({
           locale: 'zh-CN',
           sessionId: 's1',
+          manuscriptId: 'm1',
           desktopCall: vi.fn(),
           layers,
           durationSec: 10,
@@ -98,6 +154,7 @@ describe('useDesktopTranscriptionPointController', () => {
         useDesktopTranscriptionPointController({
           locale: 'zh-CN',
           sessionId: 's1',
+          manuscriptId: 'm1',
           desktopCall: vi.fn(),
           layers: [
             {
@@ -123,6 +180,7 @@ describe('useDesktopTranscriptionPointController', () => {
     const down = {
       button: 0,
       pointerId: 1,
+      clientX: 0,
       preventDefault: () => undefined,
       stopPropagation: () => undefined,
       currentTarget: target,
@@ -133,11 +191,16 @@ describe('useDesktopTranscriptionPointController', () => {
         down,
         'pt',
         { id: 'a', timeMs: 100, label: 'a' },
-        () => 200,
+        (x) => 100 + x * 2.5,
       );
     });
     act(() => {
-      target.dispatchEvent(new PointerEvent('pointerup', { clientX: 40, bubbles: true }));
+      window.dispatchEvent(
+        new PointerEvent('pointermove', { pointerId: 1, clientX: 40, bubbles: true }),
+      );
+      window.dispatchEvent(
+        new PointerEvent('pointerup', { pointerId: 1, clientX: 40, bubbles: true }),
+      );
     });
     await act(async () => {
       await Promise.resolve();
@@ -159,6 +222,7 @@ describe('useDesktopTranscriptionPointController', () => {
         useDesktopTranscriptionPointController({
           locale: 'zh-CN',
           sessionId: 's1',
+          manuscriptId: 'm1',
           desktopCall: vi.fn(),
           layers: [
             {
@@ -203,6 +267,7 @@ describe('useDesktopTranscriptionPointController', () => {
         useDesktopTranscriptionPointController({
           locale: 'zh-CN',
           sessionId: 's1',
+          manuscriptId: 'm1',
           desktopCall: vi.fn(),
           layers: [
             {
@@ -227,17 +292,20 @@ describe('useDesktopTranscriptionPointController', () => {
         {
           button: 0,
           pointerId: 2,
+          clientX: 0,
           preventDefault: () => undefined,
           stopPropagation: () => undefined,
           currentTarget: target,
         } as unknown as React.PointerEvent<HTMLElement>,
         'pt',
         { id: 'a', timeMs: 100, label: 'a' },
-        () => 400,
+        (x) => 100 + x * 3.75,
       );
     });
     act(() => {
-      target.dispatchEvent(new PointerEvent('pointermove', { clientX: 80, bubbles: true }));
+      window.dispatchEvent(
+        new PointerEvent('pointermove', { pointerId: 2, clientX: 80, bubbles: true }),
+      );
     });
     expect(result.current.drag?.timeMs).toBe(400);
     act(() => {
@@ -245,7 +313,9 @@ describe('useDesktopTranscriptionPointController', () => {
     });
     expect(result.current.drag).toBeNull();
     act(() => {
-      target.dispatchEvent(new PointerEvent('pointerup', { clientX: 80, bubbles: true }));
+      window.dispatchEvent(
+        new PointerEvent('pointerup', { pointerId: 2, clientX: 80, bubbles: true }),
+      );
     });
     await act(async () => {
       await Promise.resolve();
@@ -262,6 +332,7 @@ describe('useDesktopTranscriptionPointController', () => {
         useDesktopTranscriptionPointController({
           locale: 'zh-CN',
           sessionId: 's1',
+          manuscriptId: 'm1',
           desktopCall: vi.fn(),
           layers: [
             {
@@ -286,21 +357,26 @@ describe('useDesktopTranscriptionPointController', () => {
         {
           button: 0,
           pointerId: 3,
+          clientX: 0,
           preventDefault: () => undefined,
           stopPropagation: () => undefined,
           currentTarget: target,
         } as unknown as React.PointerEvent<HTMLElement>,
         'pt',
         { id: 'a', timeMs: 100, label: 'a' },
-        () => 700,
+        (x) => 100 + x * (600 / 90),
       );
     });
     act(() => {
-      target.dispatchEvent(new PointerEvent('pointermove', { clientX: 90, bubbles: true }));
+      window.dispatchEvent(
+        new PointerEvent('pointermove', { pointerId: 3, clientX: 90, bubbles: true }),
+      );
     });
     expect(result.current.drag?.timeMs).toBe(700);
     act(() => {
-      target.dispatchEvent(new PointerEvent('pointercancel', { clientX: 90, bubbles: true }));
+      window.dispatchEvent(
+        new PointerEvent('pointercancel', { pointerId: 3, clientX: 90, bubbles: true }),
+      );
     });
     expect(result.current.drag).toBeNull();
     await act(async () => {

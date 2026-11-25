@@ -3450,6 +3450,27 @@ test('point layer create edit move delete undo redo and reopen', async () => {
 
     const pin = pointLane.locator(`.desktop-tx-pin[data-point-id="${first.id}"]`);
     const mark = pin.locator('.desktop-tx-pin__mark');
+    await mark.click();
+    expect((await listPoints())[0]?.timeMs).toBe(first.timeMs);
+    await expect(labelInput).toHaveCount(0);
+    await pin.locator('.desktop-tx-pin__label').click();
+    await expect(labelInput).toBeVisible();
+    await labelInput.press('Escape');
+    await expect(labelInput).toHaveCount(0);
+    await expect(pin).toHaveClass(/is-selected/);
+    await page.keyboard.press('Escape');
+    await expect(pin).not.toHaveClass(/is-selected/);
+    await mark.click();
+    const anchor = await page.evaluate(() => {
+      const marker = document.querySelector('.desktop-tx-pin__mark')!.getBoundingClientRect();
+      const guide = document.querySelector('.desktop-tx-point-guide')!.getBoundingClientRect();
+      return Math.abs(marker.left + marker.width / 2 - guide.left);
+    });
+    expect(anchor).toBeLessThan(1);
+    await page.locator('input[type="range"]').first().focus();
+    await page.keyboard.press('Delete');
+    expect((await listPoints()).map((point) => point.id)).toEqual([first.id]);
+    await mark.click();
     const markBox = await mark.boundingBox();
     if (!markBox) throw new Error('point marker missing');
     const startX = markBox.x + markBox.width / 2;
@@ -3459,13 +3480,28 @@ test('point layer create edit move delete undo redo and reopen', async () => {
     await page.mouse.move(startX + 30, pointerY, { steps: 3 });
     await page.keyboard.press('Escape');
     await page.mouse.up();
-    await expect(pointLane.locator('.desktop-tx-pin.is-preview')).toHaveCount(0);
+    await expect(pointLane.locator('.desktop-tx-pin.is-dragging')).toHaveCount(0);
+    await expect(page.locator('.desktop-tx-pin__readout')).toHaveCount(0);
     expect((await listPoints())[0]?.timeMs).toBe(first.timeMs);
 
     await page.mouse.move(startX, pointerY);
     await page.mouse.down();
     await page.mouse.move(startX + 60, pointerY, { steps: 5 });
+    await expect(page.locator('.desktop-tx-pin__readout')).toBeVisible();
+    const readoutPlacement = await page.locator('.desktop-tx-pin__readout').evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      const lane = document.querySelector('.desktop-tx-lane.is-point')!.getBoundingClientRect();
+      return {
+        clippedByLane: node.closest('.desktop-tx-lane__body') !== null,
+        bottom: rect.bottom,
+        laneTop: lane.top,
+      };
+    });
+    expect(readoutPlacement.clippedByLane).toBe(false);
+    expect(readoutPlacement.bottom).toBeLessThanOrEqual(readoutPlacement.laneTop);
+    await page.screenshot({ path: test.info().outputPath('point-drag.png') });
     await page.mouse.up();
+    await expect(page.locator('.desktop-tx-pin__readout')).toHaveCount(0);
     await expect.poll(async () => (await listPoints())[0]?.timeMs).not.toBe(first.timeMs);
     const movedMs = (await listPoints())[0]?.timeMs;
     if (movedMs === undefined) throw new Error('moved point missing');

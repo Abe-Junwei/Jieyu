@@ -9,9 +9,9 @@ import type { DesktopReadHost } from '../desktop/projectReadHost';
 import { useToast } from '../contexts/ToastContext';
 import type { Locale } from '../i18n';
 import { bindPointDrag } from './desktopTranscriptionPointDrag';
+import { onPointKeyDown } from './desktopTranscriptionPointKeys';
 import {
   createPointAt,
-  neighborPoint,
   pointFailureText,
   removePoint,
   savePointLabel,
@@ -28,6 +28,7 @@ import {
 export function useDesktopTranscriptionPointController(input: {
   locale: Locale;
   sessionId: string | null;
+  manuscriptId: string | null;
   desktopCall: DesktopReadHost['desktopCall'] | undefined;
   layers: readonly PointLayer[] | undefined;
   durationSec: number;
@@ -37,14 +38,26 @@ export function useDesktopTranscriptionPointController(input: {
   reload: () => Promise<unknown>;
 }) {
   const toast = useToast();
-  const live = useRef(input);
-  live.current = input;
+  const scopeKey = `${input.sessionId ?? ''}\0${input.manuscriptId ?? ''}`;
+  const live = useRef({ ...input, scopeKey });
+  live.current = { ...input, scopeKey };
   const [selected, setSelected] = useState<PointRef | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [drag, setDrag] = useState<PointDragPreview | null>(null);
   const [menu, setMenu] = useState<PointMenuState | null>(null);
   const dragOrigin = useRef<{ pointId: string; layerId: string; timeMs: number } | null>(null);
+  const stopDrag = useRef<(() => void) | null>(null);
+  const editVersion = useRef(0);
+
+  useEffect(() => {
+    setSelected(null);
+    setEditingId(null);
+    setMenu(null);
+    return () => {
+      stopDrag.current?.();
+    };
+  }, [scopeKey]);
 
   useEffect(() => {
     setSelected((current) => {
@@ -61,70 +74,24 @@ export function useDesktopTranscriptionPointController(input: {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      const current = live.current;
-      if (event.key === 'Escape') {
-        if (dragOrigin.current !== null || drag !== null) {
-          event.preventDefault();
-          dragOrigin.current = null;
-          setDrag(null);
-          return;
-        }
-        if (editingId !== null) {
-          event.preventDefault();
-          setEditingId(null);
-          setDraft('');
-          return;
-        }
-        if (menu !== null) {
-          setMenu(null);
-          return;
-        }
-        if (selected !== null) setSelected(null);
-        return;
-      }
-      if (editingId !== null) return;
-      if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-        const layerId =
-          selected?.layerId ??
-          (current.layers ?? []).find((layer) => layer.contentType === 'point')?.id;
-        if (layerId === undefined) return;
-        event.preventDefault();
-        void createAt(layerId, Math.round(current.playheadSec() * 1000), true);
-        return;
-      }
-      if (selected === null) return;
-      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-        event.preventDefault();
-        const next = neighborPoint(
-          current.layers ?? [],
-          selected,
-          event.key === 'ArrowLeft' ? -1 : 1,
-        );
-        if (next) pick({ layerId: selected.layerId, pointId: next.id }, next.timeMs);
-        return;
-      }
-      if (event.key === 'Home' || event.key === 'End') {
-        event.preventDefault();
-        const next = neighborPoint(
-          current.layers ?? [],
-          selected,
-          event.key === 'Home' ? 'home' : 'end',
-        );
-        if (next) pick({ layerId: selected.layerId, pointId: next.id }, next.timeMs);
-        return;
-      }
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        const point = sortedLayerPoints(current.layers ?? [], selected.layerId).find(
-          (row) => row.id === selected.pointId,
-        );
-        if (point) beginEdit(point.id, point.label);
-        return;
-      }
-      if (event.key === 'Backspace' || event.key === 'Delete') {
-        event.preventDefault();
-        void erase(selected.pointId);
-      }
+      onPointKeyDown(event, {
+        layers: live.current.layers,
+        selected,
+        editingId,
+        menuOpen: menu !== null,
+        dragging: dragOrigin.current !== null || drag !== null,
+        clearDrag: () => {
+          stopDrag.current?.();
+        },
+        cancelEdit,
+        clearMenu: () => setMenu(null),
+        clearSelection: () => setSelected(null),
+        pick,
+        beginEdit,
+        createAtPlayhead: (layerId) =>
+          void createAt(layerId, Math.round(live.current.playheadSec() * 1000), true),
+        erase: (pointId) => void erase(pointId),
+      });
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -137,7 +104,14 @@ export function useDesktopTranscriptionPointController(input: {
     live.current.seekTo(timeMs / 1000);
   }
 
+  function cancelEdit() {
+    editVersion.current += 1;
+    setEditingId(null);
+    setDraft('');
+  }
+
   function beginEdit(pointId: string, label: string) {
+    editVersion.current += 1;
     setEditingId(pointId);
     setDraft(label);
     setMenu(null);
@@ -158,11 +132,13 @@ export function useDesktopTranscriptionPointController(input: {
         timeMs,
         durationSec: current.durationSec,
       });
+      if (current.scopeKey !== live.current.scopeKey) return;
       await current.reload();
+      if (current.scopeKey !== live.current.scopeKey) return;
       pick({ layerId, pointId: point.id }, point.timeMs);
       if (edit) beginEdit(point.id, '');
     } catch (caught) {
-      fail(caught);
+      if (current.scopeKey === live.current.scopeKey) fail(caught);
     }
   }
 
@@ -171,6 +147,7 @@ export function useDesktopTranscriptionPointController(input: {
     const pointId = editingId;
     if (current.sessionId === null || current.desktopCall === undefined || pointId === null) return;
     const label = draft;
+    const version = editVersion.current;
     try {
       await savePointLabel({
         sessionId: current.sessionId,
@@ -178,10 +155,13 @@ export function useDesktopTranscriptionPointController(input: {
         pointId,
         label,
       });
+      if (current.scopeKey !== live.current.scopeKey) return;
       await current.reload();
-      setEditingId(null);
+      if (current.scopeKey === live.current.scopeKey && version === editVersion.current)
+        setEditingId(null);
     } catch (caught) {
-      fail(caught);
+      if (current.scopeKey === live.current.scopeKey && version === editVersion.current)
+        fail(caught);
     }
   }
 
@@ -196,9 +176,10 @@ export function useDesktopTranscriptionPointController(input: {
         timeMs,
         durationSec: current.durationSec,
       });
+      if (current.scopeKey !== live.current.scopeKey) return;
       await current.reload();
     } catch (caught) {
-      fail(caught);
+      if (current.scopeKey === live.current.scopeKey) fail(caught);
     }
   }
 
@@ -213,10 +194,11 @@ export function useDesktopTranscriptionPointController(input: {
         desktopCall: current.desktopCall,
         pointId,
       });
-      if (selected?.pointId === pointId) setSelected(null);
+      if (current.scopeKey !== live.current.scopeKey) return;
+      setSelected((shown) => (shown?.pointId === pointId ? null : shown));
       await current.reload();
     } catch (caught) {
-      fail(caught);
+      if (current.scopeKey === live.current.scopeKey) fail(caught);
     }
   }
 
@@ -226,8 +208,13 @@ export function useDesktopTranscriptionPointController(input: {
     draft,
     drag,
     menu,
-    setDraft,
+    setDraft: (value: string) => {
+      editVersion.current += 1;
+      setDraft(value);
+    },
     clearSelection: () => {
+      editVersion.current += 1;
+      stopDrag.current?.();
       setSelected(null);
       setEditingId(null);
       setMenu(null);
@@ -248,10 +235,14 @@ export function useDesktopTranscriptionPointController(input: {
       msAt: (clientX: number) => number,
     ) {
       if (event.button !== 0) return;
+      const target = event.target;
+      if (target instanceof Element && target.closest('.desktop-tx-pin__label')) return;
       event.preventDefault();
       event.stopPropagation();
+      event.currentTarget.querySelector<HTMLButtonElement>('button')?.focus();
       pick({ layerId, pointId: point.id }, point.timeMs);
-      bindPointDrag({
+      stopDrag.current?.();
+      stopDrag.current = bindPointDrag({
         event,
         point,
         layerId,
@@ -261,6 +252,21 @@ export function useDesktopTranscriptionPointController(input: {
         setDrag,
         commitMove: (pointId, timeMs) => void commitMove(pointId, timeMs),
       });
+    },
+    /** A1 edit gate: first click selects; re-click label enters edit. */
+    onLabelPointerDown(event: ReactPointerEvent<HTMLElement>, layerId: string, point: PointView) {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.currentTarget
+        .closest('[data-point-id]')
+        ?.querySelector<HTMLButtonElement>('button')
+        ?.focus();
+      if (selected?.layerId === layerId && selected.pointId === point.id && editingId === null) {
+        beginEdit(point.id, point.label);
+        return;
+      }
+      pick({ layerId, pointId: point.id }, point.timeMs);
     },
     onPointContextMenu(event: ReactMouseEvent<HTMLElement>, layerId: string, point: PointView) {
       event.preventDefault();
@@ -283,10 +289,7 @@ export function useDesktopTranscriptionPointController(input: {
       if (menu !== null) void erase(menu.pointId);
     },
     commitLabel: () => void commitLabel(),
-    cancelEdit: () => {
-      setEditingId(null);
-      setDraft('');
-    },
+    cancelEdit,
     shownTimeMs: (point: PointView, layerId: string) =>
       drag?.pointId === point.id && drag.layerId === layerId ? drag.timeMs : point.timeMs,
   };

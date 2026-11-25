@@ -225,6 +225,16 @@
         "gate_correctness",
         "audit_traceability"
       ]
+    },
+    {
+      "id": "desktop-point-craft-regressions",
+      "name": "Point editing rejects foreign keyboard focus and stale async completions",
+      "command": "npx vitest run src/pages/desktopTranscriptionPointRegression.test.tsx",
+      "category": "workflow",
+      "evalSuite": "regression",
+      "tiers": ["full"],
+      "goldenTaskCount": 0,
+      "trajectorySignals": []
     }
   ]
 }
