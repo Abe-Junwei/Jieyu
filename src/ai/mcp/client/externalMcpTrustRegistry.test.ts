@@ -12,7 +12,9 @@ vi.mock('../../config/featureFlags', () => ({
 import { getDb, resetJieyuDatabaseSingletonForTests } from '../../../db';
 import {
   exposeExternalMcpToolsToLlm,
+  getExternalMcpTrustEntry,
   normalizeExternalMcpOrigin,
+  persistExternalMcpLastToolsJson,
   setExternalMcpTrustEnabled,
 } from './externalMcpTrustRegistry';
 
@@ -204,5 +206,48 @@ describe('externalMcpTrustRegistry', () => {
       tools: poisonTools,
     });
     expect(exposed).toMatchObject({ allowed: false, reason: 'schema_blocked' });
+  });
+
+  it('packs whole tools under 32KB instead of slicing mid-JSON (#651)', async () => {
+    const origin = 'https://mcp.budget.test';
+    const enabled = await setExternalMcpTrustEnabled({
+      origin,
+      enabled: true,
+      tools: SAFE_TOOLS,
+    });
+    expect(enabled.ok).toBe(true);
+
+    const oversized = Array.from({ length: 200 }, (_, i) => ({
+      name: `tool_${i}`,
+      description: 'd'.repeat(250),
+    }));
+    expect(JSON.stringify(oversized).length).toBeGreaterThan(32_000);
+
+    await persistExternalMcpLastToolsJson({ origin, tools: oversized });
+    const entry = await getExternalMcpTrustEntry(origin);
+    const raw = entry?.lastToolsJson ?? '';
+    expect(() => JSON.parse(raw)).not.toThrow();
+    const parsed = JSON.parse(raw) as unknown[];
+    expect(Array.isArray(parsed)).toBe(true);
+    expect(parsed.length).toBeGreaterThan(0);
+    expect(parsed.length).toBeLessThan(oversized.length);
+    expect(raw.length).toBeLessThanOrEqual(32_000);
+  });
+
+  it('keeps prior parseable cache when a single tool exceeds 32KB (#651)', async () => {
+    const origin = 'https://mcp.single-huge.test';
+    const enabled = await setExternalMcpTrustEnabled({
+      origin,
+      enabled: true,
+      tools: SAFE_TOOLS,
+    });
+    expect(enabled.ok).toBe(true);
+
+    await persistExternalMcpLastToolsJson({
+      origin,
+      tools: [{ name: 'huge_tool', description: 'y'.repeat(40_000) }],
+    });
+    const entry = await getExternalMcpTrustEntry(origin);
+    expect(entry?.lastToolsJson).toBe(JSON.stringify(SAFE_TOOLS));
   });
 });
