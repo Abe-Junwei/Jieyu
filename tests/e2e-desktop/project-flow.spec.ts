@@ -2494,9 +2494,10 @@ for (const entry of ['wave', 'text', 'wave-empty', 'text-empty', 'text-caret'] a
       if (!box) throw new Error('wave box missing');
       await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
       await expect.poll(() => page.locator('audio').evaluate(el => (el as HTMLAudioElement).currentTime)).toBeCloseTo(0.4, 2);
-      const selectedBox = await wave.boundingBox();
-      if (!selectedBox) throw new Error('selected wave missing');
-      await page.mouse.click(selectedBox.x + selectedBox.width / 2, selectedBox.y + selectedBox.height / 2);
+      // Seeking to the start can precede React mounting the selected-region body.
+      const selectedBody = wave.getByTestId('desktop-wave-body');
+      await expect(selectedBody).toBeVisible();
+      await selectedBody.click();
       await expect.poll(() => page.locator('audio').evaluate(el => (el as HTMLAudioElement).currentTime)).toBeGreaterThan(0.5);
       if (entry.startsWith('wave')) {
         const nextBox = await wave.boundingBox();
