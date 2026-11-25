@@ -16,10 +16,7 @@ function createSseResponse(chunks: string[]): Response {
 
 describe('iterateSseData', () => {
   it('merges multi-line data fields into one SSE payload', async () => {
-    const response = createSseResponse([
-      'data: {"a": 1,\n',
-      'data: "b": 2}\n\n',
-    ]);
+    const response = createSseResponse(['data: {"a": 1,\n', 'data: "b": 2}\n\n']);
 
     const payloads: string[] = [];
     for await (const payload of iterateSseData(response)) {
@@ -41,11 +38,7 @@ describe('iterateSseData', () => {
   });
 
   it('ignores non-data lines and comments', async () => {
-    const response = createSseResponse([
-      ': keepalive\n',
-      'event: message\n',
-      'data: hello\n\n',
-    ]);
+    const response = createSseResponse([': keepalive\n', 'event: message\n', 'data: hello\n\n']);
 
     const payloads: string[] = [];
     for await (const payload of iterateSseData(response)) {
@@ -126,6 +119,18 @@ describe('createThinkTagStripper', () => {
     const p3 = stripper.feed('ink>world', true);
     expect(`${p1}${p2}${p3}`).toBe('helloworld');
   });
+
+  it.each(['THINK', 'ThInK', 'REDACTED_THINKING', 'ReDaCtEd_ThInKiNg'])(
+    'withholds %s tags at every chunk boundary without truncating visible text',
+    (tag) => {
+      const raw = `A<${tag}>secret</${tag}>B`;
+      for (let split = 1; split < raw.length; split += 1) {
+        const stripper = createThinkTagStripper();
+        const output = stripper.feed(raw.slice(0, split)) + stripper.feed(raw.slice(split), true);
+        expect(output, `split at ${split}`).toBe('AB');
+      }
+    },
+  );
 
   it('does not split visible text before a think tag that arrives in the next chunk', () => {
     const stripper = createThinkTagStripper();

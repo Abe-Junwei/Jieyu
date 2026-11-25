@@ -3467,9 +3467,15 @@ test('point layer create edit move delete undo redo and reopen', async () => {
       return Math.abs(marker.left + marker.width / 2 - guide.left);
     });
     expect(anchor).toBeLessThan(1);
-    await page.locator('input[type="range"]').first().focus();
+    const styleMenu = await openLayerHeaderMenu(page);
+    await styleMenu.getByRole('button', { name: /^(样式|Style)$/ }).click();
+    const fontSize = styleMenu.getByRole('spinbutton');
+    await expect(pin).toHaveClass(/is-selected/);
+    await fontSize.focus();
+    await page.keyboard.press('Backspace');
     await page.keyboard.press('Delete');
     expect((await listPoints()).map((point) => point.id)).toEqual([first.id]);
+    await page.keyboard.press('Escape');
     await mark.click();
     const markBox = await mark.boundingBox();
     if (!markBox) throw new Error('point marker missing');

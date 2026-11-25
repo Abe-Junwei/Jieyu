@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { callDesktopSession } from './desktopCall';
 import {
   closeDesktopSession,
@@ -20,6 +20,7 @@ function folder(): string {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   resetDesktopSessions();
   for (const root of roots) rmSync(root, { recursive: true, force: true });
   roots.length = 0;
@@ -458,6 +459,53 @@ describe('desktop unit edges', () => {
 });
 
 describe('layer-scoped clear through desktop calls', () => {
+  it('undoes and redoes clear after a later text edit is undone, and persists on reopen', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-25T00:00:00Z'));
+    const root = folder();
+    const { sessionId } = openDesktopSession(root, [root]);
+    const host = layer(sessionId, false);
+    const manuscriptId = (
+      requireDesktopSession(sessionId)
+        .db.prepare('SELECT manuscript_id FROM layers WHERE id = ?')
+        .get(host) as {
+        manuscript_id: string;
+      }
+    ).manuscript_id;
+    const linked = (
+      callDesktopSession(sessionId, 'layers.create', {
+        manuscriptId,
+        key: 'translation',
+        name: { zh: '翻译' },
+        tierType: 'symbolic-association',
+        contentType: 'translation',
+        hosts: [{ hostLayerId: host }],
+      }) as { id: string }
+    ).id;
+    const id = unit(sessionId, host, 0, 1000, '原文');
+    const target = { unitId: id, textLayerId: linked };
+    callDesktopSession(sessionId, 'units.updateText', { ...target, text: 'original' });
+    const preview = callDesktopSession(sessionId, 'units.deletePreview', target) as {
+      fingerprint: string;
+    };
+    callDesktopSession(sessionId, 'units.delete', { ...target, fingerprint: preview.fingerprint });
+    vi.setSystemTime(new Date('2026-11-25T00:00:01Z'));
+    callDesktopSession(sessionId, 'units.updateText', { ...target, text: 'new' });
+    callDesktopSession(sessionId, 'units.undo', { manuscriptId });
+    callDesktopSession(sessionId, 'units.undo', { manuscriptId });
+    const read = (sid: string) => callDesktopSession(sid, 'units.list', { layerId: linked });
+    expect(read(sessionId)).toMatchObject([{ text: 'original' }]);
+    callDesktopSession(sessionId, 'units.redo', { manuscriptId });
+    expect(read(sessionId)).toMatchObject([{ text: '' }]);
+    callDesktopSession(sessionId, 'units.redo', { manuscriptId });
+    expect(read(sessionId)).toMatchObject([{ text: 'new' }]);
+    callDesktopSession(sessionId, 'units.undo', { manuscriptId });
+    callDesktopSession(sessionId, 'units.undo', { manuscriptId });
+    closeDesktopSession(sessionId);
+    const reopened = openDesktopSession(root, [root]);
+    expect(read(reopened.sessionId)).toMatchObject([{ text: 'original' }]);
+  });
+
   it('clears official text and draft, replays once, and undoes only that layer', () => {
     const root = folder();
     const { sessionId } = openDesktopSession(root, [root]);
