@@ -136,7 +136,7 @@ export function mergePreview(
     removeId: later.unit.id,
     gapMs: start - end,
     noteCount: noteCountOf(db, earlier.unit.id, later.unit.id),
-    separator: readSeparator(db) ?? ' ',
+    separator: ' ',
     baseline: mergeBaseline(db, input),
     texts: previewTexts(db, earlier, later),
     earlier: clipsOf(db, earlier.unit.id),
@@ -149,7 +149,7 @@ function previewTexts(db: SqliteDatabase, earlier: Side, later: Side): MergeText
   const layerIds = new Set(
     [...earlier.texts, ...later.texts, ...drafts].map((row) => row.layer_id),
   );
-  const separator = readSeparator(db) ?? ' ';
+  const separator = ' ';
   const join = (left: string, right: string) =>
     left !== '' && right !== '' ? left + separator + right : left + right;
   return [...layerIds].map((layerId) => {

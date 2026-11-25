@@ -2494,9 +2494,10 @@ for (const entry of ['wave', 'text', 'wave-empty', 'text-empty', 'text-caret'] a
       if (!box) throw new Error('wave box missing');
       await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
       await expect.poll(() => page.locator('audio').evaluate(el => (el as HTMLAudioElement).currentTime)).toBeCloseTo(0.4, 2);
-      const selectedBox = await wave.boundingBox();
-      if (!selectedBox) throw new Error('selected wave missing');
-      await page.mouse.click(selectedBox.x + selectedBox.width / 2, selectedBox.y + selectedBox.height / 2);
+      // Seeking to the start can precede React mounting the selected-region body.
+      const selectedBody = wave.getByTestId('desktop-wave-body');
+      await expect(selectedBody).toBeVisible();
+      await selectedBody.click();
       await expect.poll(() => page.locator('audio').evaluate(el => (el as HTMLAudioElement).currentTime)).toBeGreaterThan(0.5);
       if (entry.startsWith('wave')) {
         const nextBox = await wave.boundingBox();
@@ -2930,6 +2931,50 @@ test('1b4 runtime menu cancel shortcut merge undo redo and no next', async () =>
     await page.screenshot({ path: test.info().outputPath('1b4-basic.png') });
   });
 });
+
+for (const dropBeforeCommit of [false, true]) {
+  test(`1b4 runtime recovers a lost ${dropBeforeCommit ? 'request' : 'committed reply'} exactly once`, async () => {
+    await run1b4Window('1b4-receipt', async ({ app, page, session, layerId }) => {
+      const before = await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId });
+      const left = before[0];
+      if (!left) throw new Error('merge source missing');
+      await open1b4(page);
+      await offer1b4(page, layerId, left.id);
+      await app.evaluate((main, dropBefore) => {
+        const host = main as unknown as { ipcMain: { _invokeHandlers: Map<string, (...args: unknown[]) => unknown> } };
+        const original = host.ipcMain._invokeHandlers.get('desktop:call');
+        if (!original) throw new Error('desktop handler missing');
+        const fault = { writes: [] as string[], inspections: 0, dropped: false };
+        (globalThis as unknown as { mergeFault: typeof fault }).mergeFault = fault;
+        host.ipcMain._invokeHandlers.set('desktop:call', async (...args) => {
+          if (args[2] === 'units.inspectEdit') fault.inspections += 1;
+          if (args[2] !== 'units.merge') return original(...args);
+          fault.writes.push((args[3] as { operationId: string }).operationId);
+          if (dropBefore && !fault.dropped) {
+            fault.dropped = true;
+            throw new Error('injected lost merge request');
+          }
+          const result = await original(...args);
+          if (!fault.dropped) {
+            fault.dropped = true;
+            throw new Error('injected lost merge reply');
+          }
+          return result;
+        });
+      }, dropBeforeCommit);
+      const joined = await finish1b4(page, session, layerId);
+      expect(joined.text).toBe('one two');
+      const fault = await app.evaluate(() => (globalThis as unknown as { mergeFault: { writes: string[]; inspections: number } }).mergeFault);
+      expect(fault.inspections).toBe(1);
+      expect(fault.writes).toHaveLength(dropBeforeCommit ? 2 : 1);
+      expect(new Set(fault.writes).size).toBe(1);
+      await desktopCall(page, session, 'units.undo', {});
+      expect(await desktopCall(page, session, 'units.list', { layerId })).toEqual(before);
+      await desktopCall(page, session, 'units.redo', {});
+      expect((await desktopCall<ListedUnit[]>(page, session, 'units.list', { layerId }))[0]?.id).toBe(joined.id);
+    });
+  });
+}
 
 test('1b4 runtime merges current editor text exactly once', async () => {
   await run1b4Window('1b4-editor', async ({ page, session, layerId }) => {
