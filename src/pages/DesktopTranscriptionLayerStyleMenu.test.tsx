@@ -158,7 +158,7 @@ describe('DesktopLayerHeaderMenu', () => {
     expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ orthographyId: 'ortho-1' }));
   });
 
-  it('creates the four layer kinds from 新建层 and numbers a taken name', () => {
+  it('creates the layer kinds from 新建层 and numbers a taken name', () => {
     const onCreate = vi.fn();
     const onCreatePair = vi.fn();
     render(
@@ -169,6 +169,7 @@ describe('DesktopLayerHeaderMenu', () => {
         onCollapse={() => undefined}
         create={{
           layers: [{ id: 'layer-1', name: { zh: '转写' } }],
+          canCreatePoint: true,
           onCreate,
           onCreatePair,
         }}
@@ -181,11 +182,34 @@ describe('DesktopLayerHeaderMenu', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: '新建翻译层' }));
     fireEvent.click(screen.getByRole('menuitem', { name: '新建语音转写' }));
     fireEvent.click(screen.getByRole('menuitem', { name: '新建口译' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '新建点层' }));
     expect(onCreate).toHaveBeenNthCalledWith(1, 'transcription', '转写 2');
     expect(onCreate).toHaveBeenNthCalledWith(2, 'orthography', '正字法转写');
     expect(onCreate).toHaveBeenNthCalledWith(3, 'translation', '译文');
+    expect(onCreate).toHaveBeenNthCalledWith(4, 'point', '事件');
     expect(onCreatePair).toHaveBeenNthCalledWith(1, 'voice', '语音转写', '语音转写文本');
     expect(onCreatePair).toHaveBeenNthCalledWith(2, 'oral', '口译', '口译文');
+  });
+
+  it('blocks 新建点层 when there is no recording', () => {
+    const onCreate = vi.fn();
+    render(
+      <DesktopLayerHeaderMenu
+        locale="zh-CN"
+        x={20}
+        y={20}
+        onCollapse={() => undefined}
+        create={{
+          layers: [],
+          canCreatePoint: false,
+          onCreate,
+          onCreatePair: () => undefined,
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^新建层$/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '新建点层' }));
+    expect(onCreate).not.toHaveBeenCalled();
   });
 
   it('opens the font list to the side and writes the preset key', () => {

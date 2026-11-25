@@ -45,6 +45,7 @@ import type { LayerListRequest } from './DesktopTranscriptionLayerList';
 import type { LayerCommandId } from './desktopTranscriptionLayerCommands';
 import { DesktopLayerDragReason } from './useDesktopTranscriptionLayerDragController';
 import { useDesktopTranscriptionOralController } from './useDesktopTranscriptionOralController';
+import { useDesktopTranscriptionPointController } from './useDesktopTranscriptionPointController';
 import { DesktopOralLeaveDialog } from './DesktopOralLeaveDialog';
 import { useOralNavigationGuard } from './oralNavigationGuard';
 import {
@@ -270,6 +271,17 @@ function DesktopTranscriptionWorkspace() {
       const manuscriptId = read.model?.manuscriptId;
       if (manuscriptId) read.selectManuscript(manuscriptId, layerId);
     },
+  });
+  const points = useDesktopTranscriptionPointController({
+    locale,
+    sessionId: read.sessionId,
+    desktopCall: host?.desktopCall,
+    layers: read.model?.layers,
+    durationSec: playback.duration,
+    playheadSec: () => getTranscriptionPlaybackClockSnapshot(),
+    seekTo: playback.seekTo,
+    clearUnitSelection: () => selection.clearSelection(),
+    reload: () => read.refresh(),
   });
   const oral = useDesktopTranscriptionOralController({
     sessionId: read.sessionId,
@@ -656,9 +668,18 @@ function DesktopTranscriptionWorkspace() {
                 onEditBody={draft.edit}
                 onComposeBody={draft.setComposing}
                 onCommitBody={() => void draft.commit()}
-                onSelectUnit={selectPlaybackUnit}
-                onSelectUnits={selectPlaybackUnits}
-                onClearSelection={() => selection.clearSelection()}
+                onSelectUnit={(unit) => {
+                  points.clearSelection();
+                  selectPlaybackUnit(unit);
+                }}
+                onSelectUnits={(picked) => {
+                  points.clearSelection();
+                  selectPlaybackUnits(picked);
+                }}
+                onClearSelection={() => {
+                  points.clearSelection();
+                  selection.clearSelection();
+                }}
                 onSeek={playback.seekTo}
                 reload={() => read.refresh()}
                 tierRef={tierRef}
@@ -698,6 +719,7 @@ function DesktopTranscriptionWorkspace() {
                   )
                 }
                 lanes={laneChrome}
+                pointsApi={points}
                 audioTools={(layerId, unitId) => (
                   <DesktopTranscriptionOralTools
                     oral={oral}

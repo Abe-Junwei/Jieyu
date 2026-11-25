@@ -136,7 +136,7 @@ export function layerCommandItems(input: {
   return items;
 }
 
-export type LayerCreateKind = 'transcription' | 'translation' | 'orthography';
+export type LayerCreateKind = 'transcription' | 'translation' | 'orthography' | 'point';
 
 export function layerCreateParams(input: {
   kind: LayerCreateKind;
@@ -154,6 +154,23 @@ export function layerCreateParams(input: {
   links: readonly { layerId: string; hostLayerId: string; isPreferred?: boolean }[];
   deletedKeys: readonly string[];
 }) {
+  if (input.kind === 'point') {
+    const prefix = 'pt';
+    const taken = new Set([
+      ...input.deletedKeys,
+      ...input.layers.flatMap((row) => (row.key === undefined ? [] : [row.key])),
+    ]);
+    let count = input.layers.length + 1;
+    while (taken.has(`${prefix}-${count}`)) count += 1;
+    return {
+      manuscriptId: input.manuscriptId,
+      key: `${prefix}-${count}`,
+      name: { zh: input.label },
+      tierType: 'time-aligned',
+      contentType: 'point',
+      sortOrder: Math.max(-1, ...input.layers.map((row) => row.sortOrder ?? 0)) + 1,
+    };
+  }
   const timed = (id: string | undefined) =>
     input.layers.find(
       (row) =>

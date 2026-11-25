@@ -101,6 +101,7 @@ import type {
 } from './analysisRestore';
 import type { UnitDeletePreview } from './unitEdges';
 import type { AnalysisRoot, Unit, UnitCreate } from './units';
+import type { Point, PointCreate, PointLabelUpdate, PointMove, PointQuery } from './points';
 
 type UndoPolicy = 'keep' | 'clear' | 'replace-on-success';
 
@@ -603,6 +604,53 @@ function noteList(input: Record<string, unknown>): ContentNoteQuery {
   };
 }
 
+function pointLabelText(value: unknown, name: string): string {
+  if (typeof value !== 'string') throw new Error(`desktop call ${name} must be a string`);
+  return value;
+}
+
+function pointCreate(input: Record<string, unknown>): PointCreate & { operationId?: string } {
+  knownKeys(input, ['id', 'layerId', 'timeMs', 'label', 'operationId']);
+  return {
+    ...(input.id === undefined ? {} : { id: requiredString(input.id, 'id') }),
+    layerId: requiredString(input.layerId, 'layerId'),
+    timeMs: requiredMs(input.timeMs, 'timeMs'),
+    ...(input.label === undefined ? {} : { label: pointLabelText(input.label, 'label') }),
+    ...editOperationId(input),
+  };
+}
+
+function pointLabel(input: Record<string, unknown>): PointLabelUpdate & { operationId?: string } {
+  knownKeys(input, ['id', 'label', 'operationId']);
+  return {
+    id: requiredString(input.id, 'id'),
+    label: pointLabelText(input.label, 'label'),
+    ...editOperationId(input),
+  };
+}
+
+function pointMove(input: Record<string, unknown>): PointMove & { operationId?: string } {
+  knownKeys(input, ['id', 'timeMs', 'operationId']);
+  return {
+    id: requiredString(input.id, 'id'),
+    timeMs: requiredMs(input.timeMs, 'timeMs'),
+    ...editOperationId(input),
+  };
+}
+
+function pointList(input: Record<string, unknown>): PointQuery {
+  knownKeys(input, ['manuscriptId', 'layerId']);
+  if (input.manuscriptId === undefined && input.layerId === undefined) {
+    throw new Error('desktop call points.list needs a manuscript or layer');
+  }
+  return {
+    ...(input.manuscriptId === undefined
+      ? {}
+      : { manuscriptId: requiredString(input.manuscriptId, 'manuscriptId') }),
+    ...(input.layerId === undefined ? {} : { layerId: requiredString(input.layerId, 'layerId') }),
+  };
+}
+
 function lexemeNoteSave(input: Record<string, unknown>): {
   lexemeId: string;
   id?: string;
@@ -1064,6 +1112,10 @@ const EDIT_RECEIPT_KINDS: readonly EditReceiptKind[] = [
   'redo',
   'split',
   'merge',
+  'pointCreate',
+  'pointLabel',
+  'pointMove',
+  'pointDelete',
 ];
 
 function editInspect(input: Record<string, unknown>): {
@@ -2348,6 +2400,27 @@ export const desktopOperations = {
     return { id: requiredString(input.id, 'id') };
   }),
   'notes.list': spec<'keep', ContentNoteQuery, ContentNote[]>('keep', noteList),
+  'points.create': spec<'keep', PointCreate & { operationId?: string }, Point>('keep', pointCreate),
+  'points.updateLabel': spec<'keep', PointLabelUpdate & { operationId?: string }, Point>(
+    'keep',
+    pointLabel,
+  ),
+  'points.move': spec<'keep', PointMove & { operationId?: string }, Point>('keep', pointMove),
+  'points.delete': spec<'keep', { id: string; operationId?: string }, { id: string }>(
+    'keep',
+    (input) => {
+      knownKeys(input, ['id', 'operationId']);
+      return {
+        id: requiredString(input.id, 'id'),
+        ...editOperationId(input),
+      };
+    },
+  ),
+  'points.get': spec<'keep', { id: string }, Point | null>('keep', (input) => {
+    knownKeys(input, ['id']);
+    return { id: requiredString(input.id, 'id') };
+  }),
+  'points.list': spec<'keep', PointQuery, Point[]>('keep', pointList),
   'notes.saveLexeme': spec<
     'clear',
     {
@@ -2431,14 +2504,16 @@ export const desktopOperations = {
     'keep',
     () => ({}) as Record<string, never>,
   ),
-  'units.undo': spec<'keep', { manuscriptId?: string; operationId?: string }, Unit | Unit[]>(
+  'units.undo': spec<
     'keep',
-    unitStack,
-  ),
-  'units.redo': spec<'keep', { manuscriptId?: string; operationId?: string }, Unit | Unit[]>(
+    { manuscriptId?: string; operationId?: string },
+    Unit | Unit[] | Point | Point[]
+  >('keep', unitStack),
+  'units.redo': spec<
     'keep',
-    unitStack,
-  ),
+    { manuscriptId?: string; operationId?: string },
+    Unit | Unit[] | Point | Point[]
+  >('keep', unitStack),
   'units.dropUndo': spec<'keep', { manuscriptId?: string }, { dropped: boolean }>(
     'keep',
     unitStackDrop,

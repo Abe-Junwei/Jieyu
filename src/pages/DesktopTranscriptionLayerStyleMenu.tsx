@@ -322,8 +322,9 @@ function LayerCommandMenu(props: {
 
 export interface LayerCreateActions {
   layers: readonly { id: string; name: Record<string, string> }[];
+  canCreatePoint?: boolean;
   onCreate: (
-    kind: 'transcription' | 'translation' | 'orthography',
+    kind: 'transcription' | 'translation' | 'orthography' | 'point',
     label: string,
     sourceLayerId?: string,
   ) => void;
@@ -402,6 +403,23 @@ function LayerCreateMenu(props: {
         }
       >
         {t(props.locale, 'transcription.laneHeader.layer.createOral')}
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        aria-disabled={props.create.canCreatePoint === false ? true : undefined}
+        {...(props.create.canCreatePoint === false
+          ? {
+              title: t(props.locale, 'app.desktopTranscription.pointNeedsMedia'),
+              'aria-description': t(props.locale, 'app.desktopTranscription.pointNeedsMedia'),
+            }
+          : {})}
+        onClick={() => {
+          if (props.create.canCreatePoint === false) return;
+          props.create.onCreate('point', name('app.desktopTranscription.contextLayerPoint'));
+        }}
+      >
+        {t(props.locale, 'transcription.laneHeader.layer.createPoint')}
       </button>
     </MenuFlyout>
   );

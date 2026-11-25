@@ -2589,3 +2589,93 @@
 .desktop-tx-context__row:has(.desktop-tx-layer-timing) {
   min-height: 48px;
 }
+
+/* Point layer (1b-5): diamond pin + label; preview is dashed and translucent. */
+.desktop-tx-lane.is-point {
+  min-height: 36px;
+}
+
+.desktop-tx-point-track {
+  position: relative;
+  height: 100%;
+  min-height: 36px;
+}
+
+.desktop-tx-pin {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+
+.desktop-tx-pin.is-preview,
+.desktop-tx-pin.is-dragging {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.desktop-tx-pin.is-preview .desktop-tx-pin__mark,
+.desktop-tx-pin.is-dragging .desktop-tx-pin__mark {
+  border-style: dashed;
+}
+
+.desktop-tx-pin__mark {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  padding: 0;
+  border: 1.5px solid var(--text-secondary);
+  border-radius: 2px;
+  background: var(--surface-panel);
+  transform: rotate(45deg);
+  cursor: pointer;
+}
+
+.desktop-tx-pin.is-selected .desktop-tx-pin__mark,
+.desktop-tx-pin__mark[aria-pressed='true'] {
+  border-color: var(--brand);
+  background: var(--brand);
+}
+
+.desktop-tx-pin__label {
+  max-width: 160px;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktop-tx-pin__input {
+  min-width: 72px;
+  max-width: 160px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1.5px solid var(--brand);
+  border-radius: var(--radius-sm);
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.desktop-tx-point-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+.desktop-tx-menu__dismiss {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-popover) - 1);
+  border: 0;
+  background: transparent;
+  cursor: default;
+}

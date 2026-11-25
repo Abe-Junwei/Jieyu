@@ -70,7 +70,7 @@ depends_on:
     - 拆有正文的宿主被拒，库里不变；
     - 成环被拒；
     - 非转写层不能当宿主。
-    页面 vitest：改首选宿主后层树换位。再跑 `npm run typecheck`、`npm run check:architecture-guard`，以及 `npm run test:e2e:desktop-project -- --grep "layer hosts"`。开工前先用 Pixso 读精稿，在 design 里补「UI 精稿对照」。
+      页面 vitest：改首选宿主后层树换位。再跑 `npm run typecheck`、`npm run check:architecture-guard`，以及 `npm run test:e2e:desktop-project -- --grep "layer hosts"`。开工前先用 Pixso 读精稿，在 design 里补「UI 精稿对照」。
 - [x] 拖层改归属（issue 待开，不进 #599，不改 #603）侧栏层头和时间轴层头拖拽改宿主；波形轨道仍是语段时间。上下按钮留着。落到转写层头：一条首选宿主链接，排在该宿主最后，不改 `layers.parent_id`。这条链接只改层树位置，不借用宿主的语段。落到翻译层头：仅同一宿主时，上半排到该行之前、下半排到之后，否则拒绝。菜单「回到顶层」和顶部接收区都排到根列表最前。只有一个宿主的翻译层落到转写层头，换成这一个。已有多个宿主的翻译层落到转写层头拒绝，不弹确认，改走宿主弹窗。根缝和 `layers.clearHosts` 只给 `time-aligned` 转写层。翻译层落根缝拒绝，菜单没有「回到顶层」。被拿掉的宿主仍有该层正文或草稿则整次拒绝。类型不弹选择，已有类型带走，没有则 `direct`。宿主弹窗仍只给 `symbolic-association`，且仍要求至少一个宿主。`time-subdivision` 仍拒绝。自己、后代、别的稿、已删层沿用现有拒绝。不进 `edit_receipts`，与 `layers.setHosts` 一样清空句段撤销栈。拖动中不写库；失败、Esc 或指针取消时行回到原位，库不变。
   - 调研：见 design §1「拖层改归属」。结论：适配。指针手势沿用本页，不引入拖拽库，不做 `role="application"` 键盘拖拽。
   - 落位：纯函数 `src/pages/desktopTranscriptionLayerDrop.ts`。写操作仍在 `src/db/desktop/layerHosts.ts`：`setHosts` 的从属层放宽到 `time-aligned`＋`transcription`；`layers.clearHosts` 只接受这类转写层（正文检查相同，根上的 `sort_order` 按缝插入），翻译层调用直接拒绝。同宿主改顺序一次事务改 `layer_links.sort_order` 或根上的 `layers.sort_order`，不连按 `layers.move`。页面用新的 `useDesktopTranscriptionLayerDragController.ts`，`DesktopTranscriptionWorkspacePage.tsx` 只装配。侧栏与时间轴层头起拖，轨道上的 `onPointerDown` 不动。两个面不跨面落下。视觉按 design「拖层改归属视觉」。文案走 `dictKeys` 与 zh-CN、en-US。
@@ -121,7 +121,15 @@ depends_on:
   - 收口复审（2026-11-25）：沿句段菜单／⌘M → controller → IPC → 合并事务 → 回执／会话撤销 → 关闭重开读回核对。发现并补上两处：界面绕过 `createDesktopClient`，丢回复后不核实回执；预览沿用旧 `mergeSeparator`，与固定空格提交不一致。三条失败回归先复现，再改为复用客户端的同编号核实／重试、预览固定空格；不改格式、不改确认框外观。
   - 本地合成验收：`merge unit|1b4 runtime|正字法转写` 定向 Electron 8 项通过，覆盖菜单取消、⌘M 不最小化、正式正文与草稿、六条录音显式丢弃／播放列表／删除／拆分保留、撤销重做、关闭重开，以及请求丢失／提交后回复丢失。故障例实际注入主进程 IPC；只生成一个新身份，未提交时复用同一 operationId 重试，已提交时只查回执，一步撤销可恢复原两段。
   - 最新多层合同以正字法规格与 ADR-0141 为准：确认框单列各层正式正文和未保存草稿，取消保留草稿，确认后才合入；录音不再拥有文本子层。沿用原测试中的保存来源、映射、字段冲突、分析快照、录音引用持有与重开证据。本项只关闭 1b-4，不关闭 #567 或首发 V06 总门；多段合并、无时间合并、Windows 安装包与真实材料抽验不在本次范围。
-- [ ] 1b-5（[#565](https://github.com/Abe-Junwei/Jieyu/issues/565)）点层：增删改移、同层同毫秒唯一 → 验证：同上
+- [ ] 1b-5（[#565](https://github.com/Abe-Junwei/Jieyu/issues/565)）点层：增删改移、同层同毫秒唯一。功能已实现；本地证据见下，待 PR CI 后关账。
+  - 开工边界：沿用现有 `points` 表，不升数据库版本，不把点伪装成零长 unit，不挂说话人、父子或符号宿主。单独 PR；实施前确认本条计划。界面必须先恢复 Pixso 文件读取并补齐 design 的「UI 精稿对照」。
+  - 第一步，写入与回读：新增 `src/db/desktop/points.ts`，提供按文稿／层列点以及新增、改标签、移动、删除；通过现有 `operationContract`、操作注册与 desktop client 暴露，不让页面直连 SQL。一次操作一次事务。校验项目会话、文稿与层归属、层未删除且为 point、非负整数毫秒；关联媒体时校验时长范围，无媒体时保留既有点且不查媒体范围。同层同毫秒由既有唯一约束兜底，冲突整次拒绝，绝不覆盖另一点。
+  - 第二步，撤销与重试：接入现有 `sessionEdit`／`editReceipts`，不另建账本。增点重试沿用同一 id；标签／移动／删除记录前后态，撤销恢复原 id、时刻和标签，重做复用身份。后态改变或恢复位置被占用时整次拒绝；写入结果未知先查回执，不能盲目再增一点。验证通过再接 UI。
+  - 第三步，页面接线：计划新增 `useDesktopTranscriptionPointController.ts` 与点轨道展示组件，页面只装配；复用现有媒体、视口、层头、层菜单与树关系线 v2。点的选择与 unit 选择明确区分，不进入拆分／合并／说话人动作。点坐标统一使用已有毫秒与视口换算；拖动只预览，松手提交一次，取消与失败恢复已保存位置。创建入口、标签编辑状态、删除入口及键盘替代须以可读精稿核对后确定，不凭旧语段交互直接套用。
+  - 第四步，集成验收：检查层软删／恢复、永久删除、项目包导出／导入、整体调时与已有点的读回，不为已有消费者重写第二套逻辑。Electron 合成流程从真实入口建点层、增点、改标签、移动、删除、撤销／重做，再关库重开核对 id／层／毫秒／标签。另测重复时刻拒绝后原两点均未变、切文稿无串写、点操作不改语段正文和时间。
+  - 测试落位：新增 `src/db/desktop/points.test.ts`（真实 SQLite + 关库重开）、`src/pages/useDesktopTranscriptionPointController.test.ts`（取消／冲突／过期结果／单次提交），相关点轨道页面测试，以及 `tests/e2e-desktop` 的独立 point flow。DB 测试经注册入口调用；覆盖同层重复拒绝、异层同刻允许、负数／小数拒绝、非点层／已删层／跨稿拒绝、媒体上下限、无媒体既有点、撤销冲突不写与回执重发。
+  - 门禁：`npm run typecheck`、上述定向 Vitest、`npm run check:architecture-guard`、`npm run check:docs-governance`；界面改动跑 `npm run check:changed -- --base <本片基线>`，以及 `npm run test:e2e:desktop-project -- --grep "point"` 和 `npm run test:e2e:chromium`。全量 desktop-flow 交 CI；证据齐全才勾选本条。
+  - 本地验收（2026-11-25）：`typecheck`、`check:desktop-selectors`、`check:architecture-guard`、CSS 三件套、`check:docs-governance`、`check:dev-agent-workflow-verify` 与 `git diff --check` 通过。14 个定向 Vitest 文件共 106 项通过，覆盖点操作／回执／撤销／层恢复／调时／项目读回／导出与页面。Electron `--grep "point layer"` 1 项通过：真实鼠标建点与拖移、标签、Esc 取消、右键删除、⌘Z／⌘⇧Z、关库重开；pointercancel 由 controller 定向测试覆盖。PR CI 全量 desktop-flow 尚待通过。
 - [ ] 1b-6（[#566](https://github.com/Abe-Junwei/Jieyu/issues/566)）其余入口：多选（批量改说话人、批量删除、多段一次合并）、说话人与备注、修改确信程度、说话人目录筛选（FR-032）、部分转写（FR-066/068）、馆藏音频手动定位（FR-082）。单段指派与清除已改到 #600。本片仍做批量改说话人、新建说话人、说话人与备注、目录筛选；上下文栏的指派留在本片 → 验证：同上
 - [ ] 1b-7（[#584](https://github.com/Abe-Junwei/Jieyu/issues/584)）无录音文稿与逐段补时间：按顺序和字数排版、只按文字位置拆分、部分对齐夹在前后已对齐段之间；合并一有一无则结果无时间并在确认框说明；两段都没有时间的相邻合并也留在本片；解除录音关联保留已有时间和点。表结构不在本片 → 验证：同上
 - [ ] 自动分段（[#604](https://github.com/Abe-Junwei/Jieyu/issues/604)）沿用现有 VAD（FR-072）：仅在当前转写层空白区间生成新段（严格 0 ms 不重叠、不改已有段），整批一次事务提交并作为同一步可撤销，失败有提示。依赖 1b-0 毫秒与 1b-2 新建／撤销 → 验证：单库与页面 vitest + 桌面流程（写→关→重开读回）

@@ -83,6 +83,19 @@ export const enUSDictionary = {
   'app.desktopTranscription.contextLayerVoiceText': 'Careful speech text',
   'app.desktopTranscription.contextLayerOral': 'Interpretation',
   'app.desktopTranscription.contextLayerOralText': 'Interpretation text',
+  'app.desktopTranscription.contextLayerPoint': 'Event',
+  'app.desktopTranscription.pointNeedsMedia':
+    'A recording is required before creating a point layer',
+  'app.desktopTranscription.pointUntitled': 'Untitled point',
+  'app.desktopTranscription.pointEditLabel': 'Edit label',
+  'app.desktopTranscription.pointSeek': 'Seek to this time',
+  'app.desktopTranscription.pointDelete': 'Delete point',
+  'app.desktopTranscription.pointMenuClose': 'Close point menu',
+  'app.desktopTranscription.pointTimeTaken':
+    'That time already has a point; saved points are unchanged',
+  'app.desktopTranscription.pointOutsideMedia': 'Point time is outside the recording',
+  'app.desktopTranscription.pointActionFailed': 'Point action did not finish',
+  'app.desktopTranscription.pointActionUnknown': 'Point write result is unknown; check and retry',
   'app.desktopTranscription.oralDraftReady':
     'The transcript is in the text layer. It is saved only when you open and keep it.',
   'app.desktopTranscription.oralDraftExists':
@@ -1941,6 +1954,7 @@ export const enUSDictionary = {
   'transcription.laneHeader.layer.createTranslation': 'New translation layer',
   'transcription.laneHeader.layer.createVoice': 'New careful speech',
   'transcription.laneHeader.layer.createOral': 'New interpretation',
+  'transcription.laneHeader.layer.createPoint': 'New point layer',
   'transcription.laneHeader.layer.deleteCurrent': 'Delete current layer',
   'transcription.laneHeader.displayStyle.category': 'Display style',
   'transcription.laneHeader.speaker.clearWithCount': 'Clear speaker on {count} selected segments',

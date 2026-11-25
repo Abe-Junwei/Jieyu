@@ -185,6 +185,7 @@ function readApi(host: DesktopReadHost): DesktopProjectReadApi {
     listLayers: (sessionId, manuscriptId) => client.listLayers(sessionId, manuscriptId),
     listLayerLinks: (sessionId, manuscriptId) => client.listLayerLinks(sessionId, manuscriptId),
     listUnits: (sessionId, layerId) => client.listUnits(sessionId, layerId),
+    listPoints: (sessionId, manuscriptId) => client.listPoints(sessionId, { manuscriptId }),
     mediaPlayUrl: async (sessionId, mediaId) =>
       (await host.desktopMediaUrl(sessionId, mediaId)).url,
   };

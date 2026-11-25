@@ -171,7 +171,8 @@ describe('DesktopProjectReadPage', () => {
           method === 'catalog.listLanguages' ||
           method === 'bridges.list' ||
           method === 'conversations.list' ||
-          method === 'messages.list'
+          method === 'messages.list' ||
+          method === 'points.list'
         ) {
           return Promise.resolve([]);
         }

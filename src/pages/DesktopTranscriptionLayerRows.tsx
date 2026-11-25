@@ -43,6 +43,8 @@ import {
   speakerPaint,
   type SpeakerLaneChrome,
 } from './desktopSpeakerLanes';
+import { DesktopTranscriptionPointTrack } from './DesktopTranscriptionPointTrack';
+import type { DesktopPointTrackApi } from './useDesktopTranscriptionPointController';
 
 export interface LayerRowLayer {
   contentType?: string;
@@ -70,6 +72,7 @@ export interface LayerRowLayer {
     confidence?: number | null;
     skipProcessing?: boolean;
   }[];
+  points?: readonly { id: string; timeMs: number; label: string }[];
 }
 
 /** A card in some layer row: `layerId` + the unit id that row lists. */
@@ -132,6 +135,7 @@ export function DesktopTranscriptionLayerRows(props: {
   /** Record, play, and delete for a modality=audio card. Text layers ignore it. */
   audioTools?: (layerId: string, unitId: string) => ReactNode;
   lanes?: SpeakerLaneChrome;
+  pointsApi?: DesktopPointTrackApi;
 }) {
   const mainInTree = props.tree.some((row) => row.layerId === props.mainLayerId);
   const mainExists =
@@ -200,7 +204,9 @@ export function DesktopTranscriptionLayerRows(props: {
           locale={props.locale}
           name={name}
           row={row}
-          segmentCount={layer.units.length}
+          segmentCount={
+            layer.contentType === 'point' ? (layer.points?.length ?? 0) : layer.units.length
+          }
           onExpand={() => props.onExpand(layer.id)}
           {...(props.onSelectLayer === undefined
             ? {}
@@ -210,17 +216,21 @@ export function DesktopTranscriptionLayerRows(props: {
         />
       );
     }
+    const pointLane = layer.contentType === 'point';
+    const paintedHeight = pointLane
+      ? (layer.laneHeight ?? 36)
+      : (lanePaintHeight(layer.laneHeight, props.lanes?.layoutOf(layer.id)?.rowCount ?? 1) ??
+        layer.laneHeight);
     return (
       <div
         key={layer.id}
-        className={`desktop-tx-lane${groupContinues ? ' is-group-mid' : ''}${dragBits.laneClass}`}
+        className={`desktop-tx-lane${groupContinues ? ' is-group-mid' : ''}${dragBits.laneClass}${
+          pointLane ? ' is-point' : ''
+        }`}
         data-layer-id={layer.id}
         data-drag-surface="timeline"
         style={{
-          ...(laneHeightStyle(
-            lanePaintHeight(layer.laneHeight, props.lanes?.layoutOf(layer.id)?.rowCount ?? 1) ??
-              layer.laneHeight,
-          ) ?? {}),
+          ...(laneHeightStyle(paintedHeight) ?? {}),
           ...dragBits.laneStyle,
         }}
       >
@@ -261,74 +271,87 @@ export function DesktopTranscriptionLayerRows(props: {
             if (body) body.scrollLeft = props.scrollLeftPx;
           }}
         >
-          <div
-            className="desktop-tx-lane__track"
-            style={
-              props.zoomPxPerSec > 0 ? { width: props.duration * props.zoomPxPerSec } : undefined
-            }
-            onPointerDown={(event) => props.onCreate(event, layer.id, timed)}
-          >
-            {units.map((rowUnit, index) => {
-              const unit = playbackWithPreview(rowUnit, props.preview, rowUnit.parentUnitId);
-              const frame = desktopSegmentFrame(
-                unit,
-                props.duration,
-                index,
-                units.length,
-                props.zoomPxPerSec,
-              );
-              const key = textKey(layer.id, unit.id);
-              const card = { layerId: layer.id, unitId: unit.id };
-              const selected = sameCard(props.focus, card);
-              const painted = annotationStyle(layer);
-              return (
-                <TimelineAnnotationItem
-                  key={unit.id}
-                  unitId={unit.id}
-                  left={frame.left ?? 0}
-                  width={frame.width ?? 0}
-                  isSelected={selected}
-                  isActive={selected && sameCard(props.editing, card)}
-                  isCompact={props.compact}
-                  skipProcessing={unit.skipProcessing === true}
-                  title={unit.text}
-                  draft={props.bodyDraft?.unitId === key ? props.bodyDraft.text : unit.text}
-                  {...(typeof unit.confidence === 'number' ? { confidence: unit.confidence } : {})}
-                  {...(props.audioTools !== undefined && layer.modality === 'audio'
-                    ? { content: props.audioTools(layer.id, unit.id) }
-                    : {})}
-                  {...(painted === undefined ? {} : { layerStyle: painted })}
-                  {...speakerPaint(props.lanes, layer.id, unit.id)}
-                  onClick={() => props.onPick(card, unit)}
-                  onContextMenu={(event) => props.onRowMenu(card, name, event)}
-                  onDoubleClick={ignore}
-                  onResizeStartPointerDown={(event) => props.onRowResize(unit.id, 'start', event)}
-                  onResizeEndPointerDown={(event) => props.onRowResize(unit.id, 'end', event)}
-                  onChange={(event) => props.onEditBody(key, event.target.value, unit.text)}
-                  onCompositionStart={() => props.onComposeBody(true)}
-                  onCompositionEnd={() => props.onComposeBody(false)}
-                  onBlur={() => props.onCommitBody()}
-                  onKeyDown={(event) =>
-                    restoreBody(props.onEditBody, key, unit, event, props.onStopEdit)
-                  }
-                />
-              );
-            })}
-            <DesktopTranscriptionJoins
-              units={units.map((unit) =>
-                playbackWithPreview(unit, props.preview, unit.parentUnitId),
-              )}
+          {pointLane && props.pointsApi !== undefined ? (
+            <DesktopTranscriptionPointTrack
+              locale={props.locale}
+              layerId={layer.id}
+              points={layer.points ?? []}
               duration={props.duration}
               zoomPxPerSec={props.zoomPxPerSec}
+              pointsApi={props.pointsApi}
             />
-            {props.createLayerId === layer.id && props.createFrame ? (
-              <DesktopTranscriptionCreatePreview
-                className="desktop-tx-create"
-                style={props.createFrame}
-                radius={4}
+          ) : (
+            <div
+              className="desktop-tx-lane__track"
+              style={
+                props.zoomPxPerSec > 0 ? { width: props.duration * props.zoomPxPerSec } : undefined
+              }
+              onPointerDown={(event) => props.onCreate(event, layer.id, timed)}
+            >
+              {units.map((rowUnit, index) => {
+                const unit = playbackWithPreview(rowUnit, props.preview, rowUnit.parentUnitId);
+                const frame = desktopSegmentFrame(
+                  unit,
+                  props.duration,
+                  index,
+                  units.length,
+                  props.zoomPxPerSec,
+                );
+                const key = textKey(layer.id, unit.id);
+                const card = { layerId: layer.id, unitId: unit.id };
+                const selected = sameCard(props.focus, card);
+                const painted = annotationStyle(layer);
+                return (
+                  <TimelineAnnotationItem
+                    key={unit.id}
+                    unitId={unit.id}
+                    left={frame.left ?? 0}
+                    width={frame.width ?? 0}
+                    isSelected={selected}
+                    isActive={selected && sameCard(props.editing, card)}
+                    isCompact={props.compact}
+                    skipProcessing={unit.skipProcessing === true}
+                    title={unit.text}
+                    draft={props.bodyDraft?.unitId === key ? props.bodyDraft.text : unit.text}
+                    {...(typeof unit.confidence === 'number'
+                      ? { confidence: unit.confidence }
+                      : {})}
+                    {...(props.audioTools !== undefined && layer.modality === 'audio'
+                      ? { content: props.audioTools(layer.id, unit.id) }
+                      : {})}
+                    {...(painted === undefined ? {} : { layerStyle: painted })}
+                    {...speakerPaint(props.lanes, layer.id, unit.id)}
+                    onClick={() => props.onPick(card, unit)}
+                    onContextMenu={(event) => props.onRowMenu(card, name, event)}
+                    onDoubleClick={ignore}
+                    onResizeStartPointerDown={(event) => props.onRowResize(unit.id, 'start', event)}
+                    onResizeEndPointerDown={(event) => props.onRowResize(unit.id, 'end', event)}
+                    onChange={(event) => props.onEditBody(key, event.target.value, unit.text)}
+                    onCompositionStart={() => props.onComposeBody(true)}
+                    onCompositionEnd={() => props.onComposeBody(false)}
+                    onBlur={() => props.onCommitBody()}
+                    onKeyDown={(event) =>
+                      restoreBody(props.onEditBody, key, unit, event, props.onStopEdit)
+                    }
+                  />
+                );
+              })}
+              <DesktopTranscriptionJoins
+                units={units.map((unit) =>
+                  playbackWithPreview(unit, props.preview, unit.parentUnitId),
+                )}
+                duration={props.duration}
+                zoomPxPerSec={props.zoomPxPerSec}
               />
-            ) : null}
-          </div>
+              {props.createLayerId === layer.id && props.createFrame ? (
+                <DesktopTranscriptionCreatePreview
+                  className="desktop-tx-create"
+                  style={props.createFrame}
+                  radius={4}
+                />
+              ) : null}
+            </div>
+          )}
         </div>
         {props.onLaneHeight === undefined ? null : (
           <DesktopTranscriptionLaneResize

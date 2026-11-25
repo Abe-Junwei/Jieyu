@@ -26,7 +26,8 @@ it('marks the previous layer as pending while a newly selected layer is still lo
         if (delay) await pending;
         return layers;
       }
-      if (method === 'layers.listLinks' || method === 'notes.list') return [];
+      if (method === 'layers.listLinks' || method === 'notes.list' || method === 'points.list')
+        return [];
       if (method === 'units.list') return [];
       if (method === 'project.get') return { title: { und: 'Story' } };
       throw new Error(`unexpected ${method}`);

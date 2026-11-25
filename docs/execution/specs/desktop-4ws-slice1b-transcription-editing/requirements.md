@@ -45,22 +45,22 @@ source_of_truth: desktop-4ws-slice1b-transcription-editing-spec
 - [ ] 多选：批量改说话人、批量删除（列出下级并确认）、多个相邻段一次合并（同一步撤销）
 - [x] 撤销／重做按 E04：项目打开期间多步、各稿件独立，重开不保留
 - [ ] 拆合产生新身份并保留旧→新映射；唯一对应的分析保留，其余标待复核；拆合形成完整分析历史版本（E04）
-- [ ] 点层：点只带时刻与文字标签（无说话人、上级、下级）；同层同毫秒唯一，可增删改移
+- [ ] 点层：点只带时刻与文字标签（无说话人、上级、下级）；同层同毫秒唯一，可增删改移；冲突不覆盖，失败不改变已存点；增删改移可按会话撤销／重做，关闭重开后 id、层、时刻与标签一致。界面入口须完成精稿对照后实施
 - [ ] 每项写入：写 → 关闭 → 重开 → 读回；Electron 合成证据（`test:e2e:desktop-project`）。至少覆盖同一 unit 的两个 layer 正文与草稿互不覆盖
 - [ ] flag `desktopTranscriptionWorkspaceEnabled` 默认开；显式 `false` 时旧读页不变
 
 ## 4. 受影响代码地图
 
-| 类别 | 文件 / 目录 | 改动性质 |
-| --- | --- | --- |
-| 页面 | `src/pages/DesktopTranscriptionWorkspacePage.tsx` | 仅装配；去检查器 |
-| Controller | `src/pages/useDesktopTranscription*Controller.ts` | 新增（媒体、选择、句段编辑分开） |
-| Hook 复用 | `src/hooks/media/useWaveSurfer.ts`、`WaveformToolbar` | 复用，不改语义。选区按钮和速度滑杆的画法按 ADR-0127，旧页同一套类一起改 |
-| 组件复用 | `TranscriptionTimelineMediaTranscriptionLane`、`TimelineAnnotationItem` | 受控 props；不挂 `VerticalView`／`HorizontalMediaLanes` |
-| Schema / DB | `src/db/desktop/schema.ts`、`layers.ts`、`units.ts`、`textSave.ts`、`unitSpan.ts`、新 `points.ts` | v29 既有结构与 v32 layer-scoped 正文／宿主链接；改写边界／拆分／合并 |
-| 宿主 | `operationContract.ts`、`desktopCall.ts`、`client.ts` | 新操作 |
-| i18n | `dictKeys.ts`、`dictionaries/*` | 新键 |
-| 测试 | `src/db/desktop/*.test.ts`、`tests/e2e-desktop/` | 每片新增 |
+| 类别        | 文件 / 目录                                                                                       | 改动性质                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| 页面        | `src/pages/DesktopTranscriptionWorkspacePage.tsx`                                                 | 仅装配；去检查器                                                        |
+| Controller  | `src/pages/useDesktopTranscription*Controller.ts`                                                 | 新增（媒体、选择、句段编辑分开）                                        |
+| Hook 复用   | `src/hooks/media/useWaveSurfer.ts`、`WaveformToolbar`                                             | 复用，不改语义。选区按钮和速度滑杆的画法按 ADR-0127，旧页同一套类一起改 |
+| 组件复用    | `TranscriptionTimelineMediaTranscriptionLane`、`TimelineAnnotationItem`                           | 受控 props；不挂 `VerticalView`／`HorizontalMediaLanes`                 |
+| Schema / DB | `src/db/desktop/schema.ts`、`layers.ts`、`units.ts`、`textSave.ts`、`unitSpan.ts`、新 `points.ts` | v29 既有结构与 v32 layer-scoped 正文／宿主链接；改写边界／拆分／合并    |
+| 宿主        | `operationContract.ts`、`desktopCall.ts`、`client.ts`                                             | 新操作                                                                  |
+| i18n        | `dictKeys.ts`、`dictionaries/*`                                                                   | 新键                                                                    |
+| 测试        | `src/db/desktop/*.test.ts`、`tests/e2e-desktop/`                                                  | 每片新增                                                                |
 
 ## 5. 已知风险与依赖
 

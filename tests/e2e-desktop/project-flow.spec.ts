@@ -3384,3 +3384,141 @@ async function orthographyFlow(locale: 'en-US' | 'zh-CN') {
     rmSync(copy, { recursive: true, force: true });
   }
 }
+
+test('point layer create edit move delete undo redo and reopen', async () => {
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-point-flow-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  let app: ElectronApplication | undefined = await launch('point-flow', undefined, {
+    JIEYU_DESKTOP_HIDE_WINDOW: '0',
+  });
+  let again: ElectronApplication | undefined;
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    await openLayerHeaderMenu(page);
+    await page.getByRole('button', { name: /^(新建层|New layer)$/ }).click();
+    await page.getByRole('menuitem', { name: /^(新建点层|New point layer)$/ }).click();
+    const pointLane = page.locator('.desktop-tx-lane.is-point');
+    await expect(pointLane).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const manuscripts = await desktopCall<{ id: string; title: Record<string, string> }[]>(
+      page,
+      sessionId,
+      'manuscripts.list',
+      {},
+    );
+    const manuscriptId = manuscripts.find((item) => item.title.und === 'Clip')?.id;
+    if (!manuscriptId) throw new Error('clip manuscript missing');
+    const layers = await desktopCall<{ id: string; contentType: string }[]>(page, sessionId, 'layers.list', {
+      manuscriptId,
+    });
+    const pointLayer = layers.find((item) => item.contentType === 'point');
+    if (!pointLayer) throw new Error('point layer missing');
+    const textLayer = layers.find((item) => item.contentType === 'transcription');
+    if (!textLayer) throw new Error('transcription layer missing');
+    const beforeUnits = await desktopCall<
+      { id: string; text: string; startMs: number; endMs: number }[]
+    >(page, sessionId, 'units.list', { layerId: textLayer.id });
+    const listPoints = () =>
+      desktopCall<{ id: string; timeMs: number; label: string }[]>(page, sessionId, 'points.list', {
+        layerId: pointLayer.id,
+      });
+
+    const track = pointLane.locator('.desktop-tx-point-track');
+    const trackBox = await track.boundingBox();
+    if (!trackBox) throw new Error('point track missing');
+    await page.mouse.click(trackBox.x + 40, trackBox.y + trackBox.height / 2);
+    await expect.poll(async () => (await listPoints()).length).toBe(1);
+    const first = (await listPoints())[0];
+    if (!first) throw new Error('created point missing');
+    const labelInput = pointLane.locator('.desktop-tx-pin__input');
+    await expect(labelInput).toBeVisible();
+    await labelInput.fill('拍手');
+    await labelInput.press('Enter');
+    await expect.poll(async () => (await listPoints())[0]?.label).toBe('拍手');
+    await expect(pointLane.locator(`.desktop-tx-pin[data-point-id="${first.id}"] .desktop-tx-pin__label`)).toHaveText(
+      '拍手',
+    );
+
+    const pin = pointLane.locator(`.desktop-tx-pin[data-point-id="${first.id}"]`);
+    const mark = pin.locator('.desktop-tx-pin__mark');
+    const markBox = await mark.boundingBox();
+    if (!markBox) throw new Error('point marker missing');
+    const startX = markBox.x + markBox.width / 2;
+    const pointerY = markBox.y + markBox.height / 2;
+    await page.mouse.move(startX, pointerY);
+    await page.mouse.down();
+    await page.mouse.move(startX + 30, pointerY, { steps: 3 });
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
+    await expect(pointLane.locator('.desktop-tx-pin.is-preview')).toHaveCount(0);
+    expect((await listPoints())[0]?.timeMs).toBe(first.timeMs);
+
+    await page.mouse.move(startX, pointerY);
+    await page.mouse.down();
+    await page.mouse.move(startX + 60, pointerY, { steps: 5 });
+    await page.mouse.up();
+    await expect.poll(async () => (await listPoints())[0]?.timeMs).not.toBe(first.timeMs);
+    const movedMs = (await listPoints())[0]?.timeMs;
+    if (movedMs === undefined) throw new Error('moved point missing');
+
+    await page.mouse.click(trackBox.x + 160, trackBox.y + trackBox.height / 2);
+    await expect.poll(async () => (await listPoints()).length).toBe(2);
+    const second = (await listPoints()).find((point) => point.id !== first.id);
+    if (!second) throw new Error('second point missing');
+    const secondInput = pointLane.locator(`.desktop-tx-pin[data-point-id="${second.id}"] .desktop-tx-pin__input`);
+    await expect(secondInput).toBeVisible();
+    await secondInput.fill('other');
+    await secondInput.press('Enter');
+    await expect.poll(async () => (await listPoints()).find((point) => point.id === second.id)?.label).toBe(
+      'other',
+    );
+
+    const secondPin = pointLane.locator(`.desktop-tx-pin[data-point-id="${second.id}"]`);
+    await secondPin.click({ button: 'right' });
+    await page.getByRole('menuitem', { name: /^(删除点|Delete point)$/ }).click();
+    await expect.poll(async () => (await listPoints()).map((point) => point.id)).toEqual([first.id]);
+
+    await page.keyboard.press('Meta+z');
+    await expect.poll(async () => (await listPoints()).length).toBe(2);
+    await page.keyboard.press('Meta+Shift+z');
+    await expect.poll(async () => (await listPoints()).map((point) => point.id)).toEqual([first.id]);
+
+    expect(
+      await desktopCall(page, sessionId, 'units.list', { layerId: textLayer.id }),
+    ).toEqual(beforeUnits);
+    expect((await listPoints())[0]).toMatchObject({ id: first.id, timeMs: movedMs, label: '拍手' });
+
+    await app.close();
+    app = undefined;
+    again = await launch('point-flow-reopen');
+    await stubFolderDialog(again, copy);
+    const reopened = await again.firstWindow();
+    await rememberChosenSession(again);
+    await reopened.getByRole('button', { name: openFolder }).click();
+    await expect(reopened.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const nextSession = await chosenSessionId(again);
+    expect(
+      await desktopCall(reopened, nextSession, 'points.list', { layerId: pointLayer.id }),
+    ).toEqual([
+      expect.objectContaining({ id: first.id, timeMs: movedMs, label: '拍手' }),
+    ]);
+    await reopened.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(reopened.locator('.desktop-tx-lane.is-point')).toBeVisible();
+    await expect(
+      reopened.locator(`.desktop-tx-pin[data-point-id="${first.id}"] .desktop-tx-pin__label`),
+    ).toHaveText('拍手');
+  } finally {
+    await app?.close();
+    await again?.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
