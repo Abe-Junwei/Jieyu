@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import { getSpeaker } from './speakers';
+import { createSpeaker, getSpeaker, type Speaker } from './speakers';
 import { readStoredUnit, type Unit } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
@@ -27,6 +27,7 @@ export function assignSpeaker(
       if (!unit) throw new Error('unit is missing');
       return unit;
     });
+    const manuscriptId = resolveAssignManuscriptId(db, before);
     if (before.every((unit) => unit.speakerId === input.speakerId)) {
       return { units: before, undo: null };
     }
@@ -41,15 +42,11 @@ export function assignSpeaker(
       }
       return stored;
     });
-    const manuscript = db
-      .prepare(`SELECT manuscript_id AS manuscriptId FROM layers WHERE id = ?`)
-      .get(before[0]?.layerId) as { manuscriptId: string } | undefined;
-    if (!manuscript) throw new Error('unit is missing');
     return {
       units,
       undo: {
         speakerId: input.speakerId,
-        manuscriptId: manuscript.manuscriptId,
+        manuscriptId,
         units: before.map((unit) => ({ id: unit.id, speakerId: unit.speakerId })),
       },
     };
@@ -72,6 +69,7 @@ export function clearSpeaker(
       if (!unit) throw new Error('unit is missing');
       return unit;
     });
+    const manuscriptId = resolveAssignManuscriptId(db, before);
     if (before.every((unit) => unit.speakerId === null)) return { units: before, undo: null };
     const now = new Date().toISOString();
     const update = db.prepare('UPDATE units SET speaker_id = NULL, updated_at = ? WHERE id = ?');
@@ -84,20 +82,49 @@ export function clearSpeaker(
       }
       return stored;
     });
-    const manuscript = db
-      .prepare(`SELECT manuscript_id AS manuscriptId FROM layers WHERE id = ?`)
-      .get(before[0]?.layerId) as { manuscriptId: string } | undefined;
-    if (!manuscript) throw new Error('unit is missing');
     return {
       units,
       undo: {
         speakerId: null,
-        manuscriptId: manuscript.manuscriptId,
+        manuscriptId,
         units: before.map((unit) => ({ id: unit.id, speakerId: unit.speakerId })),
       },
     };
   });
   return write();
+}
+
+/**
+ * Create a directory speaker and assign units in one transaction.
+ * Failure rolls back the new speaker; undo only restores assignments (keeps the directory row).
+ */
+export function createAndAssignSpeaker(
+  db: SqliteDatabase,
+  input: { name: string; unitIds: readonly string[] },
+  afterWrite?: () => void,
+): { speaker: Speaker; units: Unit[]; undo: SpeakerAssignUndo | null } {
+  const write = db.transaction(() => {
+    const speaker = createSpeaker(db, { name: input.name });
+    const assigned = assignSpeaker(db, { speakerId: speaker.id, unitIds: input.unitIds });
+    afterWrite?.();
+    const stored = getSpeaker(db, speaker.id);
+    if (!stored) throw new Error('speaker readback failed');
+    return { speaker: stored, units: assigned.units, undo: assigned.undo };
+  });
+  return write();
+}
+
+/** One batch must stay on a single manuscript; mixed ids refuse before any write. */
+function resolveAssignManuscriptId(db: SqliteDatabase, units: readonly Unit[]): string {
+  const lookup = db.prepare(`SELECT manuscript_id AS manuscriptId FROM layers WHERE id = ?`);
+  const ids = new Set<string>();
+  for (const unit of units) {
+    const row = lookup.get(unit.layerId) as { manuscriptId: string } | undefined;
+    if (!row) throw new Error('unit is missing');
+    ids.add(row.manuscriptId);
+  }
+  if (ids.size !== 1) throw new Error('speaker assign spans manuscripts');
+  return [...ids][0]!;
 }
 
 export function undoAssignSpeaker(

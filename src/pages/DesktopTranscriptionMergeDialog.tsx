@@ -33,6 +33,7 @@ export function keptOnFullestRow(
 }
 
 export interface MergePreviewView {
+  unitIds?: string[];
   texts?: {
     layerId: string;
     name: Record<string, string>;
@@ -71,12 +72,33 @@ export function DesktopTranscriptionMergeDialog(props: {
   const playing = useRef<{ audio: HTMLAudioElement; url: string } | null>(null);
   const closed = useRef(false);
   const clips = [...preview.earlier, ...preview.later];
+  const clipGroups =
+    (preview.unitIds?.length ?? 2) > 2
+      ? preview.unitIds!.map((id, index) => ({
+          key: id,
+          title: tf(locale, 'app.desktopTranscription.mergeSource', { index: index + 1 }),
+          clips: clips.filter((clip) => clip.unitId === id),
+        }))
+      : [
+          {
+            key: 'earlier',
+            title: t(locale, 'app.desktopTranscription.mergeEarlier'),
+            clips: preview.earlier,
+          },
+          {
+            key: 'later',
+            title: t(locale, 'app.desktopTranscription.mergeLater'),
+            clips: preview.later,
+          },
+        ];
   const fullest = keptOnFullestRow(preview.earlier, preview.later, []);
   const tooMany = fullest > CAP;
   const blocked = props.stale || keptOnFullestRow(preview.earlier, preview.later, discard) > CAP;
   const gap = (preview.gapMs / 1000).toFixed(3);
   const detail =
-    (preview.texts?.length ?? 0) > 1 || preview.texts?.some((row) => row.draft !== null) === true;
+    (preview.unitIds?.length ?? 2) > 2 ||
+    (preview.texts?.length ?? 0) > 1 ||
+    preview.texts?.some((row) => row.draft !== null) === true;
 
   const clipKey = clips.map((clip) => clip.id).join('\n');
   useEffect(() => {
@@ -138,7 +160,13 @@ export function DesktopTranscriptionMergeDialog(props: {
       bodyClassName="desktop-tx-orthography-form"
       closeLabel={t(locale, 'app.desktopTranscription.cancel')}
       onClose={props.onCancel}
-      title={t(locale, 'app.desktopTranscription.mergeTitle')}
+      title={
+        (preview.unitIds?.length ?? 2) > 2
+          ? tf(locale, 'app.desktopTranscription.mergeManyTitle', {
+              count: preview.unitIds!.length,
+            })
+          : t(locale, 'app.desktopTranscription.mergeTitle')
+      }
       footer={
         <>
           <button autoFocus type="button" className="btn btn-secondary" onClick={props.onCancel}>
@@ -199,36 +227,24 @@ export function DesktopTranscriptionMergeDialog(props: {
             </section>
           ))
         : null}
-      {tooMany ? (
-        <>
-          <ClipGroup
-            locale={locale}
-            title={t(locale, 'app.desktopTranscription.mergeEarlier')}
-            clips={preview.earlier}
-            seconds={seconds}
-            discard={discard}
-            onToggle={(id) =>
-              setDiscard((current) =>
-                current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-              )
-            }
-            onPlay={play}
-          />
-          <ClipGroup
-            locale={locale}
-            title={t(locale, 'app.desktopTranscription.mergeLater')}
-            clips={preview.later}
-            seconds={seconds}
-            discard={discard}
-            onToggle={(id) =>
-              setDiscard((current) =>
-                current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-              )
-            }
-            onPlay={play}
-          />
-        </>
-      ) : null}
+      {tooMany
+        ? clipGroups.map((group) => (
+            <ClipGroup
+              key={group.key}
+              locale={locale}
+              title={group.title}
+              clips={group.clips}
+              seconds={seconds}
+              discard={discard}
+              onPlay={play}
+              onToggle={(id) =>
+                setDiscard((current) =>
+                  current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+                )
+              }
+            />
+          ))
+        : null}
     </ModalPanel>
   );
 }

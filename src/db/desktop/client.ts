@@ -15,6 +15,7 @@ import type { UnitCreate } from './units';
 import type { ContentNoteQuery, ContentNoteWrite } from './notes';
 import type { PointCreate, PointLabelUpdate, PointMove, PointQuery } from './points';
 import type { PreviewCandidateInput } from './modelRuns';
+import type { ViewScopeWrite } from './viewScope';
 
 export interface DesktopBridge {
   desktopCall(sessionId: string, method: string, args: unknown): Promise<unknown>;
@@ -34,7 +35,18 @@ type EditMethod =
   | 'points.create'
   | 'points.updateLabel'
   | 'points.move'
-  | 'points.delete';
+  | 'points.delete'
+  | 'speakers.assign'
+  | 'speakers.clear'
+  | 'speakers.createAndAssign'
+  | 'units.setSelfCertainty'
+  | 'units.setSelfCertaintyMany'
+  | 'notes.create'
+  | 'notes.createForUnitText'
+  | 'notes.createManyForUnitText'
+  | 'notes.createMany'
+  | 'notes.update'
+  | 'notes.delete';
 
 const EDIT_KINDS: Record<EditMethod, EditReceiptKind> = {
   'units.create': 'create',
@@ -51,6 +63,17 @@ const EDIT_KINDS: Record<EditMethod, EditReceiptKind> = {
   'points.updateLabel': 'pointLabel',
   'points.move': 'pointMove',
   'points.delete': 'pointDelete',
+  'speakers.assign': 'speakerAssign',
+  'speakers.clear': 'speakerClear',
+  'speakers.createAndAssign': 'speakerCreateAndAssign',
+  'units.setSelfCertainty': 'selfCertainty',
+  'units.setSelfCertaintyMany': 'selfCertainty',
+  'notes.create': 'noteCreate',
+  'notes.createForUnitText': 'noteCreate',
+  'notes.createManyForUnitText': 'noteCreateBatch',
+  'notes.createMany': 'noteCreateBatch',
+  'notes.update': 'noteUpdate',
+  'notes.delete': 'noteDelete',
 };
 
 /** ADR-0129: the edit may or may not have committed, and the library could not say which. */
@@ -101,7 +124,7 @@ export function createDesktopClient(bridge: DesktopBridge) {
     createManuscript: (sessionId: string, input: ManuscriptCreate) =>
       once(sessionId, 'manuscripts.create', input),
     createLayer: (sessionId: string, input: LayerCreate) => once(sessionId, 'layers.create', input),
-    createUnit: (sessionId: string, input: UnitCreate) =>
+    createUnit: (sessionId: string, input: UnitCreate & ViewScopeWrite) =>
       receipted(sessionId, 'units.create', { ...input }),
     getUnit: (sessionId: string, id: string) => once(sessionId, 'units.get', { id }),
     listManuscripts: (sessionId: string) => once(sessionId, 'manuscripts.list', {}),
@@ -123,7 +146,7 @@ export function createDesktopClient(bridge: DesktopBridge) {
       once(sessionId, 'manuscripts.showReminder', { id }),
     retimeManuscript: (
       sessionId: string,
-      input: { manuscriptId: string; offsetMs: number; scale: number },
+      input: { manuscriptId: string; offsetMs: number; scale: number } & ViewScopeWrite,
     ) => once(sessionId, 'manuscripts.retime', input),
     showRecordingReminder: (sessionId: string, id: string) =>
       once(sessionId, 'media.showReminder', { id }),
@@ -197,6 +220,22 @@ export function createDesktopClient(bridge: DesktopBridge) {
     ) => once(sessionId, 'corpus.query', input),
     setUnitSkipProcessing: (sessionId: string, input: { unitId: string; skip: boolean }) =>
       once(sessionId, 'units.setSkipProcessing', input),
+    setUnitSelfCertainty: (
+      sessionId: string,
+      input: {
+        unitId: string;
+        textLayerId: string;
+        selfCertainty: 'not_understood' | 'uncertain' | 'certain' | null;
+      } & ViewScopeWrite,
+    ) => receipted(sessionId, 'units.setSelfCertainty', { ...input }),
+    setUnitSelfCertaintyMany: (
+      sessionId: string,
+      input: {
+        unitIds: string[];
+        textLayerId: string;
+        selfCertainty: 'not_understood' | 'uncertain' | 'certain' | null;
+      } & ViewScopeWrite,
+    ) => receipted(sessionId, 'units.setSelfCertaintyMany', { ...input }),
     updateUnitText: (
       sessionId: string,
       input: {
@@ -238,11 +277,12 @@ export function createDesktopClient(bridge: DesktopBridge) {
         textLayerId?: string;
         cutIndex?: number;
         rawInput?: string;
-      },
+      } & ViewScopeWrite,
     ) => receipted(sessionId, 'units.split', { ...input }),
     mergeUnits: (
       sessionId: string,
       input: {
+        unitIds?: string[];
         keepId: string;
         removeId: string;
         separator?: string;
@@ -252,19 +292,21 @@ export function createDesktopClient(bridge: DesktopBridge) {
         textLayerId?: string;
         keepText?: string;
         removeText?: string;
-      },
+      } & ViewScopeWrite,
     ) => receipted(sessionId, 'units.merge', { ...input }),
-    updateBoundary: (sessionId: string, input: { leftId: string; rightId: string; time: number }) =>
-      once(sessionId, 'units.updateBoundary', input),
+    updateBoundary: (
+      sessionId: string,
+      input: { leftId: string; rightId: string; time: number } & ViewScopeWrite,
+    ) => once(sessionId, 'units.updateBoundary', input),
     moveUnitEdge: (
       sessionId: string,
-      input: { unitId: string; edge: 'start' | 'end'; time: number },
+      input: { unitId: string; edge: 'start' | 'end'; time: number } & ViewScopeWrite,
     ) => receipted(sessionId, 'units.moveEdge', { ...input }),
     moveSharedBoundary: (
       sessionId: string,
-      input: { leftId: string; rightId: string; time: number },
+      input: { leftId: string; rightId: string; time: number } & ViewScopeWrite,
     ) => receipted(sessionId, 'units.moveSharedBoundary', { ...input }),
-    moveUnit: (sessionId: string, input: { unitId: string; delta: number }) =>
+    moveUnit: (sessionId: string, input: { unitId: string; delta: number } & ViewScopeWrite) =>
       receipted(sessionId, 'units.moveUnit', { ...input }),
     previewUnitDelete: (sessionId: string, unitId: string, textLayerId?: string) =>
       once(sessionId, 'units.deletePreview', {
@@ -279,13 +321,13 @@ export function createDesktopClient(bridge: DesktopBridge) {
     deleteUnit: (
       sessionId: string,
       unitId: string,
-      clear?: { textLayerId: string; fingerprint: string },
-    ) => receipted(sessionId, 'units.delete', { unitId, ...clear }),
+      opts?: { textLayerId?: string; fingerprint?: string } & ViewScopeWrite,
+    ) => receipted(sessionId, 'units.delete', { unitId, ...opts }),
     deleteUnits: (
       sessionId: string,
       unitIds: string[],
-      clear?: { textLayerId: string; fingerprint: string },
-    ) => receipted(sessionId, 'units.deleteMany', { unitIds, ...clear }),
+      opts?: { textLayerId?: string; fingerprint?: string } & ViewScopeWrite,
+    ) => receipted(sessionId, 'units.deleteMany', { unitIds, ...opts }),
     readTimeDraft: (sessionId: string, unitId: string) =>
       once(sessionId, 'units.readTimeDraft', { unitId }),
     putTimeDraft: (
@@ -366,10 +408,16 @@ export function createDesktopClient(bridge: DesktopBridge) {
     createSpeaker: (sessionId: string, input: { name: string }) =>
       once(sessionId, 'speakers.create', input),
     listSpeakers: (sessionId: string) => once(sessionId, 'speakers.list', {}),
-    assignSpeaker: (sessionId: string, input: { speakerId: string; unitIds: string[] }) =>
-      once(sessionId, 'speakers.assign', input),
-    clearSpeaker: (sessionId: string, input: { unitIds: string[] }) =>
-      once(sessionId, 'speakers.clear', input),
+    assignSpeaker: (
+      sessionId: string,
+      input: { speakerId: string; unitIds: string[] } & ViewScopeWrite,
+    ) => receipted(sessionId, 'speakers.assign', { ...input }),
+    createAndAssignSpeaker: (
+      sessionId: string,
+      input: { name: string; unitIds: string[] } & ViewScopeWrite,
+    ) => receipted(sessionId, 'speakers.createAndAssign', { ...input }),
+    clearSpeaker: (sessionId: string, input: { unitIds: string[] } & ViewScopeWrite) =>
+      receipted(sessionId, 'speakers.clear', { ...input }),
     listLaneLocks: (sessionId: string, manuscriptId: string) =>
       once(sessionId, 'layers.listLaneLocks', { manuscriptId }),
     replaceLaneLocks: (
@@ -402,7 +450,37 @@ export function createDesktopClient(bridge: DesktopBridge) {
     clearTokenLink: (sessionId: string, tokenId: string) =>
       once(sessionId, 'lexicon.clearTokenLink', { tokenId }),
     createNote: (sessionId: string, input: ContentNoteWrite) =>
-      once(sessionId, 'notes.create', input),
+      receipted(sessionId, 'notes.create', { ...input }),
+    createUnitTextNote: (
+      sessionId: string,
+      input: {
+        unitId: string;
+        textLayerId: string;
+        value: Record<string, string>;
+        category?: ContentNoteWrite['category'];
+        provenance?: unknown | null;
+      } & ViewScopeWrite,
+    ) => receipted(sessionId, 'notes.createForUnitText', { ...input }),
+    createUnitTextNotesMany: (
+      sessionId: string,
+      input: {
+        unitIds: string[];
+        textLayerId: string;
+        value: Record<string, string>;
+        category?: ContentNoteWrite['category'];
+        provenance?: unknown | null;
+      } & ViewScopeWrite,
+    ) => receipted(sessionId, 'notes.createManyForUnitText', { ...input }),
+    createUnitNotesMany: (
+      sessionId: string,
+      input: {
+        unitIds: string[];
+        value: Record<string, string>;
+        category?: ContentNoteWrite['category'];
+        provenance?: unknown | null;
+        view?: 'timeline' | 'waveform';
+      } & ViewScopeWrite,
+    ) => receipted(sessionId, 'notes.createMany', { ...input }),
     updateNote: (
       sessionId: string,
       input: {
@@ -410,8 +488,8 @@ export function createDesktopClient(bridge: DesktopBridge) {
         content?: Record<string, string>;
         category?: ContentNoteWrite['category'];
       },
-    ) => once(sessionId, 'notes.update', input),
-    deleteNote: (sessionId: string, id: string) => once(sessionId, 'notes.delete', { id }),
+    ) => receipted(sessionId, 'notes.update', { ...input }),
+    deleteNote: (sessionId: string, id: string) => receipted(sessionId, 'notes.delete', { id }),
     listNotes: (sessionId: string, input: ContentNoteQuery = {}) =>
       once(sessionId, 'notes.list', input),
     saveLexemeNote: (
@@ -427,13 +505,14 @@ export function createDesktopClient(bridge: DesktopBridge) {
     ) => once(sessionId, 'notes.saveLexeme', input),
     listLexemeNotes: (sessionId: string, lexemeId: string) =>
       once(sessionId, 'notes.listLexeme', { lexemeId }),
-    createPoint: (sessionId: string, input: PointCreate) =>
+    createPoint: (sessionId: string, input: PointCreate & ViewScopeWrite) =>
       receipted(sessionId, 'points.create', { ...input }),
-    updatePointLabel: (sessionId: string, input: PointLabelUpdate) =>
+    updatePointLabel: (sessionId: string, input: PointLabelUpdate & ViewScopeWrite) =>
       receipted(sessionId, 'points.updateLabel', { ...input }),
-    movePoint: (sessionId: string, input: PointMove) =>
+    movePoint: (sessionId: string, input: PointMove & ViewScopeWrite) =>
       receipted(sessionId, 'points.move', { ...input }),
-    deletePoint: (sessionId: string, id: string) => receipted(sessionId, 'points.delete', { id }),
+    deletePoint: (sessionId: string, id: string, opts?: ViewScopeWrite) =>
+      receipted(sessionId, 'points.delete', { id, ...opts }),
     getPoint: (sessionId: string, id: string) => once(sessionId, 'points.get', { id }),
     listPoints: (sessionId: string, input: PointQuery) => once(sessionId, 'points.list', input),
     applyAnalysis: (

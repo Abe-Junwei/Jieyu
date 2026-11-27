@@ -126,6 +126,7 @@ describe('edge actions delete selection', () => {
     const desktopCall = vi.fn(async (_session: string, method: string) =>
       method === 'units.deleteManyPreview'
         ? {
+            fingerprint: 'fp-many',
             linkedTexts: 0,
             tokens: 0,
             morphemes: 0,
@@ -177,8 +178,71 @@ describe('edge actions delete selection', () => {
     expect(desktopCall).toHaveBeenCalledWith(
       's',
       'units.deleteMany',
-      expect.objectContaining({ unitIds: ['u1', 'u2'] }),
+      expect.objectContaining({ unitIds: ['u1', 'u2'], fingerprint: 'fp-many' }),
     );
+  });
+
+  it('routes a single selected target to units.delete, not deleteMany', async () => {
+    const run = setup();
+    const desktopCall = vi.fn(async (_session: string, method: string) =>
+      method === 'units.deletePreview'
+        ? {
+            fingerprint: 'fp-one',
+            linkedTexts: 0,
+            tokens: 0,
+            morphemes: 0,
+            notes: 0,
+            lexemeLinks: 0,
+            analysisCandidates: 0,
+            customFieldValues: 0,
+            drafts: 0,
+            receptionRecords: 0,
+          }
+        : { id: 'u1' },
+    );
+    const input = {
+      sessionId: 's',
+      manuscriptId: 'm',
+      layerId: 'tx',
+      desktopCall,
+      units: [
+        { id: 'u1', startMs: 0, endMs: 1000 },
+        { id: 'u2', startMs: 1000, endMs: 2000 },
+      ],
+      selectedUnitId: 'u1',
+      selectedUnitIds: ['u1'],
+      clearSelection: vi.fn(),
+      reload: run.reload,
+      notify: run.notify,
+      message: (kind: string) => kind,
+      hasMedia: true,
+      zoomPxPerSec: 100,
+      playheadMs: () => null,
+      snapMessage: () => '',
+      draftSavedMessage: '',
+      skipped: () => false,
+    } as EdgeControllerInput;
+    const uiRef = { current: EMPTY_EDGE_UI as EdgeUi };
+    const setUi: Dispatch<SetStateAction<EdgeUi>> = (next) => {
+      uiRef.current = typeof next === 'function' ? next(uiRef.current) : next;
+    };
+    const actions = createEdgeActions({
+      live: { current: input },
+      uiRef,
+      setUi,
+      edited: { current: false },
+    });
+    await actions.askDelete('u1');
+    expect(uiRef.current.deletePrompt?.unitIds).toEqual(['u1']);
+    actions.confirmDelete();
+    await vi.waitFor(() =>
+      expect(desktopCall).toHaveBeenCalledWith(
+        's',
+        'units.delete',
+        expect.objectContaining({ unitId: 'u1', fingerprint: 'fp-one' }),
+      ),
+    );
+    expect(desktopCall).not.toHaveBeenCalledWith('s', 'units.deleteMany', expect.anything());
   });
 
   it('does not report a committed deletion as a write failure when refresh fails', async () => {

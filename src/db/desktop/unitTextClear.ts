@@ -4,7 +4,13 @@ import { resolveUnitTextContext } from './unitTextLayers';
 import { readStoredUnit, type Unit } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
-type TextRow = { id: string; body: string; provenance_json: string | null; updated_at: string };
+type TextRow = {
+  id: string;
+  body: string;
+  self_certainty: string | null;
+  provenance_json: string | null;
+  updated_at: string;
+};
 type DraftRow = {
   raw_input: string;
   base_body: string;
@@ -44,7 +50,8 @@ function cells(db: SqliteDatabase, unitIds: readonly string[], textLayerId: stri
       text:
         (db
           .prepare(
-            'SELECT id, body, provenance_json, updated_at FROM unit_texts WHERE unit_id = ? AND layer_id = ? AND role = ?',
+            `SELECT id, body, self_certainty, provenance_json, updated_at
+             FROM unit_texts WHERE unit_id = ? AND layer_id = ? AND role = ?`,
           )
           .get(unitId, textLayerId, context.role) as TextRow | undefined) ?? null,
       draft:
@@ -64,7 +71,12 @@ function digest(rows: Cell[]): string {
     text:
       text === null
         ? null
-        : { id: text.id, body: text.body, provenance_json: text.provenance_json },
+        : {
+            id: text.id,
+            body: text.body,
+            self_certainty: text.self_certainty,
+            provenance_json: text.provenance_json,
+          },
     draft:
       draft === null
         ? null
@@ -112,7 +124,9 @@ export function clearUnitTexts(
       // Keep the text identity: recordings and notes still refer to this row.
       if (row.text !== null)
         db.prepare(
-          "UPDATE unit_texts SET body = '', provenance_json = NULL, updated_at = ? WHERE id = ?",
+          `UPDATE unit_texts
+           SET body = '', self_certainty = NULL, provenance_json = NULL, updated_at = ?
+           WHERE id = ?`,
         ).run(new Date().toISOString(), row.text.id);
       db.prepare('DELETE FROM unit_text_drafts WHERE unit_id = ? AND layer_id = ?').run(
         row.unitId,
@@ -147,8 +161,16 @@ export function undoTextClear(db: SqliteDatabase, undo: TextClearUndo): Unit[] {
     for (const row of undo.before) {
       if (row.text !== null)
         db.prepare(
-          'UPDATE unit_texts SET body = ?, provenance_json = ?, updated_at = ? WHERE id = ?',
-        ).run(row.text.body, row.text.provenance_json, row.text.updated_at, row.text.id);
+          `UPDATE unit_texts
+           SET body = ?, self_certainty = ?, provenance_json = ?, updated_at = ?
+           WHERE id = ?`,
+        ).run(
+          row.text.body,
+          row.text.self_certainty,
+          row.text.provenance_json,
+          row.text.updated_at,
+          row.text.id,
+        );
       if (row.draft !== null)
         db.prepare(
           `INSERT INTO unit_text_drafts (unit_id, layer_id, raw_input, base_body, provenance_json, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,

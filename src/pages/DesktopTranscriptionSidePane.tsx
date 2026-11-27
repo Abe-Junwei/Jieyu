@@ -3,6 +3,7 @@ import { DesktopTranscriptionContextColumn } from './DesktopTranscriptionContext
 import type { LayerListRequest } from './DesktopTranscriptionLayerList';
 import type { DesktopPlaybackUnit } from './useDesktopTranscriptionMediaController';
 import type { useDesktopTranscriptionLayerController } from './useDesktopTranscriptionLayerController';
+import type { SpeakerFilterState } from './desktopTranscriptionSpeakerFilter';
 
 interface SideLayer {
   id: string;
@@ -41,6 +42,14 @@ export function DesktopTranscriptionSidePane(props: {
   layerRequest?: LayerListRequest | null;
   onOpen: (manuscriptId: string, layerId?: string) => void;
   onSelectUnit: (unitId: string) => void;
+  speakers?: readonly { id: string; name: string }[];
+  speakerUnits?: readonly { speakerId?: string | null }[];
+  speakerFilter?: SpeakerFilterState;
+  onToggleSpeakerFilter?: (speakerId: string) => void;
+  onToggleUnassignedFilter?: () => void;
+  onClearSpeakerFilter?: () => void;
+  onCreateAndAssignSpeaker?: () => void;
+  onRetimeManuscript?: () => void;
 }) {
   const model = props.model;
   return (
@@ -89,6 +98,24 @@ export function DesktopTranscriptionSidePane(props: {
       selectedUnitId={props.selectedUnitId}
       onSelectManuscript={(manuscriptId) => props.onOpen(manuscriptId)}
       onSelectUnit={props.onSelectUnit}
+      {...(props.speakers === undefined ? {} : { speakers: props.speakers })}
+      {...(props.speakerUnits === undefined ? {} : { speakerUnits: props.speakerUnits })}
+      {...(props.speakerFilter === undefined ? {} : { speakerFilter: props.speakerFilter })}
+      {...(props.onToggleSpeakerFilter === undefined
+        ? {}
+        : { onToggleSpeakerFilter: props.onToggleSpeakerFilter })}
+      {...(props.onToggleUnassignedFilter === undefined
+        ? {}
+        : { onToggleUnassignedFilter: props.onToggleUnassignedFilter })}
+      {...(props.onClearSpeakerFilter === undefined
+        ? {}
+        : { onClearSpeakerFilter: props.onClearSpeakerFilter })}
+      {...(props.onCreateAndAssignSpeaker === undefined
+        ? {}
+        : { onCreateAndAssignSpeaker: props.onCreateAndAssignSpeaker })}
+      {...(props.onRetimeManuscript === undefined
+        ? {}
+        : { onRetimeManuscript: props.onRetimeManuscript })}
     />
   );
 }

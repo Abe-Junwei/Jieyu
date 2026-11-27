@@ -88,15 +88,26 @@ export function resolveUnitTextContext(
 export function readUnitTextBody(
   db: SqliteDatabase,
   context: UnitTextContext,
-): { id: string | null; body: string; provenanceJson: string | null } {
+): {
+  id: string | null;
+  body: string;
+  selfCertainty: string | null;
+  provenanceJson: string | null;
+} {
   const row = db
     .prepare(
-      `SELECT id, body, provenance_json FROM unit_texts
+      `SELECT id, body, self_certainty, provenance_json FROM unit_texts
        WHERE unit_id = ? AND layer_id = ? AND role = ?`,
     )
     .get(context.unitId, context.textLayerId, context.role) as
-    { id: string; body: string; provenance_json: string | null } | undefined;
+    | { id: string; body: string; self_certainty: string | null; provenance_json: string | null }
+    | undefined;
   return row === undefined
-    ? { id: null, body: '', provenanceJson: null }
-    : { id: row.id, body: row.body, provenanceJson: row.provenance_json };
+    ? { id: null, body: '', selfCertainty: null, provenanceJson: null }
+    : {
+        id: row.id,
+        body: row.body,
+        selfCertainty: row.self_certainty,
+        provenanceJson: row.provenance_json,
+      };
 }

@@ -28,7 +28,8 @@ function rebuildNodeSqlite() {
 
 let status = 0;
 try {
-  status = rebuildNodeSqlite();
+  status = run(node, [path.join(root, 'user-guide/scripts/build-guide.mjs'), 'desktop']);
+  if (status === 0) status = rebuildNodeSqlite();
   if (status === 0) {
     status = run(
       node,
@@ -75,7 +76,10 @@ try {
         env: {
           ...process.env,
           VITE_DESKTOP_MODEL_CANDIDATES_ENABLED: 'true',
+          VITE_DESKTOP_HELP_ENABLED: process.env.VITE_DESKTOP_HELP_ENABLED ?? 'true',
           VITE_DESKTOP_TRANSCRIPTION_WORKSPACE_ENABLED: 'true',
+          VITE_DESKTOP_TRANSCRIPTION_BATCH_EDITING_ENABLED:
+            process.env.VITE_DESKTOP_TRANSCRIPTION_BATCH_EDITING_ENABLED ?? 'true',
         },
       },
     );
@@ -99,6 +103,8 @@ try {
     const flowEnv = {
       ...process.env,
       VITE_DESKTOP_MODEL_CANDIDATES_ENABLED: 'true',
+      VITE_DESKTOP_TRANSCRIPTION_BATCH_EDITING_ENABLED:
+        process.env.VITE_DESKTOP_TRANSCRIPTION_BATCH_EDITING_ENABLED ?? 'true',
       JIEYU_DESKTOP_FLOW_FOLDER: folder,
       JIEYU_VITE_DEV_SERVER: devServer,
       JIEYU_DESKTOP_HIDE_WINDOW:

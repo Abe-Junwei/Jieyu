@@ -9,6 +9,17 @@ import {
   type SpeakerAssignUndo,
 } from './speakerAssign';
 import {
+  redoCertainty,
+  redoNoteBatch,
+  redoNoteEdit,
+  undoCertainty,
+  undoNoteBatch,
+  undoNoteEdit,
+  type CertaintyUndo,
+  type NoteBatchUndo,
+  type NoteEditUndo,
+} from './unitMetadata';
+import {
   moveSharedBoundary,
   moveUnitSpan,
   moveUnitEdge,
@@ -55,6 +66,9 @@ export type SessionEdit =
   | { kind: 'split'; undo: UnitSplitUndo }
   | { kind: 'merge'; undo: UnitMergeUndo }
   | { kind: 'assign'; undo: SpeakerAssignUndo }
+  | { kind: 'certainty'; undo: CertaintyUndo }
+  | { kind: 'note'; undo: NoteEditUndo }
+  | { kind: 'noteBatch'; undo: NoteBatchUndo }
   | { kind: 'edge'; undo: EdgeMove }
   | { kind: 'boundary'; undo: SharedBoundaryMove }
   | { kind: 'span'; undo: UnitSpanMove }
@@ -112,6 +126,9 @@ function snapshotTrees(edit: SessionEdit): RemovedUnit[] {
     case 'split':
     case 'merge':
     case 'assign':
+    case 'certainty':
+    case 'note':
+    case 'noteBatch':
     case 'edge':
     case 'boundary':
     case 'span':
@@ -172,10 +189,15 @@ function fileIdsOf(edit: SessionEdit): string[] {
     case 'split':
       return edit.undo.removed.flatMap((tree) => tree.audios.map((row) => row.file_id));
     case 'merge':
-      return [...edit.undo.earlier.audios, ...edit.undo.later.audios].map((row) => row.file_id);
+      return (edit.undo.sources ?? [edit.undo.earlier, edit.undo.later]).flatMap((side) =>
+        side.audios.map((row) => row.file_id),
+      );
     case 'clearText':
     case 'text':
     case 'assign':
+    case 'certainty':
+    case 'note':
+    case 'noteBatch':
     case 'edge':
     case 'boundary':
     case 'span':
@@ -207,6 +229,9 @@ function manuscriptOf(edit: SessionEdit): string {
     case 'split':
     case 'merge':
     case 'assign':
+    case 'certainty':
+    case 'note':
+    case 'noteBatch':
     case 'edge':
     case 'boundary':
     case 'span':
@@ -362,6 +387,9 @@ function stampGeneration(db: SqliteDatabase, edit: SessionEdit, generation: numb
       edit.undo.manuscriptGeneration = generation;
       return;
     case 'assign':
+    case 'certainty':
+    case 'note':
+    case 'noteBatch':
     case 'edge':
     case 'boundary':
     case 'span':
@@ -395,6 +423,14 @@ function applyUndo(db: SqliteDatabase, edit: SessionEdit): SessionEditResult {
       return undoMerge(db, edit.undo);
     case 'assign':
       return undoAssignSpeaker(db, edit.undo);
+    case 'certainty':
+      return undoCertainty(db, edit.undo);
+    case 'note':
+      undoNoteEdit(db, edit.undo);
+      return [];
+    case 'noteBatch':
+      undoNoteBatch(db, edit.undo);
+      return [];
     case 'edge':
       return undoEdge(db, edit.undo);
     case 'boundary':
@@ -445,6 +481,18 @@ function applyRedo(
       return redoMerge(db, edit.undo);
     case 'assign':
       return redoAssign(db, edit.undo);
+    case 'certainty': {
+      const redone = redoCertainty(db, edit.undo);
+      return { value: redone.units, edit: { kind: 'certainty', undo: redone.undo } };
+    }
+    case 'note': {
+      const redone = redoNoteEdit(db, edit.undo);
+      return { value: [], edit: { kind: 'note', undo: redone.undo } };
+    }
+    case 'noteBatch': {
+      const redone = redoNoteBatch(db, edit.undo);
+      return { value: [], edit: { kind: 'noteBatch', undo: redone.undo } };
+    }
     case 'edge':
       return redoEdge(db, edit.undo);
     case 'boundary':
@@ -675,12 +723,14 @@ function redoSplit(db: SqliteDatabase, undo: UnitSplitUndo): { value: Unit; edit
 function redoMerge(db: SqliteDatabase, undo: UnitMergeUndo): { value: Unit; edit: SessionEdit } {
   try {
     const merged = mergeUnits(db, {
+      ...(undo.sources === undefined ? {} : { unitIds: undo.sources.map((side) => side.unit.id) }),
       keepId: undo.earlier.unit.id,
       removeId: undo.later.unit.id,
       operationId: undo.operationId,
       separator: undo.separator,
       discardAudioIds: undo.discardAudioIds,
       newId: undo.newId,
+      ...(undo.redoBaseline === undefined ? {} : { baseline: undo.redoBaseline }),
       ...(undo.textOverrides === undefined ? {} : { textOverrides: undo.textOverrides }),
       ...(undo.textLayerId === undefined
         ? {}
@@ -718,7 +768,8 @@ function redoAssign(
 }
 
 function unitFromTree(tree: RemovedUnit): Unit {
-  const text = tree.texts.find((row) => row.role === 'transcription')?.body ?? '';
+  const textRow = tree.texts.find((row) => row.role === 'transcription');
+  const certainty = textRow?.self_certainty;
   return {
     id: tree.unit.id,
     layerId: tree.unit.layer_id,
@@ -727,12 +778,16 @@ function unitFromTree(tree: RemovedUnit): Unit {
     parentUnitId: tree.unit.parent_unit_id,
     startMs: tree.unit.start_ms,
     endMs: tree.unit.end_ms,
-    text,
-    textId: tree.texts.find((row) => row.role === 'transcription')?.id ?? null,
+    text: textRow?.body ?? '',
+    textId: textRow?.id ?? null,
     draftText: null,
     createdAt: tree.unit.created_at,
     updatedAt: tree.unit.updated_at,
     confidence: tree.unit.confidence ?? null,
+    selfCertainty:
+      certainty === 'not_understood' || certainty === 'uncertain' || certainty === 'certain'
+        ? certainty
+        : null,
     skipProcessing: (tree.unit.skip_processing ?? 0) === 1,
   };
 }

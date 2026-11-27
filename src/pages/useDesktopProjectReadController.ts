@@ -231,6 +231,7 @@ export function useDesktopProjectReadController(
     model,
     selectionPending,
     notes,
+    refetchNotes: reads.refetchNotes,
     projectTitle: reads.projectTitle,
     error,
     openFolder,

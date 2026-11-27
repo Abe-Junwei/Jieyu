@@ -1,3 +1,5 @@
+import { featureFlags } from '../ai/config/featureFlags';
+import { clickModsFromEvent } from './desktopTranscriptionSelection';
 import {
   Fragment,
   type CSSProperties,
@@ -64,6 +66,7 @@ export interface LayerRowLayer {
   modality?: string;
   units: readonly {
     id: string;
+    layerId?: string;
     startMs: number | null;
     endMs: number | null;
     text: string;
@@ -100,6 +103,7 @@ export function DesktopTranscriptionLayerRows(props: {
   zoomPxPerSec: number;
   scrollLeftPx: number;
   focus: LayerCardRef | null;
+  selectedUnitIds?: readonly string[];
   editing: LayerCardRef | null;
   createLayerId: string | null;
   createFrame: CSSProperties | null;
@@ -112,7 +116,11 @@ export function DesktopTranscriptionLayerRows(props: {
     edge: 'start' | 'end',
     event: ReactPointerEvent<HTMLElement>,
   ) => void;
-  onPick: (card: LayerCardRef, unit: DesktopPlaybackUnit) => void;
+  onPick: (
+    card: LayerCardRef,
+    unit: DesktopPlaybackUnit,
+    mods?: { toggle: boolean; range: boolean },
+  ) => void;
   onEditBody: (unitId: string, text: string, savedText: string) => void;
   onComposeBody: (composing: boolean) => void;
   onCommitBody: () => void;
@@ -168,6 +176,7 @@ export function DesktopTranscriptionLayerRows(props: {
         : [
             {
               id: unit.id,
+              layerId: unit.layerId ?? layer.id,
               startTime: unit.startMs / 1000,
               endTime: unit.endMs / 1000,
               text: unit.text,
@@ -299,7 +308,11 @@ export function DesktopTranscriptionLayerRows(props: {
                 );
                 const key = textKey(layer.id, unit.id);
                 const card = { layerId: layer.id, unitId: unit.id };
-                const selected = sameCard(props.focus, card);
+                const selected =
+                  featureFlags.desktopTranscriptionBatchEditingEnabled &&
+                  (props.selectedUnitIds?.length ?? 0) > 1
+                    ? props.selectedUnitIds!.includes(unit.id)
+                    : sameCard(props.focus, card);
                 const painted = annotationStyle(layer);
                 return (
                   <TimelineAnnotationItem
@@ -321,7 +334,7 @@ export function DesktopTranscriptionLayerRows(props: {
                       : {})}
                     {...(painted === undefined ? {} : { layerStyle: painted })}
                     {...speakerPaint(props.lanes, layer.id, unit.id)}
-                    onClick={() => props.onPick(card, unit)}
+                    onClick={(event) => props.onPick(card, unit, clickModsFromEvent(event))}
                     onContextMenu={(event) => props.onRowMenu(card, name, event)}
                     onDoubleClick={ignore}
                     onResizeStartPointerDown={(event) => props.onRowResize(unit.id, 'start', event)}

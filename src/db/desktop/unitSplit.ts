@@ -76,7 +76,6 @@ interface LiveUnit {
   end_ms: number | null;
   confidence: number | null;
   skip_processing: number;
-  self_certainty: string | null;
   sort_order: number;
   created_at: string;
   analysis_graph_json: string | null;
@@ -89,6 +88,7 @@ interface TextRow {
   layer_id: string;
   role: string;
   body: string;
+  self_certainty: string | null;
   provenance_json: string | null;
 }
 
@@ -431,9 +431,9 @@ function insertHalf(
   db.prepare(
     `INSERT INTO units (
       id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, confidence, skip_processing,
-      self_certainty, sort_order, created_at, updated_at, analysis_graph_json, analysis_generation,
+      sort_order, created_at, updated_at, analysis_graph_json, analysis_generation,
       graph_fingerprint
-    ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     input.id,
     input.unit.layer_id,
@@ -442,7 +442,6 @@ function insertHalf(
     input.startMs,
     input.endMs,
     input.unit.skip_processing,
-    input.unit.self_certainty,
     input.sortOrder,
     input.now,
     input.now,
@@ -469,44 +468,51 @@ function moveTexts(
     sawCut = true;
     const leftBody = cut.source.slice(0, cut.cutIndex);
     const rightBody = cut.source.slice(cut.cutIndex);
+    const inherit = row.self_certainty;
     if (leftBody === '' && rightBody !== '') {
       if (textAudioCount(db, row.id) > 0) {
         const carrierId = randomUUID();
         db.prepare(
-          `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at)
-           VALUES (?, ?, ?, ?, '', ?)`,
+          `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, self_certainty, updated_at)
+           VALUES (?, ?, ?, ?, '', NULL, ?)`,
         ).run(carrierId, leftId, row.layer_id, row.role, now);
         db.prepare('UPDATE unit_text_audios SET unit_text_id = ? WHERE unit_text_id = ?').run(
           carrierId,
           row.id,
         );
       }
-      db.prepare('UPDATE unit_texts SET unit_id = ?, body = ?, updated_at = ? WHERE id = ?').run(
-        rightId,
-        rightBody,
-        now,
-        row.id,
-      );
+      db.prepare(
+        `UPDATE unit_texts
+         SET unit_id = ?, body = ?, self_certainty = ?, updated_at = ?
+         WHERE id = ?`,
+      ).run(rightId, rightBody, inherit, now, row.id);
       continue;
     }
     if (rightBody === '') {
       db.prepare(
         `UPDATE unit_texts
-         SET unit_id = ?, body = ?, provenance_json = ?, updated_at = ?
+         SET unit_id = ?, body = ?, self_certainty = ?, provenance_json = ?, updated_at = ?
          WHERE id = ?`,
-      ).run(leftId, leftBody, leftBody === row.body ? row.provenance_json : null, now, row.id);
+      ).run(
+        leftId,
+        leftBody,
+        leftBody === '' ? null : inherit,
+        leftBody === row.body ? row.provenance_json : null,
+        now,
+        row.id,
+      );
       continue;
     }
     db.prepare(
       `UPDATE unit_texts
-       SET unit_id = ?, body = ?, provenance_json = NULL, updated_at = ?
+       SET unit_id = ?, body = ?, self_certainty = ?, provenance_json = NULL, updated_at = ?
        WHERE id = ?`,
-    ).run(leftId, leftBody, now, row.id);
+    ).run(leftId, leftBody, inherit, now, row.id);
     assertUnitTextRoleFree(db, rightId, row.role, row.layer_id);
     db.prepare(
-      `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run(randomUUID(), rightId, row.layer_id, row.role, rightBody, now);
+      `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, self_certainty, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run(randomUUID(), rightId, row.layer_id, row.role, rightBody, inherit, now);
   }
   if (sawCut) return;
   const leftBody = cut.source.slice(0, cut.cutIndex);
@@ -674,12 +680,14 @@ function fingerprintOf(db: SqliteDatabase, ids: readonly string[]): string {
     id,
     unit: db
       .prepare(
-        `SELECT start_ms, end_ms, speaker_id, skip_processing, self_certainty
+        `SELECT start_ms, end_ms, speaker_id, skip_processing
          FROM units WHERE id = ?`,
       )
       .get(id),
     texts: db
-      .prepare('SELECT layer_id, body FROM unit_texts WHERE unit_id = ? ORDER BY layer_id')
+      .prepare(
+        `SELECT layer_id, body, self_certainty FROM unit_texts WHERE unit_id = ? ORDER BY layer_id`,
+      )
       .all(id),
     notes: db
       .prepare('SELECT id, attachment, unit_text_id FROM notes WHERE unit_id = ? ORDER BY id')
@@ -723,7 +731,7 @@ function liveUnit(db: SqliteDatabase, id: string): LiveUnit {
   const row = db
     .prepare(
       `SELECT id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, confidence,
-              skip_processing, self_certainty, sort_order, created_at,
+              skip_processing, sort_order, created_at,
               analysis_graph_json, analysis_generation, graph_fingerprint
        FROM units WHERE id = ?`,
     )
@@ -735,7 +743,7 @@ function liveUnit(db: SqliteDatabase, id: string): LiveUnit {
 function textsOf(db: SqliteDatabase, unitId: string): TextRow[] {
   return db
     .prepare(
-      `SELECT id, layer_id, role, body, provenance_json
+      `SELECT id, layer_id, role, body, self_certainty, provenance_json
        FROM unit_texts WHERE unit_id = ?`,
     )
     .all(unitId) as TextRow[];
@@ -826,12 +834,13 @@ function insertText(
   role: string,
   body: string,
   now: string,
+  selfCertainty: string | null = null,
 ): void {
   assertUnitTextRoleFree(db, unitId, role, layerId);
   db.prepare(
-    `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(randomUUID(), unitId, layerId, role, body, now);
+    `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, self_certainty, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(randomUUID(), unitId, layerId, role, body, selfCertainty, now);
 }
 
 function parkUnit(db: SqliteDatabase, id: string): void {
@@ -849,9 +858,9 @@ function insertUnitRow(db: SqliteDatabase, removed: RemovedUnit): void {
   db.prepare(
     `INSERT INTO units (
       id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, confidence, skip_processing,
-      self_certainty, sort_order, created_at, updated_at, analysis_graph_json, analysis_generation,
+      sort_order, created_at, updated_at, analysis_graph_json, analysis_generation,
       graph_fingerprint
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     unit.id,
     unit.layer_id,
@@ -861,7 +870,6 @@ function insertUnitRow(db: SqliteDatabase, removed: RemovedUnit): void {
     unit.end_ms,
     unit.confidence ?? null,
     unit.skip_processing ?? 0,
-    unit.self_certainty ?? null,
     unit.sort_order,
     unit.created_at,
     unit.updated_at,

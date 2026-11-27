@@ -133,6 +133,9 @@ const lexiconAttachmentsEnabledFromEnv = readOptionalBooleanFlag(
 const desktopTranscriptionWorkspaceEnabledFromEnv = readOptionalBooleanFlag(
   import.meta.env.VITE_DESKTOP_TRANSCRIPTION_WORKSPACE_ENABLED,
 );
+const desktopTranscriptionBatchEditingEnabledFromEnv = readOptionalBooleanFlag(
+  import.meta.env.VITE_DESKTOP_TRANSCRIPTION_BATCH_EDITING_ENABLED,
+);
 
 const aiAgentLoopReliabilityFlagsDefaultEnabled =
   featureFlagDeploymentEnvironment === 'dogfood' ||
@@ -327,6 +330,11 @@ export const featureFlags = {
    * On unless `VITE_DESKTOP_TRANSCRIPTION_WORKSPACE_ENABLED=false`.
    */
   desktopTranscriptionWorkspaceEnabled: desktopTranscriptionWorkspaceEnabledFromEnv ?? true,
+  /**
+   * #566 / 1b-6: cmd/shift multi-select, speaker filter, metadata, N-merge entry.
+   * Default false; existing box-select and single-unit delete stay on when off.
+   */
+  desktopTranscriptionBatchEditingEnabled: desktopTranscriptionBatchEditingEnabledFromEnv ?? false,
   /**
    * M5-C / C8：桌面项目字段管理。默认关闭，不进旧标注页。
    * Env `VITE_PROJECT_CUSTOM_FIELDS_ENABLED=true` opens it on the folder library page.

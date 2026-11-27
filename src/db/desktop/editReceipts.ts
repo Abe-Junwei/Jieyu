@@ -17,7 +17,15 @@ export type EditReceiptKind =
   | 'pointCreate'
   | 'pointLabel'
   | 'pointMove'
-  | 'pointDelete';
+  | 'pointDelete'
+  | 'speakerAssign'
+  | 'speakerClear'
+  | 'speakerCreateAndAssign'
+  | 'selfCertainty'
+  | 'noteCreate'
+  | 'noteUpdate'
+  | 'noteDelete'
+  | 'noteCreateBatch';
 
 export type EditInspection =
   { status: 'committed'; result: unknown } | { status: 'not-submitted' } | { status: 'conflict' };

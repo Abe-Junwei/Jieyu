@@ -25,7 +25,8 @@ export function segmentMenuActions(
     canMerge: allowed,
     onAskMerge: () => {
       closeMenu();
-      if (allowed && unitId) props.onMerge?.(unitId);
+      // Always invoke: ask() toasts when blocked by filter; otherwise no-ops when no pair.
+      if (unitId && menu?.sub !== true) props.onMerge?.(unitId);
     },
   };
 }

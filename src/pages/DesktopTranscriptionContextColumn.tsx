@@ -10,6 +10,9 @@ import {
 } from './DesktopTranscriptionLayerList';
 import type { DesktopPlaybackUnit } from './useDesktopTranscriptionMediaController';
 import type { DesktopLayerDrag } from './useDesktopTranscriptionLayerDragController';
+import { DesktopTranscriptionSpeakerFilterPanel } from './DesktopTranscriptionSpeakerFilterPanel';
+import type { SpeakerFilterState } from './desktopTranscriptionSpeakerFilter';
+import { featureFlags } from '../ai/config/featureFlags';
 
 interface ManuscriptItem {
   id: string;
@@ -46,6 +49,16 @@ export function DesktopTranscriptionContextColumn(props: {
   selectedUnitId: string | null;
   onSelectManuscript: (manuscriptId: string) => void;
   onSelectUnit: (unitId: string) => void;
+  speakers?: readonly { id: string; name: string }[];
+  /** Units with speakerId for filter counts (not the playback list). */
+  speakerUnits?: readonly { speakerId?: string | null }[];
+  speakerFilter?: SpeakerFilterState;
+  onToggleSpeakerFilter?: (speakerId: string) => void;
+  onToggleUnassignedFilter?: () => void;
+  onClearSpeakerFilter?: () => void;
+  onCreateAndAssignSpeaker?: () => void;
+  /** 6b whole-manuscript retime (current manuscript only). */
+  onRetimeManuscript?: () => void;
 }) {
   const [open, setOpen] = useState({
     manuscripts: false,
@@ -155,31 +168,64 @@ export function DesktopTranscriptionContextColumn(props: {
                   : { onClearError: props.onClearLayerError })}
                 {...(props.layerRequest === undefined ? {} : { request: props.layerRequest })}
               />
+            ) : expanded &&
+              section.id === 'speakers' &&
+              featureFlags.desktopTranscriptionBatchEditingEnabled &&
+              props.speakerFilter !== undefined &&
+              props.onToggleSpeakerFilter !== undefined &&
+              props.onToggleUnassignedFilter !== undefined &&
+              props.onClearSpeakerFilter !== undefined &&
+              props.onCreateAndAssignSpeaker !== undefined ? (
+              <DesktopTranscriptionSpeakerFilterPanel
+                locale={props.locale}
+                speakers={props.speakers ?? []}
+                units={props.speakerUnits ?? []}
+                filter={props.speakerFilter}
+                onToggleSpeaker={props.onToggleSpeakerFilter}
+                onToggleUnassigned={props.onToggleUnassignedFilter}
+                onClear={props.onClearSpeakerFilter}
+                onCreateAndAssign={props.onCreateAndAssignSpeaker}
+              />
             ) : expanded ? (
-              section.rows.length === 0 ? (
-                section.empty.length > 0 ? (
-                  <p className="desktop-tx-context__empty">{section.empty}</p>
-                ) : null
-              ) : (
-                <ul className="desktop-tx-context__rows">
-                  {section.rows.map((row) => (
-                    <li key={row.id}>
-                      <button
-                        type="button"
-                        className="desktop-tx-context__row"
-                        aria-current={row.current ? 'true' : undefined}
-                        onClick={row.onSelect}
-                      >
-                        {row.time.length > 0 ? (
-                          <span className="desktop-tx-context__time">{row.time}</span>
-                        ) : null}
-                        <span className="desktop-tx-context__name">{row.primary}</span>
-                        <span className="desktop-tx-context__aside">{row.secondary}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )
+              <>
+                {section.rows.length === 0 ? (
+                  section.empty.length > 0 ? (
+                    <p className="desktop-tx-context__empty">{section.empty}</p>
+                  ) : null
+                ) : (
+                  <ul className="desktop-tx-context__rows">
+                    {section.rows.map((row) => (
+                      <li key={row.id}>
+                        <button
+                          type="button"
+                          className="desktop-tx-context__row"
+                          aria-current={row.current ? 'true' : undefined}
+                          onClick={row.onSelect}
+                        >
+                          {row.time.length > 0 ? (
+                            <span className="desktop-tx-context__time">{row.time}</span>
+                          ) : null}
+                          <span className="desktop-tx-context__name">{row.primary}</span>
+                          <span className="desktop-tx-context__aside">{row.secondary}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {section.id === 'manuscripts' &&
+                featureFlags.desktopTranscriptionBatchEditingEnabled &&
+                props.manuscriptId !== null &&
+                props.onRetimeManuscript !== undefined ? (
+                  <button
+                    type="button"
+                    className="desktop-tx-context__retime"
+                    data-testid="desktop-tx-retime-manuscript"
+                    onClick={props.onRetimeManuscript}
+                  >
+                    {t(props.locale, 'app.desktopTranscription.retimeOpen')}
+                  </button>
+                ) : null}
+              </>
             ) : null}
           </section>
         );

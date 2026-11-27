@@ -1,5 +1,6 @@
 import { DesktopTranscriptionSplitDialog } from './DesktopTranscriptionSplitDialog';
 import type { SplitTextPreview, FormalCut } from '../app/desktopProjectReadPageAccess';
+import type { ViewScopeWrite } from '../app/desktopProjectReadPageAccess';
 import { useEffect, useRef, useState } from 'react';
 import { t, tf, type Locale } from '../i18n';
 import { useToast } from '../contexts/ToastContext';
@@ -77,6 +78,7 @@ export function useDesktopTranscriptionSplitController(input: {
   textLayerId: string | null;
   units: readonly SplitUnit[];
   draft: { unitId: string; text: string } | null;
+  writeScope?: (affectedUnitIds: readonly string[]) => ViewScopeWrite;
   desktopCall: ((sessionId: string, method: string, args: unknown) => Promise<unknown>) | undefined;
   playheadSec: () => number;
   prepareText?: () => Promise<boolean>;
@@ -264,12 +266,14 @@ export function useDesktopTranscriptionSplitController(input: {
     if (!offer || current.sessionId !== offer.sessionId || !current.desktopCall) return;
     const { createDesktopClient } = await import('../app/desktopProjectReadPageAccess');
     try {
+      const scope = current.writeScope?.([offer.unitId]) ?? {};
       await createDesktopClient({ desktopCall: current.desktopCall }).splitUnit(offer.sessionId, {
         unitId: offer.unitId,
         time: offer.time,
         textLayerId: offer.activeLayerId,
         baseline: offer.preview.baseline,
         formalCuts: cuts,
+        ...scope,
       });
       setOffer(null);
       current.onCommitted?.();

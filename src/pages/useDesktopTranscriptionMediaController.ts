@@ -11,7 +11,10 @@ export interface DesktopPlaybackUnit {
   startTime: number;
   endTime: number;
   text: string;
+  /** Structure layer that owns the unit; used for same-layer multi-select. */
+  layerId?: string;
   confidence?: number | null;
+  selfCertainty?: 'not_understood' | 'uncertain' | 'certain' | null;
   skipProcessing?: boolean;
 }
 

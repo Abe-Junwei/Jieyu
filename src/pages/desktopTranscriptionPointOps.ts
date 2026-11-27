@@ -1,5 +1,6 @@
 import { createDesktopClient } from '../app/desktopProjectReadPageAccess';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
+import type { ViewScopeWrite } from '../app/desktopProjectReadPageAccess';
 import { t, type Locale } from '../i18n';
 
 export interface PointView {
@@ -70,6 +71,7 @@ export async function createPointAt(input: {
   layerId: string;
   timeMs: number;
   durationSec: number;
+  writeScope?: ViewScopeWrite;
 }): Promise<{ id: string; timeMs: number }> {
   const api = pointClient(input.sessionId, input.desktopCall);
   if (api === null) throw new Error('desktop host is missing');
@@ -77,6 +79,7 @@ export async function createPointAt(input: {
     layerId: input.layerId,
     timeMs: clampPointMs(input.timeMs, input.durationSec),
     label: '',
+    ...(input.writeScope ?? {}),
   });
   return { id: point.id, timeMs: point.timeMs };
 }
@@ -86,10 +89,15 @@ export async function savePointLabel(input: {
   desktopCall: DesktopReadHost['desktopCall'];
   pointId: string;
   label: string;
+  writeScope?: ViewScopeWrite;
 }): Promise<void> {
   const api = pointClient(input.sessionId, input.desktopCall);
   if (api === null) throw new Error('desktop host is missing');
-  await api.updatePointLabel(input.sessionId, { id: input.pointId, label: input.label });
+  await api.updatePointLabel(input.sessionId, {
+    id: input.pointId,
+    label: input.label,
+    ...(input.writeScope ?? {}),
+  });
 }
 
 export async function savePointMove(input: {
@@ -98,12 +106,14 @@ export async function savePointMove(input: {
   pointId: string;
   timeMs: number;
   durationSec: number;
+  writeScope?: ViewScopeWrite;
 }): Promise<void> {
   const api = pointClient(input.sessionId, input.desktopCall);
   if (api === null) throw new Error('desktop host is missing');
   await api.movePoint(input.sessionId, {
     id: input.pointId,
     timeMs: clampPointMs(input.timeMs, input.durationSec),
+    ...(input.writeScope ?? {}),
   });
 }
 
@@ -111,10 +121,11 @@ export async function removePoint(input: {
   sessionId: string;
   desktopCall: DesktopReadHost['desktopCall'];
   pointId: string;
+  writeScope?: ViewScopeWrite;
 }): Promise<void> {
   const api = pointClient(input.sessionId, input.desktopCall);
   if (api === null) throw new Error('desktop host is missing');
-  await api.deletePoint(input.sessionId, input.pointId);
+  await api.deletePoint(input.sessionId, input.pointId, input.writeScope);
 }
 
 export function neighborPoint(

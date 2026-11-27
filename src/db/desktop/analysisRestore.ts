@@ -9,7 +9,7 @@ import {
 import { projectAnalysisGraph } from '../../annotation/analysisGraphDomainProjection';
 import { assertTokenLanguages, replaceProjection, syncProjectedLinks } from './analysis';
 import { unitBelongsToDeletedManuscript } from './manuscripts';
-import { textAudioCount } from './unitTextAudios';
+import { keepEmptyUnitText } from './unitTextAudios';
 import {
   detachAnalysisAssociations,
   getAnalysisCandidate,
@@ -301,25 +301,37 @@ export function undoUnitText(db: SqliteDatabase, undo: UnitTextUndo, afterText?:
     if (undo.prior.textExists) {
       if (currentText.id === null) {
         db.prepare(
-          `INSERT INTO unit_texts (id, unit_id, layer_id, role, body, provenance_json, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO unit_texts (
+             id, unit_id, layer_id, role, body, self_certainty, provenance_json, updated_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         ).run(
           randomUUID(),
           undo.unitId,
           undo.textLayerId,
           context.role,
           undo.prior.text,
+          undo.prior.selfCertainty,
           undo.prior.provenanceJson,
           now,
         );
       } else {
         db.prepare(
-          'UPDATE unit_texts SET body = ?, provenance_json = ?, updated_at = ? WHERE id = ?',
-        ).run(undo.prior.text, undo.prior.provenanceJson, now, currentText.id);
+          `UPDATE unit_texts
+           SET body = ?, self_certainty = ?, provenance_json = ?, updated_at = ?
+           WHERE id = ?`,
+        ).run(
+          undo.prior.text,
+          undo.prior.selfCertainty,
+          undo.prior.provenanceJson,
+          now,
+          currentText.id,
+        );
       }
-    } else if (currentText.id !== null && textAudioCount(db, currentText.id) > 0) {
+    } else if (currentText.id !== null && keepEmptyUnitText(db, currentText.id)) {
       db.prepare(
-        'UPDATE unit_texts SET body = ?, provenance_json = NULL, updated_at = ? WHERE id = ?',
+        `UPDATE unit_texts
+         SET body = ?, self_certainty = NULL, provenance_json = NULL, updated_at = ?
+         WHERE id = ?`,
       ).run('', now, currentText.id);
     } else {
       db.prepare('DELETE FROM unit_texts WHERE unit_id = ? AND layer_id = ?').run(
@@ -658,6 +670,7 @@ function unitTextStillAfter(
   if (
     material.unitId !== undo.unitId ||
     text.body !== undo.after.text ||
+    text.selfCertainty !== undo.after.selfCertainty ||
     (text.id !== null) !== undo.after.textExists ||
     material.graphFingerprint !== undo.after.graphFingerprint ||
     material.analysisGeneration !== undo.after.analysisGeneration ||
@@ -729,6 +742,7 @@ function readUnitTextUndo(db: SqliteDatabase, undo: UnitTextUndo): Unit {
   if (
     !unit ||
     unit.text !== undo.prior.text ||
+    text.selfCertainty !== undo.prior.selfCertainty ||
     (text.id !== null) !== undo.prior.textExists ||
     generation?.generation !== undo.after.manuscriptGeneration + 1
   ) {

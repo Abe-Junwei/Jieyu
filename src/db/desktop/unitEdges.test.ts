@@ -223,6 +223,7 @@ describe('desktop unit edges', () => {
       endMs: 1600,
     });
     expect(callDesktopSession(session.sessionId, 'units.deletePreview', { unitId: id })).toEqual({
+      fingerprint: expect.any(String),
       linkedTexts: 0,
       tokens: 0,
       morphemes: 0,
@@ -281,11 +282,11 @@ describe('desktop unit edges', () => {
     const layerId = layer(session.sessionId, true);
     const first = unit(session.sessionId, layerId, 0, 500, 'one');
     const second = unit(session.sessionId, layerId, 500, 1000, 'two');
-    expect(
-      callDesktopSession(session.sessionId, 'units.deleteManyPreview', {
-        unitIds: [first, second],
-      }),
-    ).toMatchObject({ linkedTexts: 0 });
+    const preview = callDesktopSession(session.sessionId, 'units.deleteManyPreview', {
+      unitIds: [first, second],
+    }) as { linkedTexts: number; fingerprint: string };
+    expect(preview).toMatchObject({ linkedTexts: 0 });
+    expect(typeof preview.fingerprint).toBe('string');
     expect(() =>
       callDesktopSession(session.sessionId, 'units.deleteMany', {
         unitIds: [first, 'missing'],
@@ -295,6 +296,7 @@ describe('desktop unit edges', () => {
     expect(
       callDesktopSession(session.sessionId, 'units.deleteMany', {
         unitIds: [first, second],
+        fingerprint: preview.fingerprint,
       }),
     ).toEqual({ ids: [first, second] });
     expect(callDesktopSession(session.sessionId, 'units.get', { id: first })).toBeNull();
@@ -310,6 +312,32 @@ describe('desktop unit edges', () => {
     const reopened = openDesktopSession(dir, [dir]);
     expect(callDesktopSession(reopened.sessionId, 'units.get', { id: first })).toBeNull();
     expect(callDesktopSession(reopened.sessionId, 'units.get', { id: second })).toBeNull();
+  });
+
+  it('rejects structure delete when the preview fingerprint no longer matches', () => {
+    const dir = folder();
+    const session = openDesktopSession(dir, [dir]);
+    const layerId = layer(session.sessionId, true);
+    const first = unit(session.sessionId, layerId, 0, 500, 'one');
+    const second = unit(session.sessionId, layerId, 500, 1000, 'two');
+    const preview = callDesktopSession(session.sessionId, 'units.deleteManyPreview', {
+      unitIds: [first, second],
+    }) as { fingerprint: string };
+    callDesktopSession(session.sessionId, 'units.updateText', {
+      unitId: first,
+      text: 'changed',
+    });
+    expect(() =>
+      callDesktopSession(session.sessionId, 'units.deleteMany', {
+        unitIds: [first, second],
+        fingerprint: preview.fingerprint,
+      }),
+    ).toThrow(/unit delete preview is stale/);
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: first })).toMatchObject({
+      text: 'changed',
+    });
+    expect(callDesktopSession(session.sessionId, 'units.get', { id: second })).not.toBeNull();
+    closeDesktopSession(session.sessionId);
   });
   it('moves a whole segment with its subdivision children as one undoable step', () => {
     const dir = folder();

@@ -1,39 +1,38 @@
-import { DesktopTranscriptionDraftConflictDialog } from './DesktopTranscriptionDraftConflictDialog';
+import { layerLabel } from './DesktopTranscriptionLayerRows';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { TimeRuler } from '../components/TimeRuler';
 import { DesktopTranscriptionOralTools } from './DesktopTranscriptionOralTools';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
 import { IconTipButton } from '../components/ui/IconTip';
-import { JieyuIcon } from '../components/ui/JieyuIcon';
-import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
-import { ToastProvider } from '../contexts/ToastContext';
+import { ToastProvider, useToast } from '../contexts/ToastContext';
 import { readDesktopProjectHost } from '../desktop/projectReadHost';
 import { useDesktopDraftGuard } from '../desktop/useDesktopDraftGuard';
 import { layerTextStore, textKey } from './desktopTranscriptionTextKey';
-import { t, tf, useLocale } from '../i18n';
-import { JIEYU_ICON_INLINE, JIEYU_ICON_WAVE, JIEYU_ICON_WAVE_PLAY } from '../utils/jieyuIcon';
+import { t, useLocale } from '../i18n';
 import { getWaveformDisplayHeights } from '../utils/waveformDisplayMode';
-import { msToSec } from '../utils/timeMs';
-import { DesktopTranscriptionSidePane } from './DesktopTranscriptionSidePane';
-import {
-  DesktopRateControl,
-  DesktopViewControls,
-  DesktopZoomControls,
-  formatManuscriptDuration,
-} from './DesktopTranscriptionWorkspaceControls';
-import { DesktopDraftLeaveDialog } from './DesktopDraftLeaveDialog';
-import {
-  DesktopTranscriptionWaveMenu,
-  waveMenuUnitAt,
-  type WaveMenuState,
-} from './DesktopTranscriptionWaveMenu';
+import { DesktopZoomControls } from './DesktopTranscriptionWorkspaceControls';
+import { DesktopTranscriptionPlaybackBar } from './DesktopTranscriptionPlaybackBar';
+import { waveMenuUnitAt, type WaveMenuState } from './DesktopTranscriptionWaveMenu';
+import { playbackUnitsFromSource, selectablePlaybackUnits } from './desktopTranscriptionLaneSelect';
 import { useDesktopTranscriptionSplitController } from './useDesktopTranscriptionSplitController';
-import { mergeBody } from './desktopTranscriptionMerge';
+import { mergeBody, nextMergeId, timedUnits } from './desktopTranscriptionMerge';
 import { useDesktopTranscriptionMergeController } from './useDesktopTranscriptionMergeController';
 import { readDesktopCorpusLocate } from './desktopCorpusLocate';
 import { useDesktopProjectReadController } from './useDesktopProjectReadController';
 import { useDesktopTranscriptionSelectionController } from './useDesktopTranscriptionSelectionController';
+import { featureFlags } from '../ai/config/featureFlags';
+import {
+  EMPTY_SPEAKER_FILTER,
+  spanAffectedFromUnits,
+  speakerFilterActive,
+  speakerFilterRevision,
+  unitVisibleInSpeakerFilter,
+  writeScopeArgs,
+  visibleSpeakerLayers,
+  type SpeakerFilterState,
+} from './desktopTranscriptionSpeakerFilter';
+import { confirmCreateAndAssignSpeaker } from './desktopTranscriptionCreateAssign';
 import {
   getTranscriptionPlaybackClockSnapshot,
   subscribeTranscriptionPlaybackClock,
@@ -46,13 +45,16 @@ import type { LayerCommandId } from './desktopTranscriptionLayerCommands';
 import { DesktopLayerDragReason } from './useDesktopTranscriptionLayerDragController';
 import { useDesktopTranscriptionOralController } from './useDesktopTranscriptionOralController';
 import { useDesktopTranscriptionPointController } from './useDesktopTranscriptionPointController';
-import { DesktopOralLeaveDialog } from './DesktopOralLeaveDialog';
+import { useDesktopTranscriptionRetimeController } from './useDesktopTranscriptionRetimeController';
+import { useDesktopTranscriptionMetadataController } from './useDesktopTranscriptionMetadataController';
 import { useOralNavigationGuard } from './oralNavigationGuard';
 import {
   DesktopTranscriptionLane,
   type WaveCreate,
   type WaveSkip,
 } from './DesktopTranscriptionLane';
+import { DesktopTranscriptionWorkspaceDialogs } from './DesktopTranscriptionWorkspaceDialogs';
+import { DesktopTranscriptionWorkspaceSidePaneMount } from './DesktopTranscriptionWorkspaceSidePaneMount';
 import {
   formatPlaybackTime,
   useDesktopTranscriptionMediaController,
@@ -97,6 +99,7 @@ export function DesktopTranscriptionWorkspacePage() {
 }
 
 function DesktopTranscriptionWorkspace() {
+  const { showToast } = useToast();
   const locale = useLocale();
   const host = readDesktopProjectHost();
   const tierRef = useRef<HTMLDivElement | null>(null);
@@ -142,26 +145,41 @@ function DesktopTranscriptionWorkspace() {
   }, [draft, host]);
 
   const sourceUnits = read.model?.units;
-  const units = useMemo(
-    (): readonly DesktopPlaybackUnit[] =>
-      (sourceUnits ?? []).flatMap((unit) =>
-        unit.startMs === null || unit.endMs === null
-          ? []
-          : [
-              {
-                id: unit.id,
-                startTime: msToSec(unit.startMs),
-                endTime: msToSec(unit.endMs),
-                text: unit.text,
-                confidence: unit.confidence,
-                skipProcessing: unit.skipProcessing,
-              },
-            ],
-      ),
-    [sourceUnits],
-  );
+  const [speakerFilter, setSpeakerFilter] = useState<SpeakerFilterState>(EMPTY_SPEAKER_FILTER);
+  const [createAssignOpen, setCreateAssignOpen] = useState(false);
+  const [createAssignName, setCreateAssignName] = useState('');
+  const [createAssignRevision, setCreateAssignRevision] = useState('');
+  const filtering = speakerFilterActive(speakerFilter);
+  const units = useMemo(() => {
+    const all = playbackUnitsFromSource(sourceUnits);
+    if (!featureFlags.desktopTranscriptionBatchEditingEnabled || !filtering) return all;
+    const visible = new Set(
+      (sourceUnits ?? [])
+        .filter((unit) => unitVisibleInSpeakerFilter(unit.speakerId, speakerFilter))
+        .map((unit) => unit.id),
+    );
+    return all.filter((unit) => visible.has(unit.id));
+  }, [filtering, sourceUnits, speakerFilter]);
   const hasAudio = (read.model?.audioUrl ?? null) !== null;
-  const selection = useDesktopTranscriptionSelectionController(locate?.unitId ?? null);
+  const selectionScope = useMemo(
+    () => ({
+      units: read.model
+        ? selectablePlaybackUnits(
+            [{ id: read.model.layerId ?? '', units: read.model.units }, ...read.model.layers],
+            (id) => unitVisibleInSpeakerFilter(id, speakerFilter),
+          )
+        : undefined,
+      speakers: [
+        ...(sourceUnits ?? []),
+        ...(read.model?.layers ?? []).flatMap((layer) => layer.units),
+      ],
+    }),
+    [read.model, speakerFilter, sourceUnits],
+  );
+  const selection = useDesktopTranscriptionSelectionController(
+    locate?.unitId ?? null,
+    selectionScope.units,
+  );
   const selectPlaybackUnit = (unit: DesktopPlaybackUnit) => {
     if (unit.id === selection.selectedUnitId) {
       selection.selectUnit(unit);
@@ -196,7 +214,9 @@ function DesktopTranscriptionWorkspace() {
   openWaveRegionMenu.current = (unitId, x, y) => {
     if (playback.isPlaying) playback.togglePlayback();
     const time = playback.timeAtClientX(x);
-    if (time !== null) setWaveMenu({ x, y, time, unitId });
+    if (time === null) return;
+    selection.applyContextMenuTarget(unitId);
+    setWaveMenu({ x, y, time, unitId });
   };
   selection.seekToRef.current = playback.seekTo;
   const selectedUnit = units.find((unit) => unit.id === selection.selectedUnitId) ?? null;
@@ -211,17 +231,61 @@ function DesktopTranscriptionWorkspace() {
     read: read.readTextDraft,
   };
   const textLayerId = read.model?.layerId ?? null;
+  const mergeBlockedByFilter =
+    filtering &&
+    (() => {
+      const id = selection.selectedUnitId;
+      if (id === null) return false;
+      const next = nextMergeId(timedUnits(sourceUnits ?? []), id);
+      if (next === null) return false;
+      const partner = (sourceUnits ?? []).find((unit) => unit.id === next);
+      return partner !== undefined && !unitVisibleInSpeakerFilter(partner.speakerId, speakerFilter);
+    })();
+  const writeScope = (affectedUnitIds: readonly string[]) =>
+    writeScopeArgs(read.model?.manuscriptId, speakerFilter, affectedUnitIds);
+  const activeLayer = read.model?.layers.find((layer) => layer.id === read.model?.layerId) ?? null;
+  const metadata = useDesktopTranscriptionMetadataController({
+    locale,
+    sessionId: read.sessionId,
+    manuscriptId: read.model?.manuscriptId ?? null,
+    desktopCall: host?.desktopCall,
+    textLayerId,
+    layerName: activeLayer?.name?.zh ?? activeLayer?.name?.en ?? activeLayer?.key ?? '',
+    layerNameOf: (id) =>
+      layerLabel(read.model?.layers.find((layer) => layer.id === id)?.name, locale, ''),
+    orthographyLabel: '',
+    selectedUnitIds: selection.selectedUnitIds,
+    certaintyOf: (unitId, layerId) =>
+      read.model?.layers
+        .find((layer) => layer.id === (layerId ?? textLayerId))
+        ?.units.find((u) => u.id === unitId)?.selfCertainty ?? null,
+    writeScope,
+    reload: () => read.refresh(),
+    refetchNotes: (sessionId) => read.refetchNotes(sessionId),
+    listNotesForUnits: () => read.notes ?? [],
+  });
   const merge = useDesktopTranscriptionMergeController({
     locale,
     sessionId: read.sessionId,
     units: sourceUnits ?? [],
     selectedUnitId: selection.selectedUnitId,
+    ...(featureFlags.desktopTranscriptionBatchEditingEnabled
+      ? { selectedUnitIds: selection.selectedUnitIds }
+      : {}),
     textLayerId,
     textOf: (id) => mergeBody(textLayerId, id, draft.draft, sourceUnits, textKey),
     prepareText: draft.persistForStructure,
     onCommitted: draft.structureCommitted,
     desktopCall: host?.desktopCall,
     reload: () => read.refresh(),
+    mergeBlockedByFilter,
+    filterRevision: speakerFilterRevision(speakerFilter),
+    writeScope,
+    childIdsOf: (unitId) =>
+      spanAffectedFromUnits(
+        (read.model?.layers ?? []).flatMap((layer) => layer.units),
+        unitId,
+      ).slice(1),
   });
   const split = useDesktopTranscriptionSplitController({
     locale,
@@ -229,6 +293,15 @@ function DesktopTranscriptionWorkspace() {
     textLayerId,
     units,
     draft: draft.draft,
+    writeScope: (ids) =>
+      writeScope(
+        ids.flatMap((id) =>
+          spanAffectedFromUnits(
+            (read.model?.layers ?? []).flatMap((layer) => layer.units),
+            id,
+          ),
+        ),
+      ),
     desktopCall: host?.desktopCall,
     playheadSec: getTranscriptionPlaybackClockSnapshot,
     prepareText: draft.persistForStructure,
@@ -246,7 +319,6 @@ function DesktopTranscriptionWorkspace() {
     });
   }, [selectedUnit, selection.selectedUnitId, textLayerId]);
   const waveHeights = getWaveformDisplayHeights(224, playback.waveformDisplayMode);
-
   const speakerCount = new Set(
     (sourceUnits ?? []).map((unit) => unit.speakerId).filter((id) => id !== null),
   ).size;
@@ -256,8 +328,13 @@ function DesktopTranscriptionWorkspace() {
     manuscriptId: read.model?.manuscriptId ?? null,
     layers: read.model?.layers,
     selectedUnitId: selection.selectedUnitId,
+    selectedUnitIds: selection.selectedUnitIds,
     refresh: () => read.refresh(),
+    writeScope,
   });
+  useEffect(() => {
+    setSpeakerFilter(EMPTY_SPEAKER_FILTER);
+  }, [read.model?.manuscriptId]);
   const layerActions = useDesktopTranscriptionLayerController({
     sessionId: read.sessionId,
     desktopCall: host?.desktopCall,
@@ -283,7 +360,21 @@ function DesktopTranscriptionWorkspace() {
     seekTo: playback.seekTo,
     clearUnitSelection: () => selection.clearSelection(),
     reload: () => read.refresh(),
+    writesBlocked: filtering,
+    writeScope: () => writeScope([]),
   });
+  const retime = useDesktopTranscriptionRetimeController({
+    locale,
+    sessionId: read.sessionId,
+    manuscriptId: read.model?.manuscriptId ?? null,
+    desktopCall: host?.desktopCall,
+    filtering,
+    writeScope: () => writeScope([]),
+    reload: () => read.refresh(),
+  });
+  const hasTimedUnits = (sourceUnits ?? []).some(
+    (unit) => unit.startMs !== null && unit.endMs !== null,
+  );
   const oral = useDesktopTranscriptionOralController({
     sessionId: read.sessionId,
     desktopCall: host?.desktopCall,
@@ -314,153 +405,62 @@ function DesktopTranscriptionWorkspace() {
     const action = command;
     setLayerRequest({ nonce: layerRequestNonce.current, layerId, action });
   };
-  const sideActions = useRef({ draft, read, selection, oral });
-  sideActions.current = { draft, read, selection, oral };
-  const playbackDuration = playback.duration;
-  const readModel = read.model;
-  const selectedUnitId = selection.selectedUnitId;
-  const manuscriptList = useMemo(
-    () => (
-      <DesktopTranscriptionSidePane
-        locale={locale}
-        model={readModel}
-        units={units}
-        durationLabel={
-          hasAudio && playbackDuration > 0 ? formatManuscriptDuration(playbackDuration) : null
-        }
-        speakerCount={speakerCount}
-        selectedUnitId={selectedUnitId}
-        actions={layerActions}
-        layerRequest={layerRequest}
-        onOpen={(manuscriptId, layerId) =>
-          sideActions.current.oral.leave(() =>
-            sideActions.current.draft.leave(() => {
-              if (layerId === undefined) sideActions.current.selection.clearSelection();
-              if (layerId === undefined) sideActions.current.read.selectManuscript(manuscriptId);
-              else sideActions.current.read.selectManuscript(manuscriptId, layerId);
-            }),
-          )
-        }
-        onSelectUnit={(unitId) => {
-          const unit = units.find((item) => item.id === unitId);
-          if (unit) selectPlaybackUnitRef.current(unit);
-        }}
-      />
-    ),
-    [
-      hasAudio,
-      layerActions,
-      layerRequest,
-      locale,
-      playbackDuration,
-      readModel,
-      selectedUnitId,
-      speakerCount,
-      units,
-    ],
+  const sidePane = (
+    <DesktopTranscriptionWorkspaceSidePaneMount
+      locale={locale}
+      hasAudio={hasAudio}
+      playbackDuration={playback.duration}
+      speakerCount={speakerCount}
+      units={units}
+      sourceUnits={selectionScope.speakers}
+      readModel={read.model}
+      selectedUnitId={selection.selectedUnitId}
+      layerActions={layerActions}
+      layerRequest={layerRequest}
+      speakers={laneChrome.speakers ?? []}
+      speakerFilter={speakerFilter}
+      setSpeakerFilter={setSpeakerFilter}
+      setCreateAssignName={setCreateAssignName}
+      setCreateAssignRevision={setCreateAssignRevision}
+      setCreateAssignOpen={setCreateAssignOpen}
+      onRetimeAsk={() => retime.ask()}
+      leaveThen={(go) => oral.leave(() => draft.leave(go))}
+      onOpenManuscript={(manuscriptId, layerId) => {
+        selection.clearSelection();
+        if (layerId === undefined) read.selectManuscript(manuscriptId);
+        else read.selectManuscript(manuscriptId, layerId);
+      }}
+      selectPlaybackUnit={(unit) => selectPlaybackUnitRef.current(unit)}
+    />
   );
-  useRegisterAppSidePane({
-    subtitle: '',
-    content: manuscriptList,
-    enabled: hasAudio || units.length > 0,
-  });
 
-  if (host === null) return <Navigate to="/" replace />;
+  if (host === null) {
+    return (
+      <>
+        {sidePane}
+        <Navigate to="/" replace />
+      </>
+    );
+  }
 
   return (
     <section
       className={`desktop-tx-workspace${layerView.headerFolded ? ' is-header-folded' : ''}${layerView.compact ? ' is-compact' : ''}${hasAudio ? '' : ' is-no-audio'}`}
       data-testid="desktop-transcription-workspace"
     >
+      {sidePane}
       <div className="desktop-tx-workspace__body">
         <div className="desktop-tx-workspace__main">
           {read.error.length > 0 ? <p role="alert">{read.error}</p> : null}
           {hasAudio ? (
-            <div className="desktop-tx-bar" data-testid="desktop-playback-bar">
-              <IconTipButton
-                className="desktop-tx-play"
-                disabled={!playback.isReady}
-                label={t(
-                  locale,
-                  playback.isPlaying
-                    ? 'transcription.wave.toolbar.pause'
-                    : 'transcription.wave.toolbar.play',
-                )}
-                onClick={playback.togglePlayback}
-              >
-                <JieyuIcon
-                  name={playback.isPlaying ? 'Pause' : 'Play'}
-                  aria-hidden
-                  className={JIEYU_ICON_WAVE_PLAY}
-                />
-              </IconTipButton>
-              <IconTipButton
-                className="desktop-tx-icon"
-                label={t(locale, 'transcription.wave.toolbar.rewind10')}
-                onClick={() => playback.seekBySeconds(-10)}
-              >
-                <JieyuIcon name="SkipBack" aria-hidden className={JIEYU_ICON_WAVE} />
-              </IconTipButton>
-              <IconTipButton
-                className="desktop-tx-icon"
-                label={t(locale, 'transcription.wave.toolbar.forward10')}
-                onClick={() => playback.seekBySeconds(10)}
-              >
-                <JieyuIcon name="SkipForward" aria-hidden className={JIEYU_ICON_WAVE} />
-              </IconTipButton>
-              <DesktopRateControl
-                locale={locale}
-                rate={playback.playbackRate}
-                onChange={playback.setPlaybackRate}
-              />
-              <IconTipButton
-                className="desktop-tx-icon"
-                aria-pressed={playback.loop}
-                label={t(
-                  locale,
-                  playback.loop
-                    ? 'transcription.wave.toolbar.globalLoopOff'
-                    : 'transcription.wave.toolbar.globalLoopOn',
-                )}
-                onClick={() => playback.setLoop(!playback.loop)}
-              >
-                <JieyuIcon name="Repeat" aria-hidden className={JIEYU_ICON_WAVE} />
-              </IconTipButton>
-              <label className="desktop-tx-volume">
-                <JieyuIcon name="Volume2" aria-hidden className={JIEYU_ICON_WAVE} />
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={playback.volume}
-                  style={{ '--volume-fill': `${playback.volume * 100}%` } as CSSProperties}
-                  aria-label={tf(locale, 'transcription.voiceWidget.signal.volume', {
-                    percent: Math.round(playback.volume * 100),
-                  })}
-                  onChange={(event) => playback.setVolume(Number(event.target.value))}
-                />
-              </label>
-              <PlaybackReadout duration={playback.duration} noAudio={false} />
-              <DesktopViewControls
-                locale={locale}
-                mode={playback.waveformDisplayMode}
-                onChange={playback.setWaveformDisplayMode}
-              />
-              <IconTipButton
-                className="desktop-tx-icon desktop-tx-compact"
-                aria-pressed={layerView.compact}
-                label={t(
-                  locale,
-                  layerView.compact
-                    ? 'app.desktopTranscription.compactOff'
-                    : 'app.desktopTranscription.compactOn',
-                )}
-                onClick={layerView.toggleCompact}
-              >
-                <JieyuIcon name="Rows3" aria-hidden className={JIEYU_ICON_INLINE} />
-              </IconTipButton>
-            </div>
+            <DesktopTranscriptionPlaybackBar
+              locale={locale}
+              playback={playback}
+              layerView={layerView}
+              retime={retime}
+              hasTimedUnits={hasTimedUnits}
+              readout={<PlaybackReadout duration={playback.duration} noAudio={false} />}
+            />
           ) : null}
           <div className="desktop-tx-stage">
             {hasAudio ? (
@@ -654,7 +654,7 @@ function DesktopTranscriptionWorkspace() {
                 sessionId={read.sessionId}
                 manuscriptId={read.model?.manuscriptId ?? null}
                 layerId={read.model?.layerId ?? null}
-                layers={read.model?.layers}
+                layers={visibleSpeakerLayers(read.model?.layers, speakerFilter)}
                 links={read.model?.links}
                 view={layerView}
                 desktopCall={host?.desktopCall}
@@ -677,6 +677,18 @@ function DesktopTranscriptionWorkspace() {
                   points.clearSelection();
                   selectPlaybackUnits(picked);
                 }}
+                {...(featureFlags.desktopTranscriptionBatchEditingEnabled
+                  ? {
+                      onClickUnit: (
+                        unit: DesktopPlaybackUnit,
+                        mods: { toggle: boolean; range: boolean },
+                      ) => {
+                        points.clearSelection();
+                        draft.leave(() => selection.clickUnit(unit, mods));
+                      },
+                    }
+                  : {})}
+                onPrepareContextMenu={selection.applyContextMenuTarget}
                 onClearSelection={() => {
                   points.clearSelection();
                   selection.clearSelection();
@@ -686,7 +698,22 @@ function DesktopTranscriptionWorkspace() {
                 tierRef={tierRef}
                 scrollLeftPx={playback.scrollLeftPx}
                 waveCreateRef={waveCreateRef}
-                waveCreateEnabled={!read.selectionPending}
+                waveCreateEnabled={!read.selectionPending && !filtering}
+                filteringSelection={filtering}
+                writeScope={writeScope}
+                scopeUnits={(read.model?.layers ?? []).flatMap((layer) => layer.units)}
+                affectedVisible={(ids) =>
+                  ids.every((id) => {
+                    const unit = (read.model?.layers ?? [])
+                      .flatMap((layer) => layer.units)
+                      .find((row) => row.id === id);
+                    return (
+                      unit === undefined ||
+                      unitVisibleInSpeakerFilter(unit.speakerId, speakerFilter)
+                    );
+                  })
+                }
+                writeBlockedMessage={t(locale, 'app.desktopTranscription.writeBlockedByFilter')}
                 waveSkipRef={waveSkipRef}
                 waveDeleteRef={waveDeleteRef}
                 onSplit={(unitId) => split.ask(unitId, 'playhead')}
@@ -705,6 +732,7 @@ function DesktopTranscriptionWorkspace() {
                     layer?.contentType === 'transcription' &&
                     layer.tierType === 'time-aligned'
                   ) {
+                    selection.clearSelection();
                     read.selectManuscript(manuscriptId, layerId);
                   }
                 }}
@@ -720,6 +748,15 @@ function DesktopTranscriptionWorkspace() {
                   )
                 }
                 lanes={laneChrome}
+                {...(featureFlags.desktopTranscriptionBatchEditingEnabled
+                  ? {
+                      metadata: (layerId, ids) =>
+                        read.model?.layers.find((layer) => layer.id === layerId)?.modality ===
+                        'audio'
+                          ? undefined
+                          : metadata.laneMetadataFor(layerId, ids),
+                    }
+                  : {})}
                 pointsApi={points}
                 audioTools={(layerId, unitId) => (
                   <DesktopTranscriptionOralTools
@@ -744,51 +781,49 @@ function DesktopTranscriptionWorkspace() {
           </div>
         </div>
       </div>
-
-      <DesktopTranscriptionDraftConflictDialog
+      <DesktopTranscriptionWorkspaceDialogs
         locale={locale}
-        conflict={draft.conflict}
-        onDiscard={draft.discard}
-        onResolve={draft.resolveConflict}
+        draft={draft}
+        oral={oral}
+        retime={retime}
+        splitDialog={split.dialog}
+        mergeDialog={merge.dialog}
+        createAssignOpen={createAssignOpen}
+        createAssignName={createAssignName}
+        setCreateAssignOpen={setCreateAssignOpen}
+        setCreateAssignName={setCreateAssignName}
+        onCreateAssignConfirm={() =>
+          confirmCreateAndAssignSpeaker({
+            name: createAssignName,
+            sessionId: read.sessionId,
+            manuscriptId: read.model?.manuscriptId ?? null,
+            desktopCall: host.desktopCall,
+            unitIds: selection.selectedUnitIds,
+            speakerFilter,
+            revisionAtOpen: createAssignRevision,
+            locale,
+            showToast,
+            refresh: () => read.refresh(),
+            close: () => setCreateAssignOpen(false),
+          })
+        }
+        waveMenu={waveMenu}
+        units={units}
+        selectedUnitIds={selection.selectedUnitIds}
+        setWaveMenu={setWaveMenu}
+        onPlayFrom={(time) => {
+          playback.seekTo(time);
+          if (!playback.isPlaying) playback.togglePlayback();
+        }}
+        onToggleSkip={(unitId) => waveSkipRef.current?.(unitId)}
+        onDelete={(unitId) => waveDeleteRef.current?.(unitId)}
+        onSplit={(unitId, time) => split.ask(unitId, time)}
+        canMerge={merge.canMerge}
+        onMerge={(unitId) => void merge.ask(unitId)}
+        {...(featureFlags.desktopTranscriptionBatchEditingEnabled
+          ? { notes: metadata.notesDialogBindings, waveMetadata: metadata.waveMetadata }
+          : {})}
       />
-      {split.dialog}
-      {merge.dialog}
-      {waveMenu === null ? null : (
-        <DesktopTranscriptionWaveMenu
-          locale={locale}
-          menu={waveMenu}
-          units={units}
-          onClose={() => setWaveMenu(null)}
-          onPlayFrom={(time) => {
-            playback.seekTo(time);
-            if (!playback.isPlaying) playback.togglePlayback();
-          }}
-          onToggleSkip={(unitId) => waveSkipRef.current?.(unitId)}
-          onDelete={(unitId) => waveDeleteRef.current?.(unitId)}
-          onSplit={(unitId, time) => split.ask(unitId, time)}
-          canMerge={merge.canMerge}
-          onMerge={(unitId) => void merge.ask(unitId)}
-        />
-      )}
-      {oral.ask ? (
-        <DesktopOralLeaveDialog
-          saving={oral.saving}
-          onSave={() => oral.saveAndLeave()}
-          onDiscard={() => oral.discardAndLeave()}
-          onStay={() => oral.stay()}
-        />
-      ) : null}
-      {draft.prompt === null ? null : (
-        <DesktopDraftLeaveDialog
-          failed={draft.prompt.failed}
-          unknown={draft.unknown}
-          saving={draft.saving}
-          canRetry={draft.canRetry}
-          onRetry={draft.retry}
-          onDiscard={draft.discard}
-          onStay={draft.stay}
-        />
-      )}
     </section>
   );
 }

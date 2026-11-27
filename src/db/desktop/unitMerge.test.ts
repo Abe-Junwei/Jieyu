@@ -878,8 +878,10 @@ describe('unit merge', () => {
     expect(merged.unit.text).toBe('甲甲 乙乙');
     expect(
       db
-        .prepare('SELECT kind, old_id, new_id FROM unit_span_maps WHERE operation_id = ?')
-        .get('merge-text'),
+        .prepare(
+          'SELECT kind, old_id, new_id FROM unit_span_maps WHERE operation_id = ? AND old_id = ?',
+        )
+        .get('merge-text', rightText),
     ).toEqual({ kind: 'merge', old_id: rightText, new_id: leftText });
   });
 

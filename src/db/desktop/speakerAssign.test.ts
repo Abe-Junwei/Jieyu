@@ -9,7 +9,14 @@ import {
   requireDesktopSession,
   resetDesktopSessions,
 } from './projectSession';
-import { assignSpeaker, clearSpeaker, undoAssignSpeaker } from './speakerAssign';
+import { clearSessionEdit } from './sessionEdit';
+import {
+  assignSpeaker,
+  clearSpeaker,
+  createAndAssignSpeaker,
+  undoAssignSpeaker,
+} from './speakerAssign';
+import { listSpeakers } from './speakers';
 
 const roots: string[] = [];
 
@@ -78,6 +85,50 @@ describe('speaker assign', () => {
   });
 });
 
+describe('speaker assign manuscripts', () => {
+  it('rejects a batch that spans manuscripts with no write and no undo frame', () => {
+    const { session } = open();
+    const left = seed(session.sessionId, 0, 1, '甲');
+    const mediaId = (
+      callDesktopSession(session.sessionId, 'media.list', {}) as { id: string }[]
+    )[0]!.id;
+    const otherMs = callDesktopSession(session.sessionId, 'manuscripts.create', {
+      title: { zh: '另一稿' },
+      mediaId,
+    }) as { id: string };
+    const otherLayer = callDesktopSession(session.sessionId, 'layers.create', {
+      manuscriptId: otherMs.id,
+      key: 'tx',
+      name: { zh: '转写' },
+      tierType: 'time-aligned',
+      contentType: 'transcription',
+    }) as { id: string };
+    const right = unit(session.sessionId, otherLayer.id, 0, 1, '乙');
+    const speaker = callDesktopSession(session.sessionId, 'speakers.create', { name: '阿达' }) as {
+      id: string;
+    };
+    clearSessionEdit(session.sessionId);
+    const db = requireDesktopSession(session.sessionId).db;
+    expect(() => assignSpeaker(db, { speakerId: speaker.id, unitIds: [left, right] })).toThrow(
+      'speaker assign spans manuscripts',
+    );
+    expect(speakerOf(session.sessionId, left)).toBeNull();
+    expect(speakerOf(session.sessionId, right)).toBeNull();
+    expect(() => clearSpeaker(db, { unitIds: [left, right] })).toThrow(
+      'speaker assign spans manuscripts',
+    );
+    expect(() =>
+      callDesktopSession(session.sessionId, 'speakers.assign', {
+        speakerId: speaker.id,
+        unitIds: [left, right],
+      }),
+    ).toThrow('speaker assign spans manuscripts');
+    expect(() => callDesktopSession(session.sessionId, 'units.undo', {})).toThrow(
+      'unit text undo is empty',
+    );
+  });
+});
+
 describe('speaker clear', () => {
   it('clears one card, undoes it, and rejects a write that would overlap', () => {
     const { session } = open();
@@ -113,7 +164,159 @@ describe('speaker clear', () => {
   });
 });
 
+describe('speaker create-and-assign', () => {
+  it('assigns in one step, undoes assign only, and rolls back the speaker on failure', () => {
+    const { session } = open();
+    const left = seed(session.sessionId, 0, 1, '甲');
+    const right = unit(session.sessionId, layerOf(session.sessionId, left), 1, 2, '乙');
+    clearSessionEdit(session.sessionId);
+    const db = requireDesktopSession(session.sessionId).db;
+
+    expect(() =>
+      createAndAssignSpeaker(db, { name: '新人', unitIds: [left, right] }, () => {
+        throw new Error('injected');
+      }),
+    ).toThrow('injected');
+    expect(listSpeakers(db).map((s) => s.name)).not.toContain('新人');
+    expect(speakerOf(session.sessionId, left)).toBeNull();
+
+    const created = callDesktopSession(session.sessionId, 'speakers.createAndAssign', {
+      name: '新人',
+      unitIds: [left, right],
+    }) as { speaker: { id: string; name: string }; units: { id: string; speakerId: string }[] };
+    expect(created.speaker.name).toBe('新人');
+    expect(created.units.map((u) => u.speakerId)).toEqual([created.speaker.id, created.speaker.id]);
+    expect(callDesktopSession(session.sessionId, 'units.undo', {})).toEqual([
+      expect.objectContaining({ id: left, speakerId: null }),
+      expect.objectContaining({ id: right, speakerId: null }),
+    ]);
+    expect(speakerOf(session.sessionId, left)).toBeNull();
+    expect(listSpeakers(db).some((s) => s.id === created.speaker.id && s.name === '新人')).toBe(
+      true,
+    );
+    expect(() => callDesktopSession(session.sessionId, 'units.redo', {})).not.toThrow();
+    expect(speakerOf(session.sessionId, left)).toBe(created.speaker.id);
+    expect(listSpeakers(db).filter((s) => s.name === '新人')).toHaveLength(1);
+  });
+});
+
+describe('speaker assign edit receipts', () => {
+  it('replays assign and clear without a second write, and refuses a reused id', () => {
+    const { session } = open();
+    const left = seed(session.sessionId, 0, 1, '甲');
+    const speaker = callDesktopSession(session.sessionId, 'speakers.create', { name: '阿达' }) as {
+      id: string;
+    };
+    clearSessionEdit(session.sessionId);
+    const assign = {
+      speakerId: speaker.id,
+      unitIds: [left],
+      operationId: 'op-assign',
+    };
+    const first = callDesktopSession(session.sessionId, 'speakers.assign', assign);
+    expect(callDesktopSession(session.sessionId, 'speakers.assign', assign)).toEqual(first);
+    expect(
+      callDesktopSession(session.sessionId, 'units.inspectEdit', {
+        operationId: 'op-assign',
+        kind: 'speakerAssign',
+        payload: { speakerId: speaker.id, unitIds: [left] },
+      }),
+    ).toEqual({ status: 'committed', result: first });
+    const other = callDesktopSession(session.sessionId, 'speakers.create', { name: '白玛' }) as {
+      id: string;
+    };
+    expect(() =>
+      callDesktopSession(session.sessionId, 'speakers.assign', {
+        speakerId: other.id,
+        unitIds: [left],
+        operationId: 'op-assign',
+      }),
+    ).toThrow('operation id conflict');
+    expect(speakerOf(session.sessionId, left)).toBe(speaker.id);
+    // One assign frame: replay did not push another.
+    expect(callDesktopSession(session.sessionId, 'units.undo', {})).toEqual([
+      expect.objectContaining({ id: left, speakerId: null }),
+    ]);
+
+    clearSessionEdit(session.sessionId);
+    callDesktopSession(session.sessionId, 'speakers.assign', {
+      speakerId: speaker.id,
+      unitIds: [left],
+    });
+    const clear = { unitIds: [left], operationId: 'op-clear' };
+    const cleared = callDesktopSession(session.sessionId, 'speakers.clear', clear);
+    expect(callDesktopSession(session.sessionId, 'speakers.clear', clear)).toEqual(cleared);
+    expect(speakerOf(session.sessionId, left)).toBeNull();
+    expect(
+      callDesktopSession(session.sessionId, 'units.inspectEdit', {
+        operationId: 'op-clear',
+        kind: 'speakerClear',
+        payload: { unitIds: [left] },
+      }),
+    ).toEqual({ status: 'committed', result: cleared });
+  });
+
+  it('replays createAndAssign without a second speaker', () => {
+    const { session } = open();
+    const left = seed(session.sessionId, 0, 1, '甲');
+    const right = unit(session.sessionId, layerOf(session.sessionId, left), 1, 2, '乙');
+    clearSessionEdit(session.sessionId);
+    const input = { name: '新人', unitIds: [left, right], operationId: 'op-caa' };
+    const first = callDesktopSession(session.sessionId, 'speakers.createAndAssign', input) as {
+      speaker: { id: string; name: string };
+      units: { id: string; speakerId: string }[];
+    };
+    const again = callDesktopSession(session.sessionId, 'speakers.createAndAssign', input) as {
+      speaker: { id: string };
+      units: { id: string; speakerId: string }[];
+    };
+    expect(again.speaker.id).toBe(first.speaker.id);
+    expect(again.units.map((u) => u.speakerId)).toEqual([first.speaker.id, first.speaker.id]);
+    const db = requireDesktopSession(session.sessionId).db;
+    expect(listSpeakers(db).filter((s) => s.name === '新人')).toHaveLength(1);
+    expect(
+      callDesktopSession(session.sessionId, 'units.inspectEdit', {
+        operationId: 'op-caa',
+        kind: 'speakerCreateAndAssign',
+        payload: { name: '新人', unitIds: [left, right] },
+      }),
+    ).toEqual({ status: 'committed', result: first });
+    expect(callDesktopSession(session.sessionId, 'units.undo', {})).toEqual([
+      expect.objectContaining({ id: left, speakerId: null }),
+      expect.objectContaining({ id: right, speakerId: null }),
+    ]);
+    expect(listSpeakers(db).filter((s) => s.name === '新人')).toHaveLength(1);
+  });
+});
+
 describe('session speaker assign', () => {
+  it('keeps the assign undo stack across create, patch, and redeliver', () => {
+    const { session } = open();
+    const left = seed(session.sessionId, 0, 1, '甲');
+    const ada = callDesktopSession(session.sessionId, 'speakers.create', { name: '阿达' }) as {
+      id: string;
+    };
+    clearSessionEdit(session.sessionId);
+    callDesktopSession(session.sessionId, 'speakers.assign', {
+      speakerId: ada.id,
+      unitIds: [left],
+    });
+    const bai = callDesktopSession(session.sessionId, 'speakers.create', { name: '白玛' }) as {
+      id: string;
+    };
+    expect(bai.id).toBeTruthy();
+    callDesktopSession(session.sessionId, 'speakers.patch', {
+      operationId: 'speaker-keep-1',
+      id: ada.id,
+      name: { expectedRevision: 0, value: '阿达改' },
+    });
+    callDesktopSession(session.sessionId, 'speakers.redeliver', { operationId: 'speaker-keep-1' });
+    expect(callDesktopSession(session.sessionId, 'units.undo', {})).toEqual([
+      expect.objectContaining({ id: left, speakerId: null }),
+    ]);
+    expect(speakerOf(session.sessionId, left)).toBeNull();
+  });
+
   it('undoes the batch, and a catalog edit clears that record', () => {
     const { dir, session } = open();
     const left = seed(session.sessionId, 0, 1, '甲');
@@ -121,6 +324,7 @@ describe('session speaker assign', () => {
     const speaker = callDesktopSession(session.sessionId, 'speakers.create', { name: '阿达' }) as {
       id: string;
     };
+    clearSessionEdit(session.sessionId);
     callDesktopSession(session.sessionId, 'speakers.assign', {
       speakerId: speaker.id,
       unitIds: [left, right],

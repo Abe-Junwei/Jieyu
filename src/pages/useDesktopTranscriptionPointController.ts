@@ -1,15 +1,14 @@
 import {
-  useEffect,
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
+import type { ViewScopeWrite } from '../app/desktopProjectReadPageAccess';
 import { useToast } from '../contexts/ToastContext';
-import type { Locale } from '../i18n';
+import { t, type Locale } from '../i18n';
 import { bindPointDrag } from './desktopTranscriptionPointDrag';
-import { onPointKeyDown } from './desktopTranscriptionPointKeys';
 import {
   createPointAt,
   pointFailureText,
@@ -23,6 +22,7 @@ import {
   type PointRef,
   type PointView,
 } from './desktopTranscriptionPointOps';
+import { useDesktopTranscriptionPointLifecycle } from './useDesktopTranscriptionPointLifecycle';
 
 /** Point selection/create/label/move/delete; kept apart from unit selection. */
 export function useDesktopTranscriptionPointController(input: {
@@ -36,6 +36,9 @@ export function useDesktopTranscriptionPointController(input: {
   seekTo: (seconds: number) => void;
   clearUnitSelection: () => void;
   reload: () => Promise<unknown>;
+  /** Speakers filter active: hide create/edit and refuse writes (6b). */
+  writesBlocked?: boolean;
+  writeScope?: () => ViewScopeWrite;
 }) {
   const toast = useToast();
   const scopeKey = `${input.sessionId ?? ''}\0${input.manuscriptId ?? ''}`;
@@ -49,53 +52,6 @@ export function useDesktopTranscriptionPointController(input: {
   const dragOrigin = useRef<{ pointId: string; layerId: string; timeMs: number } | null>(null);
   const stopDrag = useRef<(() => void) | null>(null);
   const editVersion = useRef(0);
-
-  useEffect(() => {
-    setSelected(null);
-    setEditingId(null);
-    setMenu(null);
-    return () => {
-      stopDrag.current?.();
-    };
-  }, [scopeKey]);
-
-  useEffect(() => {
-    setSelected((current) => {
-      if (current === null) return current;
-      const still = sortedLayerPoints(live.current.layers ?? [], current.layerId).some(
-        (point) => point.id === current.pointId,
-      );
-      if (still) return current;
-      setEditingId(null);
-      setMenu(null);
-      return null;
-    });
-  }, [input.layers]);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      onPointKeyDown(event, {
-        layers: live.current.layers,
-        selected,
-        editingId,
-        menuOpen: menu !== null,
-        dragging: dragOrigin.current !== null || drag !== null,
-        clearDrag: () => {
-          stopDrag.current?.();
-        },
-        cancelEdit,
-        clearMenu: () => setMenu(null),
-        clearSelection: () => setSelected(null),
-        pick,
-        beginEdit,
-        createAtPlayhead: (layerId) =>
-          void createAt(layerId, Math.round(live.current.playheadSec() * 1000), true),
-        erase: (pointId) => void erase(pointId),
-      });
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  });
 
   function pick(ref: PointRef, timeMs: number) {
     live.current.clearUnitSelection();
@@ -121,9 +77,19 @@ export function useDesktopTranscriptionPointController(input: {
     toast.showToast(pointFailureText(live.current.locale, caught), 'error');
   }
 
+  function refuseIfBlocked(): boolean {
+    if (live.current.writesBlocked !== true) return false;
+    toast.showToast(
+      t(live.current.locale, 'app.desktopTranscription.pointsBlockedByFilter'),
+      'error',
+    );
+    return true;
+  }
+
   async function createAt(layerId: string, timeMs: number, edit: boolean) {
     const current = live.current;
     if (current.sessionId === null || current.desktopCall === undefined) return;
+    if (refuseIfBlocked()) return;
     try {
       const point = await createPointAt({
         sessionId: current.sessionId,
@@ -131,6 +97,7 @@ export function useDesktopTranscriptionPointController(input: {
         layerId,
         timeMs,
         durationSec: current.durationSec,
+        ...(current.writeScope === undefined ? {} : { writeScope: current.writeScope() }),
       });
       if (current.scopeKey !== live.current.scopeKey) return;
       await current.reload();
@@ -146,6 +113,7 @@ export function useDesktopTranscriptionPointController(input: {
     const current = live.current;
     const pointId = editingId;
     if (current.sessionId === null || current.desktopCall === undefined || pointId === null) return;
+    if (refuseIfBlocked()) return;
     const label = draft;
     const version = editVersion.current;
     try {
@@ -154,6 +122,7 @@ export function useDesktopTranscriptionPointController(input: {
         desktopCall: current.desktopCall,
         pointId,
         label,
+        ...(current.writeScope === undefined ? {} : { writeScope: current.writeScope() }),
       });
       if (current.scopeKey !== live.current.scopeKey) return;
       await current.reload();
@@ -168,6 +137,7 @@ export function useDesktopTranscriptionPointController(input: {
   async function commitMove(pointId: string, timeMs: number) {
     const current = live.current;
     if (current.sessionId === null || current.desktopCall === undefined) return;
+    if (refuseIfBlocked()) return;
     try {
       await savePointMove({
         sessionId: current.sessionId,
@@ -175,6 +145,7 @@ export function useDesktopTranscriptionPointController(input: {
         pointId,
         timeMs,
         durationSec: current.durationSec,
+        ...(current.writeScope === undefined ? {} : { writeScope: current.writeScope() }),
       });
       if (current.scopeKey !== live.current.scopeKey) return;
       await current.reload();
@@ -186,6 +157,7 @@ export function useDesktopTranscriptionPointController(input: {
   async function erase(pointId: string) {
     const current = live.current;
     if (current.sessionId === null || current.desktopCall === undefined) return;
+    if (refuseIfBlocked()) return;
     setMenu(null);
     setEditingId(null);
     try {
@@ -193,6 +165,7 @@ export function useDesktopTranscriptionPointController(input: {
         sessionId: current.sessionId,
         desktopCall: current.desktopCall,
         pointId,
+        ...(current.writeScope === undefined ? {} : { writeScope: current.writeScope() }),
       });
       if (current.scopeKey !== live.current.scopeKey) return;
       setSelected((shown) => (shown?.pointId === pointId ? null : shown));
@@ -201,6 +174,26 @@ export function useDesktopTranscriptionPointController(input: {
       if (current.scopeKey === live.current.scopeKey) fail(caught);
     }
   }
+
+  useDesktopTranscriptionPointLifecycle({
+    scopeKey,
+    layers: input.layers,
+    selected,
+    editingId,
+    menu,
+    drag,
+    dragOrigin,
+    stopDrag,
+    setSelected,
+    setEditingId,
+    setMenu,
+    cancelEdit,
+    pick,
+    beginEdit,
+    createAt,
+    erase,
+    playheadSec: () => live.current.playheadSec(),
+  });
 
   return {
     selected,
@@ -225,6 +218,7 @@ export function useDesktopTranscriptionPointController(input: {
       msAt: (clientX: number) => number,
     ) {
       if (event.button !== 0 || (event.target as Element).closest('[data-point-id]')) return;
+      if (refuseIfBlocked()) return;
       event.preventDefault();
       void createAt(layerId, msAt(event.clientX), true);
     },
@@ -241,6 +235,7 @@ export function useDesktopTranscriptionPointController(input: {
       event.stopPropagation();
       event.currentTarget.querySelector<HTMLButtonElement>('button')?.focus();
       pick({ layerId, pointId: point.id }, point.timeMs);
+      if (live.current.writesBlocked === true) return;
       stopDrag.current?.();
       stopDrag.current = bindPointDrag({
         event,
@@ -263,6 +258,7 @@ export function useDesktopTranscriptionPointController(input: {
         ?.querySelector<HTMLButtonElement>('button')
         ?.focus();
       if (selected?.layerId === layerId && selected.pointId === point.id && editingId === null) {
+        if (refuseIfBlocked()) return;
         beginEdit(point.id, point.label);
         return;
       }
@@ -272,6 +268,10 @@ export function useDesktopTranscriptionPointController(input: {
       event.preventDefault();
       event.stopPropagation();
       pick({ layerId, pointId: point.id }, point.timeMs);
+      if (live.current.writesBlocked === true) {
+        refuseIfBlocked();
+        return;
+      }
       setMenu({ layerId, pointId: point.id, x: event.clientX, y: event.clientY });
     },
     closeMenu: () => setMenu(null),

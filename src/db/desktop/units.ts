@@ -26,11 +26,12 @@ import {
 } from './textSave';
 import { secToMs } from './timeMs';
 import { readUnitTextBody, resolveUnitTextContext } from './unitTextLayers';
-import { textAudioCount } from './unitTextAudios';
+import { keepEmptyUnitText } from './unitTextAudios';
+import type { UnitTextSelfCertainty } from './unitTextSelfCertainty';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
-export type UnitSelfCertainty = 'not_understood' | 'uncertain' | 'certain';
+export type UnitSelfCertainty = UnitTextSelfCertainty;
 
 export interface Unit {
   id: string;
@@ -48,6 +49,8 @@ export interface Unit {
   draftText: string | null;
   /** Machine-transcription confidence, 0–1. Null when none was stored. */
   confidence: number | null;
+  /** Human self-certainty for this text layer only (ADR-0144). */
+  selfCertainty: UnitSelfCertainty | null;
   skipProcessing: boolean;
 }
 
@@ -76,6 +79,7 @@ interface UnitRow {
   text_layer_id: string;
   draft_text: string | null;
   confidence: number | null;
+  self_certainty: string | null;
   skip_processing: number;
 }
 
@@ -272,6 +276,7 @@ function readUnitRow(
               units.start_ms, units.end_ms, units.confidence, units.skip_processing,
               units.created_at, units.updated_at,
               unit_texts.id AS text_id, COALESCE(unit_texts.body, '') AS text,
+              unit_texts.self_certainty AS self_certainty,
               text_layer.id AS text_layer_id, unit_text_drafts.raw_input AS draft_text
        FROM units
        JOIN layers AS source_layer ON source_layer.id = units.layer_id
@@ -318,6 +323,7 @@ export function listUnits(db: SqliteDatabase, layerId: string): Unit[] {
               units.start_ms, units.end_ms, units.confidence, units.skip_processing,
               units.created_at, units.updated_at,
               unit_texts.id AS text_id, COALESCE(unit_texts.body, '') AS text,
+              unit_texts.self_certainty AS self_certainty,
               target.id AS text_layer_id, unit_text_drafts.raw_input AS draft_text
        FROM units
        JOIN layers AS source ON source.id = units.layer_id
@@ -387,6 +393,7 @@ export interface UnitTextUndo {
     resolvedDraft?: UnitTextDraft;
     text: string;
     textExists: boolean;
+    selfCertainty: string | null;
     provenanceJson: string | null;
     graph: AnalysisGraphPayload | null;
     manuscriptId: string;
@@ -397,6 +404,7 @@ export interface UnitTextUndo {
   after: {
     text: string;
     textExists: boolean;
+    selfCertainty: string | null;
     provenanceJson: string | null;
     graphFingerprint: string;
     analysisGeneration: number;
@@ -471,9 +479,14 @@ export function updateUnitText(
     }
     const now = new Date().toISOString();
     if (input.text.length === 0) {
-      if (currentText.id !== null && textAudioCount(db, currentText.id) > 0) {
+      if (currentText.id !== null) {
+        db.prepare('UPDATE unit_texts SET self_certainty = NULL WHERE id = ?').run(currentText.id);
+      }
+      if (currentText.id !== null && keepEmptyUnitText(db, currentText.id)) {
         db.prepare(
-          'UPDATE unit_texts SET body = ?, provenance_json = NULL, updated_at = ? WHERE id = ?',
+          `UPDATE unit_texts
+           SET body = ?, self_certainty = NULL, provenance_json = NULL, updated_at = ?
+           WHERE id = ?`,
         ).run('', now, currentText.id);
       } else {
         db.prepare('DELETE FROM unit_texts WHERE unit_id = ? AND layer_id = ? AND role = ?').run(
@@ -497,11 +510,15 @@ export function updateUnitText(
       );
     } else if (input.provenanceJson !== undefined) {
       db.prepare(
-        'UPDATE unit_texts SET body = ?, provenance_json = ?, updated_at = ? WHERE id = ?',
+        `UPDATE unit_texts
+         SET body = ?, self_certainty = NULL, provenance_json = ?, updated_at = ?
+         WHERE id = ?`,
       ).run(input.text, input.provenanceJson, now, currentText.id);
     } else {
       db.prepare(
-        'UPDATE unit_texts SET body = ?, provenance_json = NULL, updated_at = ? WHERE id = ?',
+        `UPDATE unit_texts
+         SET body = ?, self_certainty = NULL, provenance_json = NULL, updated_at = ?
+         WHERE id = ?`,
       ).run(input.text, now, currentText.id);
     }
     if (analysisAffected && material.graph !== null) {
@@ -550,6 +567,7 @@ export function updateUnitText(
     }
     if (input.operationId === undefined)
       consumeMatchingTextDraft(db, input.unitId, context.textLayerId, input.text);
+    const afterText = readUnitTextBody(db, context);
     remembered = {
       unitId: input.unitId,
       textLayerId: context.textLayerId,
@@ -558,6 +576,7 @@ export function updateUnitText(
         ...(conflict && draft !== null ? { resolvedDraft: draft } : {}),
         text: currentText.body,
         textExists: currentText.id !== null,
+        selfCertainty: currentText.selfCertainty,
         provenanceJson: currentText.provenanceJson,
         graph: material.graph === null ? null : structuredClone(material.graph),
         manuscriptId: material.manuscriptId,
@@ -567,7 +586,8 @@ export function updateUnitText(
       },
       after: {
         text: input.text,
-        textExists: input.text.length > 0,
+        textExists: afterText.id !== null,
+        selfCertainty: null,
         provenanceJson: input.text.length === 0 ? null : (input.provenanceJson ?? null),
         graphFingerprint:
           analysisAffected && material.graph !== null ? '' : material.graphFingerprint,
@@ -697,6 +717,12 @@ function mapUnit(row: UnitRow): Unit {
     textLayerId: row.text_layer_id,
     draftText: row.draft_text,
     confidence: row.confidence,
+    selfCertainty:
+      row.self_certainty === 'not_understood' ||
+      row.self_certainty === 'uncertain' ||
+      row.self_certainty === 'certain'
+        ? row.self_certainty
+        : null,
     skipProcessing: row.skip_processing === 1,
   };
 }

@@ -43,7 +43,7 @@ depends_on:
 | `src/pages/desktopTranscriptionLayerCommands.ts` | 组装正字法层的创建参数和当前锚点 | 纯函数 |
 | `src/db/desktop/layerHosts.ts` | 宿主必须是时间对齐转写层；转写内容的符号关联层最多一个宿主 | 现有函数内 |
 | `src/pages/desktopTranscriptionLayerDrop.ts` | 落点同样拒绝非时间对齐宿主 | 纯函数 |
-| `src/db/desktop/unitMerge.ts` | 未确认时不把草稿写入正式正文 | 现有函数内 |
+| `src/db/desktop/unitMergeWrite.ts`（经 `unitMerge.ts` 再导出） | 未确认时不把草稿写入正式正文 | 现有函数内 |
 | `src/db/desktop/unitSplit.ts` | 其他层按正式正文切，草稿整段留左 | 现有函数内 |
 | `src/db/desktop/layerStructure.ts` | 三种删层模式统一保护锚点，核对恢复与清除 | 现有函数内 |
 | `src/db/desktop/operationContract.ts`、`desktopCall.ts`、`sessionEdit.ts` | 清空协议、回执、撤销及冲突校验 | 现有模块 |

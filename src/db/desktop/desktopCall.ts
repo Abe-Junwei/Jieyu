@@ -69,7 +69,7 @@ import { migrateDefinition, previewMigration } from './customFieldMigration';
 import { readLexemeLinks } from './referenceState';
 import { patchBibliography, redeliverBibliography } from './bibliographyFields';
 import { patchConversation, redeliverConversation } from './conversationFields';
-import { assignSpeaker, clearSpeaker } from './speakerAssign';
+import { assignSpeaker, clearSpeaker, createAndAssignSpeaker } from './speakerAssign';
 import { clearLaneLocks, listManuscriptLaneLocks, replaceLaneLocks } from './layerLaneLocks';
 import { patchSpeaker, redeliverSpeaker } from './speakerFields';
 import { createSpeaker, listSpeakers } from './speakers';
@@ -132,14 +132,7 @@ import {
   readTranscriptionAcceptance,
   startModelRun,
 } from './modelRuns';
-import {
-  createContentNote,
-  deleteContentNote,
-  listContentNotes,
-  listLexemeNotes,
-  saveLexemeNote,
-  updateContentNote,
-} from './notes';
+import { listContentNotes, listLexemeNotes, saveLexemeNote } from './notes';
 import {
   createPoint,
   deletePoint,
@@ -195,6 +188,16 @@ import {
   type UnitTextUndo,
 } from './units';
 import {
+  createUnitNoteWithUndo,
+  createUnitNotesMany,
+  createUnitTextLayerNote,
+  createUnitTextLayerNotesMany,
+  deleteNoteWithUndo,
+  setUnitTextSelfCertainty,
+  setUnitTextSelfCertaintyMany,
+  updateNoteWithUndo,
+} from './unitMetadata';
+import {
   discardUnitTextDraft,
   inspectUnitTextSave,
   putUnitTextDraft,
@@ -218,6 +221,13 @@ import {
 } from './unitEdges';
 import { inspectEditReceipt, withEditReceipt, type EditReceiptKind } from './editReceipts';
 import { discardUnitTimeDraft, putUnitTimeDraft, readUnitTimeDrafts } from './unitTimeDrafts';
+import {
+  assertViewScopeManuscript,
+  assertWriteViewScope,
+  subtreeAffectedUnitIds,
+  manuscriptIdOfLayer,
+  spanAffectedUnitIds,
+} from './viewScope';
 
 type ContractCtx = {
   db: ReturnType<typeof requireDesktopSession>['db'];
@@ -258,6 +268,14 @@ const EDIT_METHODS = {
   pointLabel: 'points.updateLabel',
   pointMove: 'points.move',
   pointDelete: 'points.delete',
+  speakerAssign: 'speakers.assign',
+  speakerClear: 'speakers.clear',
+  speakerCreateAndAssign: 'speakers.createAndAssign',
+  selfCertainty: 'units.setSelfCertaintyMany',
+  noteCreate: 'notes.createForUnitText',
+  noteUpdate: 'notes.update',
+  noteDelete: 'notes.delete',
+  noteCreateBatch: 'notes.createManyForUnitText',
 } as const satisfies Record<EditReceiptKind, keyof DesktopOperations>;
 
 const operationHandlers = {
@@ -421,16 +439,179 @@ const operationHandlers = {
     ) => createLinkedLexeme(ctx.db, input),
   },
   'notes.create': {
-    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.create']['check']>) =>
-      createContentNote(ctx.db, input),
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.create']['check']>) => {
+      const { operationId, ...write } = input;
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'noteCreate',
+          payload: write as Record<string, unknown>,
+          manuscriptId: (note) => {
+            return note.manuscriptId ?? `project:${getProjectIdentity(ctx.db)!.id}`;
+          },
+        },
+        () => {
+          const made = createUnitNoteWithUndo(ctx.db, write);
+          if (made.undo !== null) {
+            rememberSessionEdit(ctx.sessionId, { kind: 'note', undo: made.undo });
+          }
+          return made.note;
+        },
+      );
+    },
+  },
+  'notes.createForUnitText': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['notes.createForUnitText']['check']>,
+    ) => {
+      const { viewScope, expectedAffectedUnitIds, operationId, ...note } = input;
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'noteCreate',
+          payload: {
+            ...note,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
+          manuscriptId: (created) => {
+            if (created.manuscriptId === null) throw new Error('note manuscript is missing');
+            return created.manuscriptId;
+          },
+        },
+        () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: [note.unitId],
+          });
+          const made = createUnitTextLayerNote(ctx.db, note);
+          rememberSessionEdit(ctx.sessionId, { kind: 'note', undo: made.undo });
+          return made.note;
+        },
+      );
+    },
+  },
+  'notes.createManyForUnitText': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['notes.createManyForUnitText']['check']>,
+    ) => {
+      const { viewScope, expectedAffectedUnitIds, operationId, ...batch } = input;
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'noteCreateBatch',
+          payload: {
+            ...batch,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
+          manuscriptId: (notes) => {
+            const mid = notes[0]?.manuscriptId;
+            if (mid === null || mid === undefined) throw new Error('note manuscript is missing');
+            return mid;
+          },
+        },
+        () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: batch.unitIds,
+          });
+          const made = createUnitTextLayerNotesMany(ctx.db, batch);
+          if (made.undo !== null) {
+            rememberSessionEdit(ctx.sessionId, { kind: 'noteBatch', undo: made.undo });
+          }
+          return made.notes;
+        },
+      );
+    },
+  },
+  'notes.createMany': {
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.createMany']['check']>) => {
+      const { viewScope, expectedAffectedUnitIds, operationId, ...batch } = input;
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'noteCreateBatch',
+          payload: {
+            ...batch,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
+          manuscriptId: (notes) => {
+            const mid = notes[0]?.manuscriptId;
+            if (mid === null || mid === undefined) throw new Error('note manuscript is missing');
+            return mid;
+          },
+        },
+        () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: batch.unitIds,
+          });
+          const made = createUnitNotesMany(ctx.db, batch);
+          if (made.undo !== null) {
+            rememberSessionEdit(ctx.sessionId, { kind: 'noteBatch', undo: made.undo });
+          }
+          return made.notes;
+        },
+      );
+    },
   },
   'notes.update': {
-    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.update']['check']>) =>
-      updateContentNote(ctx.db, input),
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.update']['check']>) => {
+      const { operationId, ...patch } = input;
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'noteUpdate',
+          payload: patch as Record<string, unknown>,
+          manuscriptId: (note) => {
+            return note.manuscriptId ?? `project:${getProjectIdentity(ctx.db)!.id}`;
+          },
+        },
+        () => {
+          const made = updateNoteWithUndo(ctx.db, patch);
+          if (made.undo !== null) {
+            rememberSessionEdit(ctx.sessionId, { kind: 'note', undo: made.undo });
+          }
+          return made.note;
+        },
+      );
+    },
   },
   'notes.delete': {
-    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.delete']['check']>) =>
-      deleteContentNote(ctx.db, input.id),
+    run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.delete']['check']>) => {
+      const { operationId, id } = input;
+      let manuscriptId = '';
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'noteDelete',
+          payload: { id },
+          manuscriptId: () => {
+            return manuscriptId.length > 0
+              ? manuscriptId
+              : `project:${getProjectIdentity(ctx.db)!.id}`;
+          },
+        },
+        () => {
+          const made = deleteNoteWithUndo(ctx.db, id);
+          if (made.undo !== null) {
+            manuscriptId = made.undo.manuscriptId;
+            rememberSessionEdit(ctx.sessionId, { kind: 'note', undo: made.undo });
+          }
+          return { id: made.id };
+        },
+      );
+    },
   },
   'notes.list': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['notes.list']['check']>) =>
@@ -446,16 +627,26 @@ const operationHandlers = {
   },
   'points.create': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['points.create']['check']>) => {
-      const { operationId, ...create } = input;
+      const { operationId, viewScope, expectedAffectedUnitIds, ...create } = input;
+      assertViewScopeManuscript(viewScope, manuscriptIdOfLayer(ctx.db, create.layerId));
       return withEditReceipt(
         ctx.db,
         {
           operationId,
           kind: 'pointCreate',
-          payload: create,
+          payload: {
+            ...create,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
           manuscriptId: (point) => point.manuscriptId,
         },
         () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: [],
+            forbidWhenFiltered: true,
+          });
           const point = createPoint(ctx.db, create);
           rememberSessionEdit(ctx.sessionId, {
             kind: 'pointCreate',
@@ -471,16 +662,27 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['points.updateLabel']['check']>,
     ) => {
-      const { operationId, ...update } = input;
+      const { operationId, viewScope, expectedAffectedUnitIds, ...update } = input;
+      const existing = getPoint(ctx.db, update.id);
+      if (existing) assertViewScopeManuscript(viewScope, existing.manuscriptId);
       return withEditReceipt(
         ctx.db,
         {
           operationId,
           kind: 'pointLabel',
-          payload: update,
+          payload: {
+            ...update,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
           manuscriptId: (point) => point.manuscriptId,
         },
         () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: [],
+            forbidWhenFiltered: true,
+          });
           const before = getPoint(ctx.db, update.id);
           if (!before) throw new Error('point is missing');
           const after = updatePointLabel(ctx.db, update);
@@ -497,16 +699,27 @@ const operationHandlers = {
   },
   'points.move': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['points.move']['check']>) => {
-      const { operationId, ...move } = input;
+      const { operationId, viewScope, expectedAffectedUnitIds, ...move } = input;
+      const existing = getPoint(ctx.db, move.id);
+      if (existing) assertViewScopeManuscript(viewScope, existing.manuscriptId);
       return withEditReceipt(
         ctx.db,
         {
           operationId,
           kind: 'pointMove',
-          payload: move,
+          payload: {
+            ...move,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
           manuscriptId: (point) => point.manuscriptId,
         },
         () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: [],
+            forbidWhenFiltered: true,
+          });
           const before = getPoint(ctx.db, move.id);
           if (!before) throw new Error('point is missing');
           const after = movePoint(ctx.db, move);
@@ -523,17 +736,28 @@ const operationHandlers = {
   },
   'points.delete': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['points.delete']['check']>) => {
-      const { operationId, id } = input;
+      const { operationId, id, viewScope, expectedAffectedUnitIds } = input;
+      const existing = getPoint(ctx.db, id);
+      if (existing) assertViewScopeManuscript(viewScope, existing.manuscriptId);
       let manuscriptId = '';
       return withEditReceipt(
         ctx.db,
         {
           operationId,
           kind: 'pointDelete',
-          payload: { id },
+          payload: {
+            id,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
           manuscriptId: () => manuscriptId,
         },
         () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: [],
+            forbidWhenFiltered: true,
+          });
           const before = getPoint(ctx.db, id);
           if (!before) throw new Error('point is missing');
           manuscriptId = before.manuscriptId;
@@ -612,16 +836,26 @@ const operationHandlers = {
   },
   'units.create': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.create']['check']>) => {
-      const { operationId, ...create } = input;
+      const { operationId, viewScope, expectedAffectedUnitIds, ...create } = input;
+      assertViewScopeManuscript(viewScope, manuscriptIdOfLayer(ctx.db, create.layerId));
       return withEditReceipt(
         ctx.db,
         {
           operationId,
           kind: 'create',
-          payload: create,
+          payload: {
+            ...create,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
           manuscriptId: (unit) => manuscriptIdOf(ctx.db, unit.id),
         },
         () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: [],
+            forbidWhenFiltered: true,
+          });
           const unit = createUnit(ctx.db, create);
           rememberSessionEdit(ctx.sessionId, {
             kind: 'create',
@@ -688,7 +922,14 @@ const operationHandlers = {
   },
   'units.inspectEdit': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.inspectEdit']['check']>) => {
-      const method = EDIT_METHODS[input.kind];
+      const method =
+        input.kind === 'selfCertainty' && 'unitId' in input.payload
+          ? 'units.setSelfCertainty'
+          : input.kind === 'noteCreate' && 'anchor' in input.payload
+            ? 'notes.create'
+            : input.kind === 'noteCreateBatch' && !('textLayerId' in input.payload)
+              ? 'notes.createMany'
+              : EDIT_METHODS[input.kind];
       const check = desktopOperations[method].check as (raw: Record<string, unknown>) => object;
       const { operationId: _ignored, ...payload } = check(input.payload) as Record<string, unknown>;
       return inspectEditReceipt(ctx.db, { ...input, payload });
@@ -699,7 +940,7 @@ const operationHandlers = {
   },
   'units.split': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.split']['check']>) => {
-      const { operationId, ...splitInput } = input;
+      const { operationId, viewScope, expectedAffectedUnitIds, ...splitInput } = input;
       let manuscriptId: string | undefined;
       try {
         manuscriptId = manuscriptIdOf(ctx.db, splitInput.unitId);
@@ -711,14 +952,25 @@ const operationHandlers = {
         {
           operationId,
           kind: 'split',
-          payload: splitInput,
+          payload: {
+            ...splitInput,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
           manuscriptId: () => {
             if (manuscriptId === undefined) throw new Error('unit is missing');
             return manuscriptId;
           },
         },
         () => {
-          const split = splitUnit(ctx.db, input);
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: subtreeAffectedUnitIds(ctx.db, splitInput.unitId),
+          });
+          const split = splitUnit(ctx.db, {
+            ...splitInput,
+            ...(operationId === undefined ? {} : { operationId }),
+          });
           rememberSessionEdit(ctx.sessionId, { kind: 'split', undo: split.undo });
           return {
             left: split.left,
@@ -735,7 +987,7 @@ const operationHandlers = {
   },
   'units.merge': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.merge']['check']>) => {
-      const { operationId, ...mergeInput } = input;
+      const { operationId, viewScope, expectedAffectedUnitIds, ...mergeInput } = input;
       let manuscriptId: string | undefined;
       try {
         manuscriptId = manuscriptIdOf(ctx.db, input.keepId);
@@ -747,14 +999,27 @@ const operationHandlers = {
         {
           operationId,
           kind: 'merge',
-          payload: mergeInput,
+          payload: {
+            ...mergeInput,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
           manuscriptId: () => {
             if (manuscriptId === undefined) throw new Error('unit is missing');
             return manuscriptId;
           },
         },
         () => {
-          const merged = mergeUnits(ctx.db, input);
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: (
+              mergeInput.unitIds ?? [mergeInput.keepId, mergeInput.removeId]
+            ).flatMap((id) => subtreeAffectedUnitIds(ctx.db, id)),
+          });
+          const merged = mergeUnits(ctx.db, {
+            ...mergeInput,
+            ...(operationId === undefined ? {} : { operationId }),
+          });
           rememberSessionEdit(ctx.sessionId, { kind: 'merge', undo: merged.undo });
           return merged.unit;
         },
@@ -766,20 +1031,29 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['units.updateBoundary']['check']>,
     ) => {
-      const before = readStoredUnit(ctx.db, input.leftId);
-      const right = readStoredUnit(ctx.db, input.rightId);
-      const moved = updateBoundary(ctx.db, input);
+      const { viewScope, expectedAffectedUnitIds, ...boundary } = input;
+      assertWriteViewScope(ctx.db, {
+        viewScope,
+        expectedAffectedUnitIds,
+        affectedUnitIds: [
+          ...spanAffectedUnitIds(ctx.db, boundary.leftId),
+          ...spanAffectedUnitIds(ctx.db, boundary.rightId),
+        ],
+      });
+      const before = readStoredUnit(ctx.db, boundary.leftId);
+      const right = readStoredUnit(ctx.db, boundary.rightId);
+      const moved = updateBoundary(ctx.db, boundary);
       if (before?.startMs != null && before.endMs != null && right?.endMs != null) {
         rememberSessionEdit(ctx.sessionId, {
           kind: 'boundary',
           undo: {
-            leftId: input.leftId,
-            rightId: input.rightId,
+            leftId: boundary.leftId,
+            rightId: boundary.rightId,
             from: before.endMs,
-            to: input.time,
+            to: boundary.time,
             leftStart: before.startMs,
             rightEnd: right.endMs,
-            manuscriptId: manuscriptIdOf(ctx.db, input.leftId),
+            manuscriptId: manuscriptIdOf(ctx.db, boundary.leftId),
           },
         });
       }
@@ -788,16 +1062,24 @@ const operationHandlers = {
   },
   'units.moveEdge': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.moveEdge']['check']>) => {
-      const { operationId, ...move } = input;
+      const { operationId, viewScope, expectedAffectedUnitIds, ...move } = input;
       return withEditReceipt(
         ctx.db,
         {
           operationId,
           kind: 'moveEdge',
-          payload: move,
+          payload: {
+            ...move,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
           manuscriptId: () => manuscriptIdOf(ctx.db, move.unitId),
         },
         () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: spanAffectedUnitIds(ctx.db, move.unitId),
+          });
           const moved = moveUnitEdge(ctx.db, move);
           if (moved.move) {
             rememberSessionEdit(ctx.sessionId, { kind: 'edge', undo: moved.move });
@@ -816,16 +1098,27 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['units.moveSharedBoundary']['check']>,
     ) => {
-      const { operationId, ...move } = input;
+      const { operationId, viewScope, expectedAffectedUnitIds, ...move } = input;
       return withEditReceipt(
         ctx.db,
         {
           operationId,
           kind: 'moveSharedBoundary',
-          payload: move,
+          payload: {
+            ...move,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
           manuscriptId: () => manuscriptIdOf(ctx.db, move.leftId),
         },
         () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: [
+              ...spanAffectedUnitIds(ctx.db, move.leftId),
+              ...spanAffectedUnitIds(ctx.db, move.rightId),
+            ],
+          });
           const moved = moveSharedBoundary(ctx.db, move);
           if (moved.move) {
             rememberSessionEdit(ctx.sessionId, { kind: 'boundary', undo: moved.move });
@@ -839,16 +1132,24 @@ const operationHandlers = {
   },
   'units.moveUnit': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.moveUnit']['check']>) => {
-      const { operationId, ...move } = input;
+      const { operationId, viewScope, expectedAffectedUnitIds, ...move } = input;
       return withEditReceipt(
         ctx.db,
         {
           operationId,
           kind: 'moveUnit',
-          payload: move,
+          payload: {
+            ...move,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
           manuscriptId: () => manuscriptIdOf(ctx.db, move.unitId),
         },
         () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: spanAffectedUnitIds(ctx.db, move.unitId),
+          });
           const moved = moveUnitSpan(ctx.db, move);
           if (moved.move) {
             rememberSessionEdit(ctx.sessionId, { kind: 'span', undo: moved.move });
@@ -882,7 +1183,7 @@ const operationHandlers = {
   },
   'units.delete': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.delete']['check']>) => {
-      const { operationId, unitId } = input;
+      const { operationId, unitId, viewScope, expectedAffectedUnitIds } = input;
       let manuscriptId = '';
       return withEditReceipt(
         ctx.db,
@@ -894,17 +1195,23 @@ const operationHandlers = {
             ...(input.textLayerId === undefined
               ? {}
               : { textLayerId: input.textLayerId, fingerprint: input.fingerprint }),
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
           },
           manuscriptId: () => manuscriptId,
         },
         () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: [unitId],
+          });
           manuscriptId = manuscriptIdOf(ctx.db, unitId);
           if (input.textLayerId !== undefined) {
             const undo = clearUnitTexts(ctx.db, [unitId], input.textLayerId, input.fingerprint!);
             rememberSessionEdit(ctx.sessionId, { kind: 'clearText', undo });
             return { id: unitId };
           }
-          const tree = removeUnit(ctx.db, unitId);
+          const tree = removeUnit(ctx.db, unitId, input.fingerprint);
           rememberSessionEdit(ctx.sessionId, { kind: 'delete', undo: { manuscriptId, tree } });
           return { id: unitId };
         },
@@ -913,7 +1220,7 @@ const operationHandlers = {
   },
   'units.deleteMany': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.deleteMany']['check']>) => {
-      const { operationId, unitIds } = input;
+      const { operationId, unitIds, viewScope, expectedAffectedUnitIds } = input;
       const firstId = unitIds[0];
       if (firstId === undefined) throw new Error('multiple units are required');
       let manuscriptId = '';
@@ -927,17 +1234,23 @@ const operationHandlers = {
             ...(input.textLayerId === undefined
               ? {}
               : { textLayerId: input.textLayerId, fingerprint: input.fingerprint }),
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
           },
           manuscriptId: () => manuscriptId,
         },
         () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: unitIds,
+          });
           manuscriptId = manuscriptIdOf(ctx.db, firstId);
           if (input.textLayerId !== undefined) {
             const undo = clearUnitTexts(ctx.db, unitIds, input.textLayerId, input.fingerprint!);
             rememberSessionEdit(ctx.sessionId, { kind: 'clearText', undo });
             return { ids: [...unitIds] };
           }
-          const trees = removeUnits(ctx.db, unitIds);
+          const trees = removeUnits(ctx.db, unitIds, input.fingerprint);
           rememberSessionEdit(ctx.sessionId, { kind: 'deleteMany', undo: { manuscriptId, trees } });
           return { ids: [...unitIds] };
         },
@@ -1131,20 +1444,119 @@ const operationHandlers = {
   },
   'speakers.assign': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['speakers.assign']['check']>) => {
-      const assigned = assignSpeaker(ctx.db, input);
-      if (assigned.undo !== null) {
-        rememberSessionEdit(ctx.sessionId, { kind: 'assign', undo: assigned.undo });
+      const { operationId, viewScope, expectedAffectedUnitIds, ...assignInput } = input;
+      let manuscriptId: string | undefined;
+      try {
+        manuscriptId = manuscriptIdOf(ctx.db, input.unitIds[0]!);
+      } catch (error) {
+        if (!(error instanceof Error) || error.message !== 'unit is missing') throw error;
       }
-      return assigned.units;
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'speakerAssign',
+          payload: {
+            ...assignInput,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
+          manuscriptId: () => {
+            if (manuscriptId === undefined) throw new Error('unit is missing');
+            return manuscriptId;
+          },
+        },
+        () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: assignInput.unitIds,
+          });
+          const assigned = assignSpeaker(ctx.db, assignInput);
+          if (assigned.undo !== null) {
+            rememberSessionEdit(ctx.sessionId, { kind: 'assign', undo: assigned.undo });
+          }
+          return assigned.units;
+        },
+      );
     },
   },
   'speakers.clear': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['speakers.clear']['check']>) => {
-      const cleared = clearSpeaker(ctx.db, input);
-      if (cleared.undo !== null) {
-        rememberSessionEdit(ctx.sessionId, { kind: 'assign', undo: cleared.undo });
+      const { operationId, viewScope, expectedAffectedUnitIds, ...clearInput } = input;
+      let manuscriptId: string | undefined;
+      try {
+        manuscriptId = manuscriptIdOf(ctx.db, input.unitIds[0]!);
+      } catch (error) {
+        if (!(error instanceof Error) || error.message !== 'unit is missing') throw error;
       }
-      return cleared.units;
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'speakerClear',
+          payload: {
+            ...clearInput,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
+          manuscriptId: () => {
+            if (manuscriptId === undefined) throw new Error('unit is missing');
+            return manuscriptId;
+          },
+        },
+        () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: clearInput.unitIds,
+          });
+          const cleared = clearSpeaker(ctx.db, clearInput);
+          if (cleared.undo !== null) {
+            rememberSessionEdit(ctx.sessionId, { kind: 'assign', undo: cleared.undo });
+          }
+          return cleared.units;
+        },
+      );
+    },
+  },
+  'speakers.createAndAssign': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['speakers.createAndAssign']['check']>,
+    ) => {
+      const { operationId, viewScope, expectedAffectedUnitIds, ...createInput } = input;
+      let manuscriptId: string | undefined;
+      try {
+        manuscriptId = manuscriptIdOf(ctx.db, input.unitIds[0]!);
+      } catch (error) {
+        if (!(error instanceof Error) || error.message !== 'unit is missing') throw error;
+      }
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'speakerCreateAndAssign',
+          payload: {
+            ...createInput,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
+          manuscriptId: () => {
+            if (manuscriptId === undefined) throw new Error('unit is missing');
+            return manuscriptId;
+          },
+        },
+        () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: createInput.unitIds,
+          });
+          const created = createAndAssignSpeaker(ctx.db, createInput);
+          if (created.undo !== null) {
+            rememberSessionEdit(ctx.sessionId, { kind: 'assign', undo: created.undo });
+          }
+          return { speaker: created.speaker, units: created.units };
+        },
+      );
     },
   },
   'layers.listLaneLocks': {
@@ -1326,6 +1738,70 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['units.setSkipProcessing']['check']>,
     ) => setUnitSkipProcessing(ctx.db, input),
+  },
+  'units.setSelfCertainty': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['units.setSelfCertainty']['check']>,
+    ) => {
+      const { viewScope, expectedAffectedUnitIds, operationId, ...patch } = input;
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'selfCertainty',
+          payload: {
+            ...patch,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
+          manuscriptId: (unit) => manuscriptIdOf(ctx.db, unit.id),
+        },
+        () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: [patch.unitId],
+          });
+          const made = setUnitTextSelfCertainty(ctx.db, patch);
+          if (made.undo !== null) {
+            rememberSessionEdit(ctx.sessionId, { kind: 'certainty', undo: made.undo });
+          }
+          return made.unit;
+        },
+      );
+    },
+  },
+  'units.setSelfCertaintyMany': {
+    run: (
+      ctx: ContractCtx,
+      input: ReturnType<DesktopOperations['units.setSelfCertaintyMany']['check']>,
+    ) => {
+      const { viewScope, expectedAffectedUnitIds, operationId, ...patch } = input;
+      return withEditReceipt(
+        ctx.db,
+        {
+          operationId,
+          kind: 'selfCertainty',
+          payload: {
+            ...patch,
+            ...(viewScope === undefined ? {} : { viewScope, expectedAffectedUnitIds }),
+          },
+          manuscriptId: (units) => manuscriptIdOf(ctx.db, units[0]!.id),
+        },
+        () => {
+          assertWriteViewScope(ctx.db, {
+            viewScope,
+            expectedAffectedUnitIds,
+            affectedUnitIds: patch.unitIds,
+          });
+          const made = setUnitTextSelfCertaintyMany(ctx.db, patch);
+          if (made.undo !== null) {
+            rememberSessionEdit(ctx.sessionId, { kind: 'certainty', undo: made.undo });
+          }
+          return made.units;
+        },
+      );
+    },
   },
   'units.updateText': {
     run: (ctx: ContractCtx, input: ReturnType<DesktopOperations['units.updateText']['check']>) => {
@@ -1603,12 +2079,20 @@ const operationHandlers = {
       ctx: ContractCtx,
       input: ReturnType<DesktopOperations['manuscripts.retime']['check']>,
     ) => {
-      const retimed = retimeManuscript(ctx.db, input);
+      const { viewScope, expectedAffectedUnitIds, ...retime } = input;
+      assertViewScopeManuscript(viewScope, retime.manuscriptId);
+      assertWriteViewScope(ctx.db, {
+        viewScope,
+        expectedAffectedUnitIds,
+        affectedUnitIds: [],
+        forbidWhenFiltered: true,
+      });
+      const retimed = retimeManuscript(ctx.db, retime);
       rememberSessionEdit(ctx.sessionId, {
         kind: 'retime',
         undo: retimed.undo,
-        offsetMs: input.offsetMs,
-        scale: input.scale,
+        offsetMs: retime.offsetMs,
+        scale: retime.scale,
       });
       return { count: retimed.count };
     },

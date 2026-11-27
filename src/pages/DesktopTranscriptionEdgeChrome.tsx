@@ -1,9 +1,13 @@
+import { useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ModalPanel } from '../components/ui/ModalPanel';
 import { t, tf, type DictKey, type Locale } from '../i18n';
 import type { UnitDeletePreview } from '../app/desktopProjectReadPageAccess';
+import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import type { TimeEdge, edgeFocusKind } from './desktopTranscriptionEdge';
 import type { TimeConflict } from './desktopTranscriptionEdgeSession';
+import { DesktopTranscriptionCertaintyMenu } from './DesktopTranscriptionCertaintyMenu';
+import { sharedSelfCertainty } from './desktopTranscriptionMetadata';
 import { formatPlaybackTime } from './useDesktopTranscriptionMediaController';
 
 const EDGE_FOCUS: Record<ReturnType<typeof edgeFocusKind>, DictKey> = {
@@ -55,6 +59,8 @@ export function DesktopTranscriptionEdgeChrome(props: {
   onClearText: () => void;
   onToggleSkip: () => void;
   onAskDelete: () => void;
+  /** Menu delete label count when the hit stays in a multi-selection. */
+  deleteCount?: number;
   onAskSplit?: () => void;
   canMerge?: boolean;
   onAskMerge?: () => void;
@@ -67,8 +73,24 @@ export function DesktopTranscriptionEdgeChrome(props: {
     onAssign: (speakerId: string) => void;
     onClear: () => void;
   };
+  metadata?: {
+    selectedCount: number;
+    certaintyOpen: boolean;
+    certainty: ReturnType<typeof sharedSelfCertainty>;
+    onToggleCertainty: () => void;
+    onPickCertainty: (value: UnitSelfCertainty | null) => void;
+    onOpenNotes: () => void;
+  };
 }) {
   const { locale } = props;
+  const panelRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || !props.menu) return;
+    const box = panel.getBoundingClientRect();
+    panel.style.left = `${Math.max(8, Math.min(props.menu.x, window.innerWidth - box.width - 8))}px`;
+    panel.style.top = `${Math.max(8, Math.min(props.menu.y, window.innerHeight - box.height - 8))}px`;
+  }, [props.menu]);
   return (
     <>
       {props.place === null ? null : (
@@ -163,6 +185,7 @@ export function DesktopTranscriptionEdgeChrome(props: {
                 onClick={props.onCloseMenu}
               />
               <div
+                ref={panelRef}
                 className="desktop-tx-menu desktop-tx-menu-fixed"
                 style={{ left: props.menu.x, top: props.menu.y }}
                 role="menu"
@@ -222,15 +245,44 @@ export function DesktopTranscriptionEdgeChrome(props: {
                     </button>
                   </>
                 )}
+                {props.metadata === undefined ? null : (
+                  <>
+                    <div className="desktop-tx-menu__rule" role="separator" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        props.onCloseMenu();
+                        props.metadata?.onOpenNotes();
+                      }}
+                    >
+                      {props.metadata.selectedCount > 1
+                        ? t(locale, 'app.desktopTranscription.addNoteMenu')
+                        : t(locale, 'app.desktopTranscription.notesMenu')}
+                    </button>
+                    <DesktopTranscriptionCertaintyMenu
+                      locale={locale}
+                      open={props.metadata.certaintyOpen}
+                      selectedCount={props.metadata.selectedCount}
+                      current={props.metadata.certainty}
+                      onToggle={props.metadata.onToggleCertainty}
+                      onPick={(value) => {
+                        props.onCloseMenu();
+                        props.metadata?.onPickCertainty(value);
+                      }}
+                    />
+                  </>
+                )}
                 {props.menu.layerName !== undefined && props.menu.sub !== true ? null : (
                   <>
                     <button type="button" role="menuitem" onClick={props.onAskDelete}>
-                      {t(
-                        locale,
-                        props.menu.sub === true
-                          ? 'app.desktopTranscription.deleteSubSegment'
-                          : 'app.desktopTranscription.deleteSegment',
-                      )}
+                      {props.menu.sub === true
+                        ? t(locale, 'app.desktopTranscription.deleteSubSegment')
+                        : (props.deleteCount ?? 1) > 1
+                          ? tf(locale, 'app.desktopTranscription.deleteConfirmMany', {
+                              count: props.deleteCount ?? 1,
+                            })
+                          : t(locale, 'app.desktopTranscription.deleteSegment')}
                     </button>
                     {props.onAskSplit === undefined ? null : (
                       <button type="button" role="menuitem" onClick={props.onAskSplit}>
@@ -241,7 +293,7 @@ export function DesktopTranscriptionEdgeChrome(props: {
                       <button
                         type="button"
                         role="menuitem"
-                        disabled={props.canMerge !== true}
+                        aria-disabled={props.canMerge !== true}
                         onClick={props.onAskMerge}
                       >
                         {t(locale, 'app.desktopTranscription.mergeNext')}

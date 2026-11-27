@@ -132,7 +132,7 @@ depends_on:
   - 本地验收（2026-11-25）：`typecheck`、`check:desktop-selectors`、`check:architecture-guard`、CSS 三件套、`check:docs-governance`、`check:dev-agent-workflow-verify` 与 `git diff --check` 通过。14 个定向 Vitest 文件共 106 项通过，覆盖点操作／回执／撤销／层恢复／调时／项目读回／导出与页面。Electron `--grep "point layer"` 1 项通过：真实鼠标建点与拖移、标签、Esc 取消、右键删除、⌘Z／⌘⇧Z、关库重开；pointercancel 由 controller 定向测试覆盖。PR CI 全量 desktop-flow 尚待通过。
   - 2026-11-25 A1 审查回归：补充单击时间不变、菱形/引导线中心一致、标签再次点击编辑、Esc 分层退出、输入控件不误删点、读数不裁切和松手移除的 Electron 断言；异步切稿与交错标签保存由 `desktopTranscriptionPointRegression.test.tsx` 覆盖。验证结果见本次任务报告，不据此关闭 PR CI 关账项。
 - [ ] 1b-6（[#566](https://github.com/Abe-Junwei/Jieyu/issues/566)）其余入口：多选（批量改说话人、批量删除、多段一次合并）、说话人与备注、修改确信程度、说话人目录筛选（FR-032）、部分转写（FR-066/068）、馆藏音频手动定位（FR-082）。单段指派与清除已改到 #600。本片仍做批量改说话人、新建说话人、说话人与备注、目录筛选；上下文栏的指派留在本片 → 验证：同上
-  - 2026-11-25 调研规划已起草：[详细计划](../../plans/1b-6-转写批量编辑-实施规划-2026-11-25.md)、[外部一手证据](../../plans/1b-6-转写批量编辑-调研-2026-11-25.md)。依赖修订为 6r 现有备注缺陷独立处理、6p 行为不变拆分 → 6c 格式/领域 → 6d；另有 6a 选择 → 6b 说话人/筛选，6c UI 集成依赖 6a/6b，最终 6e 汇总验收；产品语义已于 2026-11-25 逐项确认；格式 ADR 与精稿待补，未实施。
+  - 2026-11-25 调研规划已起草：[详细计划](../../plans/1b-6-转写批量编辑-实施规划-2026-11-25.md)、[外部一手证据](../../plans/1b-6-转写批量编辑-调研-2026-11-25.md)。依赖修订为 6r 现有备注缺陷独立处理、6p 行为不变拆分 → 6c 格式/领域 → 6d；另有 6a 选择 → 6b 说话人/筛选，6c UI 集成依赖 6a/6b，最终 6e 汇总验收。6r/6p 及 6a–6e 已完成本地实现与定向验收（flag 默认 false）；全片 CI 和用户抽验仍待关账，见下表。
 - [ ] 1b-7（[#584](https://github.com/Abe-Junwei/Jieyu/issues/584)）无录音文稿与逐段补时间：按顺序和字数排版、只按文字位置拆分、部分对齐夹在前后已对齐段之间；合并一有一无则结果无时间并在确认框说明；两段都没有时间的相邻合并也留在本片；解除录音关联保留已有时间和点。表结构不在本片 → 验证：同上
 - [ ] 自动分段（[#604](https://github.com/Abe-Junwei/Jieyu/issues/604)）沿用现有 VAD（FR-072）：仅在当前转写层空白区间生成新段（严格 0 ms 不重叠、不改已有段），整批一次事务提交并作为同一步可撤销，失败有提示。依赖 1b-0 毫秒与 1b-2 新建／撤销 → 验证：单库与页面 vitest + 桌面流程（写→关→重开读回）
 - [ ] 旧页台账关账（[S7 对照](../desktop-legacy-isolation/tasks.md#s7-台账关账对照)）：`scripts/old-path-exit.record.json` 的 `features` 中 `home`、`transcription`、`language-metadata`、`orthography`、`orthography-bridge` 改为 `ported`，填桌面测试与决定；旧测试的业务断言在桌面测试里有对应 → 验证：`npm run check:old-path-exit`
@@ -140,34 +140,79 @@ depends_on:
 
 ## 1b-6 实施任务与逐片验收（2026-11-25 复审）
 
-下列均为计划项，不表示已实施。产品语义已确认；[存储合同草案](../../plans/1b-6-按层确信存储合同-2026-11-25.md) 待审定为正式 ADR，当前格式未变。[详细合同、依赖、消费者和命令](../../plans/1b-6-转写批量编辑-实施规划-2026-11-25.md)是本表的验收依据。
+本表分别记录本地实现、验收证据与尚未完成的 CI 关账。产品语义已确认；按层确信存储已审定为 [ADR-0144](../../../adr/0144-per-layer-self-certainty.md)。[详细合同、依赖、消费者和命令](../../plans/1b-6-转写批量编辑-实施规划-2026-11-25.md)是本表的验收依据。
 
-- [ ] 准入：审定存储 ADR/版本占用，登记独立 false 默认 flag；6a/6b/6c/6d 各自补 Pixso 精稿并 MCP 实读/截图，写入 active design 对照后才能接新 UI。批准的纯领域/测试工作可单独推进。
-- [ ] 6r：现有层正文备注孤儿缺陷独立修复，不等待格式 36 或 6b。
-  - [ ] 注册入口复现普通清空、正文撤销、删除最后一条录音后的载体丢失；检查 active note 目标存在、原正文 id、可见备注和关库重开。
-  - [ ] 统一保留带备注载体，并验证明确删除句段的正常备注处理；已有孤儿先诊断，不猜层修复或静默删除。此项尚未实施，不把旧 notes 测试通过当修复证据。
-- [ ] 6p：合并行为不变拆分前置 PR（先于 6c/6d）。
-  - [ ] 按实际依赖拆预览/写入/快照，controller 的纯逻辑移入已有 helpers；公开两段入口、格式、回执语义及原两段确信规则不变；6c 再明确变更该规则并新增断言。
-  - [ ] 原两段草稿/录音/引用/撤销/重做及重开断言全过，typecheck/架构门过；不以删测/压行满足阈值。
-- [ ] 6a：同结构层多选、统一右键目标与既有批删。
-  - [ ] 选择/范围/切层切稿/reload 清理、投影去重、预览基准与完整影响集合落地；单目标走 units.delete、至少两个才走 deleteMany；新增 UI 精稿通过。
-  - [ ] 输入焦点保护、任一目标拒绝整批不变、写后重开及定向 Electron 证据齐。
-- [ ] 6b：依赖 6a；说话人目录、全层筛选、原子新建并指派。
-  - [ ] 工作区所有写入口按规划 §10 接 viewScope/影响闭包/基准及回执摘要；前端发送前校验 filterRevision，旧回执不抢回视图。兼容入口不能成为绕过路径。
-  - [ ] create/patch/redeliver 均改保留句段历史，覆盖成功/失败/no-op/冲突/补交；patch 仍走字段 revision/delivery。指派/清除/新建并指派的 operationContract/client/EDIT_METHODS/EditReceiptKind/inspect 重试接齐，重放不重复 frame。
-  - [ ] 首先验证跨稿整批拒绝且无写入/无 frame，再覆盖重叠拒绝与重复回执。
-  - [ ] 新建并指派成功一次 frame；失败不留新人，undo 保留目录项、redo 复用身份；优先复用既有 assign frame。
-  - [ ] 多选/未指派、隐藏点、隐藏段取消选择、禁拖建、隐藏依赖阻断、整稿调时先回全部、撤销不抢选择、切稿/重开恢复全部；全部写入口同一套规则，UI 与读回证据齐。
-- [ ] 6c：格式/领域依赖 6p 与 ADR 审定，可与 6a/6b 独立推进；UI/筛选集成依赖 6a/6b 的目标和视图合同。
-  - [ ] 一个格式切换 PR 包含 schema/版本/冻结及全部消费者，role 派生、旧共享列删除、不迁移/旧包拒绝；不能先单合破坏消费者的 schema。
-  - [ ] 空卡业务入参为 unitId/textLayerId，事务内解析 role/建载体再转 unitTextId 锚点；recordingClips 等清理消费者齐全。逐一验规划 §12 的撤销基准；6c 新增两段确信语义断言，同版本交换保原 id 并核对单稿过滤，不做通用 id 重映射。
-  - [ ] 规划 §9 的真实测试文件、新增领域/UI 测试、`check:desktop-format-freeze` 与定向 Electron 均通过；逐层值写后关库重开读回。
-- [ ] 6d：依赖 6p 和 6c 完整退出；N 段一次合并。
-  - [ ] 数组预览/快照/回执/撤销复用 6c 载荷，完整数据判断连续性，隐藏依赖阻断，逐层草稿/录音取舍及全旧→新映射。
-  - [ ] 三段以上、失败整批回滚、一次撤销/重做、后改拒绝、媒体持有和重开 Electron 证据齐。
-- [ ] 6e：依赖 6r 与 6a–6d；部分转写、无原文译释、手动定位和完整真实流程。
-  - [ ] en-US 主流程、zh-CN smoke、键盘与字号/窄窗、flag true/false 路径；关闭新 flag 保留既有能力。
+- [x] 准入：审定存储 ADR/版本占用，登记独立 false 默认 flag；6a/6b/6c/6d 各自补 Pixso 精稿并 MCP 实读/截图，写入 active design 对照后才能接新 UI。批准的纯领域/测试工作可单独推进。
+- [x] 6r：现有层正文备注孤儿缺陷独立修复，不等待格式 36 或 6b。
+  - [x] 注册入口复现普通清空、正文撤销、删除最后一条录音后的载体丢失；检查 active note 目标存在、原正文 id、可见备注和关库重开。
+    - 落位：`keepEmptyUnitText`（`unitTextAudios.ts`）统一录音或 active `unit_text` 备注则留空载体；`units.updateUnitText`／`analysisRestore.undoUnitText`／`recordingClips.detachRecording` 改用；清空后 `after.textExists` 按实际是否留行记录。诊断：`listOrphanActiveUnitTextNoteIds`（`notes.ts`）。测试：`unitTextNoteCarrier.test.ts`。
+  - [x] 统一保留带备注载体，并验证明确删除句段的正常备注处理；已有孤儿先诊断，不猜层修复或静默删除。
+    - 证据（2026-11-25）：`npx vitest run src/db/desktop/unitTextNoteCarrier.test.ts src/db/desktop/notes.test.ts src/db/desktop/recordingClips.test.ts src/db/desktop/unitTextUndo.test.ts` 31 passed（含清空留 id、撤销同 id、末条录音卸下留载体、删句段带走备注、关库重开）。不改 schema。
+- [x] 6p：合并行为不变拆分前置 PR（先于 6c/6d）。
+  - [x] 按实际依赖拆预览/写入/快照，controller 的纯逻辑移入已有 helpers；公开两段入口、格式、回执语义及原两段确信规则不变；6c 再明确变更该规则并新增断言。
+    - 落位：`unitMergeShared.ts`（类型与成对读助手）、`unitMergePreview.ts`（`mergePreview`／`mergeBaseline`）、`unitMergeSnapshot.ts`（`afterFingerprint`／`refsIntact`）、`unitMergeWrite.ts`（`mergeUnits`／`undoMerge`）；`unitMerge.ts` 仅再导出公开 API。页面纯比较下沉到 `desktopTranscriptionMerge.ts`（`mergeFrozenText`／`sameMergeText`／`sameMergeEditor`／`sameMergePair`）。不改格式、不接 N 段、旧两段确信规则保留。
+  - [x] 原两段草稿/录音/引用/撤销/重做及重开断言全过，typecheck/架构门过；不以删测/压行满足阈值。
+    - 证据（2026-11-25，`cursor/1b6-6p-unit-merge-split`）：`npx vitest run src/db/desktop/unitMerge.test.ts src/db/desktop/unitSpan.test.ts src/db/desktop/editReceipts.test.ts src/db/desktop/unitTextUndo.test.ts src/db/desktop/unitSplit.test.ts src/pages/useDesktopTranscriptionMergeController.test.tsx` 78 passed；`npm run typecheck`、`check:architecture-guard`、`check:docs-governance` 通过。Electron 两段合并既有用例不因本拆分必重跑；合入后交 CI。
+- [x] 6a：同结构层多选、统一右键目标与既有批删。
+  - [x] 选择合同与既有批删入口（领域/页面接线；cmd/shift 由 flag 门控）。
+    - 落位：`desktopTranscriptionSelection.ts`（toggle/range/右键 keep·replace/prune/同层序）；`useDesktopTranscriptionSelectionController.ts`；`desktopTranscriptionLaneSelect.ts`；flag `desktopTranscriptionBatchEditingEnabled`（默认 false）。右键统一目标；菜单删除文案显示真实目标数；结构删除预览带 fingerprint，提交过期拒绝；1→`units.delete`、≥2→`units.deleteMany`。
+    - 证据（2026-11-25）：`npx vitest run src/pages/desktopTranscriptionSelection.test.ts src/pages/useDesktopTranscriptionSelectionController.test.ts src/pages/desktopTranscriptionEdgeActions.test.ts src/db/desktop/unitEdges.test.ts` 28 passed；`npm run typecheck`、`check:architecture-guard` 通过。
+  - [x] 精稿已审（`124:1` 等）；flag 下多选角标（`selectionBadgeLabel`／Lane）与合并禁用 toast 路径（`mergeBlockedByFilter` → `mergeBlockedByFilter` 文案；菜单 `aria-disabled` 仍可点以出 toast）。输入焦点保护已有。筛选真正置位 `mergeBlockedByFilter`／`filteringSelection` 在 6b。viewScope 领域已接。写后重开／定向 Electron 随 6b 筛选同验。
+    - 证据（2026-11-25）：`npx vitest run src/pages/desktopTranscriptionSelectionBadge.test.ts src/pages/desktopTranscriptionSegmentMenu.test.ts src/pages/useDesktopTranscriptionMergeController.test.tsx` 19 passed；`npm run typecheck` 通过。
+- [x] 6b：依赖 6a；说话人目录、全层筛选、原子新建并指派。精稿已审（`124:448`／`124:1577`／`124:909`）。
+  - [x] 工作区写入口按规划 §10 接可选 `viewScope` + `expectedAffectedUnitIds`（`viewScope.ts`；create/retime/点写在 speakers 筛选下禁止；指派/清除/拆合/边界/删除核对闭包可见性；缺省保持旧全量语义）。前端 `filterRevision` 与筛选 UI 同片接线。
+    - 证据（2026-11-25）：`npx vitest run src/db/desktop/viewScope.test.ts src/db/desktop/speakerAssign.test.ts src/db/desktop/operationContract.test.ts` 16 passed；`npm run typecheck` 通过。
+  - [x] create/patch/redeliver 改 `keep`（`operationContract.ts`）；`speakerAssign.test.ts` 覆盖 create/patch/redeliver 后仍可 undo 指派。指派/清除/新建并指派已接 EditReceiptKind／EDIT_METHODS／withEditReceipt／client `receipted`；`speakerAssign.test.ts` 覆盖 replay／conflict／createAndAssign 不二次建人。
+  - [x] 跨稿整批拒绝：`resolveAssignManuscriptId`；无写入／无 frame（`speakerAssign.test.ts`）。重叠拒绝沿用既有用例。
+  - [x] 新建并指派：`createAndAssignSpeaker` + `speakers.createAndAssign`；失败不留新人；undo 只恢复指派、保留目录；redo 复用身份（复用 assign frame）。
+  - [x] 筛选 UI（flag）：侧栏复选框／未归属／头 meta／底 IconButton 清筛选与新建并指派对话框；可见单元过滤、隐藏段剔出选择、禁拖建、合并伙伴隐藏 → toast；createAndAssign 带 viewScope。
+    - 证据（2026-11-25）：`npx vitest run src/pages/desktopTranscriptionSpeakerFilter.test.ts src/pages/desktopTranscriptionSelectionBadge.test.ts src/pages/DesktopTranscriptionContextColumn.test.tsx src/db/desktop/viewScope.test.ts` 相关通过；`npm run typecheck` 通过。
+  - [x] 写入口统一 `writeScopeArgs`／`spanAffectedFromUnits`：指派／清除／新建并指派／拆合／边界／整段移动／删除／create／点写；筛选时禁点写与禁轨拖建；merge／createAndAssign 校验 `filterRevision`；隐藏依赖前端 guard + toast。
+    - 证据（2026-11-25）：`npm run typecheck`；`npx vitest run src/pages/desktopTranscriptionSpeakerFilter.test.ts src/pages/desktopTranscriptionEdgeActions.test.ts src/pages/useDesktopTranscriptionPointController.test.tsx src/pages/desktopTranscriptionPointRegression.test.tsx src/db/desktop/viewScope.test.ts` 26 passed。
+  - [x] 整稿 retime UI：适配新建并指派 Modal；文稿侧栏 + 有录音工具条两端入口；筛选 toast 阻断；client `ViewScopeWrite`；design 对照标明无独立画板。
+    - 证据（2026-11-25）：`npm run typecheck`；`npx vitest run src/pages/useDesktopTranscriptionRetimeController.test.tsx` 3 passed。
+  - [x] 定向 Electron：`transcription batch editing`（筛选隐藏、新建并指派、关库重开读回）；`desktop-project-flow` 开 `VITE_DESKTOP_TRANSCRIPTION_BATCH_EDITING_ENABLED`。
+    - 证据（2026-11-25）：`npm run test:e2e:desktop-project -- --grep "transcription batch editing"` 1 passed。
+- [x] 6c：格式/领域依赖 6p 与 ADR 审定，可与 6a/6b 独立推进；UI/筛选集成依赖 6a/6b 的目标和视图合同。
+  - [x] 一个格式切换 PR 包含 schema/版本/冻结及全部消费者，role 派生、旧共享列删除、不迁移/旧包拒绝；不能先单合破坏消费者的 schema。
+    - 证据（2026-11-25）：[ADR-0144](../../../adr/0144-per-layer-self-certainty.md)；`DESKTOP_PROJECT_USER_VERSION = 36`；`npm run check:desktop-format-freeze` 3 passed；删 `units.self_certainty`，`unit_texts.self_certainty`。
+  - [x] 空卡业务入参为 unitId/textLayerId，事务内解析 role/建载体再转 unitTextId 锚点；recordingClips 等清理消费者齐全。逐一验规划 §12 的撤销基准；6c 新增两段确信语义断言，同版本交换保原 id 并核对单稿过滤，不做通用 id 重映射。
+    - 证据（2026-11-25）：`units.setSelfCertainty`／`notes.createForUnitText`；`npx vitest run src/db/desktop/unitMetadata.test.ts …` 含按层写读、正文清确信、空卡建载体、合并最不确定；既有 merge/split/undo/notes/exchange 回归通过。
+  - [x] 规划 §9 的真实测试文件、新增领域测试、`check:desktop-format-freeze` 通过；逐层值写后关库重开读回。
+    - 证据（2026-11-25）：`npm run typecheck`；定向 vitest 15 文件共 137+ 项通过（含 formatFreeze／unitMetadata／unitMerge／unitSplit／projectExchange 等）；`check:docs-governance` OK。
+  - [x] 元数据 UI（确信子菜单 + 备注 Modal + 多选入口）精稿已审并接线；sessionEdit 撤销／回执／批量；flag 仍默认 false。
+    - 落位：`useDesktopTranscriptionMetadataController`／`DesktopTranscriptionNotesDialog`／`DesktopTranscriptionCertaintyMenu`；EdgeChrome／WaveMenu／WorkspaceDialogs；`units.setSelfCertaintyMany`／`notes.createMany`／`notes.createManyForUnitText`；notes keep + certainty/note/noteBatch frames。
+    - 证据（2026-11-26）：`npm run typecheck`；`npx vitest run src/db/desktop/unitMetadata.test.ts src/pages/desktopTranscriptionMetadata.test.ts src/db/desktop/operationContract.test.ts`；`npm run check:architecture-guard`；`npm run test:e2e:desktop-project -- --grep "transcription metadata"`。
+- [x] 6d：复用 6p/6c，N 段一次合并已完成本地实现与验收。
+  - [x] 精稿 `129:65` 已审（2026-11-26 用户确认，已移除底部两句说明）；确认范围见 design「6d 精稿审定」。
+  - [x] 数组预览/快照/回执/撤销复用 6c 载荷，完整数据判断连续性，隐藏依赖阻断，逐层草稿/录音取舍及全旧→新映射。
+  - [x] 三段以上、失败整批回滚、一次撤销/重做、后改拒绝、媒体持有和重开 Electron 证据齐。
+- [ ] 6e：部分转写、无原文译释、手动定位及本地综合流程已完成；精稿审定与全片 CI 关账仍待完成。
+  - [x] 补齐四种关键状态精稿：`134:1` / `134:474` / `134:977` / `134:1447`（2026-11-26，MCP 回读及截图核对，见 design「6e 精稿对照」）。
+  - [ ] 上述 6e 精稿用户审定。
+  - [x] en-US 主流程、zh-CN smoke、键盘与字号/窄窗、flag true/false 路径；关闭新 flag 保留既有能力。
   - [ ] 全片 CI/写后重开/故障证据登记后才勾 #566；#567 和首发总门另验，不以文档或点层测试替代。
+
+
+### 1b-6 审查修复与本地验收（2026-11-26）
+
+- 九项审查修复：全层与点投影筛选；元数据发起层/波形锚点；已有说话人批量目标与客户端回执；确信撤销恢复空载体身份；项目备注回执；按层备注读回与多语内容；对话框异步身份；回执先于视图检查；已加载空选择清理。额外保留深链加载、关联层焦点及关闭 flag 的原交互。
+- 6d：`orderedSources` 与 `unitIds` 扩展既有合并内核，不循环调用两段事务；`sources` 快照、全旧 unit/text 身份映射、逐层正文/草稿/确信、录音去重/五条上限、引用与分析快照共用同一次事务。一次回执与撤销/重做；原两段适配入口保留。重做核对撤销后基准。
+- 精稿：`129:65` 已补齐三段确认、MCP 实读并截图；外观沿用 `115:1219`，超限录音沿用 `111:501` 并按原段分组。运行态截图只留测试产物，不入 git。
+- SQLite：`npx vitest run src/db/desktop` → 75 文件、510 项通过；种子用例因缺专用环境跳过，已随 Electron 脚本实跑。包含三段、漏中段/过期拒绝、六条录音显式丢弃、全文件撤销读回、重做和关闭重开；最终 `unitMetadata.regression` 8 项另验通过，补充正文后改拒绝确信重做。
+- 页面：`npx vitest run src/pages/desktopTranscription src/pages/DesktopTranscription src/pages/useDesktopTranscription src/pages/useDesktopProjectRead --maxWorkers=2` → 37 文件、227 项通过。
+- Electron：`--grep "transcription batch editing|transcription metadata|transcription batch merge|desktop locale smoke"` → 6 项通过；实际筛选关联翻译/点、新建并指派与已有说话人批改/撤销、两种语言确信与备注增改删、波形按段备注、无转写正文保留译文、手动改起点、三段合并取消保草稿、一次提交/撤销/重做/重开、提交后丢回复核实回执、900px 与 1.25 字号。
+- Flag 关闭：显式 `VITE_DESKTOP_TRANSCRIPTION_BATCH_EDITING_ENABLED=false`，`--grep "transcription batch flag off|transcription workspace seeks"` → 2 项通过；新元数据菜单隐藏，原单选、定位、播放仍可用。默认值保持 false。
+- 全量 agent eval 21/21 通过；本轮故障回归注册为 `desktop-batch-metadata-regressions`。格式冻结检查 3 项、类型、CSS 三件套、架构及文档门通过。全片 CI、安装包、真实材料和用户本人抽验不由这些本地结果替代。
+
+### Bugbot 六项复核与修复（2026-11-26）
+
+- 原报告的「改正文 → 标确信 → 撤销确信 → 撤销正文/拆分/合并」已有 `retargetGeneration` 保护，三条回归通过；另复现并修复相同确信值的无变化写入递增 generation、却没有撤销 frame 的问题，单条与批量入口共用提前返回。
+- 删除与批删遇到任何直接子句段会整批拒绝，非级联删除；补回归确认。拆分与合并改为后端递归重算完整后代闭包，前端预期集合保持一致；隐藏孙级句段拒绝且无写入，完整可见时允许并可撤销。前端闭包去重并防止循环。
+- 空卡首次备注记录本次创建的载体身份；单条/批量撤销仅清理本次拥有且不再被正文、备注、录音或确信使用的载体；重做恢复同一锚点身份，目标被替换时整批回滚。既有载体及后来附加的备注保留。
+- 已删除文稿的确信写入已由 `resolveUnitTextContext` 拦截，补回归确认文稿行/版本不变。清空正文先清确信，再按备注/录音判断保留，避免遗留无用途空行。
+- 验证：新增 `unitMetadata.bugbot.test.ts` 18 项；最终元数据组合 3 文件 32 项通过，包含文本撤销链、单批备注撤销/重做、冲突回滚和关库重开。桌面领域全域回归 527 passed / 1 seed fixture skipped（随后追加的两条无变化写入用例包含在上述最终组合中）；页面 37 文件 227 passed；`check:changed` 38 文件 268 passed；agent eval 21/21。格式冻结 3 项、类型、架构、定向 lint、文档及工作流门通过。
+- Electron 定向自动化（默认隐藏窗口）：`--grep "transcription metadata|transcription batch merge"` 3 passed，覆盖 en-US / zh-CN 元数据与三段合并的撤销/重做/重开。未推进 6d/6e 精稿审定或新增视觉交互；本地结果不替代全片 CI、安装包和用户抽验。
 
 ## Pre-merge gates（每片）
 

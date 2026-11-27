@@ -22,6 +22,10 @@ describe('speaker lane paint', () => {
       {},
     );
     const lanes: SpeakerLaneChrome = {
+      speakers: [
+        { id: 'ada', name: '阿达' },
+        { id: 'bai', name: '白玛' },
+      ],
       layoutOf: () => layout,
       modeOf: () => 'single',
       nameOf: (id) => (id === 'ada' ? '阿达' : id === 'bai' ? '白玛' : ''),

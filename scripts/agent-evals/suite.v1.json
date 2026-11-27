@@ -245,6 +245,16 @@
       "tiers": ["full"],
       "goldenTaskCount": 0,
       "trajectorySignals": []
+    },
+    {
+      "id": "desktop-batch-metadata-regressions",
+      "name": "Batch metadata view scope, carrier undo, notes and async isolation",
+      "command": "npx vitest run src/db/desktop/unitMetadata.regression.test.ts src/db/desktop/unitMetadata.bugbot.test.ts src/pages/desktopTranscriptionMetadata.regression.test.tsx src/pages/DesktopTranscriptionMergeDialog.test.tsx",
+      "category": "workflow",
+      "evalSuite": "regression",
+      "tiers": ["full"],
+      "goldenTaskCount": 0,
+      "trajectorySignals": []
     }
   ]
 }

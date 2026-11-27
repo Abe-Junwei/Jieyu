@@ -1,6 +1,7 @@
 import type { Dispatch, PointerEvent as ReactPointerEvent, SetStateAction } from 'react';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
 import type { UnitDeletePreview } from '../app/desktopProjectReadPageAccess';
+import type { ViewScopeWrite } from '../app/desktopProjectReadPageAccess';
 import {
   cycleEdge,
   sharedEdge,
@@ -36,6 +37,7 @@ import {
   type RouteLayer,
   type RouteLink,
 } from './desktopTranscriptionCreateRoute';
+import { spanAffectedFromUnits } from './desktopTranscriptionSpeakerFilter';
 
 const CREATE_REJECT = {
   short: 'createShort',
@@ -96,6 +98,14 @@ export interface EdgeControllerInput {
   onEmptyClick?: () => void;
   /** Whether this unit is marked to skip processing. */
   skipped: (unitId: string) => boolean;
+  /** 6b viewScope write payload; omit when no manuscript. */
+  writeScope?: (affectedUnitIds: readonly string[]) => ViewScopeWrite;
+  /** All manuscript units with parent links; used for span-affected ids on moves. */
+  scopeUnits?: readonly { id: string; parentUnitId?: string | null }[];
+  /** Returns false when any affected id is outside the current speaker filter. */
+  affectedVisible?: (affectedUnitIds: readonly string[]) => boolean;
+  /** Toast when a write would touch a filtered-out unit. */
+  writeBlockedMessage?: string;
 }
 
 export interface EdgeUi {
@@ -140,6 +150,16 @@ export function createEdgeActions(ctx: {
   const { live, uiRef, setUi, edited } = ctx;
   const call = () => openEdgeCall(live.current.sessionId, live.current.desktopCall);
   const failed = () => live.current.notify(live.current.message('failed', ''));
+  const spanIds = (unitId: string) => spanAffectedFromUnits(live.current.scopeUnits ?? [], unitId);
+  const scopeFor = (ids: readonly string[]): ViewScopeWrite => live.current.writeScope?.(ids) ?? {};
+  const guardVisible = (ids: readonly string[]): boolean => {
+    const ok = live.current.affectedVisible?.(ids);
+    if (ok === false) {
+      live.current.notify(live.current.writeBlockedMessage ?? live.current.message('failed', ''));
+      return false;
+    }
+    return true;
+  };
   /** Waveform and text track share this write. */
   const toggleSkipUnit = (unitId: string) => {
     const session = call();
@@ -187,11 +207,17 @@ export function createEdgeActions(ctx: {
   async function nudge(selected: EdgeSelection, delta: number) {
     const current = call();
     if (!current) return;
+    const ids =
+      selected.edge === 'shared' && selected.otherId !== null
+        ? [...new Set([...spanIds(selected.unitId), ...spanIds(selected.otherId)])]
+        : spanIds(selected.unitId);
+    if (!guardVisible(ids)) return;
     const result = await applyNudge({
       call: current,
       units: rowOf(selected.unitId),
       selected,
       delta,
+      scope: scopeFor(ids),
     });
     if (result?.failed) reject(result.error, result.time);
     else if (result) await afterWrite(async () => undefined, 0);
@@ -281,8 +307,18 @@ export function createEdgeActions(ctx: {
   ) {
     const session = call();
     if (!session) return;
+    // Create is forbidWhenFiltered; empty expected set matches domain contract.
+    const scope = scopeFor([]);
     void session.api
-      .createUnit(session.sessionId, { layerId, startMs, endMs, text: '', speakerId, parentUnitId })
+      .createUnit(session.sessionId, {
+        layerId,
+        startMs,
+        endMs,
+        text: '',
+        speakerId,
+        parentUnitId,
+        ...scope,
+      })
       .then(() => live.current.reload())
       .catch((error: unknown) => reject(error, endMs));
   }
@@ -336,12 +372,15 @@ export function createEdgeActions(ctx: {
     const raw = edge === 'start' ? uiRef.current.raw.start : uiRef.current.raw.end;
     const session = call();
     if (!unit || raw === null || !session) return;
+    const ids = spanIds(unit.id);
+    if (!guardVisible(ids)) return;
     try {
       const result = await flushTypedEdge({
         call: session,
         unit,
         edge,
         raw,
+        scope: scopeFor(ids),
         onDraft: () => {
           setUi((state) => ({ ...state, raw: { ...state.raw, saved: true } }));
           live.current.notify(live.current.draftSavedMessage, 'info');
@@ -361,8 +400,16 @@ export function createEdgeActions(ctx: {
     const conflict = uiRef.current.raw.conflicts[edge];
     const session = call();
     if (!unit || !conflict || !session) return;
+    const ids = spanIds(unit.id);
+    if (!guardVisible(ids)) return;
     try {
-      const result = await rebaseTimeDraft({ call: session, unit, edge, raw: conflict.rawInput });
+      const result = await rebaseTimeDraft({
+        call: session,
+        unit,
+        edge,
+        raw: conflict.rawInput,
+        scope: scopeFor(ids),
+      });
       if (result.committed) {
         await afterWrite(async () => undefined, 0);
         return;
@@ -426,9 +473,14 @@ export function createEdgeActions(ctx: {
         commit: (shared, time, originMs) => {
           const session = call();
           if (time === originMs || !session) return;
+          const ids = shared
+            ? [...new Set([...spanIds(shared.leftId), ...spanIds(shared.rightId)])]
+            : spanIds(unitId);
+          if (!guardVisible(ids)) return;
+          const scope = scopeFor(ids);
           const work = shared
-            ? commitSharedEdge(session, shared.leftId, shared.rightId, time)
-            : commitUnitEdge(session, unitId, edge, time);
+            ? commitSharedEdge(session, shared.leftId, shared.rightId, time, scope)
+            : commitUnitEdge(session, unitId, edge, time, scope);
           void afterWrite(() => work, time);
         },
       });
@@ -446,9 +498,11 @@ export function createEdgeActions(ctx: {
         commit: (delta) => {
           const session = call();
           if (!session) return;
+          const ids = spanIds(unitId);
+          if (!guardVisible(ids)) return;
           const unit = rowOf(unitId).find((item) => item.id === unitId);
           const time = (unit?.startMs ?? 0) + delta;
-          void afterWrite(() => commitUnitMove(session, unitId, delta), time);
+          void afterWrite(() => commitUnitMove(session, unitId, delta, scopeFor(ids)), time);
         },
         onClick,
       });
@@ -528,17 +582,21 @@ export function createEdgeActions(ctx: {
       const session = call();
       const firstId = prompt?.unitIds[0];
       if (!prompt || !session || firstId === undefined) return;
-      const clear =
-        prompt.textLayerId === undefined
-          ? undefined
-          : {
-              textLayerId: prompt.textLayerId,
-              fingerprint: prompt.counts.fingerprint ?? '',
-            };
+      const fingerprint = prompt.counts?.fingerprint;
+      if (!guardVisible(prompt.unitIds)) return;
+      const scope = scopeFor(prompt.unitIds);
+      const opts =
+        prompt.textLayerId !== undefined
+          ? { textLayerId: prompt.textLayerId, fingerprint: fingerprint ?? '', ...scope }
+          : fingerprint === undefined
+            ? Object.keys(scope).length === 0
+              ? undefined
+              : scope
+            : { fingerprint, ...scope };
       const deleting =
         prompt.unitIds.length > 1
-          ? session.api.deleteUnits(session.sessionId, prompt.unitIds, clear)
-          : session.api.deleteUnit(session.sessionId, firstId, clear);
+          ? session.api.deleteUnits(session.sessionId, prompt.unitIds, opts)
+          : session.api.deleteUnit(session.sessionId, firstId, opts);
       void deleting
         .then(() => {
           closeDelete(firstId, true);

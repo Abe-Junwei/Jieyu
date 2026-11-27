@@ -1,3 +1,4 @@
+import type { MergePreview } from './unitMergeShared';
 import type { SplitTextPreview, FormalCut } from './unitSplitTextPlan';
 // Renderer-safe: type imports and pure checks only. Handlers stay in the main process.
 import type {
@@ -102,6 +103,7 @@ import type {
 import type { UnitDeletePreview } from './unitEdges';
 import type { AnalysisRoot, Unit, UnitCreate } from './units';
 import type { Point, PointCreate, PointLabelUpdate, PointMove, PointQuery } from './points';
+import type { ViewScope, ViewScopeWrite } from './viewScope';
 
 type UndoPolicy = 'keep' | 'clear' | 'replace-on-success';
 
@@ -569,7 +571,15 @@ function noteAnchor(value: unknown): ContentNoteAnchor {
 }
 
 function noteCreate(input: Record<string, unknown>): ContentNoteWrite {
-  knownKeys(input, ['id', 'anchor', 'content', 'category', 'provenance', 'fieldValues']);
+  knownKeys(input, [
+    'id',
+    'anchor',
+    'content',
+    'category',
+    'provenance',
+    'fieldValues',
+    'operationId',
+  ]);
   return {
     ...(input.id === undefined ? {} : { id: requiredString(input.id, 'id') }),
     anchor: noteAnchor(input.anchor),
@@ -581,7 +591,7 @@ function noteCreate(input: Record<string, unknown>): ContentNoteWrite {
 }
 
 function noteRevise(input: Record<string, unknown>): ContentNoteRevision {
-  knownKeys(input, ['id', 'content', 'category']);
+  knownKeys(input, ['id', 'content', 'category', 'operationId']);
   if (!('content' in input) && !('category' in input)) throw new Error('note revision is empty');
   return {
     id: requiredString(input.id, 'id'),
@@ -609,32 +619,41 @@ function pointLabelText(value: unknown, name: string): string {
   return value;
 }
 
-function pointCreate(input: Record<string, unknown>): PointCreate & { operationId?: string } {
-  knownKeys(input, ['id', 'layerId', 'timeMs', 'label', 'operationId']);
+function pointCreate(
+  input: Record<string, unknown>,
+): PointCreate & { operationId?: string } & ViewScopeWrite {
+  knownKeys(input, ['id', 'layerId', 'timeMs', 'label', 'operationId', ...VIEW_SCOPE_KEYS]);
   return {
     ...(input.id === undefined ? {} : { id: requiredString(input.id, 'id') }),
     layerId: requiredString(input.layerId, 'layerId'),
     timeMs: requiredMs(input.timeMs, 'timeMs'),
     ...(input.label === undefined ? {} : { label: pointLabelText(input.label, 'label') }),
     ...editOperationId(input),
+    ...viewScopeWrite(input),
   };
 }
 
-function pointLabel(input: Record<string, unknown>): PointLabelUpdate & { operationId?: string } {
-  knownKeys(input, ['id', 'label', 'operationId']);
+function pointLabel(
+  input: Record<string, unknown>,
+): PointLabelUpdate & { operationId?: string } & ViewScopeWrite {
+  knownKeys(input, ['id', 'label', 'operationId', ...VIEW_SCOPE_KEYS]);
   return {
     id: requiredString(input.id, 'id'),
     label: pointLabelText(input.label, 'label'),
     ...editOperationId(input),
+    ...viewScopeWrite(input),
   };
 }
 
-function pointMove(input: Record<string, unknown>): PointMove & { operationId?: string } {
-  knownKeys(input, ['id', 'timeMs', 'operationId']);
+function pointMove(
+  input: Record<string, unknown>,
+): PointMove & { operationId?: string } & ViewScopeWrite {
+  knownKeys(input, ['id', 'timeMs', 'operationId', ...VIEW_SCOPE_KEYS]);
   return {
     id: requiredString(input.id, 'id'),
     timeMs: requiredMs(input.timeMs, 'timeMs'),
     ...editOperationId(input),
+    ...viewScopeWrite(input),
   };
 }
 
@@ -862,7 +881,51 @@ function editOperationId(input: Record<string, unknown>): { operationId?: string
   return { operationId: requiredString(input.operationId, 'operationId') };
 }
 
-function unitCreate(input: Record<string, unknown>): UnitCreate & { operationId?: string } {
+const VIEW_SCOPE_KEYS = ['viewScope', 'expectedAffectedUnitIds'] as const;
+
+function parseViewScopeValue(value: unknown): ViewScope {
+  const row = objectArg(value);
+  const manuscriptId = requiredString(row.manuscriptId, 'viewScope.manuscriptId');
+  if (row.kind === 'all') {
+    knownKeys(row, ['manuscriptId', 'kind']);
+    return { manuscriptId, kind: 'all' };
+  }
+  if (row.kind === 'speakers') {
+    knownKeys(row, ['manuscriptId', 'kind', 'speakerIds', 'includeUnassigned']);
+    if (typeof row.includeUnassigned !== 'boolean') {
+      throw new Error('desktop call viewScope.includeUnassigned must be a boolean');
+    }
+    const speakerIds = [...new Set(stringIds(row.speakerIds, 'viewScope.speakerIds'))].sort(
+      (a, b) => (a < b ? -1 : a > b ? 1 : 0),
+    );
+    return {
+      manuscriptId,
+      kind: 'speakers',
+      speakerIds,
+      includeUnassigned: row.includeUnassigned,
+    };
+  }
+  throw new Error('desktop call viewScope.kind is invalid');
+}
+
+/** Optional workspace view protection; absent keeps legacy full-manuscript semantics. */
+function viewScopeWrite(input: Record<string, unknown>): ViewScopeWrite {
+  return {
+    ...(input.viewScope === undefined ? {} : { viewScope: parseViewScopeValue(input.viewScope) }),
+    ...(input.expectedAffectedUnitIds === undefined
+      ? {}
+      : {
+          expectedAffectedUnitIds: stringIds(
+            input.expectedAffectedUnitIds,
+            'expectedAffectedUnitIds',
+          ),
+        }),
+  };
+}
+
+function unitCreate(
+  input: Record<string, unknown>,
+): UnitCreate & { operationId?: string } & ViewScopeWrite {
   knownKeys(input, [
     'operationId',
     'layerId',
@@ -873,6 +936,7 @@ function unitCreate(input: Record<string, unknown>): UnitCreate & { operationId?
     'speakerId',
     'parentUnitId',
     'fieldValues',
+    ...VIEW_SCOPE_KEYS,
   ]);
   const startMs = optionalMs(input.startMs, 'startMs');
   const endMs = optionalMs(input.endMs, 'endMs');
@@ -891,6 +955,7 @@ function unitCreate(input: Record<string, unknown>): UnitCreate & { operationId?
       : {}),
     ...('fieldValues' in input ? { fieldValues: fieldValueMap(input.fieldValues) } : {}),
     ...editOperationId(input),
+    ...viewScopeWrite(input),
   };
 }
 
@@ -903,7 +968,7 @@ function unitSplit(input: Record<string, unknown>): {
   textLayerId?: string;
   cutIndex?: number;
   rawInput?: string;
-} {
+} & ViewScopeWrite {
   knownKeys(input, [
     'operationId',
     'unitId',
@@ -913,6 +978,7 @@ function unitSplit(input: Record<string, unknown>): {
     'rawInput',
     'baseline',
     'formalCuts',
+    ...VIEW_SCOPE_KEYS,
   ]);
   if (input.rawInput !== undefined && typeof input.rawInput !== 'string') {
     throw new Error('desktop call rawInput must be a string');
@@ -945,6 +1011,7 @@ function unitSplit(input: Record<string, unknown>): {
       ? {}
       : { cutIndex: requiredNumber(input.cutIndex, 'cutIndex') }),
     ...(input.rawInput === undefined ? {} : { rawInput: input.rawInput }),
+    ...viewScopeWrite(input),
   };
 }
 
@@ -954,12 +1021,14 @@ function mergeSeparatorOf(value: unknown): string {
 }
 
 function unitMergePreview(input: Record<string, unknown>): {
+  unitIds?: string[];
   keepId: string;
   removeId: string;
   discardAudioIds?: string[];
 } {
-  knownKeys(input, ['keepId', 'removeId', 'discardAudioIds']);
+  knownKeys(input, ['keepId', 'removeId', 'unitIds', 'discardAudioIds']);
   return {
+    ...(input.unitIds === undefined ? {} : { unitIds: stringIds(input.unitIds, 'unitIds') }),
     keepId: requiredString(input.keepId, 'keepId'),
     removeId: requiredString(input.removeId, 'removeId'),
     ...(input.discardAudioIds === undefined
@@ -975,6 +1044,7 @@ function unitMergeText(value: unknown, name: string): string {
 
 function unitMerge(input: Record<string, unknown>): {
   textOverrides?: { layerId: string; text: string }[];
+  unitIds?: string[];
   keepId: string;
   removeId: string;
   operationId?: string;
@@ -984,7 +1054,7 @@ function unitMerge(input: Record<string, unknown>): {
   textLayerId?: string;
   keepText?: string;
   removeText?: string;
-} {
+} & ViewScopeWrite {
   const textCount = [input.textLayerId, input.keepText, input.removeText].filter(
     (value) => value !== undefined,
   ).length;
@@ -1005,6 +1075,7 @@ function unitMerge(input: Record<string, unknown>): {
         })();
   return {
     ...(textOverrides === undefined ? {} : { textOverrides }),
+    ...(input.unitIds === undefined ? {} : { unitIds: stringIds(input.unitIds, 'unitIds') }),
     keepId: requiredString(input.keepId, 'keepId'),
     removeId: requiredString(input.removeId, 'removeId'),
     ...(input.operationId === undefined
@@ -1024,6 +1095,7 @@ function unitMerge(input: Record<string, unknown>): {
           keepText: unitMergeText(input.keepText, 'keepText'),
           removeText: unitMergeText(input.removeText, 'removeText'),
         }),
+    ...viewScopeWrite(input),
   };
 }
 
@@ -1044,9 +1116,9 @@ function unitSharedBoundary(input: Record<string, unknown>): {
   rightId: string;
   time: number;
   operationId?: string;
-} {
-  knownKeys(input, ['leftId', 'rightId', 'time', 'operationId']);
-  return { ...unitBoundary(input), ...editOperationId(input) };
+} & ViewScopeWrite {
+  knownKeys(input, ['leftId', 'rightId', 'time', 'operationId', ...VIEW_SCOPE_KEYS]);
+  return { ...unitBoundary(input), ...editOperationId(input), ...viewScopeWrite(input) };
 }
 
 function timeEdge(value: unknown): 'start' | 'end' {
@@ -1059,13 +1131,14 @@ function unitEdge(input: Record<string, unknown>): {
   edge: 'start' | 'end';
   time: number;
   operationId?: string;
-} {
-  knownKeys(input, ['unitId', 'edge', 'time', 'operationId']);
+} & ViewScopeWrite {
+  knownKeys(input, ['unitId', 'edge', 'time', 'operationId', ...VIEW_SCOPE_KEYS]);
   return {
     unitId: requiredString(input.unitId, 'unitId'),
     edge: timeEdge(input.edge),
     time: requiredNumber(input.time, 'time'),
     ...editOperationId(input),
+    ...viewScopeWrite(input),
   };
 }
 
@@ -1073,12 +1146,13 @@ function unitMove(input: Record<string, unknown>): {
   unitId: string;
   delta: number;
   operationId?: string;
-} {
-  knownKeys(input, ['unitId', 'delta', 'operationId']);
+} & ViewScopeWrite {
+  knownKeys(input, ['unitId', 'delta', 'operationId', ...VIEW_SCOPE_KEYS]);
   return {
     unitId: requiredString(input.unitId, 'unitId'),
     delta: requiredNumber(input.delta, 'delta'),
     ...editOperationId(input),
+    ...viewScopeWrite(input),
   };
 }
 
@@ -1116,6 +1190,14 @@ const EDIT_RECEIPT_KINDS: readonly EditReceiptKind[] = [
   'pointLabel',
   'pointMove',
   'pointDelete',
+  'speakerAssign',
+  'speakerClear',
+  'speakerCreateAndAssign',
+  'selfCertainty',
+  'noteCreate',
+  'noteUpdate',
+  'noteDelete',
+  'noteCreateBatch',
 ];
 
 function editInspect(input: Record<string, unknown>): {
@@ -1432,17 +1514,49 @@ function stringIds(value: unknown, name: string): string[] {
   return value as string[];
 }
 
-function speakerAssign(input: Record<string, unknown>): { speakerId: string; unitIds: string[] } {
-  knownKeys(input, ['speakerId', 'unitIds']);
+function speakerAssign(input: Record<string, unknown>): {
+  speakerId: string;
+  unitIds: string[];
+  operationId?: string;
+} & ViewScopeWrite {
+  knownKeys(input, ['speakerId', 'unitIds', 'operationId', ...VIEW_SCOPE_KEYS]);
   return {
     speakerId: requiredString(input.speakerId, 'speakerId'),
     unitIds: stringIds(input.unitIds, 'unitIds'),
+    ...(input.operationId === undefined
+      ? {}
+      : { operationId: requiredString(input.operationId, 'operationId') }),
+    ...viewScopeWrite(input),
   };
 }
 
-function speakerClear(input: Record<string, unknown>): { unitIds: string[] } {
-  knownKeys(input, ['unitIds']);
-  return { unitIds: stringIds(input.unitIds, 'unitIds') };
+function speakerClear(
+  input: Record<string, unknown>,
+): { unitIds: string[]; operationId?: string } & ViewScopeWrite {
+  knownKeys(input, ['unitIds', 'operationId', ...VIEW_SCOPE_KEYS]);
+  return {
+    unitIds: stringIds(input.unitIds, 'unitIds'),
+    ...(input.operationId === undefined
+      ? {}
+      : { operationId: requiredString(input.operationId, 'operationId') }),
+    ...viewScopeWrite(input),
+  };
+}
+
+function speakerCreateAndAssign(input: Record<string, unknown>): {
+  name: string;
+  unitIds: string[];
+  operationId?: string;
+} & ViewScopeWrite {
+  knownKeys(input, ['name', 'unitIds', 'operationId', ...VIEW_SCOPE_KEYS]);
+  return {
+    name: requiredString(input.name, 'name'),
+    unitIds: stringIds(input.unitIds, 'unitIds'),
+    ...(input.operationId === undefined
+      ? {}
+      : { operationId: requiredString(input.operationId, 'operationId') }),
+    ...viewScopeWrite(input),
+  };
 }
 
 function laneLockList(input: Record<string, unknown>): { manuscriptId: string } {
@@ -1866,6 +1980,16 @@ function clearTextInput(
   };
 }
 
+/** Structure delete may carry a fingerprint alone; clear-text still needs textLayerId. */
+function deleteUnitOpts(
+  input: Record<string, unknown>,
+  writing = false,
+): { textLayerId?: string; fingerprint?: string } {
+  if (input.textLayerId !== undefined) return clearTextInput(input, writing);
+  if (input.fingerprint === undefined) return {};
+  return { fingerprint: requiredString(input.fingerprint, 'fingerprint') };
+}
+
 export const desktopOperations = {
   'project.get': spec<'keep', Record<string, never>, ProjectIdentity | null>('keep', (input) => {
     knownKeys(input, []);
@@ -1907,6 +2031,75 @@ export const desktopOperations = {
       return { unitId: requiredString(input.unitId, 'unitId'), skip: input.skip };
     },
   ),
+  'units.setSelfCertainty': spec<
+    'keep',
+    {
+      unitId: string;
+      textLayerId: string;
+      selfCertainty: 'not_understood' | 'uncertain' | 'certain' | null;
+      operationId?: string;
+    } & ViewScopeWrite,
+    Unit
+  >('keep', (input) => {
+    knownKeys(input, ['unitId', 'textLayerId', 'selfCertainty', 'operationId', ...VIEW_SCOPE_KEYS]);
+    const selfCertainty = input.selfCertainty;
+    if (
+      selfCertainty !== null &&
+      selfCertainty !== 'not_understood' &&
+      selfCertainty !== 'uncertain' &&
+      selfCertainty !== 'certain'
+    ) {
+      throw new Error('desktop call selfCertainty is invalid');
+    }
+    return {
+      unitId: requiredString(input.unitId, 'unitId'),
+      textLayerId: requiredString(input.textLayerId, 'textLayerId'),
+      selfCertainty,
+      ...(input.operationId === undefined
+        ? {}
+        : { operationId: requiredString(input.operationId, 'operationId') }),
+      ...viewScopeWrite(input),
+    };
+  }),
+  'units.setSelfCertaintyMany': spec<
+    'keep',
+    {
+      unitIds: string[];
+      textLayerId: string;
+      selfCertainty: 'not_understood' | 'uncertain' | 'certain' | null;
+      operationId?: string;
+    } & ViewScopeWrite,
+    Unit[]
+  >('keep', (input) => {
+    knownKeys(input, [
+      'unitIds',
+      'textLayerId',
+      'selfCertainty',
+      'operationId',
+      ...VIEW_SCOPE_KEYS,
+    ]);
+    const selfCertainty = input.selfCertainty;
+    if (
+      selfCertainty !== null &&
+      selfCertainty !== 'not_understood' &&
+      selfCertainty !== 'uncertain' &&
+      selfCertainty !== 'certain'
+    ) {
+      throw new Error('desktop call selfCertainty is invalid');
+    }
+    if (!Array.isArray(input.unitIds) || input.unitIds.length === 0) {
+      throw new Error('desktop call unitIds is invalid');
+    }
+    return {
+      unitIds: input.unitIds.map((id, index) => requiredString(id, `unitIds[${index}]`)),
+      textLayerId: requiredString(input.textLayerId, 'textLayerId'),
+      selfCertainty,
+      ...(input.operationId === undefined
+        ? {}
+        : { operationId: requiredString(input.operationId, 'operationId') }),
+      ...viewScopeWrite(input),
+    };
+  }),
   'units.updateText': spec<
     'replace-on-success',
     {
@@ -2256,14 +2449,15 @@ export const desktopOperations = {
   }),
   'manuscripts.retime': spec<
     'clear',
-    { manuscriptId: string; offsetMs: number; scale: number },
+    { manuscriptId: string; offsetMs: number; scale: number } & ViewScopeWrite,
     { count: number }
   >('clear', (input) => {
-    knownKeys(input, ['manuscriptId', 'offsetMs', 'scale']);
+    knownKeys(input, ['manuscriptId', 'offsetMs', 'scale', ...VIEW_SCOPE_KEYS]);
     return {
       manuscriptId: requiredString(input.manuscriptId, 'manuscriptId'),
       offsetMs: requiredNumber(input.offsetMs, 'offsetMs'),
       scale: requiredNumber(input.scale, 'scale'),
+      ...viewScopeWrite(input),
     };
   }),
   'manuscripts.purge': spec<'clear', { id: string }, { id: string }>('clear', (input) => {
@@ -2393,29 +2587,170 @@ export const desktopOperations = {
       translation: requiredString(input.translation, 'translation'),
     };
   }),
-  'notes.create': spec<'clear', ContentNoteWrite, ContentNote>('clear', noteCreate),
-  'notes.update': spec<'clear', ContentNoteRevision, ContentNote>('clear', noteRevise),
-  'notes.delete': spec<'clear', { id: string }, { id: string }>('clear', (input) => {
-    knownKeys(input, ['id']);
-    return { id: requiredString(input.id, 'id') };
-  }),
-  'notes.list': spec<'keep', ContentNoteQuery, ContentNote[]>('keep', noteList),
-  'points.create': spec<'keep', PointCreate & { operationId?: string }, Point>('keep', pointCreate),
-  'points.updateLabel': spec<'keep', PointLabelUpdate & { operationId?: string }, Point>(
+  'notes.create': spec<'keep', ContentNoteWrite & { operationId?: string }, ContentNote>(
     'keep',
-    pointLabel,
+    (input) => ({
+      ...noteCreate(input),
+      ...(input.operationId === undefined
+        ? {}
+        : { operationId: requiredString(input.operationId, 'operationId') }),
+    }),
   ),
-  'points.move': spec<'keep', PointMove & { operationId?: string }, Point>('keep', pointMove),
-  'points.delete': spec<'keep', { id: string; operationId?: string }, { id: string }>(
+  'notes.createForUnitText': spec<
+    'keep',
+    {
+      unitId: string;
+      textLayerId: string;
+      value: Record<string, string>;
+      category?: ContentNoteCategory | null;
+      provenance?: unknown | null;
+      operationId?: string;
+    } & ViewScopeWrite,
+    ContentNote
+  >('keep', (input) => {
+    knownKeys(input, [
+      'unitId',
+      'textLayerId',
+      'value',
+      'category',
+      'provenance',
+      'operationId',
+      ...VIEW_SCOPE_KEYS,
+    ]);
+    return {
+      unitId: requiredString(input.unitId, 'unitId'),
+      textLayerId: requiredString(input.textLayerId, 'textLayerId'),
+      value: stringMap(input.value, 'notes.value'),
+      ...(input.category === undefined ? {} : { category: noteCategory(input.category) }),
+      ...(input.provenance === undefined ? {} : { provenance: input.provenance }),
+      ...(input.operationId === undefined
+        ? {}
+        : { operationId: requiredString(input.operationId, 'operationId') }),
+      ...viewScopeWrite(input),
+    };
+  }),
+  'notes.createManyForUnitText': spec<
+    'keep',
+    {
+      unitIds: string[];
+      textLayerId: string;
+      value: Record<string, string>;
+      category?: ContentNoteCategory | null;
+      provenance?: unknown | null;
+      operationId?: string;
+    } & ViewScopeWrite,
+    ContentNote[]
+  >('keep', (input) => {
+    knownKeys(input, [
+      'unitIds',
+      'textLayerId',
+      'value',
+      'category',
+      'provenance',
+      'operationId',
+      ...VIEW_SCOPE_KEYS,
+    ]);
+    if (!Array.isArray(input.unitIds) || input.unitIds.length === 0) {
+      throw new Error('desktop call unitIds is invalid');
+    }
+    return {
+      unitIds: input.unitIds.map((id, index) => requiredString(id, `unitIds[${index}]`)),
+      textLayerId: requiredString(input.textLayerId, 'textLayerId'),
+      value: stringMap(input.value, 'notes.value'),
+      ...(input.category === undefined ? {} : { category: noteCategory(input.category) }),
+      ...(input.provenance === undefined ? {} : { provenance: input.provenance }),
+      ...(input.operationId === undefined
+        ? {}
+        : { operationId: requiredString(input.operationId, 'operationId') }),
+      ...viewScopeWrite(input),
+    };
+  }),
+  'notes.createMany': spec<
+    'keep',
+    {
+      unitIds: string[];
+      value: Record<string, string>;
+      category?: ContentNoteCategory | null;
+      provenance?: unknown | null;
+      view?: 'timeline' | 'waveform';
+      operationId?: string;
+    } & ViewScopeWrite,
+    ContentNote[]
+  >('keep', (input) => {
+    knownKeys(input, [
+      'unitIds',
+      'value',
+      'category',
+      'provenance',
+      'view',
+      'operationId',
+      ...VIEW_SCOPE_KEYS,
+    ]);
+    if (!Array.isArray(input.unitIds) || input.unitIds.length === 0) {
+      throw new Error('desktop call unitIds is invalid');
+    }
+    if (input.view !== undefined && input.view !== 'timeline' && input.view !== 'waveform') {
+      throw new Error('desktop call view is invalid');
+    }
+    return {
+      unitIds: input.unitIds.map((id, index) => requiredString(id, `unitIds[${index}]`)),
+      value: stringMap(input.value, 'notes.value'),
+      ...(input.category === undefined ? {} : { category: noteCategory(input.category) }),
+      ...(input.provenance === undefined ? {} : { provenance: input.provenance }),
+      ...(input.view === undefined ? {} : { view: input.view }),
+      ...(input.operationId === undefined
+        ? {}
+        : { operationId: requiredString(input.operationId, 'operationId') }),
+      ...viewScopeWrite(input),
+    };
+  }),
+  'notes.update': spec<'keep', ContentNoteRevision & { operationId?: string }, ContentNote>(
+    'keep',
+    (input) => ({
+      ...noteRevise(input),
+      ...(input.operationId === undefined
+        ? {}
+        : { operationId: requiredString(input.operationId, 'operationId') }),
+    }),
+  ),
+  'notes.delete': spec<'keep', { id: string; operationId?: string }, { id: string }>(
     'keep',
     (input) => {
       knownKeys(input, ['id', 'operationId']);
       return {
         id: requiredString(input.id, 'id'),
-        ...editOperationId(input),
+        ...(input.operationId === undefined
+          ? {}
+          : { operationId: requiredString(input.operationId, 'operationId') }),
       };
     },
   ),
+  'notes.list': spec<'keep', ContentNoteQuery, ContentNote[]>('keep', noteList),
+  'points.create': spec<'keep', PointCreate & { operationId?: string } & ViewScopeWrite, Point>(
+    'keep',
+    pointCreate,
+  ),
+  'points.updateLabel': spec<
+    'keep',
+    PointLabelUpdate & { operationId?: string } & ViewScopeWrite,
+    Point
+  >('keep', pointLabel),
+  'points.move': spec<'keep', PointMove & { operationId?: string } & ViewScopeWrite, Point>(
+    'keep',
+    pointMove,
+  ),
+  'points.delete': spec<
+    'keep',
+    { id: string; operationId?: string } & ViewScopeWrite,
+    { id: string }
+  >('keep', (input) => {
+    knownKeys(input, ['id', 'operationId', ...VIEW_SCOPE_KEYS]);
+    return {
+      id: requiredString(input.id, 'id'),
+      ...editOperationId(input),
+      ...viewScopeWrite(input),
+    };
+  }),
   'points.get': spec<'keep', { id: string }, Point | null>('keep', (input) => {
     knownKeys(input, ['id']);
     return { id: requiredString(input.id, 'id') };
@@ -2493,7 +2828,10 @@ export const desktopOperations = {
     },
   ),
   'corpus.query': spec<'keep', CorpusQuery, CorpusQueryPage>('keep', corpusQuery),
-  'units.create': spec<'keep', UnitCreate & { operationId?: string }, Unit>('keep', unitCreate),
+  'units.create': spec<'keep', UnitCreate & { operationId?: string } & ViewScopeWrite, Unit>(
+    'keep',
+    unitCreate,
+  ),
   'units.get': spec<'keep', { id: string }, Unit | null>('keep', (input) => ({
     id: requiredString(input.id, 'id'),
   })),
@@ -2542,13 +2880,14 @@ export const desktopOperations = {
       textLayerId?: string;
       cutIndex?: number;
       rawInput?: string;
-    },
+    } & ViewScopeWrite,
     { left: Unit; right: Unit; recordingCount: number }
   >('keep', unitSplit),
   'units.merge': spec<
     'keep',
     {
       textOverrides?: { layerId: string; text: string }[];
+      unitIds?: string[];
       keepId: string;
       removeId: string;
       operationId?: string;
@@ -2558,47 +2897,42 @@ export const desktopOperations = {
       textLayerId?: string;
       keepText?: string;
       removeText?: string;
-    },
+    } & ViewScopeWrite,
     Unit
   >('keep', unitMerge),
   'units.mergePreview': spec<
     'keep',
-    { keepId: string; removeId: string; discardAudioIds?: string[] },
-    {
-      keepId: string;
-      removeId: string;
-      gapMs: number;
-      noteCount: number;
-      separator: string;
-      baseline: string;
-      earlier: { id: string; unitId: string; layerId: string; fileId: string }[];
-      later: { id: string; unitId: string; layerId: string; fileId: string }[];
-    }
+    { unitIds?: string[]; keepId: string; removeId: string; discardAudioIds?: string[] },
+    MergePreview
   >('keep', unitMergePreview),
   'units.updateBoundary': spec<
     'keep',
-    { leftId: string; rightId: string; time: number },
+    { leftId: string; rightId: string; time: number } & ViewScopeWrite,
     { left: Unit; right: Unit }
-  >('keep', unitBoundary),
+  >('keep', (input) => {
+    knownKeys(input, ['leftId', 'rightId', 'time', ...VIEW_SCOPE_KEYS]);
+    return { ...unitBoundary(input), ...viewScopeWrite(input) };
+  }),
   'units.moveEdge': spec<
     'keep',
-    { unitId: string; edge: 'start' | 'end'; time: number; operationId?: string },
+    { unitId: string; edge: 'start' | 'end'; time: number; operationId?: string } & ViewScopeWrite,
     Unit
   >('keep', unitEdge),
   'units.moveSharedBoundary': spec<
     'keep',
-    { leftId: string; rightId: string; time: number; operationId?: string },
+    { leftId: string; rightId: string; time: number; operationId?: string } & ViewScopeWrite,
     { left: Unit; right: Unit }
   >('keep', unitSharedBoundary),
-  'units.moveUnit': spec<'keep', { unitId: string; delta: number; operationId?: string }, Unit>(
+  'units.moveUnit': spec<
     'keep',
-    unitMove,
-  ),
+    { unitId: string; delta: number; operationId?: string } & ViewScopeWrite,
+    Unit
+  >('keep', unitMove),
   'units.deletePreview': spec<'keep', { unitId: string; textLayerId?: string }, UnitDeletePreview>(
     'keep',
     (input) => {
       knownKeys(input, ['unitId', 'textLayerId']);
-      return { unitId: requiredString(input.unitId, 'unitId'), ...clearTextInput(input) };
+      return { unitId: requiredString(input.unitId, 'unitId'), ...deleteUnitOpts(input) };
     },
   ),
   'units.deleteManyPreview': spec<
@@ -2607,30 +2941,42 @@ export const desktopOperations = {
     UnitDeletePreview
   >('keep', (input) => {
     knownKeys(input, ['unitIds', 'textLayerId']);
-    return { unitIds: stringIds(input.unitIds, 'unitIds'), ...clearTextInput(input) };
+    return { unitIds: stringIds(input.unitIds, 'unitIds'), ...deleteUnitOpts(input) };
   }),
   'units.delete': spec<
     'keep',
-    { unitId: string; textLayerId?: string; fingerprint?: string; operationId?: string },
+    {
+      unitId: string;
+      textLayerId?: string;
+      fingerprint?: string;
+      operationId?: string;
+    } & ViewScopeWrite,
     { id: string }
   >('keep', (input) => {
-    knownKeys(input, ['unitId', 'textLayerId', 'fingerprint', 'operationId']);
+    knownKeys(input, ['unitId', 'textLayerId', 'fingerprint', 'operationId', ...VIEW_SCOPE_KEYS]);
     return {
       unitId: requiredString(input.unitId, 'unitId'),
       ...editOperationId(input),
-      ...clearTextInput(input, true),
+      ...deleteUnitOpts(input, true),
+      ...viewScopeWrite(input),
     };
   }),
   'units.deleteMany': spec<
     'keep',
-    { unitIds: string[]; textLayerId?: string; fingerprint?: string; operationId?: string },
+    {
+      unitIds: string[];
+      textLayerId?: string;
+      fingerprint?: string;
+      operationId?: string;
+    } & ViewScopeWrite,
     { ids: string[] }
   >('keep', (input) => {
-    knownKeys(input, ['unitIds', 'textLayerId', 'fingerprint', 'operationId']);
+    knownKeys(input, ['unitIds', 'textLayerId', 'fingerprint', 'operationId', ...VIEW_SCOPE_KEYS]);
     return {
       unitIds: stringIds(input.unitIds, 'unitIds'),
       ...editOperationId(input),
-      ...clearTextInput(input, true),
+      ...deleteUnitOpts(input, true),
+      ...viewScopeWrite(input),
     };
   }),
   'units.readTimeDraft': spec<
@@ -2812,12 +3158,12 @@ export const desktopOperations = {
     knownKeys(input, ['operationId']);
     return { operationId: requiredString(input.operationId, 'operationId') };
   }),
-  'speakers.patch': spec<'clear', SpeakerPatch, SpeakerReading>('clear', speakerPatch),
-  'speakers.redeliver': spec<'clear', { operationId: string }, SpeakerReading>('clear', (input) => {
+  'speakers.patch': spec<'keep', SpeakerPatch, SpeakerReading>('keep', speakerPatch),
+  'speakers.redeliver': spec<'keep', { operationId: string }, SpeakerReading>('keep', (input) => {
     knownKeys(input, ['operationId']);
     return { operationId: requiredString(input.operationId, 'operationId') };
   }),
-  'speakers.create': spec<'clear', { name: string }, Speaker>('clear', (input) => {
+  'speakers.create': spec<'keep', { name: string }, Speaker>('keep', (input) => {
     knownKeys(input, ['name']);
     return { name: requiredString(input.name, 'name') };
   }),
@@ -2825,11 +3171,21 @@ export const desktopOperations = {
     knownKeys(input, []);
     return {} as Record<string, never>;
   }),
-  'speakers.assign': spec<'keep', { speakerId: string; unitIds: string[] }, Unit[]>(
+  'speakers.assign': spec<
     'keep',
-    speakerAssign,
-  ),
-  'speakers.clear': spec<'keep', { unitIds: string[] }, Unit[]>('keep', speakerClear),
+    { speakerId: string; unitIds: string[]; operationId?: string } & ViewScopeWrite,
+    Unit[]
+  >('keep', speakerAssign),
+  'speakers.clear': spec<
+    'keep',
+    { unitIds: string[]; operationId?: string } & ViewScopeWrite,
+    Unit[]
+  >('keep', speakerClear),
+  'speakers.createAndAssign': spec<
+    'keep',
+    { name: string; unitIds: string[]; operationId?: string } & ViewScopeWrite,
+    { speaker: Speaker; units: Unit[] }
+  >('keep', speakerCreateAndAssign),
   'layers.listLaneLocks': spec<
     'keep',
     { manuscriptId: string },

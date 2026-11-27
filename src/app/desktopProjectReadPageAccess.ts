@@ -21,3 +21,4 @@ export {
 } from '../db/desktop/projectRead';
 
 export type { SplitTextPreview, FormalCut } from '../db/desktop/unitSplitTextPlan';
+export type { ViewScope, ViewScopeWrite } from '../db/desktop/viewScope';

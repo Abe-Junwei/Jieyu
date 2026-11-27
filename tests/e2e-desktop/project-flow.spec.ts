@@ -7,7 +7,8 @@ import {
   expect,
   test,
   type ElectronApplication,
-  type Page, type Locator,
+  type Page,
+  type Locator,
 } from '@playwright/test';
 import {
   chmodSync,
@@ -116,6 +117,382 @@ test('transcription workspace seeks a segment and space starts playback', async 
       .toBe(false);
   } finally {
     await app.close();
+  }
+});
+
+test('transcription batch editing filters speakers and create-and-assign persists', async () => {
+  test.skip(
+    process.env.VITE_DESKTOP_TRANSCRIPTION_BATCH_EDITING_ENABLED !== 'true',
+    'test:e2e:desktop-project enables the default-off batch-editing flag',
+  );
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-batch-edit-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  let app: ElectronApplication | undefined = await launch('batch-editing');
+  let again: ElectronApplication | undefined;
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const { layerId } = await clipLayer(page, sessionId);
+    const units = await desktopCall<(ListedUnit & { speakerId: string | null })[]>(
+      page,
+      sessionId,
+      'units.list',
+      { layerId },
+    );
+    const adaUnit = units.find((unit) => unit.text === 'two') ?? units[0];
+    if (adaUnit?.startMs == null || adaUnit.endMs == null) throw new Error('clip unit missing');
+    let baiUnit = units.find((unit) => unit.id !== adaUnit.id);
+    if (baiUnit === undefined) {
+      baiUnit = await desktopCall<ListedUnit & { speakerId: string | null }>(
+        page,
+        sessionId,
+        'units.create',
+        {
+          layerId,
+          startMs: adaUnit.endMs,
+          endMs: adaUnit.endMs + 200,
+          text: 'other',
+        },
+      );
+    }
+    const ada = await desktopCall<{ id: string }>(page, sessionId, 'speakers.create', {
+      name: 'Ada',
+    });
+    const bai = await desktopCall<{ id: string }>(page, sessionId, 'speakers.create', {
+      name: 'Bai',
+    });
+    await desktopCall(page, sessionId, 'speakers.assign', {
+      speakerId: ada.id,
+      unitIds: [adaUnit.id],
+    });
+    await desktopCall(page, sessionId, 'speakers.assign', {
+      speakerId: bai.id,
+      unitIds: [baiUnit.id],
+    });
+    const clip = (
+      await desktopCall<{ id: string; title: Record<string, string> }[]>(
+        page,
+        sessionId,
+        'manuscripts.list',
+        {},
+      )
+    ).find((m) => m.title.und === 'Clip')!;
+    const tr = await desktopCall<{ id: string }>(page, sessionId, 'layers.create', {
+      manuscriptId: clip.id,
+      key: 'filter-tr',
+      name: { und: 'Filter translation' },
+      tierType: 'symbolic-association',
+      contentType: 'translation',
+      hosts: [{ hostLayerId: layerId }],
+    });
+    await desktopCall(page, sessionId, 'units.updateText', {
+      unitId: baiUnit.id,
+      textLayerId: tr.id,
+      text: 'filtered translation',
+    });
+    const pt = await desktopCall<{ id: string }>(page, sessionId, 'layers.create', {
+      manuscriptId: clip.id,
+      key: 'filter-point',
+      name: { und: 'Filter point' },
+      tierType: 'time-aligned',
+      contentType: 'point',
+    });
+    await desktopCall(page, sessionId, 'points.create', {
+      layerId: pt.id,
+      timeMs: 100,
+      label: 'filtered point',
+    });
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    await page
+      .locator(
+        `.desktop-tx-lane[data-layer-id="${layerId}"] .timeline-annotation[data-unit-id="${adaUnit.id}"]`,
+      )
+      .click();
+    await openSpeakers(page);
+    const filter = page.getByTestId('desktop-tx-speaker-filter');
+    await expect(filter).toBeVisible();
+    await filter.locator('label', { hasText: 'Ada' }).click();
+    await expect(
+      page.locator(
+        `.desktop-tx-lane[data-layer-id="${layerId}"] .timeline-annotation[data-unit-id="${adaUnit.id}"]`,
+      ),
+    ).toBeVisible();
+    await expect(page.locator(`.timeline-annotation[data-unit-id="${baiUnit.id}"]`)).toHaveCount(0);
+    await expect(page.getByText('filtered translation', { exact: true })).toHaveCount(0);
+    await expect(page.locator('.desktop-tx-pin__label', { hasText: 'filtered point' })).toHaveCount(
+      0,
+    );
+    await expect(
+      page.locator(
+        `.desktop-tx-lane[data-layer-id="${layerId}"] .timeline-annotation[data-unit-id="${adaUnit.id}"]`,
+      ),
+    ).toHaveClass(/timeline-annotation-selected/);
+    await page.getByTestId('desktop-tx-speaker-filter-create').click();
+    const dialog = page.locator('.desktop-tx-create-assign');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('input').fill('Chen');
+    await dialog.locator('button.primary').click();
+    await expect(dialog).toHaveCount(0);
+    await expect
+      .poll(async () => {
+        const listed = await desktopCall<(ListedUnit & { speakerId: string | null })[]>(
+          page,
+          sessionId,
+          'units.list',
+          { layerId },
+        );
+        return listed.find((unit) => unit.id === adaUnit.id)?.speakerId ?? null;
+      })
+      .not.toBe(ada.id);
+    const afterAssign = await desktopCall<(ListedUnit & { speakerId: string | null })[]>(
+      page,
+      sessionId,
+      'units.list',
+      { layerId },
+    );
+    const chenId = afterAssign.find((unit) => unit.id === adaUnit.id)?.speakerId;
+    if (chenId === null || chenId === undefined) throw new Error('create-and-assign missing');
+    await page.getByTestId('desktop-tx-speaker-filter-clear').click();
+    await expect(
+      page.locator(
+        `.desktop-tx-lane[data-layer-id="${layerId}"] .timeline-annotation[data-unit-id="${baiUnit.id}"]`,
+      ),
+    ).toBeVisible();
+    const mainCard = (id: string) =>
+      page.locator(
+        `.desktop-tx-lane[data-layer-id="${layerId}"] .timeline-annotation[data-unit-id="${id}"]`,
+      );
+    await mainCard(adaUnit.id).click();
+    await mainCard(baiUnit.id).click({ modifiers: ['Meta'] });
+    await mainCard(adaUnit.id).click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Bai', exact: true }).click();
+    await expect
+      .poll(async () =>
+        (
+          await desktopCall<(ListedUnit & { speakerId: string | null })[]>(
+            page,
+            sessionId,
+            'units.list',
+            { layerId },
+          )
+        )
+          .filter((row) => [adaUnit.id, baiUnit.id].includes(row.id))
+          .every((row) => row.speakerId === bai.id),
+      )
+      .toBe(true);
+    await page.keyboard.press('Meta+z');
+    await expect
+      .poll(
+        async () =>
+          (
+            await desktopCall<(ListedUnit & { speakerId: string | null })[]>(
+              page,
+              sessionId,
+              'units.list',
+              { layerId },
+            )
+          ).find((row) => row.id === adaUnit.id)?.speakerId,
+      )
+      .toBe(chenId);
+    await app.close();
+    app = undefined;
+    again = await launch('batch-editing-again');
+    await stubFolderDialog(again, copy);
+    const reopened = await again.firstWindow();
+    await rememberChosenSession(again);
+    await reopened.getByRole('button', { name: openFolder }).click();
+    await expect(reopened.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const nextSession = await chosenSessionId(again);
+    const kept = await desktopCall<(ListedUnit & { speakerId: string | null })[]>(
+      reopened,
+      nextSession,
+      'units.list',
+      { layerId },
+    );
+    expect(kept.find((unit) => unit.id === adaUnit.id)?.speakerId).toBe(chenId);
+    expect(kept.find((unit) => unit.id === baiUnit.id)?.speakerId).toBe(bai.id);
+  } finally {
+    await app?.close();
+    await again?.close();
+  }
+});
+
+for (const metadataLocale of ['en-US','zh-CN'] as const) test(`transcription metadata certainty and notes persist after reopen (${metadataLocale})`, async () => {
+  test.skip(
+    process.env.VITE_DESKTOP_TRANSCRIPTION_BATCH_EDITING_ENABLED !== 'true',
+    'test:e2e:desktop-project enables the default-off batch-editing flag',
+  );
+  if (!flowReady(folder)) throw new Error('desktop flow folder and app are missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-tx-metadata-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  let app: ElectronApplication | undefined = await launch('tx-metadata',undefined,undefined,undefined,metadataLocale);
+  let again: ElectronApplication | undefined;
+  try {
+    await stubFolderDialog(app, copy);
+    const page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    await expect(page.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const sessionId = await chosenSessionId(app);
+    const manuscripts = await desktopCall<{ id: string; title: Record<string, string> }[]>(
+      page,
+      sessionId,
+      'manuscripts.list',
+      {},
+    );
+    const clip = manuscripts.find((item) => item.title.und === 'Clip');
+    if (clip === undefined) throw new Error('clip manuscript missing');
+    const { layerId } = await clipLayer(page, sessionId);
+    const units = await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId });
+    const unit = units.find((row) => row.text === 'two') ?? units[0];
+    if (unit === undefined) throw new Error('clip unit missing');
+    await desktopCall(page, sessionId, 'units.setSelfCertainty', {
+      unitId: unit.id,
+      textLayerId: layerId,
+      selfCertainty: 'uncertain',
+    });
+    await desktopCall(page, sessionId, 'notes.createForUnitText', {
+      unitId: unit.id,
+      textLayerId: layerId,
+      value: { default: 'meta note' },
+      category: 'comment',
+    });
+    const tr = await desktopCall<{ id: string }>(page, sessionId, 'layers.create', {
+      manuscriptId: clip.id,
+      key: 'metadata-tr',
+      name: { und: 'Metadata translation' },
+      tierType: 'symbolic-association',
+      contentType: 'translation',
+      hosts: [{ hostLayerId: layerId }],
+    });
+    await desktopCall(page, sessionId, 'units.updateText', {
+      unitId: unit.id,
+      textLayerId: tr.id,
+      text: 'translation without transcription',
+    });
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    await expect(page.getByTestId('desktop-transcription-workspace')).toBeVisible();
+    const card = page.locator(
+      `.desktop-tx-lane[data-layer-id="${layerId}"] .timeline-annotation[data-unit-id="${unit.id}"]`,
+    );
+    await card.click();
+    await card.click({ button: 'right' });
+    const menu = page
+      .locator('.desktop-tx-menu')
+      .filter({ has: page.getByRole('menuitem') })
+      .first();
+    await expect(menu.getByRole('menuitem', { name: /^(Notes|备注)$/ })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: /^(Self-certainty|确信程度)$/ })).toBeVisible();
+    await menu.getByRole('menuitem', { name: /^(Notes|备注)$/ }).click();
+    const notesDialog = page.locator('.desktop-tx-notes');
+    await expect(notesDialog.locator('.desktop-tx-notes__text')).toHaveText('meta note');
+    await notesDialog.getByRole('button', { name: /^(Close|关闭)$/ }).click();
+    await page.keyboard.press('Escape');
+    const translationCard = page.locator(
+      `.desktop-tx-lane[data-layer-id="${tr.id}"] .timeline-annotation[data-unit-id="${unit.id}"]`,
+    );
+    await translationCard.click({ button: 'right' });
+    await page.getByRole('menuitem', { name: /^(Self-certainty|确信程度)$/ }).click();
+    await page.getByRole('menuitem', { name: /^(Certain|确定)$/ }).click();
+    await expect
+      .poll(
+        async () =>
+          (
+            await desktopCall<{ selfCertainty: string | null }[]>(page, sessionId, 'units.list', {
+              layerId: tr.id,
+            })
+          ).find((_, index) => index === units.findIndex((row) => row.id === unit.id))
+            ?.selfCertainty,
+      )
+      .toBe('certain');
+    expect(
+      (
+        await desktopCall<(ListedUnit & { selfCertainty: string | null })[]>(
+          page,
+          sessionId,
+          'units.list',
+          { layerId },
+        )
+      ).find((row) => row.id === unit.id)?.selfCertainty,
+    ).toBe('uncertain');
+    await page.keyboard.press('Escape');
+    await translationCard.click({ button: 'right' });
+    await page.getByRole('menuitem', { name: /^(Notes|备注)$/ }).click();
+    await expect(notesDialog.locator('.desktop-tx-notes__text')).toHaveCount(0);
+    await notesDialog.getByRole('button', { name: /^(Add note|添加备注)$/ }).click();
+    await notesDialog.locator('textarea').fill('translation memo');
+    await notesDialog.getByRole('button', { name: /^(Save|保存)$/ }).click();
+    await expect(notesDialog.locator('.desktop-tx-notes__text')).toHaveText('translation memo');
+    await notesDialog.getByRole('button', { name: /^(Edit|编辑)$/ }).click();
+    await notesDialog.locator('textarea').fill('translation memo edited');
+    await notesDialog.getByRole('button', { name: /^(Save|保存)$/ }).click();
+    await expect(notesDialog.locator('.desktop-tx-notes__text')).toHaveText(
+      'translation memo edited',
+    );
+    await notesDialog.getByRole('button', { name: /^(Delete|删除)$/ }).click();
+    await expect(notesDialog.locator('.desktop-tx-notes__text')).toHaveCount(0);
+    await notesDialog.getByRole('button', { name: /^(Close|关闭)$/ }).click();
+    await page.keyboard.press('Escape');
+    const wave = page.locator(`[data-wave-unit="${unit.id}"]`).first();
+    const waveBox = await wave.boundingBox();
+    if (!waveBox) throw new Error('wave region missing');
+    await page.mouse.click(waveBox.x + waveBox.width / 2, waveBox.y + waveBox.height / 2, {
+      button: 'right',
+    });
+    await page.getByRole('menuitem', { name: /^(Notes|备注)$/ }).click();
+    await notesDialog.getByRole('button', { name: /^(Add note|添加备注)$/ }).click();
+    await notesDialog.locator('textarea').fill('wave memo');
+    await notesDialog.getByRole('button', { name: /^(Save|保存)$/ }).click();
+    await expect(notesDialog.locator('.desktop-tx-notes__text')).toHaveText('wave memo');
+    await notesDialog.getByRole('button', { name: /^(Close|关闭)$/ }).click();
+
+    await page.keyboard.press('Escape');
+    await card.click();
+    const bodyInput=card.locator('input');
+    await expect(bodyInput).toBeVisible();
+    await bodyInput.fill('');
+    await bodyInput.press('Tab');
+    await expect.poll(async()=> (await desktopCall<ListedUnit[]>(page,sessionId,'units.list',{layerId})).find(row=>row.id===unit.id)?.text).toBe('');
+    const start=page.getByRole('textbox',{name:/^(Start|起点)$/});
+    await start.fill('00:00:00.450');
+    await start.press('Tab');
+    await expect.poll(async()=> (await desktopCall<ListedUnit[]>(page,sessionId,'units.list',{layerId})).find(row=>row.id===unit.id)?.startMs).toBe(450);
+    await app.close();
+    app = undefined;
+    again = await launch('tx-metadata-again',undefined,undefined,undefined,metadataLocale);
+    await stubFolderDialog(again, copy);
+    const reopened = await again.firstWindow();
+    await rememberChosenSession(again);
+    await reopened.getByRole('button', { name: openFolder }).click();
+    await expect(reopened.getByRole('button', { name: 'Clip', exact: true })).toBeVisible();
+    const nextSession = await chosenSessionId(again);
+    const kept = await desktopCall<(ListedUnit & { selfCertainty: string | null })[]>(
+      reopened,
+      nextSession,
+      'units.list',
+      { layerId },
+    );
+    expect(kept.find((row) => row.id === unit.id)?.selfCertainty).toBe(null);
+    const notes = await desktopCall<{ content: Record<string, string> }[]>(
+      reopened,
+      nextSession,
+      'notes.list',
+      { manuscriptId: clip.id, attachment: 'active' },
+    );
+    expect(notes.some((note) => note.content.default === 'meta note')).toBe(true);
+    expect(kept.find(row=>row.id===unit.id)).toMatchObject({text:'',startMs:450});
+    expect(await desktopCall(reopened,nextSession,'units.list',{layerId:tr.id})).toMatchObject(expect.arrayContaining([expect.objectContaining({id:unit.id,text:'translation without transcription',selfCertainty:'certain'})]));
+  } finally {
+    await app?.close();
+    await again?.close();
   }
 });
 
@@ -1848,6 +2225,17 @@ async function openLayers(page: Page): Promise<void> {
   await layers.click();
 }
 
+async function openSpeakers(page: Page): Promise<void> {
+  const speakers = page.getByRole('button', { name: /^(Speakers|说话人)\s*\d*$/ });
+  const expand = page.getByRole('button', { name: /^(展开功能面板|Expand feature panel)$/ });
+  await expect(async () => {
+    if (await speakers.isVisible()) return;
+    await expand.first().click();
+    await expect(speakers).toBeVisible();
+  }).toPass();
+  await speakers.click();
+}
+
 async function dragLayer(
   page: Page,
   fromId: string,
@@ -3563,4 +3951,125 @@ test('point layer create edit move delete undo redo and reopen', async () => {
     await again?.close();
     rmSync(copy, { recursive: true, force: true });
   }
+});
+
+test('transcription batch merge three segments preserves drafts, undo redo and reopen', async () => {
+  test.skip(process.env.VITE_DESKTOP_TRANSCRIPTION_BATCH_EDITING_ENABLED !== 'true', 'batch flag');
+  if (!flowReady(folder)) throw new Error('desktop flow fixture missing');
+  const copy = mkdtempSync(join(tmpdir(), 'jieyu-merge-many-'));
+  cpSync(folder, copy, { recursive: true });
+  rmSync(join(copy, '.jieyu.lock'), { recursive: true, force: true });
+  let app: ElectronApplication | undefined = await launch('merge-many');
+  try {
+    await stubFolderDialog(app, copy);
+    let page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    const sessionId = await chosenSessionId(app);
+    const { layerId } = await clipLayer(page, sessionId);
+    const initial = await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId });
+    const third = await desktopCall<ListedUnit>(page, sessionId, 'units.create', {
+      layerId,
+      startMs: 800,
+      endMs: 1200,
+      text: 'third',
+    });
+    const ids = [...initial.map((row) => row.id), third.id];
+    for (const id of ids)
+      await desktopCall(page, sessionId, 'units.setSelfCertainty', {
+        unitId: id,
+        textLayerId: layerId,
+        selfCertainty: id === third.id ? 'uncertain' : 'certain',
+      });
+    await desktopCall(page, sessionId, 'units.putTextDraft', {
+      unitId: ids[1],
+      textLayerId: layerId,
+      rawInput: 'middle draft',
+      baseBody: initial[1]!.text,
+    });
+    await page.getByRole('link', { name: /^(Transcription|转写)$/ }).click();
+    const card = (id: string) => page.locator(`.timeline-annotation[data-unit-id="${id}"]`);
+    await card(ids[0]!).click();
+    for (const id of ids.slice(1)) await card(id).click({ modifiers: ['Meta'] });
+    await page.keyboard.press('Meta+m');
+    const dialog = page.locator('.desktop-tx-merge');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText(/3/);
+    await page.setViewportSize({width:900,height:700});
+    await page.evaluate(()=>document.documentElement.style.setProperty('--ui-font-scale','1.25'));
+    await expect(dialog.locator('button.btn-primary')).toBeInViewport();
+    await expect(dialog.locator('button.btn-secondary')).toBeInViewport();
+    await page.screenshot({path:test.info().outputPath('1b6-merge-many-preview.png')});
+    await dialog.locator('button.btn-secondary').click();
+    expect(
+      await desktopCall(page, sessionId, 'units.readTextDraft', {
+        unitId: ids[1],
+        textLayerId: layerId,
+      }),
+    ).toMatchObject({ rawInput: 'middle draft' });
+    await page.keyboard.press('Meta+m');
+    await expect(dialog).toBeVisible();
+    await app.evaluate(main => {
+      const ipc=(main as unknown as {ipcMain:{_invokeHandlers:Map<string,(...args:unknown[])=>unknown>}}).ipcMain;
+      const original=ipc._invokeHandlers.get('desktop:call');if(!original)throw new Error('handler missing');
+      let lost=false;
+      ipc._invokeHandlers.set('desktop:call',async(...args)=>{
+        const value=await original(...args);
+        if(args[2]==='units.merge'&&!lost){lost=true;throw new Error('injected lost batch merge response');}
+        return value;
+      });
+    });
+    await dialog.locator('button.btn-primary').click();
+    const mergedText = [initial[0]!.text, 'middle draft', 'third'].join(' ');
+    await expect
+      .poll(async () => await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId }))
+      .toMatchObject([{ text: mergedText, startMs: 0, endMs: 1200 }]);
+    const merged = (
+      await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId })
+    )[0]!;
+    await page.keyboard.press('Meta+z');
+    await expect
+      .poll(async () =>
+        (await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId })).map(
+          (row) => row.id,
+        ),
+      )
+      .toEqual(ids);
+    await page.keyboard.press('Meta+Shift+z');
+    await expect
+      .poll(async () => await desktopCall<ListedUnit[]>(page, sessionId, 'units.list', { layerId }))
+      .toMatchObject([{ id: merged.id, text: mergedText }]);
+    await app.close();
+    app = await launch('merge-many-reopen');
+    await stubFolderDialog(app, copy);
+    page = await app.firstWindow();
+    await rememberChosenSession(app);
+    await page.getByRole('button', { name: openFolder }).click();
+    const reopened = await chosenSessionId(app);
+    expect(await desktopCall(page, reopened, 'units.list', { layerId })).toMatchObject([
+      { id: merged.id, text: mergedText, startMs: 0, endMs: 1200 },
+    ]);
+  } finally {
+    await app?.close();
+    rmSync(copy, { recursive: true, force: true });
+  }
+});
+
+
+test('transcription batch flag off keeps single selection and existing editing',async()=>{
+  test.skip(process.env.VITE_DESKTOP_TRANSCRIPTION_BATCH_EDITING_ENABLED !== 'false','explicit flag-off regression');
+  if(!flowReady(folder))throw new Error('desktop flow fixture missing');
+  const copy=mkdtempSync(join(tmpdir(),'jieyu-batch-off-'));cpSync(folder,copy,{recursive:true});rmSync(join(copy,'.jieyu.lock'),{recursive:true,force:true});
+  const app=await launch('batch-flag-off');
+  try {
+    await stubFolderDialog(app,copy);const page=await app.firstWindow();await rememberChosenSession(app);
+    await page.getByRole('button',{name:openFolder}).click();
+    await page.getByRole('link',{name:/^(Transcription|转写)$/}).click();
+    const cards=page.locator('.timeline-annotation');await cards.first().click();await cards.first().click({button:'right'});
+    await expect(page.getByRole('menuitem',{name:/^(Notes|备注)$/})).toHaveCount(0);
+    await expect(page.getByRole('menuitem',{name:/^(Self-certainty|确信程度)$/})).toHaveCount(0);
+    await page.locator('.desktop-tx-menu-backdrop').click({position:{x:2,y:2}});
+    await cards.nth(1).click({modifiers:['Meta']});
+    await expect(page.locator('.timeline-annotation-selected')).toHaveCount(1);
+  } finally {await app.close();rmSync(copy,{recursive:true,force:true});}
 });

@@ -19,7 +19,6 @@ interface UnitRow {
   end_ms: number | null;
   confidence: number | null;
   skip_processing: number;
-  self_certainty: string | null;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -33,6 +32,7 @@ interface TextRow {
   layer_id: string;
   role: string;
   body: string;
+  self_certainty: string | null;
   provenance_json: string | null;
   updated_at: string;
 }
@@ -186,7 +186,7 @@ export function readRemovedUnit(
   const unit = db
     .prepare(
       `SELECT id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, confidence, skip_processing,
-              self_certainty, sort_order, created_at, updated_at, analysis_graph_json,
+              sort_order, created_at, updated_at, analysis_graph_json,
               analysis_generation, graph_fingerprint
        FROM units WHERE id = ?`,
     )
@@ -203,7 +203,7 @@ export function readRemovedUnit(
     unit,
     texts: db
       .prepare(
-        `SELECT id, layer_id, role, body, provenance_json, updated_at
+        `SELECT id, layer_id, role, body, self_certainty, provenance_json, updated_at
          FROM unit_texts WHERE unit_id = ?`,
       )
       .all(unitId) as TextRow[],
@@ -269,9 +269,9 @@ export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): voi
   db.prepare(
     `INSERT INTO units (
       id, layer_id, speaker_id, parent_unit_id, start_ms, end_ms, confidence, skip_processing,
-      self_certainty, sort_order, created_at, updated_at, analysis_graph_json, analysis_generation,
+      sort_order, created_at, updated_at, analysis_graph_json, analysis_generation,
       graph_fingerprint
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     unit.id,
     unit.layer_id,
@@ -281,7 +281,6 @@ export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): voi
     unit.end_ms,
     unit.confidence ?? null,
     unit.skip_processing ?? 0,
-    unit.self_certainty ?? null,
     unit.sort_order,
     unit.created_at,
     unit.updated_at,
@@ -291,8 +290,8 @@ export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): voi
   );
   const insertText = db.prepare(
     `INSERT INTO unit_texts (
-       id, unit_id, layer_id, role, body, provenance_json, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       id, unit_id, layer_id, role, body, self_certainty, provenance_json, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   for (const row of removed.texts) {
     assertUnitTextRoleFree(db, unit.id, row.role, row.layer_id);
@@ -302,6 +301,7 @@ export function insertRemovedUnit(db: SqliteDatabase, removed: RemovedUnit): voi
       row.layer_id,
       row.role,
       row.body,
+      row.self_certainty ?? null,
       row.provenance_json,
       row.updated_at,
     );

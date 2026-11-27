@@ -123,7 +123,7 @@ interface Place {
   view: ContentNoteView | null;
 }
 
-const NOTE_COLUMNS = `id, anchor_kind, project_id, manuscript_id, layer_id, unit_id,
+const NOTE_COLUMNS = `id, anchor_kind, project_id, manuscript_id, COALESCE(layer_id, (SELECT layer_id FROM unit_texts WHERE id = notes.unit_text_id)) AS layer_id, unit_id,
   unit_text_id, token_id, morpheme_id, node_id, view, content_json, category, provenance_json,
   attachment, created_at, updated_at`;
 
@@ -249,7 +249,9 @@ export function listContentNotes(db: SqliteDatabase, query: ContentNoteQuery = {
     params.push(query.nodeId);
   }
   if (query.layerId !== undefined) {
-    clauses.push('layer_id = ?');
+    clauses.push(
+      'COALESCE(layer_id, (SELECT layer_id FROM unit_texts WHERE id = notes.unit_text_id)) = ?',
+    );
     params.push(query.layerId);
   }
   clauses.push(`(${NOTE_VISIBLE})`);
@@ -377,6 +379,23 @@ export function detachProjectionNotes(db: SqliteDatabase, unitId: string, now: s
     `UPDATE notes SET attachment = 'detached', updated_at = ?
      WHERE unit_id = ? AND attachment = 'active' AND anchor_kind IN ('token', 'morpheme')`,
   ).run(now, unitId);
+}
+
+/** Diagnose only: active unit_text notes whose carrier row is gone. */
+export function listOrphanActiveUnitTextNoteIds(db: SqliteDatabase): string[] {
+  return (
+    db
+      .prepare(
+        `SELECT notes.id AS id
+         FROM notes
+         LEFT JOIN unit_texts ON unit_texts.id = notes.unit_text_id
+         WHERE notes.attachment = 'active'
+           AND notes.unit_text_id IS NOT NULL
+           AND unit_texts.id IS NULL
+         ORDER BY notes.id`,
+      )
+      .all() as { id: string }[]
+  ).map((row) => row.id);
 }
 
 export function detachNotesForDeletedTarget(

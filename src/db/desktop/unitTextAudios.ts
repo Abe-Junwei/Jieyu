@@ -38,6 +38,22 @@ export function textAudioCount(db: SqliteDatabase, unitTextId: string): number {
   return row.n;
 }
 
+/** Empty body rows stay when recordings, active notes, or a non-null self_certainty remain. */
+export function keepEmptyUnitText(db: SqliteDatabase, unitTextId: string): boolean {
+  if (textAudioCount(db, unitTextId) > 0) return true;
+  const notes = db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM notes
+       WHERE unit_text_id = ? AND attachment = 'active'`,
+    )
+    .get(unitTextId) as { n: number };
+  if (notes.n > 0) return true;
+  const certainty = db
+    .prepare('SELECT self_certainty FROM unit_texts WHERE id = ?')
+    .get(unitTextId) as { self_certainty: string | null } | undefined;
+  return certainty?.self_certainty != null;
+}
+
 export function insertTextAudio(db: SqliteDatabase, row: StoredTextAudio): void {
   db.prepare(
     `INSERT INTO unit_text_audios (id, unit_text_id, file_id, position)

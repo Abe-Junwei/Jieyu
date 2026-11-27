@@ -8,7 +8,12 @@ import {
 import { createLayer } from './layers';
 import { provenanceSchema } from '../provenanceSchema';
 import { putUnitTextDraft, readUnitTextDraft } from './textSave';
-import { audiosOfText, insertTextAudio, repackTextAudios } from './unitTextAudios';
+import {
+  audiosOfText,
+  insertTextAudio,
+  keepEmptyUnitText,
+  repackTextAudios,
+} from './unitTextAudios';
 import { TEXT_AUDIO_CAP } from '../../utils/textAudioCap';
 import { listTranscriptionTargets } from './recordingTarget';
 
@@ -172,11 +177,12 @@ export function detachRecording(
     const clip =
       input.audioId === undefined ? clips[0] : clips.find((row) => row.id === input.audioId);
     if (clip === undefined) throw new Error('recording is missing');
-    if (existing !== undefined && existing.body === '' && clips.length === 1) {
-      db.prepare('DELETE FROM unit_texts WHERE id = ?').run(existing.id);
-    } else if (existing !== undefined) {
+    if (existing !== undefined) {
       db.prepare('DELETE FROM unit_text_audios WHERE id = ?').run(clip.id);
       repackTextAudios(db, existing.id);
+      if (existing.body === '' && clips.length === 1 && !keepEmptyUnitText(db, existing.id)) {
+        db.prepare('DELETE FROM unit_texts WHERE id = ?').run(existing.id);
+      }
     }
     queueUnreferencedAttachment(db, clip.file_id);
     return { fileId: clip.file_id };

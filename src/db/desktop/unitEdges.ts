@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import { secToMs } from './timeMs';
 import {
@@ -10,6 +11,37 @@ import {
 import { readStoredUnit, updateBoundary, type Unit } from './units';
 
 type SqliteDatabase = InstanceType<typeof Database>;
+
+/** Baseline for structure delete: identity, span, speaker, text, and subdivision presence. */
+function structureDeleteDigest(db: SqliteDatabase, unitIds: readonly string[]): string {
+  const rows = [...unitIds].sort().map((id) => {
+    const unit = readStoredUnit(db, id);
+    if (!unit) throw new Error('unit is missing');
+    const child = db.prepare('SELECT 1 FROM units WHERE parent_unit_id = ? LIMIT 1').get(id);
+    return {
+      id,
+      startMs: unit.startMs,
+      endMs: unit.endMs,
+      speakerId: unit.speakerId,
+      parentUnitId: unit.parentUnitId,
+      text: unit.text,
+      updatedAt: unit.updatedAt,
+      hasChild: child !== undefined,
+    };
+  });
+  return createHash('sha256').update(JSON.stringify(rows)).digest('hex');
+}
+
+function assertStructureDeleteFresh(
+  db: SqliteDatabase,
+  unitIds: readonly string[],
+  expected: string | undefined,
+) {
+  if (expected === undefined) return;
+  if (structureDeleteDigest(db, unitIds) !== expected) {
+    throw new Error('unit delete preview is stale');
+  }
+}
 
 /** ADR-0122: the library allows 1ms. Drag, keyboard, and typed commits use 10ms. */
 const UI_MIN_SPAN_MS = 10;
@@ -265,6 +297,7 @@ export function previewUnitDeletion(db: SqliteDatabase, unitId: string): UnitDel
       { analysis_graph_json: string | null } | undefined;
     const nodeIds = nodeIdsOf(graph?.analysis_graph_json ?? null);
     return {
+      fingerprint: structureDeleteDigest(db, [unitId]),
       linkedTexts: count(
         `SELECT COUNT(*) AS n FROM unit_texts
          WHERE unit_id = ? AND body <> ''
@@ -320,31 +353,33 @@ export function previewUnitsDeletion(
   if (unitIds.length < 2 || new Set(unitIds).size !== unitIds.length) {
     throw new Error('multiple units are required');
   }
-  return db.transaction(() =>
-    unitIds.reduce(
-      (total, id) => {
-        const next = previewUnitDeletion(db, id);
-        for (const key of Object.keys(total) as (keyof UnitDeletePreview)[])
-          if (key !== 'fingerprint') total[key] += next[key];
-        return total;
-      },
-      {
-        linkedTexts: 0,
-        tokens: 0,
-        morphemes: 0,
-        notes: 0,
-        lexemeLinks: 0,
-        analysisCandidates: 0,
-        customFieldValues: 0,
-        drafts: 0,
-        receptionRecords: 0,
-      } satisfies UnitDeletePreview,
-    ),
-  )();
+  return db.transaction(() => {
+    const total: UnitDeletePreview = {
+      fingerprint: structureDeleteDigest(db, unitIds),
+      linkedTexts: 0,
+      tokens: 0,
+      morphemes: 0,
+      notes: 0,
+      lexemeLinks: 0,
+      analysisCandidates: 0,
+      customFieldValues: 0,
+      drafts: 0,
+      receptionRecords: 0,
+    };
+    for (const id of unitIds) {
+      const next = previewUnitDeletion(db, id);
+      for (const key of Object.keys(total) as (keyof UnitDeletePreview)[]) {
+        if (key === 'fingerprint') continue;
+        total[key] = (total[key] as number) + (next[key] as number);
+      }
+    }
+    return total;
+  })();
 }
 
-export function removeUnit(db: SqliteDatabase, unitId: string): RemovedUnit {
+export function removeUnit(db: SqliteDatabase, unitId: string, expected?: string): RemovedUnit {
   const write = db.transaction(() => {
+    assertStructureDeleteFresh(db, [unitId], expected);
     const tree = readRemovedUnit(db, unitId);
     const child = db.prepare('SELECT 1 FROM units WHERE parent_unit_id = ? LIMIT 1').get(unitId);
     if (child !== undefined) throw new Error('unit has time subdivisions');
@@ -355,11 +390,16 @@ export function removeUnit(db: SqliteDatabase, unitId: string): RemovedUnit {
   return write();
 }
 
-export function removeUnits(db: SqliteDatabase, unitIds: readonly string[]): RemovedUnit[] {
+export function removeUnits(
+  db: SqliteDatabase,
+  unitIds: readonly string[],
+  expected?: string,
+): RemovedUnit[] {
   if (unitIds.length < 2 || new Set(unitIds).size !== unitIds.length) {
     throw new Error('multiple units are required');
   }
   return db.transaction(() => {
+    assertStructureDeleteFresh(db, unitIds, expected);
     const trees = unitIds.map((id) => readRemovedUnit(db, id));
     const manuscriptIds = new Set(trees.map((tree) => manuscriptIdOf(db, tree.unit.id)));
     if (manuscriptIds.size !== 1) throw new Error('units are not in the same manuscript');

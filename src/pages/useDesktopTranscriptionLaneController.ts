@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
+import { createDesktopClient } from '../app/desktopProjectReadPageAccess';
+import type { ViewScopeWrite } from '../app/desktopProjectReadPageAccess';
 import { useToast } from '../contexts/ToastContext';
 import { t, tf, useLocale } from '../i18n';
 import {
@@ -40,6 +42,8 @@ export function useDesktopTranscriptionLaneController(input: {
   layers: readonly LaneLayer[] | undefined;
   selectedUnitId: string | null;
   refresh: () => Promise<unknown>;
+  selectedUnitIds?: readonly string[];
+  writeScope?: (affectedUnitIds: readonly string[]) => ViewScopeWrite;
 }) {
   const locale = useLocale();
   const toast = useToast();
@@ -51,6 +55,9 @@ export function useDesktopTranscriptionLaneController(input: {
   latest.current = input;
   const toasted = useRef('');
 
+  const catalogRevision = (input.layers ?? [])
+    .flatMap((layer) => layer.units.map((unit) => unit.speakerId ?? ''))
+    .join(',');
   useEffect(() => {
     const manuscriptId = input.manuscriptId;
     setModes(manuscriptId === null ? {} : readLaneModes(readMode(manuscriptId)));
@@ -83,7 +90,7 @@ export function useDesktopTranscriptionLaneController(input: {
     return () => {
       cancelled = true;
     };
-  }, [input.desktopCall, input.manuscriptId, input.sessionId, locale, toast]);
+  }, [input.desktopCall, input.manuscriptId, input.sessionId, catalogRevision, locale, toast]);
 
   const layouts = useMemo(() => {
     const out = new Map<string, SpeakerLaneLayout>();
@@ -159,7 +166,15 @@ export function useDesktopTranscriptionLaneController(input: {
       ) {
         return;
       }
-      await current.desktopCall(current.sessionId, method, args);
+      const api = createDesktopClient({ desktopCall: current.desktopCall });
+      if (method === 'speakers.assign')
+        await api.assignSpeaker(
+          current.sessionId,
+          args as { speakerId: string; unitIds: string[] } & ViewScopeWrite,
+        );
+      else if (method === 'speakers.clear')
+        await api.clearSpeaker(current.sessionId, args as { unitIds: string[] } & ViewScopeWrite);
+      else await current.desktopCall(current.sessionId, method, args);
       const rows = (await current.desktopCall(current.sessionId, 'layers.listLaneLocks', {
         manuscriptId: current.manuscriptId,
       })) as LaneLockRow[];
@@ -168,8 +183,11 @@ export function useDesktopTranscriptionLaneController(input: {
         next[row.layerId] = { ...next[row.layerId], [row.speakerId]: row.laneIndex };
       setLocks(next);
       await current.refresh();
+      if (method === 'speakers.assign' || method === 'speakers.clear')
+        toast.showToast(t(locale, 'app.desktopTranscription.speakerAssignedUndo'), 'success');
     };
     return {
+      speakers,
       layoutOf: (layerId: string) => layouts.get(layerId),
       modeOf: (layerId: string): SpeakerLaneMode => modes[layerId] ?? 'single',
       nameOf: (speakerId: string | null) =>
@@ -215,10 +233,18 @@ export function useDesktopTranscriptionLaneController(input: {
         void run('layers.clearLaneLocks', { layerId, speakerIds }).catch(fail);
       },
       assign: (unitId: string, speakerId: string) => {
-        void run('speakers.assign', { speakerId, unitIds: [unitId] }).catch(fail);
+        const ids = latest.current.selectedUnitIds?.includes(unitId)
+          ? [...latest.current.selectedUnitIds]
+          : [unitId];
+        const scope = latest.current.writeScope?.(ids) ?? {};
+        void run('speakers.assign', { speakerId, unitIds: ids, ...scope }).catch(fail);
       },
       clear: (unitId: string) => {
-        void run('speakers.clear', { unitIds: [unitId] }).catch(fail);
+        const ids = latest.current.selectedUnitIds?.includes(unitId)
+          ? [...latest.current.selectedUnitIds]
+          : [unitId];
+        const scope = latest.current.writeScope?.(ids) ?? {};
+        void run('speakers.clear', { unitIds: ids, ...scope }).catch(fail);
       },
     };
   }, [input.layers, layouts, locale, locks, modes, speakers, toast]);

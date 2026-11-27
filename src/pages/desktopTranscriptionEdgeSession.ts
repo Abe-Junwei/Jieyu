@@ -1,5 +1,6 @@
 import { createDesktopClient, EDIT_OUTCOME_UNKNOWN } from '../app/desktopProjectReadPageAccess';
 import type { DesktopReadHost } from '../desktop/projectReadHost';
+import type { ViewScopeWrite } from '../app/desktopProjectReadPageAccess';
 import { formatPlaybackTime } from './useDesktopTranscriptionMediaController';
 import {
   edgeRejectKind,
@@ -82,12 +83,23 @@ export function edgeFailureMessage(
   return message(edgeRejectKind(text), formatPlaybackTime(timeMs / 1000));
 }
 
-export async function commitUnitEdge(call: EdgeCall, unitId: string, edge: TimeEdge, time: number) {
-  await call.api.moveUnitEdge(call.sessionId, { unitId, edge, time });
+export async function commitUnitEdge(
+  call: EdgeCall,
+  unitId: string,
+  edge: TimeEdge,
+  time: number,
+  scope: ViewScopeWrite = {},
+) {
+  await call.api.moveUnitEdge(call.sessionId, { unitId, edge, time, ...scope });
 }
 
-export async function commitUnitMove(call: EdgeCall, unitId: string, delta: number) {
-  await call.api.moveUnit(call.sessionId, { unitId, delta });
+export async function commitUnitMove(
+  call: EdgeCall,
+  unitId: string,
+  delta: number,
+  scope: ViewScopeWrite = {},
+) {
+  await call.api.moveUnit(call.sessionId, { unitId, delta, ...scope });
 }
 
 export async function commitSharedEdge(
@@ -95,8 +107,9 @@ export async function commitSharedEdge(
   leftId: string,
   rightId: string,
   time: number,
+  scope: ViewScopeWrite = {},
 ) {
-  await call.api.moveSharedBoundary(call.sessionId, { leftId, rightId, time });
+  await call.api.moveSharedBoundary(call.sessionId, { leftId, rightId, time, ...scope });
 }
 
 export async function nudgeSelection(
@@ -104,6 +117,7 @@ export async function nudgeSelection(
   units: readonly TimedEdgeUnit[],
   selected: EdgeSelection,
   delta: number,
+  scope: ViewScopeWrite = {},
 ): Promise<
   | { kind: 'edge'; unitId: string; edge: TimeEdge; time: number }
   | { kind: 'shared'; leftId: string; rightId: string; time: number }
@@ -115,11 +129,11 @@ export async function nudgeSelection(
     const pair = selectedPair(units, selected);
     if (!pair) return null;
     const time = pair.timeMs + delta;
-    await commitSharedEdge(call, pair.leftId, pair.rightId, time);
+    await commitSharedEdge(call, pair.leftId, pair.rightId, time, scope);
     return { kind: 'shared', leftId: pair.leftId, rightId: pair.rightId, time };
   }
   const time = (selected.edge === 'start' ? unit.startMs : unit.endMs) + delta;
-  await commitUnitEdge(call, unit.id, selected.edge, time);
+  await commitUnitEdge(call, unit.id, selected.edge, time, scope);
   return { kind: 'edge', unitId: unit.id, edge: selected.edge, time };
 }
 
@@ -128,9 +142,16 @@ export async function applyNudge(input: {
   units: readonly TimedEdgeUnit[];
   selected: EdgeSelection;
   delta: number;
+  scope?: ViewScopeWrite;
 }): Promise<{ failed: false } | { failed: true; error: unknown; time: number } | null> {
   try {
-    const moved = await nudgeSelection(input.call, input.units, input.selected, input.delta);
+    const moved = await nudgeSelection(
+      input.call,
+      input.units,
+      input.selected,
+      input.delta,
+      input.scope ?? {},
+    );
     if (!moved) return null;
     return { failed: false };
   } catch (error) {
@@ -184,13 +205,14 @@ export async function rebaseTimeDraft(input: {
   unit: TimedEdgeUnit;
   edge: TimeEdge;
   raw: string;
+  scope?: ViewScopeWrite;
 }): Promise<{ committed: true } | { committed: false; error: unknown; time: number }> {
   const baseMs = input.edge === 'start' ? input.unit.startMs : input.unit.endMs;
   const parsed = parseTimecode(input.raw);
   let error: unknown = new Error('time draft is unfinished');
   if (parsed !== null) {
     try {
-      await commitUnitEdge(input.call, input.unit.id, input.edge, parsed);
+      await commitUnitEdge(input.call, input.unit.id, input.edge, parsed, input.scope ?? {});
       return { committed: true };
     } catch (caught) {
       error = caught;
@@ -213,6 +235,7 @@ export async function flushTypedEdge(input: {
   edge: TimeEdge;
   raw: string;
   onDraft: () => void;
+  scope?: ViewScopeWrite;
 }): Promise<'draft' | 'official' | 'commit'> {
   const baseMs = input.edge === 'start' ? input.unit.startMs : input.unit.endMs;
   if (input.raw === formatPlaybackTime(baseMs / 1000)) {
@@ -231,6 +254,6 @@ export async function flushTypedEdge(input: {
     input.onDraft();
     return 'draft';
   }
-  await commitUnitEdge(input.call, input.unit.id, input.edge, parsed);
+  await commitUnitEdge(input.call, input.unit.id, input.edge, parsed, input.scope ?? {});
   return 'commit';
 }

@@ -1,4 +1,7 @@
-import { t, type Locale } from '../i18n';
+import { t, tf, type Locale } from '../i18n';
+import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
+import { DesktopTranscriptionCertaintyMenu } from './DesktopTranscriptionCertaintyMenu';
+import { sharedSelfCertainty } from './desktopTranscriptionMetadata';
 
 export interface WaveMenuState {
   x: number;
@@ -35,6 +38,8 @@ export function DesktopTranscriptionWaveMenu(props: {
   locale: Locale;
   menu: WaveMenuState;
   units: readonly WaveMenuUnit[];
+  /** Real delete target count after context-menu keep/replace. */
+  selectedCount?: number;
   onClose: () => void;
   onPlayFrom: (time: number) => void;
   onToggleSkip: (unitId: string) => void;
@@ -42,6 +47,13 @@ export function DesktopTranscriptionWaveMenu(props: {
   onSplit: (unitId: string, time: number) => void;
   canMerge: (unitId: string) => boolean;
   onMerge: (unitId: string) => void;
+  onOpenNotes?: () => void;
+  certainty?: {
+    open: boolean;
+    current: ReturnType<typeof sharedSelfCertainty>;
+    onToggle: () => void;
+    onPick: (value: UnitSelfCertainty | null) => void;
+  };
 }) {
   const { locale, menu } = props;
   const unitId = menu.unitId;
@@ -100,8 +112,33 @@ export function DesktopTranscriptionWaveMenu(props: {
               {t(locale, 'app.desktopTranscription.mergeNext')}
               <span className="desktop-tx-menu__key">⌘M</span>
             </button>
+            {props.onOpenNotes === undefined ? null : (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => run(() => props.onOpenNotes?.())}
+              >
+                {(props.selectedCount ?? 1) > 1
+                  ? t(locale, 'app.desktopTranscription.addNoteMenu')
+                  : t(locale, 'app.desktopTranscription.notesMenu')}
+              </button>
+            )}
+            {props.certainty === undefined ? null : (
+              <DesktopTranscriptionCertaintyMenu
+                locale={locale}
+                open={props.certainty.open}
+                selectedCount={props.selectedCount ?? 1}
+                current={props.certainty.current}
+                onToggle={props.certainty.onToggle}
+                onPick={(value) => run(() => props.certainty?.onPick(value))}
+              />
+            )}
             <button type="button" role="menuitem" onClick={() => run(() => props.onDelete(unitId))}>
-              {t(locale, 'app.desktopTranscription.deleteSegment')}
+              {(props.selectedCount ?? 1) > 1
+                ? tf(locale, 'app.desktopTranscription.deleteConfirmMany', {
+                    count: props.selectedCount ?? 1,
+                  })
+                : t(locale, 'app.desktopTranscription.deleteSegment')}
             </button>
           </>
         )}

@@ -172,7 +172,7 @@ ADR-0132 已经决定：时间 unit 持有时间和说话人；关联文本用 `
 
 拆分只按本次的 `textLayerId` 和 `cutIndex` 切那一层的字符串。同一 unit 上其他 `layer_id` 的 `unit_texts` 整行改挂到左半 unit，不按那些层的正文猜切点（`src/db/desktop/unitSplit.ts` 第 406–418 行）。测试已经固定：在翻译层上切开时，宿主转写「原文句子」整段留在左 unit，翻译按该层的 `cutIndex` 切开（`src/db/desktop/unitSplit.test.ts` 第 86–124 行）。右半若没有被切开的正文，就不插入空行。
 
-合并按每个 `(layer_id, role)` 各自拼接，分隔符默认空格（`src/db/desktop/unitMerge.ts` 第 534–578、890–893 行）。两边都有正文时，该行 `provenance_json` 清空。编辑器覆盖只作用于传入的那一层。它不会用 IPA 的切分去改拼音，但会用同一个分隔符把该层左右两段接起来。
+合并按每个 `(layer_id, role)` 各自拼接，分隔符默认空格（`src/db/desktop/unitMergeWrite.ts` 的 `textPlan`；公开入口仍经 `unitMerge.ts` 再导出）。两边都有正文时，该行 `provenance_json` 清空。编辑器覆盖只作用于传入的那一层。它不会用 IPA 的切分去改拼音，但会用同一个分隔符把该层左右两段接起来。
 
 软删除会把该层和 `descendantIds` 一起标删除。后代包括 `parent_id` 子层，也包括 `layer_links.host_layer_id` 指向该层的层（`src/db/desktop/layerStructure.ts` 第 201–203、631–658 行）。因此今天删除 IPA 锚层，会把挂在它上面的符号关联层一并标删除。软删除不删 `unit_texts` 行；`listUnits` 要求文本层 `deleted_at IS NULL`，所以这些正文从列表消失。清除走外键，会删掉这些层上的正文行（同文件第 570 行起的 `purgeLayers`）。只删一个没有后代的正字法层，软删除只标该层，宿主 unit 还在。
 
@@ -192,6 +192,6 @@ ADR-0132 已经决定：时间 unit 持有时间和说话人；关联文本用 `
 
 方向仍是 adapt。这三处只补操作合同，不新增层类型，不复制 unit。合同已定，现有写入还没跟上。2026-11-24 对照代码核对过，没有跑测试。
 
-1. **合并草稿：已定。** 确认框把未保存草稿单独标出。用户确认后才拼进该层正式正文并删除草稿；不确认则正式正文和草稿都不变。见规则 8。现有 `textPlan` 仍会优先用 `draft.raw_input` 直接写成 `unit_texts`（`src/db/desktop/unitMerge.ts` 第 552–578、243 行），再由 `deleteUnitTree` 删掉旧语段上的草稿（第 274–275 行）。实施时改掉这条隐式提交。验收要有一层正式正文和草稿不同的合并，关掉再打开，两套都读回。
+1. **合并草稿：已定。** 确认框把未保存草稿单独标出。用户确认后才拼进该层正式正文并删除草稿；不确认则正式正文和草稿都不变。见规则 8。现有 `textPlan` 仍会优先用 `draft.raw_input` 直接写成 `unit_texts`（`src/db/desktop/unitMergeWrite.ts` 的 `textPlan`／`mergeUnits`），再由 `deleteUnitTree` 删掉旧语段上的草稿。实施时改掉这条隐式提交。验收要有一层正式正文和草稿不同的合并，关掉再打开，两套都读回。
 2. **删除一格：已定。** 正字法层和翻译层的删除只清空本层这一格的正式正文和草稿。删除共享语段只在时间锚点层，见规则 12。现有 `removeUnit` 仍只收 `unitId` 并 `deleteUnitTree`（`src/db/desktop/unitEdges.ts` 第 345–350 行），从正字法层调用会删掉整段。实施时这条入口不能再接到 `removeUnit`。验收从正字法层发起清空，检查其他层还在，关掉再打开，撤销后只恢复这一格。锚点层的删除仍删整段，撤销恢复整段。
 3. **拆分数据来源：已定。** 预览和切点都针对正式正文。未保存草稿只展示，确认后整段留在左段，不提交。见规则 4。现有 `moveDrafts` 只消费当前层草稿，其他层草稿整段改挂左段（`src/db/desktop/unitSplit.ts` 第 303–312、470–486 行）。实施时其他层的正式正文按确认的切点切，草稿不要跟着切，也不要写成正式正文。验收至少有一层同时有正式正文和不同草稿，覆盖拆分、重开、保存和撤销。

@@ -3,8 +3,7 @@ import {
   useMemo,
   useRef,
   useState,
-  type ChangeEvent,
-  type CSSProperties,
+  type ComponentProps,
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -33,6 +32,9 @@ import { getTranscriptionPlaybackClockSnapshot } from '../hooks/transcription/tr
 import { useToast } from '../contexts/ToastContext';
 import { DesktopTranscriptionEdgeChrome } from './DesktopTranscriptionEdgeChrome';
 import { segmentMenuActions } from './desktopTranscriptionSegmentMenu';
+import { handleMainUnitClick, menuDeleteCount } from './desktopTranscriptionLaneSelect';
+import { selectionBadgeLabel } from './desktopTranscriptionSelectionBadge';
+import { featureFlags } from '../ai/config/featureFlags';
 import {
   desktopSegmentFrame,
   edgeNotice,
@@ -42,13 +44,13 @@ import {
   seamSeconds,
 } from './desktopTranscriptionEdgeView';
 import { useDesktopTranscriptionEdgeController } from './useDesktopTranscriptionEdgeController';
+import type { EdgeControllerInput } from './desktopTranscriptionEdgeActions';
 import type { DesktopPointTrackApi } from './useDesktopTranscriptionPointController';
 import { edgeFocusKind } from './desktopTranscriptionEdge';
 import { NO_CONFLICTS } from './desktopTranscriptionEdgeSession';
 import type { RouteLayer, RouteLink } from './desktopTranscriptionCreateRoute';
 import { textKey } from './desktopTranscriptionTextKey';
 import {
-  annotationStyle,
   DesktopTranscriptionJoins,
   DesktopTranscriptionLayerRows,
   laneHeightStyle,
@@ -58,6 +60,13 @@ import {
   type LayerCardRef,
   type LayerRowLayer,
 } from './DesktopTranscriptionLayerRows';
+import {
+  editBody,
+  ignoreAnnotationEvent,
+  mainAnnotationStyle,
+  subdivisionRow,
+  timedOf,
+} from './desktopTranscriptionLaneHelpers';
 import {
   formatPlaybackTime,
   type DesktopPlaybackUnit,
@@ -104,6 +113,8 @@ export function DesktopTranscriptionLane(props: {
   onCommitBody: () => void;
   onSelectUnit: (unit: DesktopPlaybackUnit) => void;
   onSelectUnits: (units: readonly DesktopPlaybackUnit[]) => void;
+  onClickUnit?: (unit: DesktopPlaybackUnit, mods: { toggle: boolean; range: boolean }) => void;
+  onPrepareContextMenu?: (unitId: string) => void;
   onClearSelection: () => void;
   onSeek: (seconds: number) => void;
   reload: () => Promise<unknown>;
@@ -142,6 +153,16 @@ export function DesktopTranscriptionLane(props: {
   onCreateTranscription: () => void;
   lanes?: SpeakerLaneChrome;
   pointsApi?: DesktopPointTrackApi;
+  /** Speakers filter is active (6b); badge adds the「筛选中」prefix. */
+  filteringSelection?: boolean;
+  writeScope?: EdgeControllerInput['writeScope'];
+  scopeUnits?: EdgeControllerInput['scopeUnits'];
+  affectedVisible?: EdgeControllerInput['affectedVisible'];
+  writeBlockedMessage?: string;
+  metadata?: (
+    textLayerId: string,
+    unitIds: readonly string[],
+  ) => ComponentProps<typeof DesktopTranscriptionEdgeChrome>['metadata'];
 }) {
   const toast = useToast();
   const [editing, setEditing] = useState<LayerCardRef | null>(null);
@@ -158,11 +179,7 @@ export function DesktopTranscriptionLane(props: {
   }, [selectedId]);
   const childRow = childId === null ? undefined : subdivisionRow(props.layers, childId);
   const child = childRow?.units.find((unit) => unit.id === childId);
-  const timedUnits = (props.sourceUnits ?? []).flatMap((unit) =>
-    unit.startMs === null || unit.endMs === null
-      ? []
-      : [{ id: unit.id, startMs: unit.startMs, endMs: unit.endMs }],
-  );
+  const timedUnits = (props.sourceUnits ?? []).flatMap(timedOf);
   const edges = useDesktopTranscriptionEdgeController({
     sessionId: props.sessionId,
     manuscriptId: props.manuscriptId,
@@ -207,7 +224,17 @@ export function DesktopTranscriptionLane(props: {
       (props.layers ?? []).some((layer) =>
         layer.units.some((unit) => unit.id === unitId && unit.skipProcessing === true),
       ),
+    ...(props.writeScope === undefined ? {} : { writeScope: props.writeScope }),
+    ...(props.scopeUnits === undefined ? {} : { scopeUnits: props.scopeUnits }),
+    ...(props.affectedVisible === undefined ? {} : { affectedVisible: props.affectedVisible }),
+    ...(props.writeBlockedMessage === undefined
+      ? {}
+      : { writeBlockedMessage: props.writeBlockedMessage }),
   });
+  const menuMetadata = props.metadata?.(
+    edges.ui.menu?.layerId ?? props.layerId ?? '',
+    props.selectedUnitIds,
+  );
   const keyOf = (unitId: string) =>
     props.layerId === null ? unitId : textKey(props.layerId, unitId);
   const mainCard = (unitId: string) => ({ layerId: props.layerId ?? '', unitId });
@@ -398,13 +425,7 @@ export function DesktopTranscriptionLane(props: {
       : layerCommandItems({
           locale: props.locale,
           layerId,
-          layers: (props.layers ?? []).map((layer) => ({
-            id: layer.id,
-            name: layer.name,
-            contentType: layer.contentType,
-            modality: layer.modality,
-            tierType: layer.tierType,
-          })),
+          layers: props.layers ?? [],
           links: props.links ?? [],
           currentId: props.layerId,
           ...(props.layerDrag === undefined ? {} : { drag: props.layerDrag }),
@@ -492,6 +513,27 @@ export function DesktopTranscriptionLane(props: {
             {...laneLabelProps(props.lanes, row.layerId)}
           />
           <div ref={props.tierRef} className="desktop-tx-lane__body">
+            {(() => {
+              if (!featureFlags.desktopTranscriptionBatchEditingEnabled) return null;
+              const label = selectionBadgeLabel(
+                props.selectedUnitIds.length,
+                props.filteringSelection === true,
+                {
+                  selected: (count) =>
+                    tf(props.locale, 'app.desktopTranscription.selectionBadgeSelected', { count }),
+                  filtering: t(props.locale, 'app.desktopTranscription.selectionBadgeFiltering'),
+                },
+              );
+              return label === null ? null : (
+                <div
+                  className="desktop-tx-selection-badge"
+                  role="status"
+                  data-testid="desktop-tx-selection-badge"
+                >
+                  {label}
+                </div>
+              );
+            })()}
             <div
               className="desktop-tx-lane__track"
               {...(props.layerId === null ? {} : { 'data-layer-id': props.layerId })}
@@ -499,6 +541,7 @@ export function DesktopTranscriptionLane(props: {
                 props.zoomPxPerSec > 0 ? { width: props.duration * props.zoomPxPerSec } : undefined
               }
               onPointerDown={(event) => {
+                if (!props.waveCreateEnabled) return;
                 setCreateLayerId(null);
                 setWaveDrag(false);
                 edges.beginCreate(event);
@@ -539,22 +582,27 @@ export function DesktopTranscriptionLane(props: {
                     {...(props.layerId === null
                       ? {}
                       : speakerPaint(props.lanes, props.layerId, unit.id))}
-                    onClick={() => {
-                      if (selected && focus === null) {
-                        openEdit(mainCard(unit.id), unit.text);
-                        return;
-                      }
-                      if (selected) {
-                        props.onLeave(() => {
+                    onClick={(event) =>
+                      handleMainUnitClick({
+                        event,
+                        unit,
+                        selected,
+                        focused: focus !== null,
+                        onSelectUnit: props.onSelectUnit,
+                        onLeave: props.onLeave,
+                        openEdit: () => openEdit(mainCard(unit.id), unit.text),
+                        clearFocus: () => {
                           setFocus(null);
                           setEditing(null);
                           setChildId(null);
-                        });
-                        return;
-                      }
-                      props.onSelectUnit(unit);
+                        },
+                        ...(props.onClickUnit ? { onClickUnit: props.onClickUnit } : {}),
+                      })
+                    }
+                    onContextMenu={(event) => {
+                      props.onPrepareContextMenu?.(unit.id);
+                      edges.openMenu(unit.id, event);
                     }}
-                    onContextMenu={(event) => edges.openMenu(unit.id, event)}
                     onDoubleClick={ignoreAnnotationEvent}
                     onResizeStartPointerDown={(event) => edges.beginDrag(unit.id, 'start', event)}
                     onResizeEndPointerDown={(event) => edges.beginDrag(unit.id, 'end', event)}
@@ -650,6 +698,7 @@ export function DesktopTranscriptionLane(props: {
           zoomPxPerSec={props.zoomPxPerSec}
           scrollLeftPx={props.scrollLeftPx}
           focus={focus}
+          selectedUnitIds={props.selectedUnitIds}
           editing={editing}
           createLayerId={createLayerId}
           createFrame={previewFrame}
@@ -657,11 +706,13 @@ export function DesktopTranscriptionLane(props: {
           preview={edges.ui.preview}
           onRowMenu={(card, name, event) => {
             const linked = props.units.some((unit) => unit.id === card.unitId);
+            props.onPrepareContextMenu?.(card.unitId);
             edges.openMenu(card.unitId, event, card.layerId, name, !linked);
           }}
           onRowResize={(unitId, edge, event) => edges.beginDrag(unitId, edge, event)}
-          onPick={(card, unit) => {
-            if (sameCard(focus, card)) {
+          onPick={(card, unit, mods) => {
+            const batch = props.onClickUnit && mods && (mods.toggle || mods.range);
+            if (!batch && sameCard(focus, card)) {
               openEdit(card, unit.text);
               return;
             }
@@ -669,8 +720,11 @@ export function DesktopTranscriptionLane(props: {
             props.onLeave(() => {
               setFocus(card);
               setEditing(null);
-              setChildId(hit ? null : card.unitId);
-              if (hit && hit.id !== selectedId) props.onSelectUnit(hit);
+              if (batch && mods) props.onClickUnit?.(unit, mods);
+              else {
+                setChildId(hit ? null : card.unitId);
+                if (unit.id !== selectedId) props.onSelectUnit(hit ?? unit);
+              }
             });
           }}
           onEditBody={props.onEditBody}
@@ -682,6 +736,7 @@ export function DesktopTranscriptionLane(props: {
           {...(props.lanes === undefined ? {} : { lanes: props.lanes })}
           {...(props.pointsApi === undefined ? {} : { pointsApi: props.pointsApi })}
           onCreate={(event, layerId, units) => {
+            if (!props.waveCreateEnabled) return;
             setCreateLayerId(layerId);
             setWaveDrag(false);
             edges.beginCreate(event, { layerId, units });
@@ -733,58 +788,12 @@ export function DesktopTranscriptionLane(props: {
           const unitId = edges.ui.menu?.unitId;
           if (unitId) void edges.askDelete(unitId);
         }}
+        deleteCount={menuDeleteCount(edges.ui.menu?.unitId, props.selectedUnitIds)}
         {...segmentMenuActions(edges.ui.menu, edges.closeMenu, props)}
         onCancelDelete={edges.cancelDelete}
         onConfirmDelete={edges.confirmDelete}
+        {...(menuMetadata === undefined ? {} : { metadata: menuMetadata })}
       />
     </>
   );
-}
-
-function mainAnnotationStyle(
-  layers: readonly LayerRowLayer[] | undefined,
-  layerId: string | null,
-): CSSProperties | undefined {
-  const layer = layers?.find((item) => item.id === layerId);
-  return layer === undefined ? undefined : annotationStyle(layer);
-}
-
-function timedOf(unit: { id: string; startMs: number | null; endMs: number | null }) {
-  return unit.startMs === null || unit.endMs === null
-    ? []
-    : [{ id: unit.id, startMs: unit.startMs, endMs: unit.endMs }];
-}
-
-function ignoreAnnotationEvent() {
-  return undefined;
-}
-
-function editBody(
-  props: {
-    onEditBody: (unitId: string, text: string, savedText: string) => void;
-  },
-  key: string,
-  unit: DesktopPlaybackUnit,
-  event: ChangeEvent<HTMLInputElement>,
-) {
-  props.onEditBody(key, event.target.value, unit.text);
-}
-
-/** The non-linked row that holds `unitId`, with its units shaped for the edge controller. */
-function subdivisionRow(layers: readonly LayerRowLayer[] | undefined, unitId: string) {
-  const layer = layers?.find((item) => item.units.some((unit) => unit.id === unitId));
-  if (!layer) return undefined;
-  const units = layer.units.flatMap((unit) =>
-    unit.startMs === null || unit.endMs === null
-      ? []
-      : [
-          {
-            id: unit.id,
-            startTime: unit.startMs / 1000,
-            endTime: unit.endMs / 1000,
-            text: unit.text,
-          },
-        ],
-  );
-  return { units, timed: layer.units.flatMap(timedOf) };
 }

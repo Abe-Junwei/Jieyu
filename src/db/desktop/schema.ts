@@ -3,7 +3,7 @@
 export const DESKTOP_PROJECT_APPLICATION_ID = 0x4a59504a;
 
 /** SQLite header offset 60. ADR-0140 moved this to 35. A later table change needs a new decision and a new freeze record. */
-export const DESKTOP_PROJECT_USER_VERSION = 35;
+export const DESKTOP_PROJECT_USER_VERSION = 36;
 
 export const DESKTOP_PROJECT_SCHEMA_SQL = `
 CREATE TABLE project (
@@ -356,9 +356,6 @@ CREATE TABLE units (
   ),
   skip_processing INTEGER NOT NULL DEFAULT 0 CHECK (skip_processing IN (0, 1)),
   confidence REAL CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 1)),
-  self_certainty TEXT CHECK (
-    self_certainty IS NULL OR self_certainty IN ('not_understood', 'uncertain', 'certain')
-  ),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   analysis_graph_json TEXT CHECK (
@@ -536,6 +533,9 @@ CREATE TABLE unit_texts (
   layer_id TEXT NOT NULL REFERENCES layers(id),
   role TEXT NOT NULL,
   body TEXT NOT NULL,
+  self_certainty TEXT CHECK (
+    self_certainty IS NULL OR self_certainty IN ('not_understood', 'uncertain', 'certain')
+  ),
   provenance_json TEXT CHECK (
     provenance_json IS NULL OR (
       json_valid(provenance_json) AND json_type(provenance_json) = 'object'

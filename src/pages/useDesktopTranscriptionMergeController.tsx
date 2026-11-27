@@ -5,44 +5,23 @@ import {
   DesktopTranscriptionMergeDialog,
   type MergePreviewView,
 } from './DesktopTranscriptionMergeDialog';
-import { nextMergeId, timedUnits, type MergeSourceUnit } from './desktopTranscriptionMerge';
+import {
+  mergeFrozenText,
+  mergeTargetIds,
+  freezeMergeOffer,
+  sameMergeEditor,
+  sameMergePair,
+  sameMergeText,
+  type MergeFrozenText,
+  type MergeSourceUnit,
+} from './desktopTranscriptionMerge';
+import type { ViewScopeWrite } from '../app/desktopProjectReadPageAccess';
 import { createDesktopClient } from '../app/desktopProjectReadPageAccess';
-
-interface FrozenText {
-  keep: string;
-  remove: string;
-}
 
 interface Offer {
   preview: MergePreviewView;
-  frozen: FrozenText;
-}
-
-function frozenText(
-  textOf: (unitId: string) => string,
-  keepId: string,
-  removeId: string,
-): FrozenText {
-  return { keep: textOf(keepId), remove: textOf(removeId) };
-}
-
-function sameText(left: FrozenText, right: FrozenText): boolean {
-  return left.keep === right.keep && left.remove === right.remove;
-}
-
-function sameEditor(
-  now: {
-    sessionId: string | null;
-    textLayerId: string | null;
-    textOf: (unitId: string) => string;
-  },
-  sessionId: string,
-  textLayerId: string | null,
-  frozen: FrozenText,
-  preview: { keepId: string; removeId: string },
-): boolean {
-  const text = frozenText(now.textOf, preview.keepId, preview.removeId);
-  return now.sessionId === sessionId && now.textLayerId === textLayerId && sameText(text, frozen);
+  frozen: MergeFrozenText;
+  filterRevision: string;
 }
 
 export function useDesktopTranscriptionMergeController(input: {
@@ -50,12 +29,20 @@ export function useDesktopTranscriptionMergeController(input: {
   sessionId: string | null;
   units: readonly MergeSourceUnit[];
   selectedUnitId: string | null;
+  selectedUnitIds?: readonly string[];
   textLayerId: string | null;
   textOf: (unitId: string) => string;
   prepareText: () => Promise<boolean>;
   onCommitted?: () => void;
   desktopCall: ((sessionId: string, method: string, args: unknown) => Promise<unknown>) | undefined;
   reload: () => Promise<unknown>;
+  /** Set when a speakers filter would hide merge dependents (Pixso 124:1 toast). */
+  mergeBlockedByFilter?: boolean;
+  /** Local filter revision; confirm aborts when it drifts after preview. */
+  filterRevision?: string;
+  writeScope?: (affectedUnitIds: readonly string[]) => ViewScopeWrite;
+  /** Direct children of removeId (merge reparents them). */
+  childIdsOf?: (unitId: string) => readonly string[];
 }) {
   const { showToast } = useToast();
   const live = useRef(input);
@@ -66,9 +53,14 @@ export function useDesktopTranscriptionMergeController(input: {
 
   async function ask(unitId: string) {
     const current = live.current;
-    const next = nextMergeId(timedUnits(current.units), unitId);
+    if (current.mergeBlockedByFilter === true) {
+      showToast(t(current.locale, 'app.desktopTranscription.mergeBlockedByFilter'), 'error');
+      return;
+    }
+    const ids = mergeTargetIds(current.units, current.selectedUnitIds, unitId);
+    const next = ids?.[ids.length - 1];
     const desktopCall = current.desktopCall;
-    if (next === null || current.sessionId === null || !desktopCall) return;
+    if (next === undefined || current.sessionId === null || !desktopCall) return;
     try {
       // Finish blur/idle saves before freezing the database baseline.
       if (!(await current.prepareText())) throw new Error('text save incomplete');
@@ -78,15 +70,13 @@ export function useDesktopTranscriptionMergeController(input: {
       )
         return;
       const preview = (await desktopCall(current.sessionId, 'units.mergePreview', {
-        keepId: unitId,
+        keepId: ids![0],
         removeId: next,
+        ...(ids!.length > 2 ? { unitIds: ids } : {}),
       })) as MergePreviewView;
       const now = live.current;
       if (now.sessionId === null || now.textLayerId !== current.textLayerId) return;
-      setOffer({
-        preview,
-        frozen: frozenText(now.textOf, preview.keepId, preview.removeId),
-      });
+      setOffer(freezeMergeOffer(preview, now));
     } catch {
       showToast(t(current.locale, 'app.desktopTranscription.mergeFailed'), 'error');
     }
@@ -103,39 +93,38 @@ export function useDesktopTranscriptionMergeController(input: {
     const open = offer;
     const desktopCall = current.desktopCall;
     if (open === null || current.sessionId === null || !desktopCall) return;
-    const seen = frozenText(current.textOf, open.preview.keepId, open.preview.removeId);
-    if (!sameText(seen, open.frozen)) return;
+    const seen = freezeMergeOffer(open.preview, current).frozen;
+    if (!sameMergeText(seen, open.frozen)) return;
     const sessionId = current.sessionId;
     const layerId = current.textLayerId;
     const discard = [...discardAudioIds].sort();
     const mine = flight.current;
-    const pair = { keepId: open.preview.keepId, removeId: open.preview.removeId };
+    const pair = {
+      keepId: open.preview.keepId,
+      removeId: open.preview.removeId,
+      ...(open.preview.unitIds && open.preview.unitIds.length > 2
+        ? { unitIds: open.preview.unitIds }
+        : {}),
+    };
     const showStale = (preview: MergePreviewView) => {
       const now = live.current;
-      setOffer({
-        preview,
-        frozen: frozenText(now.textOf, preview.keepId, preview.removeId),
-      });
+      setOffer(freezeMergeOffer(preview, now));
       showToast(t(now.locale, 'app.desktopTranscription.mergeStale'), 'error');
     };
     const hold = async (): Promise<boolean> => {
       const now = live.current;
-      if (sameEditor(now, sessionId, layerId, open.frozen, open.preview)) return false;
+      if (sameMergeEditor(now, sessionId, layerId, open.frozen, open.preview)) return false;
       const call = now.desktopCall;
       if (now.sessionId === null || call === undefined || mine !== flight.current) return true;
       const preview = (await call(now.sessionId, 'units.mergePreview', pair)) as MergePreviewView;
       if (mine !== flight.current) return true;
-      const fresh = live.current;
-      setOffer({
-        preview,
-        frozen: frozenText(fresh.textOf, preview.keepId, preview.removeId),
-      });
+      setOffer(freezeMergeOffer(preview, live.current));
       return true;
     };
     try {
       const bare = (await desktopCall(sessionId, 'units.mergePreview', pair)) as MergePreviewView;
       if (mine !== flight.current || (await hold())) return;
-      if (bare.baseline !== open.preview.baseline || !samePair(open.preview, bare)) {
+      if (bare.baseline !== open.preview.baseline || !sameMergePair(open.preview, bare)) {
         showStale(bare);
         return;
       }
@@ -146,7 +135,7 @@ export function useDesktopTranscriptionMergeController(input: {
           discardAudioIds: discard,
         })) as MergePreviewView;
         if (mine !== flight.current || (await hold())) return;
-        if (!samePair(bare, fresh)) {
+        if (!sameMergePair(bare, fresh)) {
           showStale(bare);
           return;
         }
@@ -157,15 +146,28 @@ export function useDesktopTranscriptionMergeController(input: {
       if (
         now.sessionId === null ||
         now.desktopCall === undefined ||
-        !sameEditor(now, sessionId, layerId, open.frozen, open.preview)
+        !sameMergeEditor(now, sessionId, layerId, open.frozen, open.preview)
       ) {
         return;
       }
-      const text = frozenText(now.textOf, open.preview.keepId, open.preview.removeId);
+      if ((now.filterRevision ?? '') !== open.filterRevision) {
+        showToast(t(now.locale, 'app.desktopTranscription.mergeStale'), 'error');
+        setOffer(null);
+        return;
+      }
+      const text = freezeMergeOffer(open.preview, now).frozen;
+      const affected = [
+        ...(open.preview.unitIds ?? [open.preview.keepId, open.preview.removeId]),
+        ...(open.preview.unitIds ?? [open.preview.keepId, open.preview.removeId]).flatMap(
+          (id) => now.childIdsOf?.(id) ?? [],
+        ),
+      ];
+      const scope = now.writeScope?.(affected) ?? {};
       await createDesktopClient({ desktopCall: now.desktopCall }).mergeUnits(now.sessionId, {
         ...pair,
         separator: ' ',
         baseline,
+        ...scope,
         ...(textOverrides.length === 0 ? {} : { textOverrides }),
         ...(discard.length === 0 ? {} : { discardAudioIds: discard }),
         ...(now.textLayerId === null
@@ -213,8 +215,15 @@ export function useDesktopTranscriptionMergeController(input: {
   }, [offer]);
 
   const seen =
-    offer === null ? null : frozenText(input.textOf, offer.preview.keepId, offer.preview.removeId);
-  const stale = offer !== null && seen !== null && !sameText(seen, offer.frozen);
+    offer === null
+      ? null
+      : mergeFrozenText(
+          input.textOf,
+          offer.preview.keepId,
+          offer.preview.removeId,
+          offer.preview.unitIds,
+        );
+  const stale = offer !== null && seen !== null && !sameMergeText(seen, offer.frozen);
   const seenKeep = seen?.keep;
   const seenRemove = seen?.remove;
   useEffect(() => {
@@ -223,20 +232,32 @@ export function useDesktopTranscriptionMergeController(input: {
     const desktopCall = current.desktopCall;
     if (current.sessionId === null || desktopCall === undefined) return;
     let dead = false;
-    const next = { keep: seenKeep, remove: seenRemove };
+    const next = mergeFrozenText(
+      current.textOf,
+      offer.preview.keepId,
+      offer.preview.removeId,
+      offer.preview.unitIds,
+    );
     void current
       .prepareText()
       .then((saved) => {
         if (!saved) throw new Error('text save incomplete');
         if (dead) return null;
         return desktopCall(current.sessionId!, 'units.mergePreview', {
+          ...(offer.preview.unitIds && offer.preview.unitIds.length > 2
+            ? { unitIds: offer.preview.unitIds }
+            : {}),
           keepId: offer.preview.keepId,
           removeId: offer.preview.removeId,
         });
       })
       .then((value) => {
         if (dead) return;
-        setOffer({ preview: value as MergePreviewView, frozen: next });
+        setOffer({
+          preview: value as MergePreviewView,
+          frozen: next,
+          filterRevision: live.current.filterRevision ?? '',
+        });
       })
       .catch(() => {
         if (!dead) {
@@ -267,19 +288,9 @@ export function useDesktopTranscriptionMergeController(input: {
 
   return {
     dialog,
-    canMerge: (unitId: string) => nextMergeId(timedUnits(live.current.units), unitId) !== null,
+    canMerge: (unitId: string) =>
+      live.current.mergeBlockedByFilter !== true &&
+      mergeTargetIds(live.current.units, live.current.selectedUnitIds, unitId) !== null,
     ask,
   };
-}
-
-function samePair(opened: MergePreviewView, fresh: MergePreviewView): boolean {
-  const ids = (preview: MergePreviewView) =>
-    [...preview.earlier, ...preview.later].map((clip) => clip.id).join('\n');
-  return (
-    opened.keepId === fresh.keepId &&
-    opened.removeId === fresh.removeId &&
-    opened.gapMs === fresh.gapMs &&
-    opened.noteCount === fresh.noteCount &&
-    ids(opened) === ids(fresh)
-  );
 }

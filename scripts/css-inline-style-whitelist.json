@@ -226,17 +226,25 @@
     },
     {
       "file": "src/pages/DesktopTranscriptionWorkspacePage.tsx",
-      "reason": "Volume fill and waveform band heights are runtime values.",
+      "reason": "Waveform band heights are runtime values.",
       "reviewer": "Cursor + junwei",
-      "reviewedAt": "2026-11-21",
+      "reviewedAt": "2026-11-26",
+      "snippets": [
+        {
+          "anchor": "'--desktop-wave-primary'",
+          "reviewedSha256": "db366265c99aa93248b4ed55d29f573da1b8e53c49b16b91c24541b5b197673e"
+        }
+      ]
+    },
+    {
+      "file": "src/pages/DesktopTranscriptionPlaybackBar.tsx",
+      "reason": "Volume fill is a runtime CSS custom property.",
+      "reviewer": "Cursor + junwei",
+      "reviewedAt": "2026-11-26",
       "snippets": [
         {
           "anchor": "'--volume-fill'",
           "reviewedSha256": "874807b3c5082f2997f2c890053e6e8e6bd3ebcf7900bd53c22ec05f6dc90536"
-        },
-        {
-          "anchor": "'--desktop-wave-primary'",
-          "reviewedSha256": "db366265c99aa93248b4ed55d29f573da1b8e53c49b16b91c24541b5b197673e"
         }
       ]
     },

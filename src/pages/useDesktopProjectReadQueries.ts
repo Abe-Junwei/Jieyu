@@ -1,3 +1,4 @@
+import { noteBodyText } from './desktopTranscriptionMetadata';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -134,6 +135,9 @@ export function useDesktopProjectReadQueries(
         { queryKey: desktopQueryKeys.unitNotes(seen, manuscriptId), type: 'active' },
         { throwOnError: true },
       );
+      return (
+        queryClient.getQueryData<UnitNote[]>(desktopQueryKeys.unitNotes(seen, manuscriptId)) ?? []
+      );
     },
     dropSession: (old: string | null) => {
       setPicked(null);
@@ -146,11 +150,15 @@ export interface UnitNote {
   id: string;
   unitId: string | null;
   text: string;
+  content?: Record<string, string>;
   category: ContentNoteCategory | null;
   view: 'timeline' | 'waveform' | null;
+  anchorKind?: 'unit' | 'unit_text';
+  layerId?: string | null;
+  unitTextId?: string | null;
 }
 
-const SHOWN_NOTE_KINDS = ['unit'] as const;
+const SHOWN_NOTE_KINDS = ['unit', 'unit_text'] as const;
 
 async function loadShownNotes(
   host: DesktopReadHost,
@@ -167,7 +175,11 @@ async function loadShownNotes(
     .map((row) => ({
       id: row.id,
       unitId: row.unitId,
-      text: row.content.default ?? '',
+      anchorKind: row.anchorKind as 'unit' | 'unit_text',
+      layerId: row.layerId,
+      unitTextId: row.unitTextId,
+      text: noteBodyText(row.content),
+      content: row.content,
       category: row.category,
       view: row.view,
     }));

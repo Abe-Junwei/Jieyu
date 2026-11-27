@@ -19,6 +19,7 @@ export interface SpeakerLaneCard {
 }
 
 export interface SpeakerLaneChrome {
+  speakers: readonly { id: string; name: string }[];
   layoutOf: (layerId: string) => SpeakerLaneLayout | undefined;
   modeOf: (layerId: string) => SpeakerLaneMode;
   nameOf: (speakerId: string | null) => string;
